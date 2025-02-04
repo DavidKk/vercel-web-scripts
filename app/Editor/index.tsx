@@ -96,8 +96,8 @@ export default function Editor(props: EditorProps) {
   return (
     <div className="w-screen h-screen relative">
       <div ref={editorRef} className="w-full h-full"></div>
-      <button disabled={loading} onClick={save} className="fixed bottom-10 right-2 px-6 py-4 bg-teal-400 text-white rounded-md shadow-lg disable:opacity-100">
-        {loading ? <Spinner size={16} /> : <CloudArrowUpIcon />}
+      <button disabled={loading} onClick={save} className="fixed bottom-10 right-2 px-6 py-4 bg-teal-400 text-white rounded-md shadow-lg disable:opacity-100 flex flex-col items-center">
+      <span className="w-8 h-8 flex items-center justify-center">{loading ? <Spinner /> : <CloudArrowUpIcon />}</span>
         <span>Save</span>
       </button>
     </div>
