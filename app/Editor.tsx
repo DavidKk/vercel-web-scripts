@@ -39,7 +39,7 @@ export default function Editor(props: EditorProps) {
       const needUpdateFiles = Array.from<{ file: string; content: string | null }>(
         (function* () {
           for (const [file, content] of Object.entries(snapshot)) {
-            if (file === PACKAGE_FILE) {
+            if (file === PACKAGE_FILE || file === ENTRY_SCRIPT_FILE) {
               continue
             }
 

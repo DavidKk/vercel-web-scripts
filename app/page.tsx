@@ -1,5 +1,5 @@
 import { fetchFiles } from '@/app/api/scripts/actions'
-import Editor from '@/components/Editor'
+import Editor from './Editor'
 
 export default async function Home() {
   const files = await fetchFiles()

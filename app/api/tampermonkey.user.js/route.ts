@@ -1,15 +1,12 @@
-'use server'
-
-import { withAuthAction } from '@/initializer/wrapper'
+import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
-import { clearMeta, extractMeta } from '@/services/tampermonkey'
-import { matchUrl } from '@/utils/url'
+import { createUserScript, extractMeta } from '@/services/tampermonkey'
 import { EXCLUDED_FILES } from '@/constants/file'
 
-export const readScript = withAuthAction(async (url: string) => {
+export const GET = plainText(async (req) => {
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
-  const files = Array.from(
+  const files = Object.fromEntries(
     (function* () {
       for (const [file, { content }] of Object.entries(gist.files)) {
         if (EXCLUDED_FILES.includes(file)) {
@@ -21,14 +18,12 @@ export const readScript = withAuthAction(async (url: string) => {
           continue
         }
 
-        const match = Array.isArray(meta.match) ? meta.match : [meta.match]
-        if (match.some((m) => matchUrl(m, url))) {
-          yield content
-        }
+        yield [file, content]
       }
     })()
   )
 
-  const content = files.join('\n')
-  return clearMeta(content)
+  const scriptUrl = req.url
+  const version = `0.${(new Date(gist.updated_at).getTime() / 1e3).toString()}`
+  return createUserScript({ scriptUrl, version, files })
 })
