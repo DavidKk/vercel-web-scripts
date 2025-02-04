@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequest } from 'ahooks'
 import type { AlertImperativeHandler } from '@/components/Alert'
@@ -16,8 +16,8 @@ export default function LoginForm(props: LoginFormProps) {
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [complete, setComplete] = useState(false)
   const [access2FAToken, setAccess2FAToken] = useState('')
+  const [complete, setComplete] = useState(false)
   const alertRef = useRef<AlertImperativeHandler>(null)
   const router = useRouter()
 
@@ -54,6 +54,12 @@ export default function LoginForm(props: LoginFormProps) {
     event.preventDefault()
     submit()
   }
+
+  useEffect(() => {
+    if (username && password && access2FAToken) {
+      submit()
+    }
+  }, [username, password, access2FAToken])
 
   return (
     <div className="flex justify-center pt-[20vh] h-screen bg-gray-100 pt-12">
