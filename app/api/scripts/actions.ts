@@ -1,7 +1,8 @@
 'use server'
 
 import { withAuthAction } from '@/initializer/wrapper'
-import { fetchGist, FilesInWriteGistFiles, getGistInfo, writeGistFiles } from '@/services/gist'
+import type { FilesInWriteGistFiles } from '@/services/gist'
+import { fetchGist, getGistInfo, writeGistFiles } from '@/services/gist'
 
 export const fetchFiles = withAuthAction(async () => {
   const { gistId, gistToken } = getGistInfo()

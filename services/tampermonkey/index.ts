@@ -1,4 +1,4 @@
-import { EXCLUDED_FILES } from "@/constants/file"
+import { EXCLUDED_FILES } from '@/constants/file'
 
 const OPEN_TAG = `// ==UserScript==`
 const CLOSE_TAG = `// ==/UserScript==`
@@ -98,20 +98,22 @@ export interface CreateScriptParams extends CreateBannerParams {
 }
 
 export function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
-  const parts = Array.from(function*(){
-    for (const [file, content] of Object.entries(files)) {
-      if (EXCLUDED_FILES.includes(file)) {
-        continue
-      }
+  const parts = Array.from(
+    (function* () {
+      for (const [file, content] of Object.entries(files)) {
+        if (EXCLUDED_FILES.includes(file)) {
+          continue
+        }
 
-      const meta = extractMeta(content)
-      if (!(meta.match && meta.source)) {
-        continue
+        const meta = extractMeta(content)
+        if (!(meta.match && meta.source)) {
+          continue
+        }
+
+        yield `if(${JSON.stringify(meta.match)}.some((m) => matchUrl(m, window.location.href)))${content.trim()}`
       }
-  
-      yield `if(${JSON.stringify(meta.match)}.some((m) => matchUrl(m, window.location.href)))${content.trim()}`
-    }
-  }())
+    })()
+  )
 
   const banner = createBanner({ scriptUrl, version })
   const content = parts.join('\n')

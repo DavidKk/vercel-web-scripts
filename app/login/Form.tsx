@@ -96,8 +96,23 @@ export default function LoginForm(props: LoginFormProps) {
           />
         )}
 
-        <button disabled={submitting || complete} type="submit" className="relative w-full max-w-lg bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed">
-          {submitting ? <div><span className="w-6 h-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"><Spinner /></span>&nbsp;</div> : complete ? <span>jumpping to dashboard, please wait...</span> : <span>Login</span>}
+        <button
+          disabled={submitting || complete}
+          type="submit"
+          className="relative w-full max-w-lg bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting ? (
+            <div>
+              <span className="w-6 h-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Spinner />
+              </span>
+              &nbsp;
+            </div>
+          ) : complete ? (
+            <span>jumpping to dashboard, please wait...</span>
+          ) : (
+            <span>Login</span>
+          )}
         </button>
 
         <Alert ref={alertRef} />
