@@ -25,5 +25,5 @@ export const GET = plainText(async (req) => {
 
   const scriptUrl = req.url
   const version = `0.${(new Date(gist.updated_at).getTime() / 1e3).toString()}`
-  return createUserScript({ scriptUrl, version, files })
+  return createUserScript({ scriptUrl, version, files }).replace(/\r\n/g, '\n')
 })
