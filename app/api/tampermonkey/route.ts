@@ -1,6 +1,7 @@
 import { plainText } from '@/initializer/controller'
-import { readScript } from './actions'
 import { textInvalidParameters } from '@/initializer/response'
+import { trimAction } from '@/initializer/wrapper'
+import { readScript } from './actions'
 
 export const GET = plainText(async (req) => {
   const uri = new URL(req.url)
@@ -14,5 +15,5 @@ export const GET = plainText(async (req) => {
     return textInvalidParameters('url must start with http:// or https://')
   }
 
-  return readScript(url)
+  return trimAction(readScript)(url)
 })
