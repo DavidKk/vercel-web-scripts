@@ -154,8 +154,7 @@ ${match.map((m) => `// @match        ${m}`).join('\n')}
     const content = await fetchScript(scriptUrl)
 
     if (content) {
-      const execute = new Function('window', content)
-      execute(window)
+      eval(content)
       return
     }
 
