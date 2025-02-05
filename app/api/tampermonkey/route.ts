@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 import { plainText } from '@/initializer/controller'
 import { textInvalidParameters } from '@/initializer/response'
 import { fetchGist, getGistInfo } from '@/services/gist'
@@ -39,6 +40,10 @@ export const GET = plainText(async (req) => {
     })()
   )
 
-  const content = files.join('\n')
-  return clearMeta(content)
+  const content = clearMeta(files.join('\n'))
+  return new NextResponse(content, {
+    headers: {
+      'Cache-Control': 'no-store,no-cache,must-revalidate,private'
+    },
+  })
 })
