@@ -4,6 +4,11 @@
 
 主要用于在 Vercel 上管理和部署自定义脚本。
 
+## 特点
+
+- **脚本管理**：私有脚本集中管理，同步到多个客户端，支持在线修改即时同步
+- **脚本打包**：自动生成脚本入口，支持多脚本打包。(暂仅支持篡改猴)
+
 ## 部署到 Vercel
 
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDavidKk%2Fvercel-web-scripts)

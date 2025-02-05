@@ -4,6 +4,11 @@
 
 Mainly used for managing and deploying custom scripts on Vercel.
 
+## Features
+
+- **Script Management**: Centrally manage private scripts, sync to multiple clients, and support online modification with instant synchronization.
+- **Script Packaging**: Automatically generate script entry, support multi-script packaging. (Currently only supports Tampermonkey)
+
 ## Deploy to Vercel
 
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDavidKk%2Fvercel-web-scripts)
