@@ -79,7 +79,7 @@ export function createBanner({ match, grant, scriptUrl, version }: CreateBannerP
     return `
 // ==UserScript==
 // @name         Web Script
-// @namespace    ${uri.protocol}//${uri.hostname}}
+// @namespace    ${uri.protocol}//${uri.hostname}
 // @version      ${version}
 // @description  Download and evaluate a remote script
 // @author       DavidJones
