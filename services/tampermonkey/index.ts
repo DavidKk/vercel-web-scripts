@@ -68,11 +68,12 @@ export function clearMeta(content: string) {
 
 export interface CreateBannerParams {
   match: string[]
+  grant: string[]
   scriptUrl: string
   version: string
 }
 
-export function createBanner({ match, scriptUrl, version }: CreateBannerParams) {
+export function createBanner({ match, grant, scriptUrl, version }: CreateBannerParams) {
   const uri = new URL(scriptUrl)
   return (content: string) => {
     return `
@@ -90,6 +91,7 @@ ${match.map((m) => `// @match        ${m}`).join('\n')}
 // @connect      ${uri.hostname}
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
+${grant.map((g) => `// @grant        ${g}`).join('\n')}
 // ==/UserScript==
 
 (async () => {
@@ -154,7 +156,38 @@ ${match.map((m) => `// @match        ${m}`).join('\n')}
     const content = await fetchScript(scriptUrl)
 
     if (content) {
-      eval(content)
+      const execute = new Function('global', \`with(global){\${content}}\`)
+      execute({
+        window,
+        ...(typeof GM_addElement !== 'undefined' ? { GM_addElement } : {}),
+        ...(typeof GM_addStyle !== 'undefined' ? { GM_addStyle } : {}),
+        ...(typeof GM_download !== 'undefined' ? { GM_download } : {}),
+        ...(typeof GM_getResourceText !== 'undefined' ? { GM_getResourceText } : {}),
+        ...(typeof GM_getResourceURL !== 'undefined' ? { GM_getResourceURL } : {}),
+        ...(typeof GM_info !== 'undefined' ? { GM_info } : {}),
+        ...(typeof GM_log !== 'undefined' ? { GM_log } : {}),
+        ...(typeof GM_notification !== 'undefined' ? { GM_notification } : {}),
+        ...(typeof GM_openInTab !== 'undefined' ? { GM_openInTab } : {}),
+        ...(typeof GM_registerMenuCommand !== 'undefined' ? { GM_registerMenuCommand } : {}),
+        ...(typeof GM_unregisterMenuCommand !== 'undefined' ? { GM_unregisterMenuCommand } : {}),
+        ...(typeof GM_setClipboard !== 'undefined' ? { GM_setClipboard } : {}),
+        ...(typeof GM_getTab !== 'undefined' ? { GM_getTab } : {}),
+        ...(typeof GM_saveTab !== 'undefined' ? { GM_saveTab } : {}),
+        ...(typeof GM_getTabs !== 'undefined' ? { GM_getTabs } : {}),
+        ...(typeof GM_setValue !== 'undefined' ? { GM_setValue } : {}),
+        ...(typeof GM_getValue !== 'undefined' ? { GM_getValue } : {}),
+        ...(typeof GM_deleteValue !== 'undefined' ? { GM_deleteValue } : {}),
+        ...(typeof GM_listValues !== 'undefined' ? { GM_listValues } : {}),
+        ...(typeof GM_setValues !== 'undefined' ? { GM_setValues } : {}),
+        ...(typeof GM_getValues !== 'undefined' ? { GM_getValues } : {}),
+        ...(typeof GM_deleteValues !== 'undefined' ? { GM_deleteValues } : {}),
+        ...(typeof GM_addValueChangeListener !== 'undefined' ? { GM_addValueChangeListener } : {}),
+        ...(typeof GM_removeValueChangeListener !== 'undefined' ? { GM_removeValueChangeListener } : {}),
+        ...(typeof GM_xmlhttpRequest !== 'undefined' ? { GM_xmlhttpRequest } : {}),
+        ...(typeof GM_webRequest !== 'undefined' ? { GM_webRequest } : {}),
+        ...(typeof GM_cookie !== 'undefined' ? { GM_cookie } : {}),
+      })
+
       return
     }
 
@@ -167,12 +200,15 @@ ${match.map((m) => `// @match        ${m}`).join('\n')}
   }
 }
 
-export interface CreateScriptParams extends Omit<CreateBannerParams, 'match'> {
+export interface CreateScriptParams {
   files: Record<string, string>
+  scriptUrl: string
+  version: string
 }
 
 export function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
   const matches = new Set<string>()
+  const grants = new Set<string>()
   const parts = Array.from(
     (function* () {
       for (const [file, content] of Object.entries(files)) {
@@ -186,7 +222,12 @@ export function createUserScript({ scriptUrl, version, files }: CreateScriptPara
         }
 
         const match = Array.isArray(meta.match) ? meta.match : [meta.match]
-        match.forEach((match) => matches.add(match))
+        match.forEach((match) => typeof match === 'string' && match && matches.add(match))
+
+        if (meta.grant) {
+          const grant = Array.isArray(meta.grant) ? meta.grant : [meta.grant]
+          grant.forEach((grant) => typeof grant === 'string' && grant && grants.add(grant))
+        }
 
         const clearedContent = clearMeta(content)
         yield `if(${JSON.stringify(match)}.some((m) => matchUrl(m, window.location.href))){${clearedContent}}`
@@ -194,7 +235,9 @@ export function createUserScript({ scriptUrl, version, files }: CreateScriptPara
     })()
   )
 
-  const withBanner = createBanner({ match: Array.from(matches), scriptUrl, version })
+  const match = Array.from(matches)
+  const grant = Array.from(grants)
+  const withBanner = createBanner({ match, grant, scriptUrl, version })
   const content = parts.join('\n')
   return withBanner(content).trim()
 }

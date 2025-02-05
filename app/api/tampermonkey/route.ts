@@ -43,7 +43,7 @@ export const GET = plainText(async (req) => {
   const content = clearMeta(files.join('\n'))
   return new NextResponse(content, {
     headers: {
-      'Cache-Control': 'no-store,no-cache,must-revalidate,private'
+      'Cache-Control': 'no-store,no-cache,must-revalidate,private',
     },
   })
 })
