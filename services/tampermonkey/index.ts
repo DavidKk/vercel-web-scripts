@@ -78,7 +78,7 @@ export function createBanner({ match, scriptUrl, version }: CreateBannerParams) 
     return `
 // ==UserScript==
 // @name         Web Script
-// @namespace    http://tampermonkey.net/
+// @namespace    ${uri.hostname}
 // @version      ${version}
 // @description  Download and evaluate a remote script
 // @author       DavidJones
@@ -143,7 +143,7 @@ ${match.map((m) => `// @match        ${m}`).join('\n')}
     window.open(uri.toString(), '_blank')
   })
 
-  GM_registerMenuCommand('Toggle Debug Mode', () => {
+  GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
     const enable = !isDebugMode()
     toggleDebug(enable)
     window.location.reload()
