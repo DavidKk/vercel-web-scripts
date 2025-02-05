@@ -6,8 +6,14 @@ Mainly used for managing and deploying custom scripts on Vercel.
 
 ## Features
 
-- **Script Management**: Centrally manage private scripts, sync to multiple clients, and support online modification with instant synchronization.
+- **Script Management**: Centrally manage private scripts, sync to multiple clients, and support online modification with instant synchronization. Since the content is stored in private GitHub Gist, it is not absolutely secure. Please do not store any sensitive information (such as API keys, passwords, etc.) and use it only for non-sensitive functional scripts.
 - **Script Packaging**: Automatically generate script entry, support multi-script packaging. (Currently only supports Tampermonkey)
+
+## Security Notes
+
+- Script content is stored in private GitHub Gist, but GitHub employees and anyone with account access can still view the content.
+- **Do not store any sensitive information** (such as API keys, passwords, etc.), it is recommended to use it only for non-sensitive functional scripts.
+- Ensure the Gist Token has minimal permissions (only need gist scope) and rotate the keys regularly.
 
 ## Deploy to Vercel
 
@@ -27,6 +33,6 @@ Refer to the [`.env.example`](./.env.example) file to set the required environme
 
 ## Quick Start
 
-1. Create a **GitHub Gist** and generate a **GitHub Access Token**.
+1. Create a **GitHub Gist** and generate a **GitHub Access Token** (with gist permission).
 2. Set the corresponding environment variables in Vercel.
-3. Once deployed, you can manage scripts through the generated configuration.
+3. Once deployed, you can manage scripts through the generated configuration (recommended to use in non-public network environments).
