@@ -78,7 +78,7 @@ export function createBanner({ match, grant, scriptUrl, version }: CreateBannerP
   return (content: string) => {
     return `
 // ==UserScript==
-// @name         Web Script
+// @name         Web Script${process.env.NODE_ENV === 'development' ? '(dev)' : ''}
 // @namespace    ${uri.protocol}//${uri.hostname}
 // @version      ${version}
 // @description  Download and evaluate a remote script

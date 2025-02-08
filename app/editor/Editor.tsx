@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRequest } from 'ahooks'
 import Stackblitz from '@stackblitz/sdk'
 import type { Project, VM } from '@stackblitz/sdk'
@@ -23,15 +23,15 @@ export interface EditorProps {
 export default function Editor(props: EditorProps) {
   const { files: inFiles } = props
   const editorRef = useRef<HTMLDivElement>(null)
-  const vmRef = useRef<VM>(null)
+  const [vm, setVM] = useState<VM>()
 
   const { run: save, loading } = useRequest(
     async () => {
-      if (!vmRef.current) {
+      if (!vm) {
         return
       }
 
-      const snapshot = await vmRef.current.getFsSnapshot()
+      const snapshot = await vm.getFsSnapshot()
       if (!snapshot) {
         return
       }
@@ -86,24 +86,34 @@ export default function Editor(props: EditorProps) {
       )
 
       const project: Project = { template: 'javascript', title: 'test', files }
-      vmRef.current = await Stackblitz.embedProject(editorRef.current, project, {
+      const vm = await Stackblitz.embedProject(editorRef.current, project, {
         view: 'editor',
         showSidebar: true,
       })
+
+      setVM(vm)
     })()
   }, [])
 
   return (
-    <div className="w-screen h-screen relative">
+    <div className="w-screen h-screen relative bg-black">
       <div ref={editorRef} className="w-full h-full"></div>
-      <button
-        disabled={loading}
-        onClick={save}
-        className="fixed bottom-10 right-2 px-6 py-4 bg-teal-400 text-white rounded-md shadow-lg disable:opacity-100 flex flex-col items-center"
-      >
-        <span className="w-8 h-8 flex items-center justify-center">{loading ? <Spinner /> : <CloudArrowUpIcon />}</span>
-        <span>Save</span>
-      </button>
+      {!vm ? (
+        <div className="fixed w-8 h-8 top-0 left-0 right-0 bottom-0 m-auto">
+          <span className="w-8 h-8 flex items-center justify-center">
+            <Spinner />
+          </span>
+        </div>
+      ) : (
+        <button
+          disabled={loading}
+          onClick={save}
+          className="fixed bottom-10 right-2 px-6 py-4 bg-teal-400 text-white rounded-md shadow-lg disable:opacity-100 flex flex-col items-center"
+        >
+          <span className="w-8 h-8 flex items-center justify-center">{loading ? <Spinner /> : <CloudArrowUpIcon />}</span>
+          <span>Save</span>
+        </button>
+      )}
     </div>
   )
 }
