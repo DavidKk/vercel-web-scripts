@@ -217,7 +217,7 @@ export function createUserScript({ scriptUrl, version, files }: CreateScriptPara
         }
 
         const meta = extractMeta(content)
-        if (!(meta.match && meta.source)) {
+        if (!meta.match) {
           continue
         }
 

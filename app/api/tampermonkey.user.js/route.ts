@@ -9,12 +9,16 @@ export const GET = plainText(async (req) => {
   const files = Object.fromEntries(
     (function* () {
       for (const [file, { content }] of Object.entries(gist.files)) {
+        if (!file.endsWith('.js')) {
+          continue
+        }
+
         if (EXCLUDED_FILES.includes(file)) {
           continue
         }
 
         const meta = extractMeta(content)
-        if (!(meta.match && meta.source)) {
+        if (!meta.match) {
           continue
         }
 
