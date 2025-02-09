@@ -168,10 +168,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   }
 
   GM_registerMenuCommand('Edit Script', () => {
-    const uri = new URL('${scriptUrl}')
-    uri.pathname = ''
-
-    window.open(uri.toString(), '_blank')
+    window.open("${baseUrl}/editor", '_blank')
   })
 
   GM_registerMenuCommand('Update Script', () => {
