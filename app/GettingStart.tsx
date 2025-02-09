@@ -22,7 +22,7 @@ export default function GettingStart() {
           The script will automatically update, checking for updates daily by default. Refer to the Tampermonkey script settings for details.
         </p>
         <div className="flex space-x-4">
-          <a href="/api/tampermonkey.user.js" target="_blank" className="flex items-center bg-green-700 text-white rounded-sm hover:bg-green-800">
+          <a href="/static/tampermonkey.user.js" target="_blank" className="flex items-center bg-green-700 text-white rounded-sm hover:bg-green-800">
             <span className="inline-block px-3 py-2 bg-green-900 rounded-l-sm">
               <ArchiveBoxArrowDownIcon className="w-5 h-5" />
             </span>

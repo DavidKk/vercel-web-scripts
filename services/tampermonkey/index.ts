@@ -138,11 +138,42 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     return enable === '1'
   }
 
+  const GME_editorContent = (file, content) => {
+    if (!file || !content) {
+      throw new Error('Missing file or content')
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/static/preview';
+    form.target = '_blank';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'hidden';
+    fileInput.name = 'file';
+    form.appendChild(file);
+
+    const dataInput = document.createElement('input');
+    dataInput.type = 'hidden';
+    dataInput.name = 'data';
+    form.appendChild(content);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    document.body.removeChild(form);
+  }
+
   GM_registerMenuCommand('Edit Script', () => {
     const uri = new URL('${scriptUrl}')
     uri.pathname = ''
 
     window.open(uri.toString(), '_blank')
+  })
+
+  GM_registerMenuCommand('Update Script', () => {
+    const url = '${scriptUrl}'
+    url && window.open(url, '_blank')
   })
 
   GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
@@ -152,7 +183,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   })
 
   if (isDebugMode()) {
-    const scriptUrl = '${scriptUrl.replace('.user.js', '')}?url=' + encodeURIComponent(window.location.href)
+    const scriptUrl = '${scriptUrl.replace('.user.js', '')}?t=' + Date.now() + '&url=' + encodeURIComponent(window.location.href)
     const content = await fetchScript(scriptUrl)
 
     if (content) {
