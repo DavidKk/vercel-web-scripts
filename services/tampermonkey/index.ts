@@ -75,11 +75,12 @@ export interface CreateBannerParams {
 
 export function createBanner({ match, grant, scriptUrl, version }: CreateBannerParams) {
   const uri = new URL(scriptUrl)
+  const baseUrl = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
   return (content: string) => {
     return `
 // ==UserScript==
 // @name         Web Script${process.env.NODE_ENV === 'development' ? '(dev)' : ''}
-// @namespace    ${uri.protocol}//${uri.hostname}
+// @namespace    ${baseUrl}
 // @version      ${version}
 // @description  Download and evaluate a remote script
 // @author       DavidJones
@@ -98,6 +99,34 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   'use strict'
 
   const DEBUG_KEY = '#DebugMode@WebScripts'
+
+  const GME_preview = (file, content) => {
+    if (!file || !content) {
+      throw new Error('Missing file or content')
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '${baseUrl}/api/preview';
+    form.target = '_blank';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'hidden';
+    fileInput.name = 'file';
+    fileInput.value = file;
+    form.appendChild(fileInput);
+
+    const contentInput = document.createElement('input');
+    contentInput.type = 'hidden';
+    contentInput.name = 'content';
+    contentInput.value = content;
+    form.appendChild(contentInput);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    document.body.removeChild(form);
+  }
 
   const matchUrl = (pattern, url) => {
     const regexPattern = pattern.replace(/\\./g, '\\\\.').replace(/\\*/g, '.*')
@@ -138,32 +167,6 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     return enable === '1'
   }
 
-  const GME_editorContent = (file, content) => {
-    if (!file || !content) {
-      throw new Error('Missing file or content')
-    }
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/static/preview';
-    form.target = '_blank';
-
-    const fileInput = document.createElement('input');
-    fileInput.type = 'hidden';
-    fileInput.name = 'file';
-    form.appendChild(file);
-
-    const dataInput = document.createElement('input');
-    dataInput.type = 'hidden';
-    dataInput.name = 'data';
-    form.appendChild(content);
-
-    document.body.appendChild(form);
-    form.submit();
-
-    document.body.removeChild(form);
-  }
-
   GM_registerMenuCommand('Edit Script', () => {
     const uri = new URL('${scriptUrl}')
     uri.pathname = ''
@@ -183,13 +186,14 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   })
 
   if (isDebugMode()) {
-    const scriptUrl = '${scriptUrl.replace('.user.js', '')}?t=' + Date.now() + '&url=' + encodeURIComponent(window.location.href)
+    const scriptUrl = '${baseUrl}/api/tampermonkey?t=' + Date.now() + '&url=' + encodeURIComponent(window.location.href)
     const content = await fetchScript(scriptUrl)
 
     if (content) {
       const execute = new Function('global', \`with(global){\${content}}\`)
       execute({
         window,
+        GME_preview,
         ...(typeof GM_addElement !== 'undefined' ? { GM_addElement } : {}),
         ...(typeof GM_addStyle !== 'undefined' ? { GM_addStyle } : {}),
         ...(typeof GM_download !== 'undefined' ? { GM_download } : {}),
