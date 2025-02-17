@@ -99,7 +99,7 @@ export default function LoginForm(props: LoginFormProps) {
         <button
           disabled={submitting || complete}
           type="submit"
-          className="relative w-full max-w-lg bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          className="relative w-full max-w-lg bg-indigo-500 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? (
             <div>
