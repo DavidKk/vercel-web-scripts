@@ -6,6 +6,7 @@ import { AUTH_TOKEN_NAME } from './constants'
 
 export interface CheckAccessOptions {
   redirectUrl?: string
+  checkApiRouter?: boolean
 }
 
 export async function validateCookie() {
@@ -25,13 +26,12 @@ export async function validateCookie() {
 }
 
 export async function checkAccess(options?: CheckAccessOptions) {
-  const { redirectUrl = '/login' } = options || {}
-
+  const { redirectUrl = '/login', checkApiRouter = true } = options || {}
   if (await validateCookie()) {
     return true
   }
 
-  if (await isApiRouter()) {
+  if (checkApiRouter && (await isApiRouter())) {
     return false
   }
 
