@@ -1,12 +1,13 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { verifyToken } from '@/utils/jwt'
-import { isApiRouter } from '@/utils/env'
 import { AUTH_TOKEN_NAME } from './constants'
+import { getReqHeaders } from '../context'
 
 export interface CheckAccessOptions {
+  loginUrl?: string
   redirectUrl?: string
-  checkApiRouter?: boolean
+  isApiRouter?: boolean
 }
 
 export async function validateCookie() {
@@ -26,32 +27,46 @@ export async function validateCookie() {
 }
 
 export async function checkAccess(options?: CheckAccessOptions) {
-  const { redirectUrl = '/login', checkApiRouter = true } = options || {}
+  const { redirectUrl = '/', loginUrl = '/login', isApiRouter = true } = options || {}
   if (await validateCookie()) {
     return true
   }
 
-  if (checkApiRouter && (await isApiRouter())) {
+  if (isApiRouter) {
     return false
   }
 
-  redirect(redirectUrl)
+  const url = redirectUrl ? `${loginUrl}?redirectUrl=${encodeURIComponent(redirectUrl)}` : loginUrl
+  redirect(url)
 }
 
 export interface CheckUnAccessOptions {
   redirectUrl?: string
+  isApiRouter?: boolean
 }
 
 export async function checkUnAccess(options?: CheckUnAccessOptions) {
-  const { redirectUrl = '/' } = options || {}
+  const { redirectUrl = '/', isApiRouter = true } = options || {}
 
   if (!(await validateCookie())) {
     return true
   }
 
-  if (await isApiRouter()) {
+  if (isApiRouter) {
     return false
   }
 
   redirect(redirectUrl)
+}
+
+export function checkHeaders(requiredHeaders: Record<string, string>) {
+  const headers = getReqHeaders()
+  if (!headers) {
+    return false
+  }
+
+  return Object.entries(requiredHeaders).every(([header, expectedValue]) => {
+    const actualValue = headers.get(header)
+    return actualValue === expectedValue
+  })
 }

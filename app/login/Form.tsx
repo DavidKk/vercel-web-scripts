@@ -9,10 +9,11 @@ import { Spinner } from '@/components/Spinner'
 
 export interface LoginFormProps {
   enable2FA?: boolean
+  redirectUrl?: string
 }
 
 export default function LoginForm(props: LoginFormProps) {
-  const { enable2FA } = props
+  const { enable2FA, redirectUrl = '/' } = props
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -41,7 +42,7 @@ export default function LoginForm(props: LoginFormProps) {
       manual: true,
       throttleWait: 1000,
       onSuccess: () => {
-        router.push('/')
+        router.push(redirectUrl)
         setComplete(true)
       },
       onError: (error: Error) => {

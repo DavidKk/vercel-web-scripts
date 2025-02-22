@@ -1,19 +1,8 @@
-import Link from 'next/link'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
 export default function GettingStart() {
   return (
-    <div className="flex flex-col items-center">
-      <nav className="w-full p-4 bg-gray-800 text-white flex items-center">
-        <h1 className="text-xl font-bold">Web Scripts</h1>
-
-        <div className="ml-10 flex">
-          <Link className="px-4 py-2" href="/editor">
-            Editor
-          </Link>
-        </div>
-      </nav>
-
+    <div className="min-h-[calc(100vh-60px)] flex flex-col items-center bg-gray-100 p-10 py-16 text-black">
       <div className="mx-auto p-4 py-20">
         <h2 className="text-2xl font-semibold text-gray-700 mb-2">Tampermonkey</h2>
         <p className="mb-4 text-gray-700">

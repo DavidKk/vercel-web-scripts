@@ -3,7 +3,7 @@ import { checkAccess } from '@/services/auth/access'
 import Editor from './Editor'
 
 export default async function Home() {
-  await checkAccess()
+  await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
 
   const files = await fetchFiles()
   return <Editor files={files} />
