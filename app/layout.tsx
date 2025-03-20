@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Nav } from './Nav'
+import Footer from './Footer'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -18,18 +20,20 @@ export const metadata: Metadata = {
   description: 'Web Scripts is a collection of useful scripts for web.',
 }
 
-export type Layoutprops = {
+interface RootLayoutProps {
   children: React.ReactNode
 }
 
-export default function RootLayout(props: Readonly<Layoutprops>) {
+export default function RootLayout(props: Readonly<RootLayoutProps>) {
   const { children } = props
 
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <Analytics />
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}>
         <Nav />
         {children}
+        <Footer />
       </body>
     </html>
   )

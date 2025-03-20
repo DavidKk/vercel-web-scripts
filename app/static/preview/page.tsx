@@ -39,7 +39,7 @@ export default function PreviewPage() {
   }, [])
 
   return (
-    <div className="w-screen h-[calc(100vh-60px)] relative bg-black">
+    <div className="w-screen h-[calc(100vh-60px-64px)] relative bg-black">
       <div ref={previewRef} className="w-full h-full"></div>
       {message ? <p className="text-white text-center">{message}</p> : null}
 

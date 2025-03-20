@@ -5,7 +5,7 @@ export default async function Home() {
   await checkAccess({ isApiRouter: false })
 
   return (
-    <div className="min-h-[calc(100vh-60px)] flex flex-col items-center bg-gray-100 p-10 py-16 text-black">
+    <div className="min-h-[calc(100vh-60px-64px)] flex flex-col items-center bg-gray-100 p-10 py-16 text-black">
       <div className="mx-auto p-4 py-20">
         <h2 className="text-2xl font-semibold text-gray-700 mb-2">Tampermonkey</h2>
         <p className="mb-4 text-gray-700">
