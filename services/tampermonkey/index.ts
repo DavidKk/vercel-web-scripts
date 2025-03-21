@@ -67,13 +67,12 @@ export function clearMeta(content: string) {
 }
 
 export interface CreateBannerParams {
-  match: string[]
   grant: string[]
   scriptUrl: string
   version: string
 }
 
-export function createBanner({ match, grant, scriptUrl, version }: CreateBannerParams) {
+export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) {
   const uri = new URL(scriptUrl)
   const baseUrl = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
   return (content: string) => {
@@ -87,7 +86,7 @@ export function createBanner({ match, grant, scriptUrl, version }: CreateBannerP
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=vercel.com
 // @downloadURL  ${scriptUrl}
 // @updateURL    ${scriptUrl}
-${match.map((m) => `// @match        ${m}`).join('\n')}
+// @match        */*
 // @noframes
 // @connect      ${uri.hostname}
 // @grant        GM_registerMenuCommand
@@ -236,9 +235,10 @@ export interface CreateScriptParams {
   files: Record<string, string>
   scriptUrl: string
   version: string
+  rules: [string, string][]
 }
 
-export function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
+export function createUserScript({ scriptUrl, version, files, rules }: CreateScriptParams) {
   const matches = new Set<string>()
   const grants = new Set<string>()
   const parts = Array.from(
@@ -254,6 +254,14 @@ export function createUserScript({ scriptUrl, version, files }: CreateScriptPara
         }
 
         const match = Array.isArray(meta.match) ? meta.match : [meta.match]
+        if (Array.isArray(rules)) {
+          for (const [rule, script] of rules) {
+            if (script === file) {
+              match.push(rule)
+            }
+          }
+        }
+
         match.forEach((match) => typeof match === 'string' && match && matches.add(match))
 
         if (meta.grant) {
@@ -267,9 +275,8 @@ export function createUserScript({ scriptUrl, version, files }: CreateScriptPara
     })()
   )
 
-  const match = Array.from(matches)
   const grant = Array.from(grants)
-  const withBanner = createBanner({ match, grant, scriptUrl, version })
+  const withBanner = createBanner({ grant, scriptUrl, version })
   const content = parts.join('\n')
   return withBanner(content).trim()
 }
