@@ -1,5 +1,7 @@
-export const DEFAULT_TITLE = 'Web Scripts'
-
 export const DEFAULT_NAV = {
-  scripts: [{ name: 'Editor', href: '/editor' }],
+  tampermonkey: [
+    { name: 'Install', href: '/tampermonkey' },
+    { name: 'Rule', href: '/tampermonkey/rule' },
+    { name: 'Editor', href: '/tampermonkey/editor' },
+  ],
 }

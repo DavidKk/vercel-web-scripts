@@ -12,11 +12,15 @@ export function FilterBar<T extends Omit<Config, 'id'>>(props: FilterBarProps<T>
   const [filter, setFilter] = useState<Record<string, any>>()
 
   const handleFilter = (field: string, value: any) => {
-    setFilter((prev) => {
-      const nextValue = { ...prev, [field]: value } as any
-      onFilter && onFilter(nextValue)
-      return nextValue
-    })
+    const nextValue = { ...filter, [field]: value } as any
+    setFilter(nextValue)
+    onFilter && onFilter(nextValue)
+  }
+
+  const clearFilter = () => {
+    const data = Object.fromEntries(Object.keys(schema).map((field) => [field, '']))
+    setFilter(data)
+    onFilter && onFilter(data)
   }
 
   return (
@@ -31,7 +35,7 @@ export function FilterBar<T extends Omit<Config, 'id'>>(props: FilterBarProps<T>
         return <Component value={value} onChange={(value) => handleFilter(field, value)} key={index} />
       })}
 
-      <button className="h-8 flex items-center justify-center text-sm border-gray-300 border rounded-sm box-border px-3" type="button">
+      <button onClick={clearFilter} className="h-8 flex items-center justify-center text-sm border-gray-300 border rounded-sm box-border px-3" type="button">
         <BackspaceIcon className="h-4 w-4 text-grxay-500" />
       </button>
     </div>

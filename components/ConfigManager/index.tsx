@@ -78,8 +78,8 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
   }
 
   const handleFilter = (filterOptions: Omit<Config, 'id'>) => {
-    configs.filter((config) => {
-      Object.keys(filterOptions).some((field) => {
+    const filteredConfigs = configs.filter((config) => {
+      return Object.keys(filterOptions).some((field) => {
         if (!(field in config)) {
           return false
         }
@@ -92,9 +92,9 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
 
         return match === item
       })
-
-      return true
     })
+
+    setFilteredConfigs(filteredConfigs)
   }
 
   const { run: submit, loading: submitting } = useRequest(
@@ -160,11 +160,15 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={configs.map((config) => config.id)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-2">
-              {finalConfigs.map((config) => (
-                <div className="flex" key={config.id}>
-                  {renderConfigs(config)}
-                </div>
-              ))}
+              {finalConfigs?.length ? (
+                finalConfigs.map((config) => (
+                  <div className="flex" key={config.id}>
+                    {renderConfigs(config)}
+                  </div>
+                ))
+              ) : (
+                <div className="w-full flex items-center justify-center border rounded-sm shadow bg-white py-6">No configs</div>
+              )}
             </div>
           </SortableContext>
         </DndContext>

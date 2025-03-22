@@ -1,25 +1,26 @@
-import { checkAccess } from '@/services/auth/access'
-import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
+import Meta, { generate } from '@/components/Meta'
 
-export default async function Home() {
-  await checkAccess({ isApiRouter: false })
+const { generateMetadata, metaProps } = generate({
+  title: 'Web Scripts Manager',
+  description: 'A powerful web script management platform that supports script creation, editing, preview, and deployment',
+})
 
+export { generateMetadata }
+
+export default function Home() {
   return (
-    <div className="min-h-[calc(100vh-60px-64px)] flex flex-col items-center bg-gray-100 p-10 py-16 text-black">
-      <div className="mx-auto p-4 py-20">
-        <h2 className="text-2xl font-semibold text-gray-700 mb-2">Tampermonkey</h2>
-        <p className="mb-4 text-gray-700">
-          Install the Tampermonkey extension and click the install button below to install.
-          <br />
-          The script will automatically update, checking for updates daily by default. Refer to the Tampermonkey script settings for details.
-        </p>
-        <div className="flex space-x-4">
-          <a href="/static/tampermonkey.user.js" target="_blank" className="flex items-center bg-green-700 text-white rounded-sm hover:bg-green-800">
-            <span className="inline-block px-3 py-2 bg-green-900 rounded-l-sm">
-              <ArchiveBoxArrowDownIcon className="w-5 h-5" />
-            </span>
-            <span className="inline-block px-3 py-2 bg-green-700 rounded-r-sm">Install Tampermonkey Script</span>
-          </a>
+    <div className="flex flex-col items-center p-10 pt-20 max-w-4xl mx-auto text-center">
+      <Meta {...metaProps} />
+      <div className="mt-10 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-3">Script Management</h2>
+            <p className="text-gray-600">Easily create, edit, and manage your web scripts with support for multiple script types</p>
+          </div>
+          <div className="p-6 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-3">Real-time Preview</h2>
+            <p className="text-gray-600">Powerful preview functionality to instantly see your scripts in action</p>
+          </div>
         </div>
       </div>
     </div>

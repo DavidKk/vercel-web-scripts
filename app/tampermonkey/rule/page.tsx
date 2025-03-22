@@ -9,7 +9,7 @@ export default async function RulePage() {
   const scripts = await getScripts()
 
   return (
-    <div className="p-2 md:p-4 max-w-lg w-full mx-auto mt-12">
+    <div className="p-2 md:p-4 max-w-6xl w-full mx-auto mt-12">
       <h1 className="text-2xl text-center font-bold mb-8">Tampermonkey Rules</h1>
 
       <div className="mb-4">
