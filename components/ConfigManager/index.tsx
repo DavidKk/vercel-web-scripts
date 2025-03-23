@@ -19,6 +19,7 @@ export interface ConfigManagerProps<T extends Config> {
 
 export interface ConfigManagerReference {
   prepend: (data?: Record<string, any>) => void
+  append: (data?: Record<string, any>) => void
   remove: (id: string) => void
   reset: () => void
   submit: () => void
@@ -70,8 +71,23 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
     })
   }
 
+  const appendConfig = (index: number, data: Record<string, any> = {}) => {
+    const id = uuid()
+    const newConfig = { id, ...data } as Config
+
+    setConfigs((prev) => {
+      const cloned = [...prev]
+      cloned.splice(index + 1, 0, newConfig)
+      return cloned
+    })
+  }
+
   const prepend = (data: Record<string, any> = {}) => {
     prependConfig(0, data)
+  }
+
+  const append = (data: Record<string, any> = {}) => {
+    appendConfig(configs.length - 1, data)
   }
 
   const remove = (id: string) => {
@@ -148,6 +164,7 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
 
   useImperativeHandle(ref, () => ({
     prepend,
+    append,
     remove,
     reset,
     submit,
