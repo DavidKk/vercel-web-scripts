@@ -19,6 +19,10 @@ export default function Form(props: FormProps) {
   const url = useSearchParams().get('url') || ''
 
   useEffect(() => {
+    if (!url) {
+      return
+    }
+
     cfgManagerRef.current?.prepend({
       wildcard: url,
       script: '',
