@@ -23,10 +23,9 @@ export default function Form(props: FormProps) {
       return
     }
 
-    cfgManagerRef.current?.prepend({
-      wildcard: url,
-      script: '',
-    })
+    const parsedUrl = new URL(url)
+    const wildcard = `*://${parsedUrl.host}/*`
+    cfgManagerRef.current?.prepend({ wildcard })
   }, [])
 
   const schema = {
