@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
-import ConfigManager, { type ConfigManagerReference } from '@/components/ConfigManager'
+import React from 'react'
+import ConfigManager from '@/components/ConfigManager'
 import { updateRules } from '@/app/actions/tampermonkey'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 import { WildcardField, type WildcardFieldProps } from './WildcardField'
@@ -15,18 +15,17 @@ export interface FormProps {
 
 export default function Form(props: FormProps) {
   const { rules, scripts } = props
-  const cfgManagerRef = useRef<ConfigManagerReference>(null)
   const url = useSearchParams().get('url') || ''
-
-  useEffect(() => {
+  const rule = (() => {
     if (!url) {
-      return
+      return null
     }
 
+    const id = crypto.randomUUID()
     const parsedUrl = new URL(url)
     const wildcard = `*://${parsedUrl.host}/*`
-    cfgManagerRef.current?.prepend({ wildcard })
-  }, [])
+    return { id, wildcard }
+  })()
 
   const schema = {
     wildcard: (props: WildcardFieldProps) => <WildcardField {...props} required />,
@@ -41,5 +40,5 @@ export default function Form(props: FormProps) {
     updateRules(configs)
   }
 
-  return <ConfigManager configs={rules} configSchema={schema} filterSchema={filterSchema} onSubmit={handleSubmit} ref={cfgManagerRef} />
+  return <ConfigManager configs={[...(rule ? [rule] : []), ...rules]} configSchema={schema} filterSchema={filterSchema} onSubmit={handleSubmit} />
 }
