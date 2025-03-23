@@ -111,6 +111,10 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
         }
 
         const match = (filterOptions as Record<string, unknown>)[field]
+        if (!match) {
+          return true
+        }
+
         const item = (config as Record<string, unknown>)[field]
         if (typeof item === 'string' && typeof match === 'string') {
           return fuzzySearch(match, item)

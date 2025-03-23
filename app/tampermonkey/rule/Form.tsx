@@ -24,7 +24,7 @@ export default function Form(props: FormProps) {
     const id = crypto.randomUUID()
     const parsedUrl = new URL(url)
     const wildcard = `*://${parsedUrl.host}/*`
-    return { id, wildcard }
+    return { id, wildcard, script: '' }
   })()
 
   const schema = {
