@@ -75,7 +75,8 @@ export interface CreateBannerParams {
 export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) {
   const uri = new URL(scriptUrl)
   const baseUrl = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
-  const ruleUrl = `${baseUrl}/tampermonkey/rule`
+  const ruleAPIUrl = `${baseUrl}/api/tampermonkey/rule`
+  const ruleManagerUrl = `${baseUrl}/tampermonkey/rule`
   return (content: string) => {
     return `
 // ==UserScript==
@@ -128,10 +129,43 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     document.body.removeChild(form);
   }
 
-  const matchUrl = (pattern, url) => {
+  const matchUrl = (pattern, url = window.location.href) => {
     const regexPattern = pattern.replace(/\\./g, '\\\\.').replace(/\\*/g, '.*')
     const regex = new RegExp(\`^\${regexPattern}$\`)
     return regex.test(url)
+  }
+
+  const fetchRules = async () => {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: "GET",
+        url: '${ruleAPIUrl}',
+        onload: function (response) {
+          try {
+            if (!(200 <= response.status && response.status < 400)) {
+              throw new Error('Failed to load rules:'+ response.statusText)
+            }
+
+            const result = JSON.parse(response.responseText)
+            if (!(result.code === 0)) {
+              throw new Error('Failed to load rules:'+ result.message)   
+            }
+
+            const rules = result.data
+            if (!Array.isArray(rules)) {
+              throw new Error('Invalid rules format')
+            }
+
+            resolve(rules)
+          } catch (error) {
+            reject(new Error('Error executing load rules:'+ error.message))
+          }
+        },
+        onerror: function (error) {
+          reject(new Error('Failed to load rules:' + error.message))
+        }
+      })
+    })
   }
 
   const fetchScript = async (scriptUrl) => {
@@ -177,7 +211,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   })
 
   GM_registerMenuCommand('Rule manager', () => {
-    const url = '${ruleUrl}'
+    const url = '${ruleManagerUrl}?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
     url && window.open(url, '_blank')
   })
 
@@ -231,6 +265,17 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     return
   }
 
+  const rules = await fetchRules()
+  const matchRule = (name, url = window.location.href) => {
+    return rules.some(({ wildcard, script }) => {
+      if (script !== name) {
+        return false
+      }
+
+      return wildcard && matchUrl(wildcard, url)
+    })
+  }
+
   ${clearMeta(content)}
 })()
 `
@@ -276,7 +321,7 @@ export function createUserScript({ scriptUrl, version, files, rules }: CreateScr
         }
 
         const clearedContent = clearMeta(content)
-        yield `if(${JSON.stringify(match)}.some((m) => matchUrl(m, window.location.href))){${clearedContent}}`
+        yield `if(${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")){${clearedContent}}`
       }
     })()
   )

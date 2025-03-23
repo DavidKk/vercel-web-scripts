@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useImperativeHandle } from 'react'
 import { useRequest } from 'ahooks'
 import { DndContext, useSensor, useSensors, closestCenter, PointerSensor, KeyboardSensor } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, ArrowPathIcon, TrashIcon } from '@heroicons/react/24/solid'
 import Alert, { type AlertImperativeHandler } from '@/components/Alert'
 import { Spinner } from '@/components/Spinner'
 import SortableItem from './SortableItem'
@@ -17,7 +17,15 @@ export interface ConfigManagerProps<T extends Config> {
   onSubmit?: (configs: T[]) => Promise<void>
 }
 
-export default function ConfigManager<T extends Config>(props: ConfigManagerProps<T>) {
+export interface ConfigManagerReference {
+  prepend: (data?: Record<string, any>) => void
+  remove: (id: string) => void
+  reset: () => void
+  submit: () => void
+  submitting: boolean
+}
+
+export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>((props, ref) => {
   const { configs: defaultConfigs, configSchema, filterSchema, onSubmit } = props
 
   const [configs, setConfigs] = useState([...defaultConfigs])
@@ -51,9 +59,9 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
     return uid
   }
 
-  const prependConfig = (index: number) => {
+  const prependConfig = (index: number, data: Record<string, any> = {}) => {
     const id = uuid()
-    const newConfig = { id } as T
+    const newConfig = { id, ...data } as Config
 
     setConfigs((prev) => {
       const cloned = [...prev]
@@ -68,8 +76,16 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
     })
   }
 
-  const handleConfigChange = (id: string, field: string, value: any) => {
-    setConfigs((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
+  const prepend = (data: Record<string, any> = {}) => {
+    prependConfig(0, data)
+  }
+
+  const remove = (id: string) => {
+    if (!confirm(`Are you sure you want to remove this rule?`)) {
+      return
+    }
+
+    setConfigs((prev) => prev.filter((item) => item.id !== id))
   }
 
   const reset = () => {
@@ -97,8 +113,17 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
     setFilteredConfigs(filteredConfigs)
   }
 
+  const handleConfigChange = (id: string, field: string, value: any) => {
+    setConfigs((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
+  }
+
   const { run: submit, loading: submitting } = useRequest(
     async () => {
+      if (!formRef.current?.checkVisibility()) {
+        formRef.current?.reportValidity()
+        return
+      }
+
       if (!onSubmit) {
         return
       }
@@ -127,22 +152,13 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
     submit()
   }
 
-  const renderConfigs = (config: T) => {
-    const id = config.id
-    return (
-      <SortableItem id={id} key={id}>
-        {Object.keys(configSchema).map((field, index) => {
-          const value = field in config ? (config as any)[field] : ''
-          const Component = configSchema[field as keyof T] as ConfigSchemaFC<any>
-          if (!Component) {
-            return <React.Fragment key={index}>{value}</React.Fragment>
-          }
-
-          return <Component value={value} onChange={(value) => handleConfigChange(id, field, value)} key={index} />
-        })}
-      </SortableItem>
-    )
-  }
+  useImperativeHandle(ref, () => ({
+    prepend,
+    remove,
+    reset,
+    submit,
+    submitting,
+  }))
 
   useEffect(() => {
     if (!configs?.length) {
@@ -150,7 +166,44 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
     }
   }, [configs])
 
+  useEffect(() => {
+    setFilteredConfigs([...configs])
+  }, [configs?.length])
+
   const finalConfigs = isFilterMode ? filteredConfigs : configs
+
+  const renderConfigs = (config: Config) => {
+    const id = config.id
+    return (
+      <SortableItem id={id} key={id}>
+        {Object.keys(configSchema).map((field, index) => {
+          const value = field in config ? (config as any)[field] : ''
+          const Component = configSchema[field as keyof Config] as ConfigSchemaFC<any>
+          if (!Component) {
+            return <React.Fragment key={index}>{value}</React.Fragment>
+          }
+
+          return <Component value={value} onChange={(value) => handleConfigChange(id, field, value)} key={index} />
+        })}
+
+        <button onClick={() => remove(id)} className="flex-basis h-8 text-sm bg-red-500 text-white rounded-sm hover:bg-red-600 px-4" aria-label="Remove config" type="button">
+          <TrashIcon className="h-4 w-4 text-white" />
+        </button>
+      </SortableItem>
+    )
+  }
+
+  const renderFormFields = () => {
+    if (!finalConfigs?.length) {
+      return <div className="w-full flex items-center justify-center border rounded-sm shadow bg-white py-6">No configs</div>
+    }
+
+    return finalConfigs.map((config) => (
+      <div className="flex" key={config.id}>
+        {renderConfigs(config)}
+      </div>
+    ))
+  }
 
   return (
     <form onSubmit={handleSubmit} ref={formRef}>
@@ -159,17 +212,7 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
       <div className="mx-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={configs.map((config) => config.id)} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-2">
-              {finalConfigs?.length ? (
-                finalConfigs.map((config) => (
-                  <div className="flex" key={config.id}>
-                    {renderConfigs(config)}
-                  </div>
-                ))
-              ) : (
-                <div className="w-full flex items-center justify-center border rounded-sm shadow bg-white py-6">No configs</div>
-              )}
-            </div>
+            <div className="flex flex-col gap-2">{renderFormFields()}</div>
           </SortableContext>
         </DndContext>
       </div>
@@ -213,4 +256,4 @@ export default function ConfigManager<T extends Config>(props: ConfigManagerProp
       </footer>
     </form>
   )
-}
+})
