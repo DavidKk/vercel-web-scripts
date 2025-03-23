@@ -65,13 +65,7 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
 
     setConfigs((prev) => {
       const cloned = [...prev]
-      cloned.splice(index + 1, 0, newConfig)
-      return cloned
-    })
-
-    setFilteredConfigs((prev) => {
-      const cloned = [...prev]
-      cloned.splice(index + 1, 0, newConfig)
+      cloned.splice(index, 0, newConfig)
       return cloned
     })
   }
