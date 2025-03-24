@@ -130,7 +130,7 @@ export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) 
   const baseUrl = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
   const ruleAPIUrl = `${baseUrl}/api/tampermonkey/rule`
   const ruleManagerUrl = `${baseUrl}/tampermonkey/rule`
-  const editorUrl = `${baseUrl}/tampermonkey/rule`
+  const editorUrl = `${baseUrl}/tampermonkey/editor`
   return (content: string) => {
     return `
 // ==UserScript==
