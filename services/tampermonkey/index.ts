@@ -147,6 +147,9 @@ export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) 
 // @connect      ${uri.hostname}
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
+// @grant        GM_notification
+// @grant        GM_getValue
+// @grant        GM_setValue
 ${grant.map((g) => `// @grant        ${g}`).join('\n')}
 // ==/UserScript==
 
@@ -154,6 +157,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   'use strict'
 
   const DEBUG_KEY = '#DebugMode@WebScripts'
+  const RULE_CACHE_KEY = '#RuleCache@WebScripts'
 
   const GME_preview = (file, content) => {
     if (!file || !content) {
@@ -221,6 +225,34 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
       })
     })
   }
+  
+  const fetchAndCacheRules = async () => {
+    const rules = await fetchRules()
+    try {
+      GM_setValue(RULE_CACHE_KEY, JSON.stringify(rules))
+    } catch (error) {
+      console.error('Error caching rules:', error)
+    }
+
+    return rules
+  }
+
+  const fetchRulesFromCache = async (refetch = false) => {
+    const cached = GM_getValue(RULE_CACHE_KEY)
+    if (cached) {
+      if (refetch) {
+        fetchAndCacheRules()
+      }
+
+      try {
+        return JSON.parse(cached)
+      } catch (error) {
+        console.error('Error parsing cached rules:', error)
+      }
+    }
+
+    return fetchAndCacheRules()
+  }
 
   const fetchScript = async (scriptUrl) => {
     return new Promise((resolve, reject) => {
@@ -267,6 +299,16 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   GM_registerMenuCommand('Rule manager', () => {
     const url = '${ruleManagerUrl}?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
     url && window.open(url, '_blank')
+  })
+
+  GM_registerMenuCommand('Refresh Rules', async () => {
+    await fetchAndCacheRules()
+
+    GM_notification({
+      text: 'Rules refreshed successfully',
+      title: 'Success',
+      timeout: 3000,
+    })
   })
 
   GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
@@ -319,7 +361,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     return
   }
 
-  const rules = await fetchRules().catch(() => [])
+  const rules = await fetchRulesFromCache()
   const matchRule = (name, url = window.location.href) => {
     return rules.some(({ wildcard, script }) => {
       if (script !== name) {
