@@ -28,17 +28,16 @@ export const GET = plainText(async (req) => {
     })()
   )
 
-  let configs: RuleConfig[] = []
+  let rules: RuleConfig[] = []
   const ruleFile = gist.files[ENTRY_SCRIPT_RULES_FILE]
   if (ruleFile) {
     try {
-      configs = JSON.parse(ruleFile.content)
+      rules = JSON.parse(ruleFile.content)
     } catch {
       // ignore
     }
   }
 
-  const rules = configs.map(({ wildcard, script }) => [wildcard, script]) satisfies [string, string][]
   const scriptUrl = req.url
   const version = `0.${(new Date(gist.updated_at).getTime() / 1e3).toString()}`
   return createUserScript({ scriptUrl, version, files, rules }).replace(/\r\n/g, '\n')

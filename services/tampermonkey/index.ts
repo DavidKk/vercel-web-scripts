@@ -1,4 +1,5 @@
 import { EXCLUDED_FILES } from '@/constants/file'
+import type { RuleConfig } from './types'
 
 const OPEN_TAG = `// ==UserScript==`
 const CLOSE_TAG = `// ==/UserScript==`
@@ -66,6 +67,56 @@ export function clearMeta(content: string) {
   return content.trim()
 }
 
+export interface CreateScriptParams {
+  files: Record<string, string>
+  scriptUrl: string
+  version: string
+  rules: RuleConfig[]
+}
+
+export function createUserScript({ scriptUrl, version, files, rules }: CreateScriptParams) {
+  const matches = new Set<string>()
+  const grants = new Set<string>()
+  const parts = Array.from(
+    (function* () {
+      for (const [file, content] of Object.entries(files)) {
+        if (EXCLUDED_FILES.includes(file)) {
+          continue
+        }
+
+        const meta = extractMeta(content)
+        if (!meta.match) {
+          continue
+        }
+
+        const match = Array.isArray(meta.match) ? meta.match : [meta.match]
+        if (Array.isArray(rules)) {
+          for (const { wildcard, script } of rules) {
+            if (script === file) {
+              match.push(wildcard)
+            }
+          }
+        }
+
+        match.forEach((match) => typeof match === 'string' && match && matches.add(match))
+
+        if (meta.grant) {
+          const grant = Array.isArray(meta.grant) ? meta.grant : [meta.grant]
+          grant.forEach((grant) => typeof grant === 'string' && grant && grants.add(grant))
+        }
+
+        const clearedContent = clearMeta(content)
+        yield `if(${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")){${clearedContent}}`
+      }
+    })()
+  )
+
+  const grant = Array.from(grants)
+  const withBanner = createBanner({ grant, scriptUrl, version })
+  const content = parts.join('\n')
+  return withBanner(content).trim()
+}
+
 export interface CreateBannerParams {
   grant: string[]
   scriptUrl: string
@@ -106,27 +157,27 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
       throw new Error('Missing file or content')
     }
 
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '${baseUrl}/api/preview';
-    form.target = '_blank';
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = '${baseUrl}/api/preview'
+    form.target = '_blank'
 
-    const fileInput = document.createElement('input');
-    fileInput.type = 'hidden';
-    fileInput.name = 'file';
-    fileInput.value = file;
-    form.appendChild(fileInput);
+    const fileInput = document.createElement('input')
+    fileInput.type = 'hidden'
+    fileInput.name = 'file'
+    fileInput.value = file
+    form.appendChild(fileInput)
 
-    const contentInput = document.createElement('input');
-    contentInput.type = 'hidden';
-    contentInput.name = 'content';
-    contentInput.value = content;
-    form.appendChild(contentInput);
+    const contentInput = document.createElement('input')
+    contentInput.type = 'hidden'
+    contentInput.name = 'content'
+    contentInput.value = content
+    form.appendChild(contentInput)
 
-    document.body.appendChild(form);
-    form.submit();
+    document.body.appendChild(form)
+    form.submit()
 
-    document.body.removeChild(form);
+    document.body.removeChild(form)
   }
 
   const matchUrl = (pattern, url = window.location.href) => {
@@ -265,7 +316,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     return
   }
 
-  const rules = await fetchRules()
+  const rules = await fetchRules().catch(() => [])
   const matchRule = (name, url = window.location.href) => {
     return rules.some(({ wildcard, script }) => {
       if (script !== name) {
@@ -280,54 +331,4 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
 })()
 `
   }
-}
-
-export interface CreateScriptParams {
-  files: Record<string, string>
-  scriptUrl: string
-  version: string
-  rules: [string, string][]
-}
-
-export function createUserScript({ scriptUrl, version, files, rules }: CreateScriptParams) {
-  const matches = new Set<string>()
-  const grants = new Set<string>()
-  const parts = Array.from(
-    (function* () {
-      for (const [file, content] of Object.entries(files)) {
-        if (EXCLUDED_FILES.includes(file)) {
-          continue
-        }
-
-        const meta = extractMeta(content)
-        if (!meta.match) {
-          continue
-        }
-
-        const match = Array.isArray(meta.match) ? meta.match : [meta.match]
-        if (Array.isArray(rules)) {
-          for (const [rule, script] of rules) {
-            if (script === file) {
-              match.push(rule)
-            }
-          }
-        }
-
-        match.forEach((match) => typeof match === 'string' && match && matches.add(match))
-
-        if (meta.grant) {
-          const grant = Array.isArray(meta.grant) ? meta.grant : [meta.grant]
-          grant.forEach((grant) => typeof grant === 'string' && grant && grants.add(grant))
-        }
-
-        const clearedContent = clearMeta(content)
-        yield `if(${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")){${clearedContent}}`
-      }
-    })()
-  )
-
-  const grant = Array.from(grants)
-  const withBanner = createBanner({ grant, scriptUrl, version })
-  const content = parts.join('\n')
-  return withBanner(content).trim()
 }
