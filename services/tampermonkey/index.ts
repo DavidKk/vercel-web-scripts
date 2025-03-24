@@ -130,6 +130,7 @@ export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) 
   const baseUrl = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
   const ruleAPIUrl = `${baseUrl}/api/tampermonkey/rule`
   const ruleManagerUrl = `${baseUrl}/tampermonkey/rule`
+  const editorUrl = `${baseUrl}/tampermonkey/rule`
   return (content: string) => {
     return `
 // ==UserScript==
@@ -255,7 +256,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
   }
 
   GM_registerMenuCommand('Edit Script', () => {
-    window.open("${baseUrl}/editor", '_blank')
+    window.open("${editorUrl}", '_blank')
   })
 
   GM_registerMenuCommand('Update Script', () => {
