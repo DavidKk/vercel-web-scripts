@@ -1,10 +1,21 @@
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
-import { createUserScript, extractMeta } from '@/services/tampermonkey'
+import { createUserScript, extractMeta, getTampermonkeyScriptKey } from '@/services/tampermonkey'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES } from '@/constants/file'
+import { NextResponse } from 'next/server'
 
-export const GET = plainText(async (req) => {
+export interface Params {
+  key: string
+}
+
+export const GET = plainText<Params>(async (req, context) => {
+  const params = await context.params
+  const key = getTampermonkeyScriptKey()
+  if (params.key !== key) {
+    return new NextResponse('Not Found', { status: 404 })
+  }
+
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
   const files = Object.fromEntries(

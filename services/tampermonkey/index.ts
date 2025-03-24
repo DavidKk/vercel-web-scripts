@@ -1,3 +1,5 @@
+import { createHash } from 'crypto'
+import { getGistInfo } from '@/services/gist'
 import { EXCLUDED_FILES } from '@/constants/file'
 import type { RuleConfig } from './types'
 
@@ -331,4 +333,9 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
 })()
 `
   }
+}
+
+export function getTampermonkeyScriptKey() {
+  const { gistId } = getGistInfo()
+  return createHash('sha256').update(gistId).digest('hex')
 }

@@ -1,8 +1,10 @@
 import { checkAccess } from '@/services/auth/access'
+import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
 export default async function Home() {
   await checkAccess({ isApiRouter: false })
+  const key = getTampermonkeyScriptKey()
 
   return (
     <div className="min-h-[calc(100vh-60px-64px)] flex flex-col items-center bg-gray-100 p-10 py-16 text-black">
@@ -14,7 +16,7 @@ export default async function Home() {
           The script will automatically update, checking for updates daily by default. Refer to the Tampermonkey script settings for details.
         </p>
         <div className="flex space-x-4">
-          <a href="/static/tampermonkey.user.js" target="_blank" className="flex items-center bg-green-700 text-white rounded-sm hover:bg-green-800">
+          <a href={`/static/${key}/tampermonkey.user.js`} target="_blank" className="flex items-center bg-green-700 text-white rounded-sm hover:bg-green-800">
             <span className="inline-block px-3 py-2 bg-green-900 rounded-l-sm">
               <ArchiveBoxArrowDownIcon className="w-5 h-5" />
             </span>
