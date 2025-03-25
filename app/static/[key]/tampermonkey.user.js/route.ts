@@ -39,17 +39,7 @@ export const GET = plainText<Params>(async (req, context) => {
     })()
   )
 
-  let rules: RuleConfig[] = []
-  const ruleFile = gist.files[ENTRY_SCRIPT_RULES_FILE]
-  if (ruleFile) {
-    try {
-      rules = JSON.parse(ruleFile.content)
-    } catch {
-      // ignore
-    }
-  }
-
   const scriptUrl = req.url
   const version = `0.${(new Date(gist.updated_at).getTime() / 1e3).toString()}`
-  return createUserScript({ scriptUrl, version, files, rules }).replace(/\r\n/g, '\n')
+  return createUserScript({ scriptUrl, version, files }).replace(/\r\n/g, '\n')
 })

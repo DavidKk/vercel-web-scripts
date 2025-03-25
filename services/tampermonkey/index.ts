@@ -73,10 +73,9 @@ export interface CreateScriptParams {
   files: Record<string, string>
   scriptUrl: string
   version: string
-  rules: RuleConfig[]
 }
 
-export function createUserScript({ scriptUrl, version, files, rules }: CreateScriptParams) {
+export function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
   const matches = new Set<string>()
   const grants = new Set<string>()
   const parts = Array.from(
@@ -92,14 +91,6 @@ export function createUserScript({ scriptUrl, version, files, rules }: CreateScr
         }
 
         const match = Array.isArray(meta.match) ? meta.match : [meta.match]
-        if (Array.isArray(rules)) {
-          for (const { wildcard, script } of rules) {
-            if (script === file) {
-              match.push(wildcard)
-            }
-          }
-        }
-
         match.forEach((match) => typeof match === 'string' && match && matches.add(match))
 
         if (meta.grant) {
