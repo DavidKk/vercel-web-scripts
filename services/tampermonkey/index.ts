@@ -1,10 +1,21 @@
 import { createHash } from 'crypto'
 import { getGistInfo } from '@/services/gist'
 import { EXCLUDED_FILES } from '@/constants/file'
-import type { RuleConfig } from './types'
+import * as prettier from 'prettier'
 
 const OPEN_TAG = `// ==UserScript==`
 const CLOSE_TAG = `// ==/UserScript==`
+
+const PRETTIER_CONFIG: prettier.Options = {
+  parser: 'babel',
+  printWidth: 180,
+  tabWidth: 2,
+  useTabs: false,
+  singleQuote: true,
+  semi: false,
+  trailingComma: 'es5',
+  bracketSpacing: true,
+}
 
 export function extractMeta(content: string) {
   const openTagIndex = content.indexOf(OPEN_TAG)
@@ -75,7 +86,7 @@ export interface CreateScriptParams {
   version: string
 }
 
-export function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
+export async function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
   const matches = new Set<string>()
   const grants = new Set<string>()
   const parts = Array.from(
@@ -107,7 +118,8 @@ export function createUserScript({ scriptUrl, version, files }: CreateScriptPara
   const grant = Array.from(grants)
   const withBanner = createBanner({ grant, scriptUrl, version })
   const content = parts.join('\n')
-  return withBanner(content).trim()
+  const script = withBanner(content).trim()
+  return prettier.format(script, PRETTIER_CONFIG)
 }
 
 export interface CreateBannerParams {

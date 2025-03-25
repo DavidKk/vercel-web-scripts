@@ -1,8 +1,7 @@
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
 import { createUserScript, extractMeta, getTampermonkeyScriptKey } from '@/services/tampermonkey'
-import type { RuleConfig } from '@/services/tampermonkey/types'
-import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES } from '@/constants/file'
+import { EXCLUDED_FILES } from '@/constants/file'
 import { NextResponse } from 'next/server'
 
 export interface Params {
@@ -41,5 +40,6 @@ export const GET = plainText<Params>(async (req, context) => {
 
   const scriptUrl = req.url
   const version = `0.${(new Date(gist.updated_at).getTime() / 1e3).toString()}`
-  return createUserScript({ scriptUrl, version, files }).replace(/\r\n/g, '\n')
+  const content = await createUserScript({ scriptUrl, version, files })
+  return content.replace(/\r\n/g, '\n')
 })

@@ -53,6 +53,9 @@ importers:
       otplib:
         specifier: ^12.0.1
         version: 12.0.1
+      prettier:
+        specifier: ^3.4.2
+        version: 3.4.2
       puppeteer:
         specifier: ^24.2.1
         version: 24.2.1(typescript@5.7.2)
@@ -141,9 +144,6 @@ importers:
       postcss:
         specifier: ^8
         version: 8.4.49
-      prettier:
-        specifier: ^3.3.3
-        version: 3.4.2
       pretty-error:
         specifier: ^4.0.0
         version: 4.0.0
