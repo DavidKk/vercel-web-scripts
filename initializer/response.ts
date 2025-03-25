@@ -74,6 +74,11 @@ export function jsonSuccess(data?: any, options: ResponseInit = {}) {
   return json(response, { status: 200, ...options })
 }
 
+export function josnNotFound(options: ResponseInit = {}) {
+  const response = standardResponseError('not found', { code: 404 })
+  return json(response, { status: 404, ...options })
+}
+
 export function stringifyUnknownError(error: unknown) {
   if (isStandardResponse(error)) {
     return error.message

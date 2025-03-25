@@ -12,7 +12,7 @@ export interface ContextWithParams<P> extends Context {
   params: Promise<P>
 }
 
-export function api(handle: (req: NextRequest, context: Context) => Promise<Record<string, any>>) {
+export function api<P>(handle: (req: NextRequest, context: ContextWithParams<P>) => Promise<Record<string, any>>) {
   return async (req: NextRequest, context: Context) => {
     return runWithContext(req, async () => {
       try {

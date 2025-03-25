@@ -129,9 +129,10 @@ export interface CreateBannerParams {
 }
 
 export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) {
+  const key = getTampermonkeyScriptKey()
   const uri = new URL(scriptUrl)
   const baseUrl = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
-  const ruleAPIUrl = `${baseUrl}/api/tampermonkey/rule`
+  const ruleAPIUrl = `${baseUrl}/api/tampermonkey/${key}/rule`
   const ruleManagerUrl = `${baseUrl}/tampermonkey/rule`
   const editorUrl = `${baseUrl}/tampermonkey/editor`
   return (content: string) => {
