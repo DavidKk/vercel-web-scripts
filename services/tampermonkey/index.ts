@@ -117,7 +117,7 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
 
   const grant = Array.from(grants)
   const withBanner = createBanner({ grant, scriptUrl, version })
-  const content = parts.join('\n')
+  const content = parts.join('\n\n')
   const script = withBanner(content).trim()
   return prettier.format(script, PRETTIER_CONFIG)
 }
