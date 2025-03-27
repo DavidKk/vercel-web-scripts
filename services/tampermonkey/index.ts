@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import { parse } from '@babel/parser'
 import { getGistInfo } from '@/services/gist'
 import { EXCLUDED_FILES } from '@/constants/file'
 import * as prettier from 'prettier'
@@ -80,6 +81,16 @@ export function clearMeta(content: string) {
   return content.trim()
 }
 
+export function validateJavaScript(code: string) {
+  try {
+    parse(code, { sourceType: 'script' })
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return message
+  }
+}
+
 export interface CreateScriptParams {
   files: Record<string, string>
   scriptUrl: string
@@ -110,7 +121,22 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
         }
 
         const clearedContent = clearMeta(content)
-        yield `if(${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")){${clearedContent}}`
+        const reason = validateJavaScript(clearedContent)
+        if (reason !== true) {
+          // eslint-disable-next-line no-console
+          console.error(`${file} script invalid: ${reason}`)
+          continue
+        }
+
+        yield `
+          try {
+            if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
+              ${clearedContent}
+            }
+          } catch (error) {
+            console.error('Executing script \`${file}\` failed:', error)
+          }
+        `
       }
     })()
   )
