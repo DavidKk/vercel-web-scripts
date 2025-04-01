@@ -7,7 +7,7 @@ import { isRuleConfig, type RuleConfig } from '@/services/tampermonkey/types'
 export async function getScripts() {
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
-  return Object.keys(gist.files).filter(([file]) => !EXCLUDED_FILES.includes(file))
+  return Object.keys(gist.files).filter(([file]) => !file.endsWith('.json') && !EXCLUDED_FILES.includes(file))
 }
 
 export async function getRules(): Promise<RuleConfig[]> {

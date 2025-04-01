@@ -3,7 +3,7 @@ import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
 export default async function Home() {
-  await checkAccess({ isApiRouter: false })
+  await checkAccess({ isApiRouter: false, redirectUrl: '/tampermonkey' })
   const key = getTampermonkeyScriptKey()
 
   return (

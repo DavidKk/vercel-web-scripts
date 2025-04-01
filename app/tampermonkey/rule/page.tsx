@@ -3,7 +3,7 @@ import { getRules, getScripts } from '@/app/actions/tampermonkey'
 import Form from './Form'
 
 export default async function RulePage() {
-  await checkAccess({ isApiRouter: false })
+  await checkAccess({ isApiRouter: false, redirectUrl: '/tampermonkey/rule' })
 
   const rules = await getRules()
   const scripts = await getScripts()

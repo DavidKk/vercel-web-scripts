@@ -341,11 +341,13 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     })
   })
 
-  GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
-    const enable = !isDebugMode()
-    toggleDebug(enable)
-    window.location.reload()
-  })
+  if (${process.env.NODE_ENV === 'development' ? 1 : 0}) {
+    GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
+      const enable = !isDebugMode()
+      toggleDebug(enable)
+      window.location.reload()
+    })
+  }
 
   if (isDebugMode()) {
     const scriptUrl = '${baseUrl}/api/tampermonkey?t=' + Date.now() + '&url=' + encodeURIComponent(window.location.href)

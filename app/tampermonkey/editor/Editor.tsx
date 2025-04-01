@@ -8,7 +8,7 @@ import { CloudArrowUpIcon } from '@heroicons/react/16/solid'
 import { extractMeta, prependMeta } from '@/services/tampermonkey'
 import { Spinner } from '@/components/Spinner'
 import { updateFiles } from '@/app/api/scripts/actions'
-import { ENTRY_SCRIPT_FILE, PACKAGE_FILE } from '@/constants/file'
+import { ENTRY_SCRIPT_FILE, EXCLUDED_FILES, PACKAGE_FILE } from '@/constants/file'
 
 export interface EditorProps {
   files: Record<
@@ -77,6 +77,11 @@ export default function Editor(props: EditorProps) {
       const files = Object.fromEntries(
         (function* () {
           for (const [file, { content, rawUrl }] of Object.entries(inFiles)) {
+            if (file.endsWith('.json') || EXCLUDED_FILES.includes(file)) {
+              yield [file, content]
+              continue
+            }
+
             const meta = extractMeta(content)
             yield [file, prependMeta(content, { ...meta, source: rawUrl })]
           }
