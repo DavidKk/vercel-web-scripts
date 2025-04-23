@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
-import { extractMeta, getTampermonkeyScriptKey } from '@/services/tampermonkey'
+import { getTampermonkeyScriptKey, extractMeta } from '@/services/tampermonkey'
 import { createUserScript } from '@/services/tampermonkey/createUserScript.server'
 import { EXCLUDED_FILES } from '@/constants/file'
 
