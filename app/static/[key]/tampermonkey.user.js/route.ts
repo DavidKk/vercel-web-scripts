@@ -29,11 +29,6 @@ export const GET = plainText<Params>(async (req, context) => {
           continue
         }
 
-        const meta = extractMeta(content)
-        if (!meta.match) {
-          continue
-        }
-
         yield [file, content]
       }
     })()

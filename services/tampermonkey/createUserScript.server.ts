@@ -34,11 +34,7 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
         }
 
         const meta = extractMeta(content)
-        if (!meta.match) {
-          continue
-        }
-
-        const match = Array.isArray(meta.match) ? meta.match : [meta.match]
+        const match = !meta.match ? [] : Array.isArray(meta.match) ? meta.match : [meta.match]
         match.forEach((match) => typeof match === 'string' && match && matches.add(match))
 
         if (meta.grant) {
