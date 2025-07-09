@@ -2,11 +2,12 @@
 
 import React from 'react'
 import ClearableSelect from '@/components/ClearableSelect'
+import type { Script } from '@/app/actions/tampermonkey'
 
 export interface ScriptFieldProps {
   value: string
   onChange: (value: string) => void
-  scripts: string[]
+  scripts: Script[]
   required?: boolean
 }
 
@@ -16,7 +17,7 @@ export const ScriptField: React.FC<ScriptFieldProps> = (props) => {
     <ClearableSelect
       value={value}
       onChange={(value) => onChange(value)}
-      options={scripts.map((script) => ({ label: script, value: script }))}
+      options={scripts.map((script) => ({ label: script.name, value: script.file }))}
       placeholder="Please select a script"
       required={required}
     />

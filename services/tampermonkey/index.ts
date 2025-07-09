@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import { getGistInfo } from '@/services/gist'
 import { clearMeta, extractMeta, prependMeta } from './meta'
+import { DEFAULT_GRANTS, GRANTS } from './grant'
 
 export interface CreateBannerParams {
   grant: string[]
@@ -15,6 +16,8 @@ export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) 
   const ruleAPIUrl = `${baseUrl}/api/tampermonkey/${key}/rule`
   const ruleManagerUrl = `${baseUrl}/tampermonkey/rule`
   const editorUrl = `${baseUrl}/tampermonkey/editor`
+  const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS)))
+
   return (content: string) => {
     return `
 // ==UserScript==
@@ -29,12 +32,7 @@ export function createBanner({ grant, scriptUrl, version }: CreateBannerParams) 
 // @match        */*
 // @noframes
 // @connect      ${uri.hostname}
-// @grant        GM_registerMenuCommand
-// @grant        GM_xmlhttpRequest
-// @grant        GM_notification
-// @grant        GM_getValue
-// @grant        GM_setValue
-${grant.map((g) => `// @grant        ${g}`).join('\n')}
+${grants.map((g) => `// @grant        ${g}`).join('\n')}
 // ==/UserScript==
 
 (async () => {
@@ -115,7 +113,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
     try {
       GM_setValue(RULE_CACHE_KEY, JSON.stringify(rules))
     } catch (error) {
-      console.error('Error caching rules:', error)
+      GM_log('[ERROR] Caching rules:', error)
     }
 
     return rules
@@ -131,7 +129,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
       try {
         return JSON.parse(cached)
       } catch (error) {
-        console.error('Error parsing cached rules:', error)
+        GM_log('[ERROR] Parsing cached rules:', error)
       }
     }
 
@@ -212,33 +210,7 @@ ${grant.map((g) => `// @grant        ${g}`).join('\n')}
       execute({
         window,
         GME_preview,
-        ...(typeof GM_addElement !== 'undefined' ? { GM_addElement } : {}),
-        ...(typeof GM_addStyle !== 'undefined' ? { GM_addStyle } : {}),
-        ...(typeof GM_download !== 'undefined' ? { GM_download } : {}),
-        ...(typeof GM_getResourceText !== 'undefined' ? { GM_getResourceText } : {}),
-        ...(typeof GM_getResourceURL !== 'undefined' ? { GM_getResourceURL } : {}),
-        ...(typeof GM_info !== 'undefined' ? { GM_info } : {}),
-        ...(typeof GM_log !== 'undefined' ? { GM_log } : {}),
-        ...(typeof GM_notification !== 'undefined' ? { GM_notification } : {}),
-        ...(typeof GM_openInTab !== 'undefined' ? { GM_openInTab } : {}),
-        ...(typeof GM_registerMenuCommand !== 'undefined' ? { GM_registerMenuCommand } : {}),
-        ...(typeof GM_unregisterMenuCommand !== 'undefined' ? { GM_unregisterMenuCommand } : {}),
-        ...(typeof GM_setClipboard !== 'undefined' ? { GM_setClipboard } : {}),
-        ...(typeof GM_getTab !== 'undefined' ? { GM_getTab } : {}),
-        ...(typeof GM_saveTab !== 'undefined' ? { GM_saveTab } : {}),
-        ...(typeof GM_getTabs !== 'undefined' ? { GM_getTabs } : {}),
-        ...(typeof GM_setValue !== 'undefined' ? { GM_setValue } : {}),
-        ...(typeof GM_getValue !== 'undefined' ? { GM_getValue } : {}),
-        ...(typeof GM_deleteValue !== 'undefined' ? { GM_deleteValue } : {}),
-        ...(typeof GM_listValues !== 'undefined' ? { GM_listValues } : {}),
-        ...(typeof GM_setValues !== 'undefined' ? { GM_setValues } : {}),
-        ...(typeof GM_getValues !== 'undefined' ? { GM_getValues } : {}),
-        ...(typeof GM_deleteValues !== 'undefined' ? { GM_deleteValues } : {}),
-        ...(typeof GM_addValueChangeListener !== 'undefined' ? { GM_addValueChangeListener } : {}),
-        ...(typeof GM_removeValueChangeListener !== 'undefined' ? { GM_removeValueChangeListener } : {}),
-        ...(typeof GM_xmlhttpRequest !== 'undefined' ? { GM_xmlhttpRequest } : {}),
-        ...(typeof GM_webRequest !== 'undefined' ? { GM_webRequest } : {}),
-        ...(typeof GM_cookie !== 'undefined' ? { GM_cookie } : {}),
+        ${GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')}
       })
 
       return

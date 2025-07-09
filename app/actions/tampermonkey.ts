@@ -1,13 +1,32 @@
 'use server'
 
-import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES } from '@/constants/file'
+import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, EXCLUDED_FILE_EXTENSIONS } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFile } from '@/services/gist'
+import { extractMeta } from '@/services/tampermonkey'
 import { isRuleConfig, type RuleConfig } from '@/services/tampermonkey/types'
+
+export interface Script {
+  name: string
+  file: string
+}
 
 export async function getScripts() {
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
-  return Object.keys(gist.files).filter(([file]) => !file.endsWith('.json') && !EXCLUDED_FILES.includes(file))
+
+  return Array.from<Script>(
+    (function* () {
+      for (const [file, info] of Object.entries(gist.files)) {
+        if (EXCLUDED_FILE_EXTENSIONS.some((ext) => file.endsWith(ext)) || EXCLUDED_FILES.includes(file)) {
+          continue
+        }
+
+        const metas = extractMeta(info.content)
+        const name = metas?.name ? (Array.isArray(metas.name) ? metas.name[0] : metas?.name) : file
+        yield { file, name } satisfies Script
+      }
+    })()
+  )
 }
 
 export async function getRules(): Promise<RuleConfig[]> {

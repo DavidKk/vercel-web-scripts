@@ -3,14 +3,16 @@
 import React from 'react'
 import ConfigManager from '@/components/ConfigManager'
 import { updateRules } from '@/app/actions/tampermonkey'
+import type { Script } from '@/app/actions/tampermonkey'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 import { WildcardField, type WildcardFieldProps } from './WildcardField'
-import { ScriptField, type ScriptFieldProps } from './ScriptField'
+import { ScriptField } from './ScriptField'
+import type { ScriptFieldProps } from './ScriptField'
 import { useSearchParams } from 'next/navigation'
 
 export interface FormProps {
   rules: RuleConfig[]
-  scripts: string[]
+  scripts: Script[]
 }
 
 export default function Form(props: FormProps) {

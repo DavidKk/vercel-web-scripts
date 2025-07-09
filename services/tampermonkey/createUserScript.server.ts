@@ -72,10 +72,11 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
           // ${file}
           try {
             if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
+              GM_log('[OK] Executing script \`${file}\`');\n
               ${compiledContent}
             }
           } catch (error) {
-            console.error('Executing script \`${file}\` failed:', error)
+            GM_log('[ERROR] Executing script \`${file}\` failed:', error)
           }
         `
       }
