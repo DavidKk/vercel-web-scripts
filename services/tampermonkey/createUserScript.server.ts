@@ -76,7 +76,8 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
               ${compiledContent}
             }
           } catch (error) {
-            GM_log('[ERROR] Executing script \`${file}\` failed:', error)
+            const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
+            GM_log('[ERROR] Executing script \`${file}\` failed:', message)
           }
         `
       }
@@ -84,7 +85,7 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
   )
 
   const grant = Array.from(grants)
-  const withBanner = createBanner({ grant, scriptUrl, version })
+  const withBanner = await createBanner({ grant, scriptUrl, version })
   const content = parts.join('\n\n')
   const script = withBanner(content).trim()
   return prettier.format(script, PRETTIER_CONFIG)
