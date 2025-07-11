@@ -3,7 +3,7 @@ function GME_curl(content: string) {
     throw new Error('Missing content')
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise<any>((resolve, reject) => {
     GM_xmlhttpRequest({
       method: 'POST',
       url: __BASE_URL__ + '/api/curl',
@@ -56,4 +56,52 @@ function GME_preview(file: string, content: string) {
   form.submit()
 
   document.body.removeChild(form)
+}
+
+type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null
+
+interface WaitForOptions {
+  timeout?: boolean
+}
+
+function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
+  const { timeout: openTimeout } = options || {}
+  return new Promise<ReturnType<T>>((resolve, reject) => {
+    const timerId =
+      openTimeout &&
+      setTimeout(() => {
+        observer?.disconnect()
+        reject(new Error('Timeout'))
+      }, 3e3)
+
+    let observer: MutationObserver | null = null
+
+    const checkAndResolve = () => {
+      const node = query()
+      if (node) {
+        timerId && clearTimeout(timerId)
+        observer?.disconnect()
+        resolve(node as ReturnType<T>)
+        return true
+      }
+      return false
+    }
+
+    if (checkAndResolve()) {
+      return
+    }
+
+    observer = new MutationObserver(() => {
+      checkAndResolve()
+    })
+
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+    })
+  })
+}
+
+function GME_sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
