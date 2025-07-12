@@ -1,7 +1,7 @@
 const RULE_CACHE_KEY = '#RuleCache@WebScripts'
 
 function matchUrl(pattern: string, url = window.location.href) {
-  const regexPattern = pattern.replace(/\./g, '\\.').replace(/\*/g, '(.*)')
+  const regexPattern = pattern.replace(/([\.\?])/g, '\\$1').replace(/\*/g, '.*')
   const regex = new RegExp(`^${regexPattern}$`)
   return regex.test(url)
 }

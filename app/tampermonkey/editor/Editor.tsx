@@ -9,6 +9,7 @@ import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 import { Spinner } from '@/components/Spinner'
 import { updateFiles } from '@/app/api/scripts/actions'
 import { ENTRY_SCRIPT_FILE, EXCLUDED_FILES, PACKAGE_FILE, TYPINGS_FILE } from '@/constants/file'
+import { useBeforeUnload } from '@/hooks/useClient'
 
 export interface EditorProps {
   files: Record<
@@ -24,6 +25,10 @@ export default function Editor(props: EditorProps) {
   const { files: inFiles } = props
   const editorRef = useRef<HTMLDivElement>(null)
   const [vm, setVM] = useState<VM>()
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
+  // Use custom hook to handle page leave confirmation
+  useBeforeUnload(hasUnsavedChanges, 'You have unsaved changes. Are you sure you want to leave?')
 
   const { run: save, loading } = useRequest(
     async () => {
@@ -61,12 +66,48 @@ export default function Editor(props: EditorProps) {
       })
 
       await updateFiles(...needUpdateFiles)
+      setHasUnsavedChanges(false)
     },
     {
       manual: true,
       throttleWait: 1e3,
     }
   )
+
+  // Monitor editor content changes
+  useEffect(() => {
+    if (!vm) return
+
+    const checkForChanges = async () => {
+      try {
+        const snapshot = await vm.getFsSnapshot()
+        if (snapshot) {
+          // Check if any file content has changed
+          const hasChanges = Object.entries(snapshot).some(([file, content]) => {
+            if (file === PACKAGE_FILE || file === ENTRY_SCRIPT_FILE || file === TYPINGS_FILE) {
+              return false
+            }
+            
+            if (!content) return false
+            
+            const originalFile = inFiles[file]
+            return originalFile && originalFile.content !== content
+          })
+          
+          setHasUnsavedChanges(hasChanges)
+        }
+      } catch (error) {
+        console.error('Error checking for changes:', error)
+      }
+    }
+
+    // Check for changes periodically
+    const interval = setInterval(checkForChanges, 2000)
+    
+    return () => {
+      clearInterval(interval)
+    }
+  }, [vm, inFiles])
 
   useEffect(() => {
     ;(async () => {
@@ -117,6 +158,12 @@ export default function Editor(props: EditorProps) {
           <span className="w-8 h-8 flex items-center justify-center">{loading ? <Spinner /> : <CloudArrowUpIcon />}</span>
           <span>Save</span>
         </button>
+      )}
+      
+      {hasUnsavedChanges && (
+        <div className="fixed top-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-md shadow-lg">
+          <span className="text-sm">Unsaved changes</span>
+        </div>
       )}
     </div>
   )

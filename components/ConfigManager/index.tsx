@@ -9,6 +9,7 @@ import SortableItem from './SortableItem'
 import { FilterBar } from './FilterBar'
 import type { Config, ConfigSchema, ConfigSchemaFC } from './types'
 import { fuzzySearch } from '@/utils/find'
+import { useBeforeUnload } from '@/hooks/useClient'
 
 export interface ConfigManagerProps<T extends Config> {
   configs: T[]
@@ -31,12 +32,22 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
 
   const [configs, setConfigs] = useState([...defaultConfigs])
   const [filteredConfigs, setFilteredConfigs] = useState(configs)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const alertRef = useRef<AlertImperativeHandler>(null)
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor))
   const formRef = useRef<HTMLFormElement>(null)
 
   const isFilterMode = filteredConfigs.length !== configs.length
+
+  // Use custom hook to handle page leave confirmation
+  useBeforeUnload(hasUnsavedChanges, 'You have unsaved configuration changes. Are you sure you want to leave?')
+
+  // Check if configuration has changes
+  useEffect(() => {
+    const hasChanges = JSON.stringify(configs) !== JSON.stringify(defaultConfigs)
+    setHasUnsavedChanges(hasChanges)
+  }, [configs, defaultConfigs])
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event
@@ -143,6 +154,7 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
       }
 
       await onSubmit(configs)
+      setHasUnsavedChanges(false)
     },
     {
       manual: true,
@@ -269,6 +281,12 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
           </button>
         </div>
       </footer>
+      
+      {hasUnsavedChanges && (
+        <div className="fixed top-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-md shadow-lg z-50">
+          <span className="text-sm">Unsaved configuration changes</span>
+        </div>
+      )}
     </form>
   )
 })
