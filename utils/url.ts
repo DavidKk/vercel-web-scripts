@@ -26,7 +26,7 @@ export function tryGetDomain(url: string) {
 }
 
 export function matchUrl(pattern: string, url: string) {
-  const regexPattern = pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')
+  const regexPattern = pattern.replace(/([\.\?])/g, '\\$1').replace(/\*/g, '.*')
   const regex = new RegExp(`^${regexPattern}$`)
   return regex.test(url)
 }
