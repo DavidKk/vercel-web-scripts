@@ -1,3 +1,5 @@
+import { EXCLUDED_FILE_EXTENSIONS, EXCLUDED_FILES } from '@/constants/file'
+
 export interface Gist {
   url: string
   forks_url: string
@@ -94,6 +96,14 @@ export async function writeGistFiles(params: WriteGistFilesParams) {
   const files = Object.fromEntries(
     (function* () {
       for (const { file, content } of inFiles) {
+        if (EXCLUDED_FILES.some((excludedFile) => excludedFile === file)) {
+          continue
+        }
+
+        if (EXCLUDED_FILE_EXTENSIONS.some((excludedExtension) => file.endsWith(excludedExtension))) {
+          continue
+        }
+
         // If content is null, delete the file
         if (content === null) {
           yield [file, null]
@@ -115,7 +125,8 @@ export async function writeGistFiles(params: WriteGistFilesParams) {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to update gist')
+    const message = await response.text()
+    throw new Error('Failed to update gist. Status:' + response.status + '. ' + message)
   }
 
   return response.json()
