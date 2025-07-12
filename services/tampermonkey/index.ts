@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { getGistInfo } from '@/services/gist'
 import { clearMeta, extractMeta, prependMeta } from './meta'
 import { DEFAULT_GRANTS, GRANTS } from './grant'
-import { compileGMCore } from './compile'
+import { compileGMCore } from './gmCore'
 
 export interface CreateBannerParams {
   grant: string[]
