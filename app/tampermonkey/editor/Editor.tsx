@@ -87,23 +87,24 @@ export default function Editor(props: EditorProps) {
             if (file === PACKAGE_FILE || file === ENTRY_SCRIPT_FILE || file === TYPINGS_FILE) {
               return false
             }
-            
+
             if (!content) return false
-            
+
             const originalFile = inFiles[file]
             return originalFile && originalFile.content !== content
           })
-          
+
           setHasUnsavedChanges(hasChanges)
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Error checking for changes:', error)
       }
     }
 
     // Check for changes periodically
     const interval = setInterval(checkForChanges, 2000)
-    
+
     return () => {
       clearInterval(interval)
     }

@@ -281,7 +281,7 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
           </button>
         </div>
       </footer>
-      
+
       {hasUnsavedChanges && (
         <div className="fixed top-4 right-4 bg-yellow-500 text-white px-4 py-2 rounded-md shadow-lg z-50">
           <span className="text-sm">Unsaved configuration changes</span>

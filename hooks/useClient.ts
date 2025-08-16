@@ -9,7 +9,7 @@ export function useClient() {
   return ready
 }
 
-export function useBeforeUnload(hasUnsavedChanges: boolean, message: string = 'You have unsaved changes. Are you sure you want to leave?') {
+export function useBeforeUnload(hasUnsavedChanges: boolean, message = 'You have unsaved changes. Are you sure you want to leave?') {
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -20,7 +20,7 @@ export function useBeforeUnload(hasUnsavedChanges: boolean, message: string = 'Y
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
