@@ -1,11 +1,9 @@
-// Menu item interface
 interface MenuItem {
   id: string
   text: string
   icon?: string
   hint?: string
   action?: () => void
-  children?: MenuItem[]
 }
 
 class CornerWidget extends HTMLElement {
@@ -201,14 +199,12 @@ class CornerWidget extends HTMLElement {
       return
     }
 
-    // Find corresponding menu item
     const item = this.#findMenuItemById(menuId)
     if (!item) {
       return
     }
 
-    // Only trigger first-level item action (children ignored)
-    if (item.action) {
+    if (typeof item.action === 'function') {
       item.action()
     }
   }
@@ -328,5 +324,7 @@ function GME_registerMenuCommand(item: MenuItem) {
 
   widget.addMenuItem(item)
   const idx = pre.indexOf(item)
-  if (idx >= 0) pre.splice(idx, 1)
+  if (idx >= 0) {
+    pre.splice(idx, 1)
+  }
 }
