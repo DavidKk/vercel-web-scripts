@@ -3,6 +3,7 @@ import { getGistInfo } from '@/services/gist'
 import { clearMeta, extractMeta, prependMeta } from './meta'
 import { DEFAULT_GRANTS, GRANTS } from './grant'
 import { compileGMCore } from './gmCore'
+import { compileGMUi } from './gmUI'
 
 export interface CreateBannerParams {
   grant: string[]
@@ -19,6 +20,7 @@ export async function createBanner({ grant, scriptUrl, version }: CreateBannerPa
   const __EDITOR_URL__ = `${__BASE_URL__}/tampermonkey/editor`
   const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS)))
   const coreScriptContents = await compileGMCore(__BASE_URL__)
+  const uiScriptContents = await compileGMUi(__BASE_URL__)
 
   return (content: string) => {
     return `
@@ -42,6 +44,7 @@ const __RULE_API_URL__ = '${__RULE_API_URL__}'
 const __RULE_MANAGER_URL__ = '${__RULE_MANAGER_URL__}'
 const __EDITOR_URL__ = '${__EDITOR_URL__}'
 ${coreScriptContents}
+${uiScriptContents}
 
 (async () => {
   'use strict'
