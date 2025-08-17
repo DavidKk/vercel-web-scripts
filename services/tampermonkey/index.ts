@@ -6,11 +6,12 @@ import { fetchCoreScripts, fetchCoreUIs, compileScripts } from './gmCore'
 
 export interface CreateBannerParams {
   grant: string[]
+  connect: string[]
   scriptUrl: string
   version: string
 }
 
-export async function createBanner({ grant, scriptUrl, version }: CreateBannerParams) {
+export async function createBanner({ grant, connect, scriptUrl, version }: CreateBannerParams) {
   const key = getTampermonkeyScriptKey()
   const uri = new URL(scriptUrl)
   const __BASE_URL__ = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
@@ -39,6 +40,7 @@ export async function createBanner({ grant, scriptUrl, version }: CreateBannerPa
 // @match        */*
 // @noframes
 // @connect      ${uri.hostname}
+${connect.map((c) => `// @connect      ${c}`).join('\n')}
 ${grants.map((g) => `// @grant        ${g}`).join('\n')}
 // ==/UserScript==
 

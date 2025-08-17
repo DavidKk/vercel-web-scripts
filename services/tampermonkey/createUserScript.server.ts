@@ -26,6 +26,8 @@ export interface CreateScriptParams {
 export async function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
   const matches = new Set<string>()
   const grants = new Set<string>()
+  const connects = new Set<string>()
+
   const parts = Array.from(
     (function* () {
       for (const [file, content] of Object.entries(files)) {
@@ -36,6 +38,9 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
         const meta = extractMeta(content)
         const match = !meta.match ? [] : Array.isArray(meta.match) ? meta.match : [meta.match]
         match.forEach((match) => typeof match === 'string' && match && matches.add(match))
+
+        const connect = !meta.connect ? [] : Array.isArray(meta.connect) ? meta.connect : [meta.connect]
+        connect.forEach((connect) => typeof connect === 'string' && connect && connects.add(connect))
 
         if (meta.grant) {
           const grant = Array.isArray(meta.grant) ? meta.grant : [meta.grant]
@@ -85,7 +90,8 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
   )
 
   const grant = Array.from(grants)
-  const withBanner = await createBanner({ grant, scriptUrl, version })
+  const connect = Array.from(connects)
+  const withBanner = await createBanner({ grant, connect, scriptUrl, version })
   const content = parts.join('\n\n')
   const script = withBanner(content).trim()
   return prettier.format(script, PRETTIER_CONFIG)
