@@ -48,46 +48,31 @@ const __BASE_URL__ = '${__BASE_URL__}'
 const __RULE_API_URL__ = '${__RULE_API_URL__}'
 const __RULE_MANAGER_URL__ = '${__RULE_MANAGER_URL__}'
 const __EDITOR_URL__ = '${__EDITOR_URL__}'
+
 ${coreScriptContents}
 
-(async () => {
-  'use strict'
+const DEBUG_KEY = '#DebugMode@WebScripts'
+function toggleDebug(enable = true) {
+  sessionStorage.setItem(DEBUG_KEY, enable ? '1' : '0')
+}
 
-  const DEBUG_KEY = '#DebugMode@WebScripts'
+function isDebugMode() {
+  const enable = sessionStorage.getItem(DEBUG_KEY)
+  return enable === '1'
+}
 
-  const toggleDebug = (enable = true) => {
-    sessionStorage.setItem(DEBUG_KEY, enable ? '1' : '0')
+async function livereload() {
+  const content = await fetchScript('${scriptUrl}')
+  if (!content) {
+    return
   }
 
-  const isDebugMode = () => {
-    const enable = sessionStorage.getItem(DEBUG_KEY)
-    return enable === '1'
-  }
+  const execute = new Function('global', \`with(global){\${content}}\`)
+  const grants = { ${GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')} }
+  execute({ window, GME_preview, ...grants })
+}
 
-  GM_registerMenuCommand('Edit Script', () => {
-    window.open("${__EDITOR_URL__}", '_blank')
-  })
-
-  GM_registerMenuCommand('Update Script', () => {
-    const url = '${scriptUrl}'
-    url && window.open(url, '_blank')
-  })
-
-  GM_registerMenuCommand('Rule manager', () => {
-    const url = '${__RULE_MANAGER_URL__}?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
-    url && window.open(url, '_blank')
-  })
-
-  GM_registerMenuCommand('Refresh Rules', async () => {
-    await fetchAndCacheRules()
-
-    GM_notification({
-      text: 'Rules refreshed successfully',
-      title: 'Success',
-      timeout: 3000,
-    })
-  })
-
+async function main() {
   if (${process.env.NODE_ENV === 'development' ? 1 : 0}) {
     GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
       const enable = !isDebugMode()
@@ -97,20 +82,7 @@ ${coreScriptContents}
   }
 
   if (isDebugMode()) {
-    const scriptUrl = '${__BASE_URL__}/api/tampermonkey?t=' + Date.now() + '&url=' + encodeURIComponent(window.location.href)
-    const content = await fetchScript(scriptUrl)
-
-    if (content) {
-      const execute = new Function('global', \`with(global){\${content}}\`)
-      execute({
-        window,
-        GME_preview,
-        ${GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')}
-      })
-
-      return
-    }
-
+    livereload()
     return
   }
 
@@ -126,7 +98,33 @@ ${coreScriptContents}
   }
 
   ${clearMeta(content)}
-})()
+}
+
+GM_registerMenuCommand('Edit Script', () => {
+  window.open("${__EDITOR_URL__}", '_blank')
+})
+
+GM_registerMenuCommand('Update Script', () => {
+  const url = '${scriptUrl}'
+  url && window.open(url, '_blank')
+})
+
+GM_registerMenuCommand('Rule manager', () => {
+  const url = '${__RULE_MANAGER_URL__}?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
+  url && window.open(url, '_blank')
+})
+
+GM_registerMenuCommand('Refresh Rules', async () => {
+  await fetchAndCacheRules()
+
+  GM_notification({
+    text: 'Rules refreshed successfully',
+    title: 'Success',
+    timeout: 3000,
+  })
+})
+
+main()
 `
   }
 }

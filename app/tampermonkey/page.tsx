@@ -1,6 +1,6 @@
 import { checkAccess } from '@/services/auth/access'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
-import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
+import InstallTampermonkeyButton from './InstallButton'
 
 export default async function Home() {
   await checkAccess({ isApiRouter: false, redirectUrl: '/tampermonkey' })
@@ -16,12 +16,7 @@ export default async function Home() {
           The script will automatically update, checking for updates daily by default. Refer to the Tampermonkey script settings for details.
         </p>
         <div className="flex space-x-4">
-          <a href={`/static/${key}/tampermonkey.user.js`} target="_blank" className="flex items-center bg-green-700 text-white rounded-sm hover:bg-green-800">
-            <span className="inline-block px-3 py-2 bg-green-900 rounded-l-sm">
-              <ArchiveBoxArrowDownIcon className="w-5 h-5" />
-            </span>
-            <span className="inline-block px-3 py-2 bg-green-700 rounded-r-sm">Install Tampermonkey Script</span>
-          </a>
+          <InstallTampermonkeyButton scriptKey={key} />
         </div>
       </div>
     </div>

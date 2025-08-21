@@ -1,13 +1,13 @@
 :host {
-  /* 基础变量 */
+  /* Base variables */
   --cw-size: 120px;
   --cw-spacing: 6px;
   --cw-radius: 8px;
   --cw-font: 12px;
   --cw-duration: 200ms;
   --cw-easing: cubic-bezier(0.4, 0, 0.2, 1);
-  
-  /* 尺寸变量（基于基础变量） */
+
+  /* Size variables (based on base variables) */
   --cw-width: calc(var(--cw-size) * 1.2);
   --cw-button-size: calc(var(--cw-size) * 0.18);
   --cw-icon-size: calc(var(--cw-font) + 1px);
@@ -15,35 +15,35 @@
   --cw-badge-size: calc(var(--cw-spacing) * 0.5);
   --cw-dock-width: calc(var(--cw-spacing) * 0.67);
   --cw-dock-height: calc(var(--cw-size) * 0.2);
-  
-  /* 位置变量 */
+
+  /* Position variables */
   --cw-right-hidden: calc(100% - var(--cw-spacing) - 52px);
   --cw-right-visible: calc(100% - var(--cw-width) - var(--cw-spacing));
 
-  /* 间距变量（基于基础变量） */
+  /* Spacing variables (based on base variables) */
   --cw-padding: var(--cw-spacing) var(--cw-spacing) var(--cw-spacing) 2px;
   --cw-gap: calc(var(--cw-spacing) * 0.67);
   --cw-list-padding: calc(var(--cw-spacing) * 0.33) calc(var(--cw-spacing) * 0.33) calc(var(--cw-spacing) * 0.5);
   --cw-list-gap: calc(var(--cw-spacing) * 0.33);
   --cw-item-padding: calc(var(--cw-spacing) * 0.67) calc(var(--cw-spacing) + 2px);
   --cw-item-gap: calc(var(--cw-spacing) * 0.5);
-  
-  /* 字体变量（基于基础变量） */
+
+  /* Typography variables (based on base variables) */
   --cw-font-small: calc(var(--cw-font) - 1px);
   --cw-font-xs: calc(var(--cw-font) - 2px);
-  
-  /* 圆角变量（基于基础变量） */
+
+  /* Border radius variables (based on base variables) */
   --cw-radius-small: calc(var(--cw-radius) - 4px);
   --cw-radius-xs: calc(var(--cw-radius) - 6px);
-  
-  /* 位置变量（基于基础变量） */
+
+  /* Position variables (based on base variables) */
   --cw-dock-offset: calc(-1 * var(--cw-spacing));
   --cw-dock-top: calc(var(--cw-size) * 0.14);
-  
-  /* 其他变量 */
+
+  /* Other variables */
   --cw-panel-max-height: calc(var(--cw-size) * 1.4);
 
-  all: initial; /* 最大隔离 */
+  all: initial; /* Maximum isolation */
   contain: content;
   position: fixed;
   bottom: 10%;
@@ -51,21 +51,21 @@
   z-index: 2147483647;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   transition: left var(--cw-duration) var(--cw-easing), opacity var(--cw-duration) var(--cw-easing);
-  opacity: 0.4; /* 默认透明度 40% */
+  opacity: 0.4; /* Default opacity 40% */
 }
 
 :host(:hover) {
   left: var(--cw-right-visible);
-  opacity: 1; /* hover 时透明度 100% */
+  opacity: 1; /* 100% opacity on hover */
 }
 
-/* 拖拽时保持展开状态 */
+/* Keep expanded while dragging */
 :host(.corner-widget--dragging) {
   left: var(--cw-right-visible);
-  opacity: 1; /* 拖拽时透明度 100% */
+  opacity: 1; /* 100% opacity while dragging */
 }
 
-/* 隐藏状态 */
+/* Hidden state */
 :host(.corner-widget--hidden) {
   display: none;
 }
@@ -117,7 +117,7 @@
   transform: scale(1.05);
 }
 
-/* 拖拽时保持 hover 状态 */
+/* Keep hover state while dragging */
 :host(.corner-widget--dragging) .corner-widget__drag {
   opacity: 1;
   color: #a0a0a0;
@@ -221,7 +221,7 @@
   font-size: var(--cw-font-xs);
 }
 
-/* 子菜单样式 */
+/* Submenu styles */
 .corner-widget__submenu {
   display: none;
   position: absolute;
@@ -247,7 +247,7 @@
   visibility: visible;
 }
 
-/* 子菜单中的菜单项样式 */
+/* Menu item styles in submenu */
 .corner-widget__submenu .corner-widget__item {
   position: relative;
   margin-bottom: calc(var(--cw-spacing) * 0.33);
@@ -257,17 +257,17 @@
   margin-bottom: 0;
 }
 
-/* 有子菜单的父菜单项样式 */
+/* Parent item styles when it has a submenu */
 .corner-widget__item[data-has-children="true"] {
   position: relative;
 }
 
-/* 子菜单箭头动画 */
+/* Submenu arrow animation */
 .corner-widget__submenu--open + .corner-widget__item .corner-widget__item-arrow {
   transform: rotate(90deg);
 }
 
-/* 菜单项内容布局 */
+/* Menu item content layout */
 .corner-widget__item-content {
   display: flex;
   align-items: center;
@@ -296,7 +296,7 @@
   opacity: 0.6;
 }
 
-/* 小角标提示：未展开时闪烁一次吸引注意 */
+/* Small badge hint: ping once when collapsed to draw attention */
 @keyframes ping {
   0% { transform: scale(1); opacity: .8;}
   80% { transform: scale(1.8); opacity: 0;}
@@ -311,7 +311,7 @@
   animation: ping 1.4s cubic-bezier(0,0,.2,1) 1;
 }
 
-/* 主浮动按钮条（让"默认露出"更明显） */
+/* Main floating dock (makes the "default peek" more visible) */
 .corner-widget__dock {
   position: absolute;
   inset: 0 auto auto var(--cw-dock-offset);
