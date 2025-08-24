@@ -51,11 +51,11 @@ export function plainText<P>(handle: (req: NextRequest, context: ContextWithPara
     return runWithContext(req, async () => {
       try {
         const result = await handle(req, context)
-        const headers = getHeaders()
         if (result instanceof NextResponse) {
           return result
         }
 
+        const headers = getHeaders()
         return new NextResponse(result, { status: 200, headers })
       } catch (error) {
         const message = stringifyUnknownError(error)

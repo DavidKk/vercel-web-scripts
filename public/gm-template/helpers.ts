@@ -105,3 +105,23 @@ function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
 function GME_sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+function GME_ok(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
+}
+
+function GME_info(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
+}
+
+function GME_fail(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
+}
+
+function GME_warn(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
+}

@@ -33,9 +33,10 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
 function compileScripts(files: Record<string, string>) {
   const { compile, grants, connects } = createScriptCompiler()
 
-  const parts = []
-  for (const [file, content] of Object.entries(files)) {
-    const compiledContent = compile(file, content)
+  const parts: string[] = []
+  for (const name of Object.keys(files).sort()) {
+    const content = files[name]
+    const compiledContent = compile(name, content)
     if (!compiledContent) {
       continue
     }
@@ -101,12 +102,12 @@ function createScriptCompiler() {
       // ${file}
       try {
         if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
-          GM_log('[OK] Executing script \`${file}\`');\n
+          GME_ok('Executing script \`${file}\`');\n
           ${compiledContent}
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
-        GM_log('[ERROR] Executing script \`${file}\` failed:', message)
+        GME_fail('Executing script \`${file}\` failed:', message)
       }
     `
   }

@@ -2,7 +2,7 @@ import ts from 'typescript'
 import { Project } from 'ts-morph'
 
 const SCRIPT_FILES = ['gm.d.ts', 'helpers.ts', 'rules.ts', 'scripts.ts']
-const UI_NAMES = ['corner-widget']
+const UI_NAMES = ['corner-widget', 'notification']
 const UI_FILES = ['index.html', 'index.ts', 'index.css'] as const
 
 export async function fetchCoreScripts(baseUrl: string) {
@@ -52,9 +52,11 @@ export async function fetchCoreUIs(baseUrl: string, tsOnly = false) {
     const content = tsOnly
       ? ts
       : `${ts}
-      const container = document.createElement('vercel-web-script-${name}');
-      container.innerHTML = \`<template><style>${css}</style>${html}</template>\`;
-      document.body.appendChild(container);
+      if (!document.querySelector('vercel-web-script-${name}')) {
+        const container = document.createElement('vercel-web-script-${name}');
+        container.innerHTML = \`<template><style>${css}</style>${html}</template>\`;
+        document.body.appendChild(container);
+      }
     `
 
     contents[name] = content

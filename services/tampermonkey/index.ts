@@ -14,7 +14,9 @@ export interface CreateBannerParams {
 export async function createBanner({ grant, connect, scriptUrl, version }: CreateBannerParams) {
   const key = getTampermonkeyScriptKey()
   const uri = new URL(scriptUrl)
-  const __BASE_URL__ = `${uri.protocol}//${uri.hostname}${uri.port ? ':' + uri.port : ''}`
+  const { protocol, hostname, port } = uri
+  const __BASE_URL__ = `${protocol}//${hostname}${port ? ':' + port : ''}`
+  const __HMK_URL__ = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${hostname}${port ? ':' + port : ''}/_next/webpack-hmr`
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
   const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/tampermonkey/editor`
@@ -49,45 +51,80 @@ const __RULE_API_URL__ = '${__RULE_API_URL__}'
 const __RULE_MANAGER_URL__ = '${__RULE_MANAGER_URL__}'
 const __EDITOR_URL__ = '${__EDITOR_URL__}'
 
+const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMOTE_EXECUTE__
+const IS_DEVELOP_MODE = ${process.env.NODE_ENV === 'development'}
+
 ${coreScriptContents}
 
-const DEBUG_KEY = '#DebugMode@WebScripts'
-function toggleDebug(enable = true) {
-  sessionStorage.setItem(DEBUG_KEY, enable ? '1' : '0')
-}
-
-function isDebugMode() {
-  const enable = sessionStorage.getItem(DEBUG_KEY)
-  return enable === '1'
-}
-
-async function livereload() {
-  const content = await fetchScript('${scriptUrl}')
+async function executeRemoteScript(url = '${scriptUrl}') {
+  const { etag, content } = await fetchScript(url)
   if (!content) {
     return
   }
 
+  GME_ok('Script fetched successfully', url)
   const execute = new Function('global', \`with(global){\${content}}\`)
   const grants = { ${GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')} }
-  execute({ window, GME_preview, ...grants })
+  execute({ window, GME_preview, ...grants, __IS_REMOTE_EXECUTE__: true })
+}
+
+function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }) {
+  const ws = new WebSocket('${__HMK_URL__}')
+  ws.addEventListener('open', () => {
+    GME_ok('Connected to HMR WebSocket')
+
+    onOpen && onOpen()
+  })
+
+  ws.addEventListener('close', async () => {
+    GME_info('HMR WebSocket closed')
+
+    onClose && onClose()
+    setTimeout(() => watchHMRUpdates({ onOpen: onUpdate }), 3e3)
+  })
+
+  ws.addEventListener('error', () => {
+    GME_fail('HMR WebSocket error')
+
+    onError && onError()
+  })
+
+  ws.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      switch (data.action) {
+        case 'serverComponentChanges':
+          onUpdate && onUpdate()
+          break;
+
+        case 'serverError':
+        case 'error':
+          GME_fail('HMR error:' + event.data)
+          break;
+      }
+    } catch (err) {
+      GME_fail('Non-JSON HMR message:', event.data)
+    }
+  })
 }
 
 async function main() {
-  if (${process.env.NODE_ENV === 'development' ? 1 : 0}) {
-    GM_registerMenuCommand(\`Toggle Debug Mode (\${isDebugMode() ? 'On' : 'Off'})\`, () => {
-      const enable = !isDebugMode()
-      toggleDebug(enable)
-      window.location.reload()
+  if (IS_DEVELOP_MODE && !IS_REMOTE_SCRIPT) {
+    watchHMRUpdates({
+      onUpdate: () => window.location.reload(),
     })
-  }
 
-  if (isDebugMode()) {
-    livereload()
+    GME_info('Development mode')
+    executeRemoteScript()
     return
   }
 
+  if (IS_REMOTE_SCRIPT) {
+    GME_info('Executing remote script')
+  }
+
   const rules = await fetchRulesFromCache()
-  const matchRule = (name, url = window.location.href) => {
+  function matchRule(name, url = window.location.href) {
     return rules.some(({ wildcard, script }) => {
       if (script !== name) {
         return false
@@ -98,31 +135,26 @@ async function main() {
   }
 
   ${clearMeta(content)}
-}
 
-GM_registerMenuCommand('Edit Script', () => {
-  window.open("${__EDITOR_URL__}", '_blank')
-})
-
-GM_registerMenuCommand('Update Script', () => {
-  const url = '${scriptUrl}'
-  url && window.open(url, '_blank')
-})
-
-GM_registerMenuCommand('Rule manager', () => {
-  const url = '${__RULE_MANAGER_URL__}?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
-  url && window.open(url, '_blank')
-})
-
-GM_registerMenuCommand('Refresh Rules', async () => {
-  await fetchAndCacheRules()
-
-  GM_notification({
-    text: 'Rules refreshed successfully',
-    title: 'Success',
-    timeout: 3000,
+  GM_registerMenuCommand('Edit Script', () => {
+    window.open("${__EDITOR_URL__}", '_blank')
   })
-})
+
+  GM_registerMenuCommand('Update Script', () => {
+    const url = '${scriptUrl}'
+    url && window.open(url, '_blank')
+  })
+
+  GM_registerMenuCommand('Rule manager', () => {
+    const url = '${__RULE_MANAGER_URL__}?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
+    url && window.open(url, '_blank')
+  })
+
+  GM_registerMenuCommand('Refresh Rules', async () => {
+    await fetchAndCacheRules()
+    GME_notification('Rules refreshed successfully', 'success')
+  })
+}
 
 main()
 `

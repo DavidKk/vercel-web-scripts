@@ -46,7 +46,7 @@ async function fetchAndCacheRules() {
     GM_setValue(RULE_CACHE_KEY, JSON.stringify(rules))
   } catch (error) {
     const finalError = error instanceof Error ? error : typeof error === 'string' ? new Error(error) : new Error('Unknown error')
-    GM_log('[ERROR] Caching rules:', finalError.message)
+    GME_fail('Caching rules:', finalError.message)
   }
 
   return rules
@@ -63,7 +63,7 @@ async function fetchRulesFromCache(refetch = false) {
       return JSON.parse(cached)
     } catch (error) {
       const finalError = error instanceof Error ? error : typeof error === 'string' ? new Error(error) : new Error('Unknown error')
-      GM_log('[ERROR] Parsing cached rules:', finalError.message)
+      GME_fail('Parsing cached rules:', finalError.message)
     }
   }
 

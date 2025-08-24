@@ -1,0 +1,83 @@
+:host {
+  --color-success: #28a745;
+  --color-error: #dc3545;
+  --color-info: #17a2b8;
+  --color-warning: #ffc107;
+
+  display: block;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  z-index: 9999;
+  font-family: Arial, sans-serif;
+}
+
+.notification {
+  position: relative;
+  color: #fff;
+  padding: 12px 16px 12px 52px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notification::before {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  background: #fff;
+  transform: translateY(-50%);
+}
+
+.notification.success {
+  background-color: var(--color-success);
+}
+
+.notification.success::before {
+  content: "✔";
+  color: var(--color-success);
+}
+
+.notification.error {
+  background-color: var(--color-error);
+}
+
+.notification.error::before {
+  content: "✘";
+  color: var(--color-error);
+}
+
+.notification.info {
+  background-color: var(--color-info);
+}
+
+.notification.info::before {
+  content: "ℹ";
+  color: var(--color-info);
+}
+
+.notification.warn {
+  background-color: var(--color-warning);
+}
+
+.notification.warn::before {
+  content: "⚠";
+  color: var(--color-warning);
+}
