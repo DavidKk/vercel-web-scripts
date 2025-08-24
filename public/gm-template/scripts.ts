@@ -1,32 +1,39 @@
+interface LoadScriptOptions {
+  method?: string
+  body?: any
+  headers?: Record<string, string>
+}
+
+async function loadScript(url: string, options?: LoadScriptOptions) {
+  const { method = 'GET', body: data, headers } = options || {}
+
+  return new Promise<string>((resolve, reject) => {
+    const onload = (response: GMXMLHttpRequestResponse) => {
+      if (!(200 <= response.status && response.status < 400)) {
+        throw new Error(`Failed to load script in ${url}, status code ${response.status}: ${response.statusText}`)
+      }
+
+      resolve(response.responseText)
+    }
+
+    const onerror = (error: GMXMLHttpRequestError) => {
+      reject(new Error(`Failed to load script in ${url}: ${error.message}`))
+    }
+
+    GM_xmlhttpRequest({ method, url, data, headers, onload, onerror })
+  })
+}
+
 async function fetchScript(scriptUrl: string) {
-  return new Promise((resolve, reject) => {
-    GM_xmlhttpRequest({
-      method: 'GET',
-      url: scriptUrl,
-      onload: function (response) {
-        try {
-          if (!(200 <= response.status && response.status < 400)) {
-            throw new Error('Failed to load remote script: ' + response.statusText)
-          }
+  return loadScript(scriptUrl)
+}
 
-          const headers = new Headers()
-          response.responseHeaders.split('\n').forEach((header) => {
-            const parts = header.split(':')
-            const [key, value] = parts || []
-            headers.set(key.trim(), value.trim())
-          })
-
-          const etag = headers.get('etag')
-          const content = response.responseText
-          resolve({ etag, content })
-        } catch (error) {
-          const finalError = error instanceof Error ? error : typeof error === 'string' ? new Error(error) : new Error('Unknown error')
-          reject(new Error('Error executing remote script: ' + finalError.message))
-        }
-      },
-      onerror: function (error) {
-        reject(new Error('Failed to load remote script:' + error.message))
-      },
-    })
+async function fetchCompileScript(host: string, files: Record<string, string>) {
+  return loadScript(`${host}/tampermonkey/compile`, {
+    method: 'POST',
+    body: JSON.stringify({ files }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   })
 }

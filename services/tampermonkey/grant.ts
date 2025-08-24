@@ -28,4 +28,4 @@ export const GRANTS = [
   'GM_cookie',
 ]
 
-export const DEFAULT_GRANTS = ['GM_registerMenuCommand', 'GM_xmlhttpRequest', 'GM_notification', 'GM_getValue', 'GM_setValue', 'GM_log']
+export const DEFAULT_GRANTS = ['GM_registerMenuCommand', 'GM_xmlhttpRequest', 'GM_notification', 'GM_getValue', 'GM_setValue', 'GM_addValueChangeListener', 'GM_log']

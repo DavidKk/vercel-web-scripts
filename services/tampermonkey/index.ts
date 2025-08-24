@@ -51,21 +51,57 @@ const __RULE_API_URL__ = '${__RULE_API_URL__}'
 const __RULE_MANAGER_URL__ = '${__RULE_MANAGER_URL__}'
 const __EDITOR_URL__ = '${__EDITOR_URL__}'
 
+const WEB_SCRIPT_ID = crypto.randomUUID()
 const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMOTE_EXECUTE__
-const IS_DEVELOP_MODE = ${process.env.NODE_ENV === 'development'}
+const IS_DEVELOP_MODE = ${process.env.NODE_ENV === 'development'} && '${hostname}${port ? ':' + port : ''}' === window.location.hostname
 
 ${coreScriptContents}
 
+const LOCAL_DEV_EVENT_KEY = 'files@web-script-dev'
+
+function isLocalDevMode() {
+  return !!GM_getValue(LOCAL_DEV_EVENT_KEY)
+}
+
+function getLocalDevHost() {
+  const response = GM_getValue(LOCAL_DEV_EVENT_KEY)
+  return response?.host || ''
+}
+
+function getLocalDevFiles() {
+  const response = GM_getValue(LOCAL_DEV_EVENT_KEY)
+  return response?.files || {}
+}
+
+function executeScript(content) {
+  const execute = new Function('global', \`with(global){\${content}}\`)
+  const grants = { ${GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')} }
+  execute({ window, GME_preview, ...grants, __IS_REMOTE_EXECUTE__: true })
+}
+
 async function executeRemoteScript(url = '${scriptUrl}') {
-  const { etag, content } = await fetchScript(url)
+  const content = await fetchScript(url)
+  if (!content) {
+    return
+  }
+  
+  GME_ok('Remote script fetched successfully.')
+  executeScript(content)
+}
+
+async function executeLocalScript() {
+  if (!isLocalDevMode()) {
+    return
+  }
+
+  const files = getLocalDevFiles()
+  const content = await fetchCompileScript('${__BASE_URL__}', files)
   if (!content) {
     return
   }
 
-  GME_ok('Script fetched successfully', url)
-  const execute = new Function('global', \`with(global){\${content}}\`)
-  const grants = { ${GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')} }
-  execute({ window, GME_preview, ...grants, __IS_REMOTE_EXECUTE__: true })
+  GME_ok('Local script fetched successfully.')
+  executeScript(content)
 }
 
 function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }) {
@@ -109,6 +145,11 @@ function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }) {
 }
 
 async function main() {
+  if (isLocalDevMode() && !IS_REMOTE_SCRIPT) {
+    executeLocalScript()
+    return
+  }
+
   if (IS_DEVELOP_MODE && !IS_REMOTE_SCRIPT) {
     watchHMRUpdates({
       onUpdate: () => window.location.reload(),
@@ -153,6 +194,115 @@ async function main() {
   GM_registerMenuCommand('Refresh Rules', async () => {
     await fetchAndCacheRules()
     GME_notification('Rules refreshed successfully', 'success')
+  })
+  
+  let isDevMode = false
+  GM_registerMenuCommand('Local Dev Mode', async () => {
+    const host = getLocalDevHost()
+    if (host && host !== WEB_SCRIPT_ID) {
+      GME_notification('Another dev mode is running.', 'error')
+      return
+    }
+
+    const dirHandle = await window.showDirectoryPicker();
+    await dirHandle.requestPermission({ mode: 'read' });
+
+    GME_notification('Watching files. Leaving will stop dev mode.', 'success')
+    isDevMode = true
+
+    window.addEventListener('beforeunload', (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    })
+
+    window.addEventListener('unload', () => {
+      GM_setValue(LOCAL_DEV_EVENT_KEY, null)
+    })
+
+    const files = {}
+    const modifies = {}
+
+    async function* walkDir(handle, relativePath = '') {
+      for await (const [name, entry] of handle.entries()) {
+        const currentPath = relativePath ? \`\${relativePath}/\${name}\` : name
+        if (entry.kind === 'file' && name.endsWith('.ts')) {
+          yield { entry, path: currentPath }
+          continue
+        }
+
+        if (entry.kind === 'directory') {
+          yield* walkDir(entry, currentPath)
+          continue
+        }
+      }
+    }
+
+    async function pollFiles() {
+      let hasModified = false
+      let lastModified = 0
+
+      for await (const { entry, path } of walkDir(dirHandle)) {
+        const file = await entry.getFile()
+        if (modifies[path] === file.lastModified) {
+          continue
+        }
+
+        modifies[path] = file.lastModified
+        files[path] = await file.text()
+
+        lastModified = Math.max(lastModified, file.lastModified)
+        hasModified = true
+      }
+
+      if (!hasModified) {
+        return
+      }
+
+      GM_setValue(LOCAL_DEV_EVENT_KEY, { host: WEB_SCRIPT_ID, lastModified, files })
+      GME_info('Local files modified, emitting reload event...')
+    }
+
+    setInterval(pollFiles, 5e3)
+  })
+
+  GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
+    if (isDevMode) {
+      return
+    }
+
+    if (oldValue?.lastModified >= newValue?.lastModified) {
+      return
+    }
+
+    const reload = () => {
+      const isActive = !document.hidden && document.hasFocus()
+      if (!isActive) {
+        return false
+      }
+
+      GME_info('Local dev mode detected, reloading...')
+      window.location.reload()
+    }
+
+    if (reload() === false) {
+      GME_info('Local dev mode detected, waiting for tab to be active...')
+
+      const onReload = () => {
+        const isLocalDevMode = !!GM_getValue(LOCAL_DEV_EVENT_KEY)
+
+        if (!isLocalDevMode) {
+          GME_info('Local dev mode stopped.')
+          document.removeEventListener('visibilitychange', onReload)
+          window.removeEventListener('focus', onReload)
+          return
+        }
+
+        reload()
+      }
+
+      document.addEventListener('visibilitychange', onReload)
+      window.addEventListener('focus', onReload)
+    }
   })
 }
 
