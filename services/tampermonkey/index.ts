@@ -51,11 +51,11 @@ const __RULE_API_URL__ = '${__RULE_API_URL__}'
 const __RULE_MANAGER_URL__ = '${__RULE_MANAGER_URL__}'
 const __EDITOR_URL__ = '${__EDITOR_URL__}'
 
-const WEB_SCRIPT_ID = crypto.randomUUID()
+${coreScriptContents}
+
+const WEB_SCRIPT_ID = GME_uuid()
 const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMOTE_EXECUTE__
 const IS_DEVELOP_MODE = ${process.env.NODE_ENV === 'development'} && '${hostname}${port ? ':' + port : ''}' === window.location.hostname
-
-${coreScriptContents}
 
 const LOCAL_DEV_EVENT_KEY = 'files@web-script-dev'
 
