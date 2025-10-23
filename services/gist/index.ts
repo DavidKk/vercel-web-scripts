@@ -1,4 +1,4 @@
-import { EXCLUDED_FILE_EXTENSIONS, EXCLUDED_FILES } from '@/constants/file'
+import { SCRIPTS_FILE_EXTENSION, EXCLUDED_FILES } from '@/constants/file'
 
 export interface Gist {
   url: string
@@ -96,11 +96,7 @@ export async function writeGistFiles(params: WriteGistFilesParams) {
   const files = Object.fromEntries(
     (function* () {
       for (const { file, content } of inFiles) {
-        if (EXCLUDED_FILES.some((excludedFile) => excludedFile === file)) {
-          continue
-        }
-
-        if (EXCLUDED_FILE_EXTENSIONS.some((excludedExtension) => file.endsWith(excludedExtension))) {
+        if (EXCLUDED_FILES.includes(file)) {
           continue
         }
 

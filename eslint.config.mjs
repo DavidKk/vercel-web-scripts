@@ -6,7 +6,7 @@ import esmConfig from './eslintrc/esm.mjs'
 
 export default [
   {
-    ignores: ['.next/**/*', '.husky/**/*', 'coverage/**/*', 'node_modules'],
+    ignores: ['.next/**/*', '.husky/**/*', 'coverage/**/*', 'node_modules', 'public/gm-template/stackblitz'],
   },
   {
     languageOptions: {

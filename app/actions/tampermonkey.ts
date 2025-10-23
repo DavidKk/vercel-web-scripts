@@ -1,6 +1,6 @@
 'use server'
 
-import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, EXCLUDED_FILE_EXTENSIONS } from '@/constants/file'
+import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFile } from '@/services/gist'
 import { extractMeta } from '@/services/tampermonkey'
 import { isRuleConfig, type RuleConfig } from '@/services/tampermonkey/types'
@@ -17,7 +17,7 @@ export async function getScripts() {
   return Array.from<Script>(
     (function* () {
       for (const [file, info] of Object.entries(gist.files)) {
-        if (EXCLUDED_FILE_EXTENSIONS.some((ext) => file.endsWith(ext)) || EXCLUDED_FILES.includes(file)) {
+        if (SCRIPTS_FILE_EXTENSION.some((ext) => !file.endsWith(ext)) || EXCLUDED_FILES.includes(file)) {
           continue
         }
 

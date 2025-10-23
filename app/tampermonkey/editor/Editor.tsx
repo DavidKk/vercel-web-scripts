@@ -8,7 +8,7 @@ import { CloudArrowUpIcon } from '@heroicons/react/16/solid'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 import { Spinner } from '@/components/Spinner'
 import { updateFiles } from '@/app/api/scripts/actions'
-import { ENTRY_SCRIPT_FILE, EXCLUDED_FILES, PACKAGE_FILE, TYPINGS_FILE } from '@/constants/file'
+import { ENTRY_SCRIPT_FILE, EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
 
 export interface EditorProps {
@@ -44,7 +44,7 @@ export default function Editor(props: EditorProps) {
       const needUpdateFiles = Array.from<{ file: string; content: string | null }>(
         (function* () {
           for (const [file, content] of Object.entries(snapshot)) {
-            if (file === PACKAGE_FILE || file === ENTRY_SCRIPT_FILE || file === TYPINGS_FILE) {
+            if (file === ENTRY_SCRIPT_FILE) {
               continue
             }
 
@@ -84,7 +84,7 @@ export default function Editor(props: EditorProps) {
         if (snapshot) {
           // Check if any file content has changed
           const hasChanges = Object.entries(snapshot).some(([file, content]) => {
-            if (file === PACKAGE_FILE || file === ENTRY_SCRIPT_FILE || file === TYPINGS_FILE) {
+            if (file === ENTRY_SCRIPT_FILE) {
               return false
             }
 
@@ -119,7 +119,7 @@ export default function Editor(props: EditorProps) {
       const files = Object.fromEntries(
         (function* () {
           for (const [file, { content, rawUrl }] of Object.entries(inFiles)) {
-            if (file.endsWith('.json') || EXCLUDED_FILES.includes(file)) {
+            if (!SCRIPTS_FILE_EXTENSION.some((ext) => file.endsWith(ext))) {
               yield [file, content]
               continue
             }
