@@ -37,12 +37,12 @@ declare interface GMXMLHttpRequestDetails {
   onprogress?: (event: ProgressEvent) => void
 }
 
+declare const unsafeWindow: Window
 declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
 declare function GM_setValue(key: string, value: string): void
 declare function GM_getValue(key: string, defaultValue?: string): string
 declare function GM_log(...messages: string[]): void
 declare function GM_setClipboard(text: string, info: 'text' | 'html', callback: () => void): void
-
 declare interface MenuItem {
   id: string
   text: string
@@ -68,4 +68,4 @@ declare function GME_info(...contents: any[]): void
 declare function GME_fail(...contents: any[]): void
 declare function GME_warn(...contents: any[]): void
 declare function GME_uuid(): string
-declare function GME_notification(message: string, type: 'success' | 'error' | 'info' | 'warn', duration: any): any
+declare function GME_notification(message: string, type?: 'success' | 'error' | 'info' | 'warn', duration?: number): any
