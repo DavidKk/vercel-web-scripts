@@ -1,6 +1,6 @@
 import ts from 'typescript'
 
-const SCRIPT_FILES = ['gm.d.ts', 'helpers.ts', 'rules.ts', 'scripts.ts']
+const SCRIPT_FILES = ['helpers.ts', 'rules.ts', 'scripts.ts']
 const UI_NAMES = ['corner-widget', 'notification']
 const UI_FILES = ['index.html', 'index.ts', 'index.css'] as const
 const STACKBLITZ_FILES = ['package.json', 'tsconfig.json', 'typings.d.ts', 'gitignore']
