@@ -1,6 +1,6 @@
+import { getRules } from '@/app/actions/tampermonkey'
 import { api } from '@/initializer/controller'
 import { josnNotFound, jsonSuccess } from '@/initializer/response'
-import { getRules } from '@/app/actions/tampermonkey'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
 
 export interface Params {

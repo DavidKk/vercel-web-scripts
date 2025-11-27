@@ -1,15 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useRequest } from 'ahooks'
-import Stackblitz from '@stackblitz/sdk'
-import type { Project, VM } from '@stackblitz/sdk'
 import { CloudArrowUpIcon } from '@heroicons/react/16/solid'
-import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
-import { Spinner } from '@/components/Spinner'
+import type { Project, VM } from '@stackblitz/sdk'
+import Stackblitz from '@stackblitz/sdk'
+import { useRequest } from 'ahooks'
+import { useEffect, useRef, useState } from 'react'
+
 import { updateFiles } from '@/app/api/scripts/actions'
-import { ENTRY_SCRIPT_FILE, EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { Spinner } from '@/components/Spinner'
+import { ENTRY_SCRIPT_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
+import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 
 export interface EditorProps {
   files: Record<
@@ -24,6 +25,7 @@ export interface EditorProps {
 export default function Editor(props: EditorProps) {
   const { files: inFiles } = props
   const editorRef = useRef<HTMLDivElement>(null)
+  const isInitializedRef = useRef(false)
   const [vm, setVM] = useState<VM>()
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
@@ -111,10 +113,20 @@ export default function Editor(props: EditorProps) {
   }, [vm, inFiles])
 
   useEffect(() => {
+    // 防止重复初始化（React Strict Mode 会双重挂载）
+    if (isInitializedRef.current) {
+      return
+    }
+
+    let isMounted = true
+    let vmInstance: VM | null = null
+
     ;(async () => {
       if (!editorRef.current) {
         return
       }
+
+      isInitializedRef.current = true
 
       const files = Object.fromEntries(
         (function* () {
@@ -131,13 +143,32 @@ export default function Editor(props: EditorProps) {
       )
 
       const project: Project = { template: 'javascript', title: 'test', files }
-      const vm = await Stackblitz.embedProject(editorRef.current, project, {
+      if (!document.body.contains(editorRef.current)) {
+        return
+      }
+
+      vmInstance = await Stackblitz.embedProject(editorRef.current, project, {
         view: 'editor',
         showSidebar: true,
       })
 
-      setVM(vm)
+      // 只有在组件仍然挂载时才设置 VM
+      if (isMounted) {
+        setVM(vmInstance)
+      } else {
+        vmInstance = null
+        isInitializedRef.current = false
+      }
     })()
+
+    // 清理函数：组件卸载时销毁 Stackblitz 实例
+    return () => {
+      isMounted = false
+      if (vmInstance) {
+        vmInstance = null
+      }
+      isInitializedRef.current = false
+    }
   }, [])
 
   return (

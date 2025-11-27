@@ -1,8 +1,10 @@
 import { createHash } from 'crypto'
+
 import { getGistInfo } from '@/services/gist'
-import { clearMeta, extractMeta, prependMeta } from './meta'
+
+import { compileScripts, fetchCoreScripts, fetchCoreUIs } from './gmCore'
 import { DEFAULT_GRANTS, GRANTS } from './grant'
-import { fetchCoreScripts, fetchCoreUIs, compileScripts } from './gmCore'
+import { clearMeta, extractMeta, prependMeta } from './meta'
 
 export interface CreateBannerParams {
   grant: string[]

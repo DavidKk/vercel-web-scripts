@@ -1,4 +1,4 @@
-import { parseCurlCommand, curlToFetch, executeCurlAsFetch, validateCurlCommand, type CurlParsedData } from '@/services/curl'
+import { type CurlParsedData, curlToFetch, executeCurlAsFetch, parseCurlCommand, validateCurlCommand } from '@/services/curl'
 
 describe('CURL Parser', () => {
   describe('parseCurlCommand', () => {

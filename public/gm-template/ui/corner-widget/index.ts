@@ -313,6 +313,7 @@ if (!customElements.get('vercel-web-script-corner-widget')) {
   customElements.define('vercel-web-script-corner-widget', CornerWidget)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_registerMenuCommand(item: MenuItem) {
   const pre = CornerWidget.PRE_MENU
   pre.push(item)

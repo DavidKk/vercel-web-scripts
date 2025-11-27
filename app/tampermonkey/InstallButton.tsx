@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
+import React, { useState } from 'react'
+
 import { Spinner } from '@/components/Spinner'
 
 export interface InstallTampermonkeyButtonProps {

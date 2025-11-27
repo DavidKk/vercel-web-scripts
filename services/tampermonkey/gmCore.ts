@@ -1,5 +1,4 @@
 import ts from 'typescript'
-import { Project } from 'ts-morph'
 
 const SCRIPT_FILES = ['gm.d.ts', 'helpers.ts', 'rules.ts', 'scripts.ts']
 const UI_NAMES = ['corner-widget', 'notification']

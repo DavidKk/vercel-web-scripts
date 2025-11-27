@@ -1,8 +1,9 @@
 'use client'
 
 import React from 'react'
-import ClearableSelect from '@/components/ClearableSelect'
+
 import type { Script } from '@/app/actions/tampermonkey'
+import ClearableSelect from '@/components/ClearableSelect'
 
 export interface ScriptFieldProps {
   value: string

@@ -1,14 +1,16 @@
 'use client'
 
-import React from 'react'
-import ConfigManager from '@/components/ConfigManager'
-import { updateRules } from '@/app/actions/tampermonkey'
-import type { Script } from '@/app/actions/tampermonkey'
-import type { RuleConfig } from '@/services/tampermonkey/types'
-import { WildcardField, type WildcardFieldProps } from './WildcardField'
-import { ScriptField } from './ScriptField'
-import type { ScriptFieldProps } from './ScriptField'
 import { useSearchParams } from 'next/navigation'
+import React from 'react'
+
+import type { Script } from '@/app/actions/tampermonkey'
+import { updateRules } from '@/app/actions/tampermonkey'
+import ConfigManager from '@/components/ConfigManager'
+import type { RuleConfig } from '@/services/tampermonkey/types'
+
+import type { ScriptFieldProps } from './ScriptField'
+import { ScriptField } from './ScriptField'
+import { WildcardField, type WildcardFieldProps } from './WildcardField'
 
 export interface FormProps {
   rules: RuleConfig[]

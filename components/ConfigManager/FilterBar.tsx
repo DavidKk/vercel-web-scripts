@@ -1,5 +1,6 @@
-import { useState } from 'react'
 import { BackspaceIcon } from '@heroicons/react/24/solid'
+import { useState } from 'react'
+
 import type { Config, ConfigSchema, ConfigSchemaFC } from './types'
 
 export interface FilterBarProps<T extends Omit<Config, 'id'>> {

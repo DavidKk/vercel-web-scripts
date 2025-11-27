@@ -1,5 +1,6 @@
 import { checkAccess } from '@/services/auth/access'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
+
 import InstallTampermonkeyButton from './InstallButton'
 
 export default async function Home() {

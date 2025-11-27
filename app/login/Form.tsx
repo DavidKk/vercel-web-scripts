@@ -1,19 +1,53 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useRequest } from 'ahooks'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+
 import type { AlertImperativeHandler } from '@/components/Alert'
 import Alert from '@/components/Alert'
 import { Spinner } from '@/components/Spinner'
+import { useOAuthLoginContext, withOAuthLogin } from '@/services/oauth-login/withOAuthLogin'
 
 export interface LoginFormProps {
   enable2FA?: boolean
   redirectUrl?: string
 }
 
-export default function LoginForm(props: LoginFormProps) {
+function LoginForm(props: LoginFormProps) {
   const { enable2FA, redirectUrl = '/' } = props
+  const oauth = useOAuthLoginContext()
+
+  if (oauth.isHandlingCallback) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 gap-4">
+        <Spinner />
+        <p className="text-gray-600 text-sm">Validating third-party login...</p>
+      </div>
+    )
+  }
+
+  // const launchingOAuth = oauth.status === 'launching'
+  // const redirectingOAuth = oauth.status === 'redirecting'
+  // const oauthDisabled = !oauth.available || launchingOAuth || redirectingOAuth
+
+  // const handleOAuthClick = () => {
+  //   oauth.resetError()
+  //   oauth.launch()
+  // }
+
+  // const oauthButtonLabel = (() => {
+  //   if (!oauth.available) {
+  //     return 'Third-party login is disabled'
+  //   }
+  //   if (launchingOAuth) {
+  //     return 'Preparing secure handshake...'
+  //   }
+  //   if (redirectingOAuth) {
+  //     return 'Redirecting to third-party login...'
+  //   }
+  //   return 'Vercel 2FA Login'
+  // })()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -110,14 +144,36 @@ export default function LoginForm(props: LoginFormProps) {
               &nbsp;
             </div>
           ) : complete ? (
-            <span>jumpping to dashboard, please wait...</span>
+            <span>Redirecting to dashboard, please wait...</span>
           ) : (
             <span>Login</span>
           )}
         </button>
 
         <Alert ref={alertRef} />
+
+        {/* {oauth.available && (
+          <>
+            <div className="text-center text-sm text-gray-500 w-full">- Or continue with a trusted vercel-2fa account -</div>
+            <button
+              type="button"
+              onClick={handleOAuthClick}
+              disabled={oauthDisabled}
+              className="relative w-full max-w-lg border border-indigo-500 text-indigo-600 px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {(launchingOAuth || redirectingOAuth) && (
+                <span className="w-6 h-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <Spinner />
+                </span>
+              )}
+              <span className={launchingOAuth || redirectingOAuth ? 'opacity-60' : undefined}>{oauthButtonLabel}</span>
+            </button>
+            {oauth.error && <p className="text-sm text-red-500 text-center w-full">{oauth.error}</p>}
+          </>
+        )} */}
       </form>
     </div>
   )
 }
+
+export default withOAuthLogin(LoginForm)

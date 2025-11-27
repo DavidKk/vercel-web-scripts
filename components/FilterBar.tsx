@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
 import { BackspaceIcon } from '@heroicons/react/24/solid'
+import { useEffect, useState } from 'react'
+
 import { fuzzySearch } from '@/utils/find'
 
 export interface FilterBarItems {

@@ -24,10 +24,12 @@ async function loadScript(url: string, options?: LoadScriptOptions) {
   })
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function fetchScript(scriptUrl: string) {
   return loadScript(scriptUrl)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function fetchCompileScript(host: string, files: Record<string, string>) {
   return loadScript(`${host}/tampermonkey/compile`, {
     method: 'POST',

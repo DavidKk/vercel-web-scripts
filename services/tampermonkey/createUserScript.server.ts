@@ -1,8 +1,10 @@
 'use server'
 
-import * as ts from 'typescript'
 import * as prettier from 'prettier'
+import * as ts from 'typescript'
+
 import { EXCLUDED_FILES } from '@/constants/file'
+
 import { createBanner } from '.'
 import { clearMeta, extractMeta } from './meta'
 

@@ -1,5 +1,6 @@
 const RULE_CACHE_KEY = '#RuleCache@WebScripts'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function matchUrl(pattern: string, url = window.location.href) {
   const regexPattern = pattern.replace(/([\.\?])/g, '\\$1').replace(/\*/g, '.*')
   const regex = new RegExp(`^${regexPattern}$`)
@@ -52,6 +53,7 @@ async function fetchAndCacheRules() {
   return rules
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function fetchRulesFromCache(refetch = false) {
   const cached = GM_getValue(RULE_CACHE_KEY)
   if (cached) {

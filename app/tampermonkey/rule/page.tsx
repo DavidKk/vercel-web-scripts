@@ -1,5 +1,6 @@
-import { checkAccess } from '@/services/auth/access'
 import { getRules, getScripts } from '@/app/actions/tampermonkey'
+import { checkAccess } from '@/services/auth/access'
+
 import Form from './Form'
 
 export default async function RulePage() {

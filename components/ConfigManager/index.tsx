@@ -1,15 +1,17 @@
-import React, { useState, useRef, useEffect, useImperativeHandle } from 'react'
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { ArrowPathIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
 import { useRequest } from 'ahooks'
-import { DndContext, useSensor, useSensors, closestCenter, PointerSensor, KeyboardSensor } from '@dnd-kit/core'
-import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { PlusIcon, ArrowPathIcon, TrashIcon } from '@heroicons/react/24/solid'
+import React, { useEffect, useImperativeHandle, useRef, useState } from 'react'
+
 import Alert, { type AlertImperativeHandler } from '@/components/Alert'
 import { Spinner } from '@/components/Spinner'
-import SortableItem from './SortableItem'
-import { FilterBar } from './FilterBar'
-import type { Config, ConfigSchema, ConfigSchemaFC } from './types'
-import { fuzzySearch } from '@/utils/find'
 import { useBeforeUnload } from '@/hooks/useClient'
+import { fuzzySearch } from '@/utils/find'
+
+import { FilterBar } from './FilterBar'
+import SortableItem from './SortableItem'
+import type { Config, ConfigSchema, ConfigSchemaFC } from './types'
 
 export interface ConfigManagerProps<T extends Config> {
   configs: T[]

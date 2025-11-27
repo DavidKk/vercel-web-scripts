@@ -1,7 +1,7 @@
+import { EXCLUDED_FILES } from '@/constants/file'
+import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
 import { createUserScript } from '@/services/tampermonkey/createUserScript.server'
-import { plainText } from '@/initializer/controller'
-import { EXCLUDED_FILES } from '@/constants/file'
 
 export const POST = plainText(async (req) => {
   const body = (await req.json()) as Record<string, string>

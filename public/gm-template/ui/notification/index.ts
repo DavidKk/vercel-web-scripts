@@ -17,19 +17,6 @@ class NotificationUI extends HTMLElement {
       throw new Error('Notifications wrapper not found')
     }
 
-    const icon = (() => {
-      switch (type) {
-        case 'success':
-          return '✔'
-        case 'error':
-          return '✖'
-        case 'info':
-          return 'ℹ'
-        case 'warn':
-          return '⚠'
-      }
-    })()
-
     const node = document.createElement('div')
     node.className = `notification ${type}`
     node.textContent = message
@@ -49,6 +36,7 @@ if (!customElements.get('vercel-web-script-notification')) {
   customElements.define('vercel-web-script-notification', NotificationUI)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_notification(message: string, type: 'success' | 'error' | 'info' | 'warn' = 'info', duration = 3000) {
   const notification = document.querySelector('vercel-web-script-notification') as NotificationUI
   notification.show(message, type, duration)

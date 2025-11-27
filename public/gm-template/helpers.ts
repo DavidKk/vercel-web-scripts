@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_curl(content: string) {
   if (!content) {
     throw new Error('Missing content')
@@ -30,6 +31,7 @@ function GME_curl(content: string) {
   })
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_preview(file: string, content: string) {
   if (!file || !content) {
     throw new Error('Missing file or content')
@@ -58,12 +60,11 @@ function GME_preview(file: string, content: string) {
   document.body.removeChild(form)
 }
 
-type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null
-
 interface WaitForOptions {
   timeout?: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
   const { timeout: openTimeout } = options || {}
   return new Promise<ReturnType<T>>((resolve, reject) => {
@@ -102,30 +103,36 @@ function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
   })
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_ok(...contents: any[]) {
   // eslint-disable-next-line no-console
   console.log('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_info(...contents: any[]) {
   // eslint-disable-next-line no-console
   console.log('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_fail(...contents: any[]) {
   // eslint-disable-next-line no-console
   console.log('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_warn(...contents: any[]) {
   // eslint-disable-next-line no-console
   console.log('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_uuid() {
   if (typeof typeof crypto?.randomUUID === 'function') {
     return typeof crypto.randomUUID()

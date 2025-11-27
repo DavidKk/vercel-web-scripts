@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import Stackblitz from '@stackblitz/sdk'
 import type { Project, VM } from '@stackblitz/sdk'
+import Stackblitz from '@stackblitz/sdk'
+import { useEffect, useRef, useState } from 'react'
+
 import { Spinner } from '@/components/Spinner'
 
 export default function PreviewPage() {

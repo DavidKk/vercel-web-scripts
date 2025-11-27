@@ -1,4 +1,4 @@
-import { SCRIPTS_FILE_EXTENSION, EXCLUDED_FILES } from '@/constants/file'
+import { EXCLUDED_FILES } from '@/constants/file'
 
 export interface Gist {
   url: string

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
+
+import { EXCLUDED_FILES } from '@/constants/file'
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
 import { createUserScript } from '@/services/tampermonkey/createUserScript.server'
-import { EXCLUDED_FILES } from '@/constants/file'
 
 export interface Params {
   key: string
