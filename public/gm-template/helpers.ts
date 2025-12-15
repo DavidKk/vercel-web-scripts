@@ -103,6 +103,69 @@ function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
   })
 }
 
+interface WatchForOptions {
+  interval?: number
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_watchFor<T extends Query>(query: T, callback: (node: NonNullable<ReturnType<T>>) => void, options?: WatchForOptions) {
+  const { interval = 100 } = options || {}
+  let observer: MutationObserver | null = null
+  let intervalId: ReturnType<typeof setInterval> | null = null
+  let isActive = true
+
+  const checkAndCallback = () => {
+    if (!isActive) {
+      return
+    }
+
+    try {
+      const node = query()
+      if (node) {
+        callback(node as NonNullable<ReturnType<T>>)
+      }
+    } catch (error) {
+      // Silently handle errors in callback to prevent breaking the watcher
+      // eslint-disable-next-line no-console
+      console.error('Error in GME_watchFor callback:', error)
+    }
+  }
+
+  // Check immediately once
+  checkAndCallback()
+
+  // Use MutationObserver to watch DOM changes
+  observer = new MutationObserver(() => {
+    checkAndCallback()
+  })
+
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+  })
+
+  // Use interval timer as a fallback to ensure nothing is missed
+  intervalId = setInterval(() => {
+    checkAndCallback()
+  }, interval)
+
+  // Return cleanup function
+  return () => {
+    if (!isActive) {
+      return
+    }
+    isActive = false
+    observer?.disconnect()
+    observer = null
+    if (intervalId) {
+      clearInterval(intervalId)
+      intervalId = null
+    }
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
