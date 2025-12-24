@@ -1,6 +1,5 @@
 'use client'
 
-import { CloudArrowUpIcon } from '@heroicons/react/16/solid'
 import type { Project, VM } from '@stackblitz/sdk'
 import Stackblitz from '@stackblitz/sdk'
 import { useRequest } from 'ahooks'
@@ -12,6 +11,8 @@ import { ENTRY_SCRIPT_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 
+import EditorHeader from './EditorHeader'
+
 export interface EditorProps {
   files: Record<
     string,
@@ -20,10 +21,11 @@ export interface EditorProps {
       rawUrl: string
     }
   >
+  scriptKey: string
 }
 
 export default function Editor(props: EditorProps) {
-  const { files: inFiles } = props
+  const { files: inFiles, scriptKey } = props
   const editorRef = useRef<HTMLDivElement>(null)
   const isInitializedRef = useRef(false)
   const [vm, setVM] = useState<VM>()
@@ -113,7 +115,7 @@ export default function Editor(props: EditorProps) {
   }, [vm, inFiles])
 
   useEffect(() => {
-    // 防止重复初始化（React Strict Mode 会双重挂载）
+    // Prevent duplicate initialization (React Strict Mode will mount twice)
     if (isInitializedRef.current) {
       return
     }
@@ -152,7 +154,7 @@ export default function Editor(props: EditorProps) {
         showSidebar: true,
       })
 
-      // 只有在组件仍然挂载时才设置 VM
+      // Only set VM if component is still mounted
       if (isMounted) {
         setVM(vmInstance)
       } else {
@@ -161,7 +163,7 @@ export default function Editor(props: EditorProps) {
       }
     })()
 
-    // 清理函数：组件卸载时销毁 Stackblitz 实例
+    // Cleanup function: destroy Stackblitz instance when component unmounts
     return () => {
       isMounted = false
       if (vmInstance) {
@@ -172,25 +174,19 @@ export default function Editor(props: EditorProps) {
   }, [])
 
   return (
-    <div className="w-screen h-[calc(100vh-60px-64px)] relative bg-black">
-      <div ref={editorRef} className="w-full h-full"></div>
+    <div className="w-screen h-screen flex flex-col bg-black">
+      <EditorHeader scriptKey={scriptKey} onSave={save} isSaving={loading} />
+      <div className="flex-1 relative">
+        <div ref={editorRef} className="w-full h-full"></div>
 
-      {!vm ? (
-        <div className="fixed w-8 h-8 top-0 left-0 right-0 bottom-0 m-auto">
-          <span className="w-8 h-8 flex items-center justify-center">
-            <Spinner />
-          </span>
-        </div>
-      ) : (
-        <button
-          disabled={loading}
-          onClick={save}
-          className="fixed bottom-10 right-2 px-6 py-4 bg-teal-400 text-white rounded-md shadow-lg disable:opacity-100 flex flex-col items-center"
-        >
-          <span className="w-8 h-8 flex items-center justify-center">{loading ? <Spinner /> : <CloudArrowUpIcon />}</span>
-          <span>Save</span>
-        </button>
-      )}
+        {!vm && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="w-8 h-8 flex items-center justify-center">
+              <Spinner />
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
