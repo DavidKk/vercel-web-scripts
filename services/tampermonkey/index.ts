@@ -60,16 +60,43 @@ const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMO
 const IS_DEVELOP_MODE = ${process.env.NODE_ENV === 'development'} && '${hostname}${port ? ':' + port : ''}' === window.location.hostname
 
 const LOCAL_DEV_EVENT_KEY = 'files@web-script-dev'
+const DEV_CHANNEL_NAME = 'web-script-dev'
 
+/** BroadcastChannel for cross-tab communication */
+let devChannel = null
+
+/**
+ * Initialize BroadcastChannel for dev mode communication
+ * @returns {BroadcastChannel} The BroadcastChannel instance
+ */
+function initDevChannel() {
+  if (!devChannel) {
+    devChannel = new BroadcastChannel(DEV_CHANNEL_NAME)
+  }
+  return devChannel
+}
+
+/**
+ * Check if local dev mode is active
+ * @returns {boolean} True if local dev mode is active
+ */
 function isLocalDevMode() {
   return !!GM_getValue(LOCAL_DEV_EVENT_KEY)
 }
 
+/**
+ * Get the host ID of the active dev mode
+ * @returns {string} The host ID or empty string
+ */
 function getLocalDevHost() {
   const response = GM_getValue(LOCAL_DEV_EVENT_KEY)
   return response?.host || ''
 }
 
+/**
+ * Get the files from local dev mode
+ * @returns {Object} The files object or empty object
+ */
 function getLocalDevFiles() {
   const response = GM_getValue(LOCAL_DEV_EVENT_KEY)
   return response?.files || {}
@@ -146,9 +173,58 @@ function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }) {
   })
 }
 
-async function main() {
-  if (isLocalDevMode() && !IS_REMOTE_SCRIPT) {
+let hasExecutedLocalScript = false
+
+function tryExecuteLocalScript() {
+  if (hasExecutedLocalScript || IS_REMOTE_SCRIPT) {
+    return false
+  }
+
+  if (isLocalDevMode()) {
+    hasExecutedLocalScript = true
     executeLocalScript()
+    return true
+  }
+  return false
+}
+
+async function main() {
+  const channel = initDevChannel()
+
+  if (tryExecuteLocalScript()) {
+    function handleLocalScriptUpdate(oldValue, newValue) {
+      if (!newValue) {
+        return
+      }
+
+      if (oldValue?.lastModified >= newValue?.lastModified) {
+        return
+      }
+
+      GME_info('Local files updated, re-executing script...')
+      executeLocalScript()
+    }
+
+    GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
+      handleLocalScriptUpdate(oldValue, newValue)
+    })
+
+    channel.addEventListener('message', (event) => {
+      const { type, host, lastModified, files } = event.data
+
+      if (type === 'files-updated') {
+        const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY)
+        if (currentState?.lastModified >= lastModified) {
+          return
+        }
+
+        const newValue = { host, lastModified, files }
+        const oldValue = currentState
+        GM_setValue(LOCAL_DEV_EVENT_KEY, newValue)
+        handleLocalScriptUpdate(oldValue, newValue)
+      }
+    })
+
     return
   }
 
@@ -199,6 +275,8 @@ async function main() {
   })
   
   let isDevMode = false
+  let pollInterval = null
+
   GM_registerMenuCommand('Local Dev Mode', async () => {
     const host = getLocalDevHost()
     if (host && host !== WEB_SCRIPT_ID) {
@@ -219,6 +297,9 @@ async function main() {
 
     window.addEventListener('unload', () => {
       GM_setValue(LOCAL_DEV_EVENT_KEY, null)
+      if (pollInterval) {
+        clearInterval(pollInterval)
+      }
     })
 
     const files = {}
@@ -246,6 +327,7 @@ async function main() {
       for await (const { entry, path } of walkDir(dirHandle)) {
         const file = await entry.getFile()
         if (modifies[path] === file.lastModified) {
+          lastModified = Math.max(lastModified, file.lastModified)
           continue
         }
 
@@ -256,23 +338,41 @@ async function main() {
         hasModified = true
       }
 
-      if (!hasModified) {
-        return
+      const state = { host: WEB_SCRIPT_ID, lastModified, files }
+      const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY)
+      
+      if (!currentState || currentState.lastModified < lastModified) {
+        GM_setValue(LOCAL_DEV_EVENT_KEY, state)
+        
+        if (hasModified) {
+          channel.postMessage({ type: 'files-updated', host: WEB_SCRIPT_ID, lastModified, files })
+          GME_info('Local files modified, emitting reload event...')
+        }
       }
-
-      GM_setValue(LOCAL_DEV_EVENT_KEY, { host: WEB_SCRIPT_ID, lastModified, files })
-      GME_info('Local files modified, emitting reload event...')
     }
 
-    setInterval(pollFiles, 5e3)
+    await pollFiles()
+    pollInterval = setInterval(pollFiles, 5e3)
   })
 
-  GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
+  function handleDevModeUpdate(oldValue, newValue) {
     if (isDevMode) {
       return
     }
 
+    if (!newValue) {
+      return
+    }
+
     if (oldValue?.lastModified >= newValue?.lastModified) {
+      return
+    }
+
+    if (hasExecutedLocalScript || tryExecuteLocalScript()) {
+      if (hasExecutedLocalScript) {
+        GME_info('Local files updated, re-executing script...')
+        executeLocalScript()
+      }
       return
     }
 
@@ -304,6 +404,30 @@ async function main() {
 
       document.addEventListener('visibilitychange', onReload)
       window.addEventListener('focus', onReload)
+    }
+  }
+
+  GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
+    handleDevModeUpdate(oldValue, newValue)
+  })
+
+  channel.addEventListener('message', (event) => {
+    if (isDevMode) {
+      return
+    }
+
+    const { type, host, lastModified, files } = event.data
+
+    if (type === 'files-updated') {
+      const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY)
+      if (currentState?.lastModified >= lastModified) {
+        return
+      }
+
+      const newValue = { host, lastModified, files }
+      const oldValue = currentState
+      GM_setValue(LOCAL_DEV_EVENT_KEY, newValue)
+      handleDevModeUpdate(oldValue, newValue)
     }
   })
 }

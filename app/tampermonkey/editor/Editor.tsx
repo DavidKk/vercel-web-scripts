@@ -82,35 +82,113 @@ export default function Editor(props: EditorProps) {
   useEffect(() => {
     if (!vm) return
 
+    let checkInterval: NodeJS.Timeout | null = null
+    let isUserActive = true
+
+    /**
+     * Check if any file content has changed
+     */
     const checkForChanges = async () => {
       try {
         const snapshot = await vm.getFsSnapshot()
-        if (snapshot) {
-          // Check if any file content has changed
-          const hasChanges = Object.entries(snapshot).some(([file, content]) => {
-            if (file === ENTRY_SCRIPT_FILE) {
-              return false
-            }
-
-            if (!content) return false
-
-            const originalFile = inFiles[file]
-            return originalFile && originalFile.content !== content
-          })
-
-          setHasUnsavedChanges(hasChanges)
+        if (!snapshot) {
+          return
         }
+
+        // Check if any file content has changed
+        const hasChanges = Object.entries(snapshot).some(([file, content]) => {
+          if (file === ENTRY_SCRIPT_FILE) {
+            return false
+          }
+
+          if (!content) return false
+
+          const originalFile = inFiles[file]
+          return originalFile && originalFile.content !== content
+        })
+
+        setHasUnsavedChanges(hasChanges)
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('Error checking for changes:', error)
       }
     }
 
-    // Check for changes periodically
-    const interval = setInterval(checkForChanges, 2000)
+    /**
+     * Handle user activity to adjust polling frequency
+     */
+    const handleUserActivity = () => {
+      isUserActive = true
+      // Reset interval to check more frequently when user is active
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
+      checkInterval = setInterval(checkForChanges, isUserActive ? 1000 : 3000)
+    }
+
+    /**
+     * Handle user inactivity
+     */
+    const handleUserInactivity = () => {
+      isUserActive = false
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
+      checkInterval = setInterval(checkForChanges, 3000)
+    }
+
+    /**
+     * Try to listen to iframe postMessage from Stackblitz editor
+     * This is a best-effort approach as Stackblitz may not expose these events
+     */
+    const handleMessage = (event: MessageEvent) => {
+      // Only process messages from Stackblitz iframe
+      // Note: Stackblitz may not send file change events, but we try to catch them
+      if (event.data && typeof event.data === 'object') {
+        // Check for potential file change indicators
+        // This is speculative and may not work if Stackblitz doesn't expose these events
+        if (event.data.type === 'filechange' || event.data.type === 'filesaved') {
+          checkForChanges()
+        }
+      }
+    }
+
+    // Initial check
+    checkForChanges()
+
+    // Set up polling with adaptive frequency based on user activity
+    checkInterval = setInterval(checkForChanges, 1000)
+
+    // Listen for user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart']
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, handleUserActivity, { passive: true })
+    })
+
+    // Listen for user inactivity
+    let inactivityTimer: NodeJS.Timeout
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer)
+      inactivityTimer = setTimeout(handleUserInactivity, 30000) // 30 seconds of inactivity
+    }
+    resetInactivityTimer()
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetInactivityTimer, { passive: true })
+    })
+
+    // Try to listen to postMessage from Stackblitz iframe
+    window.addEventListener('message', handleMessage)
 
     return () => {
-      clearInterval(interval)
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
+      clearTimeout(inactivityTimer)
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, handleUserActivity)
+        window.removeEventListener(event, resetInactivityTimer)
+      })
+      window.removeEventListener('message', handleMessage)
     }
   }, [vm, inFiles])
 
