@@ -3,6 +3,7 @@
 import { ArrowLeftEndOnRectangleIcon, ArrowPathRoundedSquareIcon } from '@heroicons/react/16/solid'
 import FeatherIcon from 'feather-icons-react'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 import { Spinner } from '@/components/Spinner'
 
@@ -19,15 +20,38 @@ interface EditorHeaderProps {
  */
 export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevMode, onToggleEditorDevMode }: EditorHeaderProps) {
   const router = useRouter()
+  const [isChecking, setIsChecking] = useState(false)
 
   /**
-   * Handle update button click - open script update link in new tab
+   * Handle update button click - check script validity before opening
    */
-  const handleUpdate = () => {
-    // Build URL using current domain with encrypted script key
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vercel-web-scripts.vercel.app'
-    const url = `${baseUrl}/static/${scriptKey}/tampermonkey.user.js`
-    window.open(url, '_blank')
+  const handleUpdate = async () => {
+    if (isChecking || isSaving) {
+      return
+    }
+
+    setIsChecking(true)
+
+    try {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vercel-web-scripts.vercel.app'
+      const userUrl = `${baseUrl}/static/${scriptKey}/tampermonkey.user.js`
+      const fallback = `${baseUrl}/static/${scriptKey}/tampermonkey.js`
+
+      // Check if tampermonkey.user.js exists
+      const response = await fetch(userUrl, { method: 'HEAD' })
+      const url = response.ok ? userUrl : fallback
+
+      window.open(url, '_blank', 'noopener')
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error checking script:', error)
+      // Fallback to opening the default URL even if check fails
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vercel-web-scripts.vercel.app'
+      const fallback = `${baseUrl}/static/${scriptKey}/tampermonkey.js`
+      window.open(fallback, '_blank', 'noopener')
+    } finally {
+      setIsChecking(false)
+    }
   }
 
   return (
@@ -35,7 +59,8 @@ export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevM
       {/* Left: Exit button */}
       <button
         onClick={() => router.push('/tampermonkey')}
-        className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors"
+        disabled={isSaving}
+        className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
         title="Exit editor"
       >
         <ArrowLeftEndOnRectangleIcon className="w-4 h-4" />
@@ -48,22 +73,34 @@ export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevM
         <button
           onClick={onToggleEditorDevMode}
           className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-            isEditorDevMode ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
+            isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
           }`}
           title={isEditorDevMode ? 'Disable editor dev mode' : 'Enable editor dev mode'}
         >
           <FeatherIcon icon={isEditorDevMode ? 'play' : 'play-circle'} className="w-4 h-4" />
-          <span className="text-sm">{isEditorDevMode ? 'Dev Mode ON' : 'Dev Mode'}</span>
+          <span className="text-sm">Dev Mode</span>
         </button>
 
         {/* Update button */}
         <button
           onClick={handleUpdate}
-          className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors"
+          disabled={isSaving || isChecking}
+          className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
           title="Open script update link"
         >
-          <ArrowPathRoundedSquareIcon className="w-4 h-4" />
-          <span className="text-sm">Update</span>
+          {isChecking ? (
+            <>
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+              <span className="text-sm">Checking...</span>
+            </>
+          ) : (
+            <>
+              <ArrowPathRoundedSquareIcon className="w-4 h-4" />
+              <span className="text-sm">Update</span>
+            </>
+          )}
         </button>
 
         {/* Save button */}
