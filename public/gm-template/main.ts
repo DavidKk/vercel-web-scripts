@@ -16,7 +16,6 @@ declare const __SCRIPT_URL__: string
 declare const __IS_DEVELOP_MODE__: boolean
 declare const __HOSTNAME_PORT__: string
 declare const __GRANTS_STRING__: string
-declare const __CLEAR_META_CODE__: string
 declare const __IS_REMOTE_EXECUTE__: boolean
 
 // GM_* function declarations (types from stackblitz/typings.d.ts)
@@ -422,9 +421,17 @@ async function main(): Promise<void> {
     })
   }
 
-  // Execute clearMeta code
+  /**
+   * Execute GIST compiled scripts
+   * This function body will be replaced with actual GIST scripts code at compile time
+   */
+  function executeGistScripts(): void {
+    // @ts-expect-error - Placeholder will be replaced with actual GIST scripts code at runtime
+    __GIST_SCRIPTS_PLACEHOLDER__
+  }
 
-  eval(__CLEAR_META_CODE__)
+  // Execute GIST scripts at the correct position
+  executeGistScripts()
 
   GM_registerMenuCommand('Edit Script', () => {
     window.open(__EDITOR_URL__, '_blank')

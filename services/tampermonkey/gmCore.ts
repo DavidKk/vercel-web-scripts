@@ -130,7 +130,6 @@ export async function fetchAndCompileMainScript(
     __IS_DEVELOP_MODE__: boolean
     __HOSTNAME_PORT__: string
     __GRANTS_STRING__: string
-    __CLEAR_META_CODE__: string
   }
 ): Promise<string> {
   const url = `${baseUrl}/gm-template/main.ts`
@@ -151,7 +150,8 @@ export async function fetchAndCompileMainScript(
   content = content.replace(/declare const __IS_DEVELOP_MODE__: boolean/g, `const __IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__}`)
   content = content.replace(/declare const __HOSTNAME_PORT__: string/g, `const __HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)}`)
   content = content.replace(/declare const __GRANTS_STRING__: string/g, `const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)}`)
-  content = content.replace(/declare const __CLEAR_META_CODE__: string/g, `const __CLEAR_META_CODE__ = ${JSON.stringify(variables.__CLEAR_META_CODE__)}`)
+  // Keep placeholder for GIST scripts (will be replaced in index.ts after compilation)
+  // The placeholder is inside executeGistScripts function body
 
   // Compile TypeScript to JavaScript
   const compiledContent = (() => {

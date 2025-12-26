@@ -34,7 +34,7 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
   const isDevelopMode = process.env.NODE_ENV === 'development'
   const hostnamePort = `${hostname}${port ? ':' + port : ''}`
 
-  // Pre-compile main script with base variables (clearMetaCode will be injected later)
+  // Pre-compile main script with base variables (GIST scripts will be injected later)
   const mainScriptContents = await fetchAndCompileMainScript(__BASE_URL__, {
     __BASE_URL__,
     __RULE_API_URL__,
@@ -45,13 +45,13 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
     __IS_DEVELOP_MODE__: isDevelopMode,
     __HOSTNAME_PORT__: hostnamePort,
     __GRANTS_STRING__: grantsString,
-    __CLEAR_META_CODE__: '', // Will be replaced in the returned function
   })
 
   return (content: string) => {
     const clearMetaCode = clearMeta(content)
-    // Replace the placeholder clearMetaCode with actual content
-    const finalMainScriptContents = mainScriptContents.replace(/const __CLEAR_META_CODE__ = `[^`]*`/, `const __CLEAR_META_CODE__ = \`${clearMetaCode}\``)
+    // Replace the placeholder in executeGistScripts function body with actual GIST scripts code
+    // The placeholder is inside the function body, so we replace it with the actual code
+    const finalMainScriptContents = mainScriptContents.replace('__GIST_SCRIPTS_PLACEHOLDER__', clearMetaCode)
 
     return `
 // ==UserScript==
