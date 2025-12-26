@@ -112,6 +112,73 @@ export async function compileScripts(contents: Record<string, string>) {
   return compiledContent
 }
 
+/**
+ * Fetch and compile main script
+ * @param baseUrl Base URL for fetching the script
+ * @param variables Variables to inject into the script
+ * @returns Compiled script content
+ */
+export async function fetchAndCompileMainScript(
+  baseUrl: string,
+  variables: {
+    __BASE_URL__: string
+    __RULE_API_URL__: string
+    __RULE_MANAGER_URL__: string
+    __EDITOR_URL__: string
+    __HMK_URL__: string
+    __SCRIPT_URL__: string
+    __IS_DEVELOP_MODE__: boolean
+    __HOSTNAME_PORT__: string
+    __GRANTS_STRING__: string
+    __CLEAR_META_CODE__: string
+  }
+): Promise<string> {
+  const url = `${baseUrl}/gm-template/main.ts`
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch main script from ${url}`)
+  }
+
+  let content = await response.text()
+
+  // Replace variable declarations with actual values
+  content = content.replace(/declare const __BASE_URL__: string/g, `const __BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)}`)
+  content = content.replace(/declare const __RULE_API_URL__: string/g, `const __RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)}`)
+  content = content.replace(/declare const __RULE_MANAGER_URL__: string/g, `const __RULE_MANAGER_URL__ = ${JSON.stringify(variables.__RULE_MANAGER_URL__)}`)
+  content = content.replace(/declare const __EDITOR_URL__: string/g, `const __EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)}`)
+  content = content.replace(/declare const __HMK_URL__: string/g, `const __HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)}`)
+  content = content.replace(/declare const __SCRIPT_URL__: string/g, `const __SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)}`)
+  content = content.replace(/declare const __IS_DEVELOP_MODE__: boolean/g, `const __IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__}`)
+  content = content.replace(/declare const __HOSTNAME_PORT__: string/g, `const __HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)}`)
+  content = content.replace(/declare const __GRANTS_STRING__: string/g, `const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)}`)
+  content = content.replace(/declare const __CLEAR_META_CODE__: string/g, `const __CLEAR_META_CODE__ = ${JSON.stringify(variables.__CLEAR_META_CODE__)}`)
+
+  // Compile TypeScript to JavaScript
+  const compiledContent = (() => {
+    try {
+      const result = ts.transpileModule(content, {
+        compilerOptions: {
+          module: ts.ModuleKind.None,
+          target: ts.ScriptTarget.ESNext,
+          jsx: ts.JsxEmit.Preserve,
+          esModuleInterop: true,
+          allowJs: true,
+          checkJs: false,
+        },
+        fileName: 'main.ts',
+      })
+
+      return result.outputText
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(`Compiling main script failed:`, error)
+      throw error
+    }
+  })()
+
+  return compiledContent
+}
+
 export function isMissStackblitzFiles(...files: string[]) {
   return files.some((file) => !STACKBLITZ_FILES.includes(file))
 }

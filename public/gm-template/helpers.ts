@@ -1,3 +1,37 @@
+/// <reference path="./stackblitz/typings.d.ts" />
+
+// Type declarations for this file (types from stackblitz/typings.d.ts)
+// __BASE_URL__ is declared in stackblitz/typings.d.ts
+declare interface GMXMLHttpRequestResponse {
+  finalUrl: string
+  readyState: number
+  responseHeaders: string
+  response: any
+  responseText: string
+  responseXML: Document | null
+  status: number
+  statusText: string
+}
+declare interface GMXMLHttpRequestError {
+  error: string
+  message?: string
+}
+declare interface GMXMLHttpRequestDetails {
+  method: string
+  url: string
+  headers?: Record<string, string>
+  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams
+  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
+  body?: any
+  timeout?: number
+  onload?: (response: GMXMLHttpRequestResponse) => void
+  onerror?: (error: GMXMLHttpRequestError) => void
+  onabort?: (error: GMXMLHttpRequestError) => void
+  ontimeout?: (error: GMXMLHttpRequestError) => void
+  onprogress?: (event: ProgressEvent) => void
+}
+declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_curl(content: string) {
   if (!content) {
@@ -13,7 +47,7 @@ function GME_curl(content: string) {
       },
       responseType: 'arraybuffer',
       data: JSON.stringify({ content }),
-      onload: function (response) {
+      onload: function (response: GMXMLHttpRequestResponse) {
         if (response.readyState !== 4) {
           return
         }
@@ -24,7 +58,7 @@ function GME_curl(content: string) {
 
         resolve(response.response)
       },
-      onerror: function (error) {
+      onerror: function (error: GMXMLHttpRequestError) {
         reject(new Error('Failed to request:' + error.message))
       },
     })
@@ -63,6 +97,8 @@ function GME_preview(file: string, content: string) {
 interface WaitForOptions {
   timeout?: boolean
 }
+
+type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
@@ -197,8 +233,8 @@ function GME_warn(...contents: any[]) {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_uuid() {
-  if (typeof typeof crypto?.randomUUID === 'function') {
-    return typeof crypto.randomUUID()
+  if (typeof crypto?.randomUUID === 'function') {
+    return crypto.randomUUID()
   }
 
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {

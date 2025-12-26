@@ -10,12 +10,14 @@ interface EditorHeaderProps {
   scriptKey: string
   onSave: () => void
   isSaving: boolean
+  isEditorDevMode: boolean
+  onToggleEditorDevMode: () => void
 }
 
 /**
  * Editor header component with exit, update, and save buttons
  */
-export default function EditorHeader({ scriptKey, onSave, isSaving }: EditorHeaderProps) {
+export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevMode, onToggleEditorDevMode }: EditorHeaderProps) {
   const router = useRouter()
 
   /**
@@ -42,6 +44,18 @@ export default function EditorHeader({ scriptKey, onSave, isSaving }: EditorHead
 
       {/* Right: Action buttons */}
       <div className="flex items-center gap-2">
+        {/* Editor Dev Mode toggle */}
+        <button
+          onClick={onToggleEditorDevMode}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+            isEditorDevMode ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
+          }`}
+          title={isEditorDevMode ? 'Disable editor dev mode' : 'Enable editor dev mode'}
+        >
+          <FeatherIcon icon={isEditorDevMode ? 'play' : 'play-circle'} className="w-4 h-4" />
+          <span className="text-sm">{isEditorDevMode ? 'Dev Mode ON' : 'Dev Mode'}</span>
+        </button>
+
         {/* Update button */}
         <button
           onClick={handleUpdate}

@@ -1,3 +1,5 @@
+/// <reference path="./stackblitz/typings.d.ts" />
+
 interface LoadScriptOptions {
   method?: string
   body?: any

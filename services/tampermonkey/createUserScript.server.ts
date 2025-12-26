@@ -3,7 +3,7 @@
 import * as prettier from 'prettier'
 import * as ts from 'typescript'
 
-import { EXCLUDED_FILES } from '@/constants/file'
+import { EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 
 import { createBanner } from '.'
 import { clearMeta, extractMeta } from './meta'
@@ -59,6 +59,16 @@ function createScriptCompiler() {
 
   const compile = (file: string, content: string) => {
     if (EXCLUDED_FILES.includes(file)) {
+      return
+    }
+
+    // Skip .d.ts files (TypeScript declaration files)
+    if (file.endsWith('.d.ts')) {
+      return
+    }
+
+    // Only compile script files (.ts, .js), skip config files like package.json, tsconfig.json, etc.
+    if (!SCRIPTS_FILE_EXTENSION.some((ext) => file.endsWith(ext))) {
       return
     }
 

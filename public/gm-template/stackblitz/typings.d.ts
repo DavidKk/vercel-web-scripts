@@ -39,10 +39,40 @@ declare interface GMXMLHttpRequestDetails {
 
 declare const unsafeWindow: Window
 declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
-declare function GM_setValue(key: string, value: string): void
-declare function GM_getValue(key: string, defaultValue?: string): string
-declare function GM_log(...messages: string[]): void
+declare function GM_setValue(key: string, value: any): void
+declare function GM_getValue<T = any>(key: string, defaultValue?: T): T
+declare function GM_deleteValue(key: string): void
+declare function GM_listValues(): string[]
+declare function GM_setValues(obj: Record<string, any>): void
+declare function GM_getValues(keys: string[]): Record<string, any>
+declare function GM_deleteValues(keys: string[]): void
+declare function GM_addValueChangeListener(key: string, callback: (name: string, oldValue: any, newValue: any, remote: boolean) => void): string
+declare function GM_removeValueChangeListener(listenerId: string): void
+declare function GM_log(...messages: any[]): void
 declare function GM_setClipboard(text: string, info: 'text' | 'html', callback: () => void): void
+declare function GM_registerMenuCommand(caption: string, commandFunc: () => void, accessKey?: string): number
+declare function GM_unregisterMenuCommand(menuCmdId: number): void
+declare function GM_notification(text: string, title?: string, image?: string, onClick?: () => void): void
+declare function GM_info(text: string): void
+declare function GM_openInTab(url: string, openInBackground?: boolean): void
+declare function GM_download(details: {
+  url: string
+  name: string
+  saveAs?: boolean
+  headers?: Record<string, string>
+  onerror?: (error: any) => void
+  ontimeout?: () => void
+  onload?: () => void
+}): void
+declare function GM_getResourceText(name: string): string
+declare function GM_getResourceURL(name: string): string
+declare function GM_addElement(parent: HTMLElement | Document, tagName: string, attributes?: Record<string, string>): HTMLElement
+declare function GM_addStyle(css: string): HTMLStyleElement
+declare function GM_getTab(callback: (tab: any) => void): void
+declare function GM_saveTab(tab: any): void
+declare function GM_getTabs(callback: (tabs: any[]) => void): void
+declare function GM_webRequest(details: any): void
+declare function GM_cookie(details: any): void
 declare interface MenuItem {
   id: string
   text: string
@@ -74,3 +104,31 @@ declare function GME_fail(...contents: any[]): void
 declare function GME_warn(...contents: any[]): void
 declare function GME_uuid(): string
 declare function GME_notification(message: string, type?: 'success' | 'error' | 'info' | 'warn', duration?: number): any
+
+// Browser File System Access API
+declare global {
+  interface Window {
+    showDirectoryPicker(): Promise<FileSystemDirectoryHandle>
+  }
+
+  interface FileSystemDirectoryHandle {
+    kind: 'directory'
+    name: string
+    entries(): AsyncIterableIterator<[string, FileSystemHandle]>
+    getFile(name: string): Promise<FileSystemFileHandle>
+    requestPermission(options?: { mode?: 'read' | 'readwrite' }): Promise<PermissionState>
+  }
+
+  interface FileSystemFileHandle {
+    kind: 'file'
+    name: string
+    getFile(): Promise<File>
+  }
+
+  interface FileSystemHandle {
+    kind: 'file' | 'directory'
+    name: string
+  }
+}
+
+export {}
