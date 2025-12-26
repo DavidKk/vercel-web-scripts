@@ -3,8 +3,8 @@
 import FeatherIcon from 'feather-icons-react'
 import Link from 'next/link'
 
+import { defaultTitle, repositoryUrl } from '@/config/package'
 import { useLayoutVisibility } from '@/hooks/useLayoutVisibility'
-import { name, repository } from '@/package.json'
 
 import { DEFAULT_NAV } from './constants'
 
@@ -18,8 +18,8 @@ interface NavProps {
   nav?: Record<string, NavItem[]>
 }
 
-const DEFAULT_TITLE = name.replace('vercel', '').split('-').join(' ')
-const GITHUB_URL = repository.url
+const DEFAULT_TITLE = defaultTitle
+const GITHUB_URL = repositoryUrl
 
 export function Nav(props: NavProps) {
   const { title = DEFAULT_TITLE, nav = DEFAULT_NAV } = props
