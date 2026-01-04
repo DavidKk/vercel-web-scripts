@@ -98,12 +98,14 @@ interface WaitForOptions {
   timeout?: boolean
 }
 
-type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null
+type AsyncQuery =
+  | (() => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null)
+  | (() => Promise<HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null>)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
+function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
   const { timeout: openTimeout } = options || {}
-  return new Promise<ReturnType<T>>((resolve, reject) => {
+  return new Promise<Awaited<ReturnType<T>>>((resolve, reject) => {
     const timerId =
       openTimeout &&
       setTimeout(() => {
@@ -113,28 +115,38 @@ function GME_waitFor<T extends Query>(query: T, options?: WaitForOptions) {
 
     let observer: MutationObserver | null = null
 
-    const checkAndResolve = () => {
-      const node = query()
-      if (node) {
-        timerId && clearTimeout(timerId)
-        observer?.disconnect()
-        resolve(node as ReturnType<T>)
-        return true
+    const checkAndResolve = async () => {
+      try {
+        const result = query()
+        const node = result instanceof Promise ? await result : result
+        if (node) {
+          timerId && clearTimeout(timerId)
+          observer?.disconnect()
+          resolve(node as Awaited<ReturnType<T>>)
+          return true
+        }
+      } catch (error) {
+        // Silently handle errors in query to prevent breaking the watcher
+        // eslint-disable-next-line no-console
+        console.error('Error in GME_waitFor query:', error)
       }
       return false
     }
 
-    if (checkAndResolve()) {
-      return
-    }
+    // Check immediately once
+    checkAndResolve().then((found) => {
+      if (found) {
+        return
+      }
 
-    observer = new MutationObserver(() => {
-      checkAndResolve()
-    })
+      observer = new MutationObserver(() => {
+        checkAndResolve()
+      })
 
-    observer.observe(document.body, {
-      subtree: true,
-      childList: true,
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+      })
     })
   })
 }
@@ -144,21 +156,22 @@ interface WatchForOptions {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_watchFor<T extends Query>(query: T, callback: (node: NonNullable<ReturnType<T>>) => void, options?: WatchForOptions) {
+function GME_watchFor<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void, options?: WatchForOptions) {
   const { interval = 100 } = options || {}
   let observer: MutationObserver | null = null
   let intervalId: ReturnType<typeof setInterval> | null = null
   let isActive = true
 
-  const checkAndCallback = () => {
+  const checkAndCallback = async () => {
     if (!isActive) {
       return
     }
 
     try {
-      const node = query()
+      const result = query()
+      const node = result instanceof Promise ? await result : result
       if (node) {
-        callback(node as NonNullable<ReturnType<T>>)
+        callback(node as NonNullable<Awaited<ReturnType<T>>>)
       }
     } catch (error) {
       // Silently handle errors in callback to prevent breaking the watcher
@@ -242,4 +255,13 @@ function GME_uuid() {
     const v = c === 'x' ? r : (r & 0x3) | 0x8
     return v.toString(16)
   })
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function GME_sha1(str: string) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(str)
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
