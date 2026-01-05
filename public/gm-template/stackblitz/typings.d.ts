@@ -96,6 +96,14 @@ declare interface WatchForOptions {
   minInterval?: number
 }
 
+declare interface PollForOptions {
+  /**
+   * Interval in milliseconds between each poll execution
+   * @default 1000 (1 second)
+   */
+  interval?: number
+}
+
 type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null
 
 type AsyncQuery =
@@ -107,6 +115,7 @@ declare function GME_preview(file: string, content: string): void
 declare function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions): Promise<Awaited<ReturnType<T>>>
 declare function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions): () => void
 declare function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions): () => void
+declare function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: PollForOptions): () => void
 declare function GME_sleep(ms: number): Promise<unknown>
 declare function GME_sha1(str: string): Promise<string>
 declare function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void

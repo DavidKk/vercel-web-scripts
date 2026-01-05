@@ -115,6 +115,14 @@ interface WatchForOptions {
   minInterval?: number
 }
 
+interface PollForOptions {
+  /**
+   * Interval in milliseconds between each poll execution
+   * @default 1000 (1 second)
+   */
+  interval?: number
+}
+
 type AsyncQuery =
   | (() => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null)
   | (() => Promise<HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null>)
@@ -180,7 +188,17 @@ function toValidElementsArray(node: any): HTMLElement[] {
  * @returns True if the element is visible, false otherwise
  */
 function GME_isVisible(element: Element | null | undefined): boolean {
-  if (!element || !(element instanceof HTMLElement)) {
+  if (
+    !element ||
+    !(
+      element instanceof HTMLElement ||
+      element instanceof SVGElement ||
+      element instanceof SVGPathElement ||
+      element instanceof SVGLineElement ||
+      element instanceof SVGPolylineElement ||
+      element instanceof SVGPolygonElement
+    )
+  ) {
     return false
   }
 
@@ -422,6 +440,65 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: H
 
   // Use GME_watchFor with the wrapped callback
   return GME_watchFor(query, visibleCallback, options)
+}
+
+/**
+ * Polls for nodes at regular intervals, then calls the callback with valid elements
+ * Useful for pages where nodes change frequently and MutationObserver would trigger too often
+ * Filters out invalid nodes (null, undefined, not in DOM, etc.)
+ * Only triggers callback when at least one valid element is found
+ * @param query Function that returns the node(s) to poll for (can return single element or array/NodeList)
+ * @param callback Function to call when valid node(s) are found, receives array of valid HTMLElements
+ * @param options Optional configuration options
+ * @returns Cleanup function to stop polling
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: PollForOptions) {
+  const { interval = 1000 } = options || {}
+  let intervalId: ReturnType<typeof setInterval> | null = null
+  let isActive = true
+
+  const checkAndCallback = async () => {
+    if (!isActive) {
+      return
+    }
+
+    try {
+      const result = query()
+      const node = result instanceof Promise ? await result : result
+      if (node) {
+        const validElements = toValidElementsArray(node)
+        if (validElements.length > 0) {
+          callback(validElements)
+        }
+      }
+    } catch (error) {
+      // Silently handle errors in callback to prevent breaking the poller
+      // eslint-disable-next-line no-console
+      console.error('Error in GME_pollFor callback:', error)
+    }
+  }
+
+  // Check immediately once
+  checkAndCallback()
+
+  // Start polling at regular intervals
+  intervalId = setInterval(() => {
+    checkAndCallback()
+  }, interval)
+
+  // Return cleanup function
+  return () => {
+    if (!isActive) {
+      return
+    }
+
+    isActive = false
+    if (intervalId) {
+      clearInterval(intervalId)
+      intervalId = null
+    }
+  }
 }
 
 // ============================================================================
