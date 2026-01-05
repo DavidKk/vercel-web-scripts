@@ -305,3 +305,184 @@ function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (
     }
   }
 }
+
+/**
+ * Checks if an element is visible in the viewport
+ * Considers CSS properties like display, visibility, opacity, and viewport position
+ * @param element The element to check
+ * @returns True if the element is visible, false otherwise
+ */
+function GME_isVisible(element: Element | null | undefined): boolean {
+  if (!element || !(element instanceof HTMLElement)) {
+    return false
+  }
+
+  // Check if element is in the DOM
+  if (!document.body.contains(element)) {
+    return false
+  }
+
+  // Check computed styles
+  const style = window.getComputedStyle(element)
+
+  // Check display property
+  if (style.display === 'none') {
+    return false
+  }
+
+  // Check visibility property
+  if (style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false
+  }
+
+  // Check opacity property
+  const opacity = parseFloat(style.opacity)
+  if (isNaN(opacity) || opacity === 0) {
+    return false
+  }
+
+  // Check if element has dimensions
+  const rect = element.getBoundingClientRect()
+  if (rect.width === 0 && rect.height === 0) {
+    return false
+  }
+
+  // Check if element is in viewport
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+
+  // Element is visible if any part of it is in the viewport
+  const isInViewport = rect.top < viewportHeight && rect.bottom > 0 && rect.left < viewportWidth && rect.right > 0
+
+  if (!isInViewport) {
+    return false
+  }
+
+  // Check parent elements recursively
+  let parent = element.parentElement
+  while (parent && parent !== document.body) {
+    const parentStyle = window.getComputedStyle(parent)
+
+    if (parentStyle.display === 'none') {
+      return false
+    }
+
+    if (parentStyle.visibility === 'hidden' || parentStyle.visibility === 'collapse') {
+      return false
+    }
+
+    const parentOpacity = parseFloat(parentStyle.opacity)
+    if (isNaN(parentOpacity) || parentOpacity === 0) {
+      return false
+    }
+
+    parent = parent.parentElement
+  }
+
+  return true
+}
+
+/**
+ * Helper function to check if a node or nodes contain any visible element
+ * @param node The node(s) to check
+ * @returns The first visible element, or null if none are visible
+ */
+function findVisibleNode(node: any): Element | null {
+  if (!node) {
+    return null
+  }
+
+  // Handle single element
+  if (node instanceof HTMLElement) {
+    return GME_isVisible(node) ? node : null
+  }
+
+  // Handle NodeList or array
+  if (node instanceof NodeList || Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const element = node[i]
+      if (element instanceof HTMLElement && GME_isVisible(element)) {
+        return element
+      }
+    }
+    return null
+  }
+
+  // For other types, try to check directly
+  if (node instanceof Element) {
+    return GME_isVisible(node) ? node : null
+  }
+
+  return null
+}
+
+/**
+ * Watches for a node to appear and become visible, then calls the callback
+ * Only triggers callback when the node is actually visible (not hidden by CSS, in viewport, etc.)
+ * @param query Function that returns the node(s) to watch for
+ * @param callback Function to call when a visible node is found
+ * @param options Optional configuration options
+ * @returns Cleanup function to stop watching
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void) {
+  let observer: MutationObserver | null = null
+  let isActive = true
+
+  const checkAndCallback = async () => {
+    if (!isActive) {
+      return
+    }
+
+    try {
+      const result = query()
+      const node = result instanceof Promise ? await result : result
+      if (node) {
+        const visibleNode = findVisibleNode(node)
+        if (visibleNode) {
+          callback(visibleNode as unknown as NonNullable<Awaited<ReturnType<T>>>)
+        }
+      }
+    } catch (error) {
+      // Silently handle errors in callback to prevent breaking the watcher
+      // eslint-disable-next-line no-console
+      console.error('Error in GME_watchForVisible callback:', error)
+    }
+  }
+
+  // Check immediately once
+  checkAndCallback()
+
+  // Use MutationObserver to watch DOM changes
+  observer = new MutationObserver(() => {
+    checkAndCallback()
+  })
+
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+  })
+
+  // Also listen to scroll and resize events to detect visibility changes
+  const handleVisibilityChange = () => {
+    checkAndCallback()
+  }
+
+  window.addEventListener('scroll', handleVisibilityChange, true)
+  window.addEventListener('resize', handleVisibilityChange)
+
+  // Return cleanup function
+  return () => {
+    if (!isActive) {
+      return
+    }
+
+    isActive = false
+    observer?.disconnect()
+    observer = null
+    window.removeEventListener('scroll', handleVisibilityChange, true)
+    window.removeEventListener('resize', handleVisibilityChange)
+  }
+}

@@ -97,10 +97,12 @@ declare function GME_curl(content: string): Promise<any>
 declare function GME_preview(file: string, content: string): void
 declare function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions): Promise<Awaited<ReturnType<T>>>
 declare function GME_watchFor<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void): () => void
+declare function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void): () => void
 declare function GME_sleep(ms: number): Promise<unknown>
 declare function GME_sha1(str: string): Promise<string>
 declare function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void
 declare function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void
+declare function GME_isVisible(element: Element | null | undefined): boolean
 declare function GME_ok(...contents: any[]): void
 declare function GME_info(...contents: any[]): void
 declare function GME_fail(...contents: any[]): void
