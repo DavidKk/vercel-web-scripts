@@ -124,24 +124,33 @@ interface PollForOptions {
 }
 
 type AsyncQuery =
-  | (() => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null)
-  | (() => Promise<HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null>)
+  | (() => (HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null)
+  | (() => Promise<(HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null>)
 
 /**
- * Helper function to convert query result to array of valid HTMLElements
+ * Helper function to check if an element is a valid element (HTMLElement or SVGElement)
+ * @param element The element to check
+ * @returns True if the element is valid
+ */
+function isValidElement(element: any): element is HTMLElement | SVGElement {
+  return element instanceof HTMLElement || element instanceof SVGElement
+}
+
+/**
+ * Helper function to convert query result to array of valid elements (HTMLElement or SVGElement)
  * Filters out invalid nodes (null, undefined, not in DOM, etc.)
  * @param node The node(s) to process
- * @returns Array of valid HTMLElements, empty array if none found
+ * @returns Array of valid elements, empty array if none found
  */
-function toValidElementsArray(node: any): HTMLElement[] {
+function toValidElementsArray(node: any): (HTMLElement | SVGElement)[] {
   if (!node) {
     return []
   }
 
-  const validElements: HTMLElement[] = []
+  const validElements: (HTMLElement | SVGElement)[] = []
 
   // Handle single element
-  if (node instanceof HTMLElement) {
+  if (isValidElement(node)) {
     // Check if element is in DOM
     if (document.body.contains(node)) {
       validElements.push(node)
@@ -153,7 +162,7 @@ function toValidElementsArray(node: any): HTMLElement[] {
   if (node instanceof NodeList) {
     for (let i = 0; i < node.length; i++) {
       const element = node[i]
-      if (element instanceof HTMLElement && document.body.contains(element)) {
+      if (isValidElement(element) && document.body.contains(element)) {
         validElements.push(element)
       }
     }
@@ -163,7 +172,7 @@ function toValidElementsArray(node: any): HTMLElement[] {
   // Handle array
   if (Array.isArray(node)) {
     for (const element of node) {
-      if (element instanceof HTMLElement && document.body.contains(element)) {
+      if (isValidElement(element) && document.body.contains(element)) {
         validElements.push(element)
       }
     }
@@ -172,7 +181,7 @@ function toValidElementsArray(node: any): HTMLElement[] {
 
   // For other Element types, try to check directly
   if (node instanceof Element && document.body.contains(node)) {
-    if (node instanceof HTMLElement) {
+    if (isValidElement(node)) {
       validElements.push(node)
     }
     return validElements
@@ -188,17 +197,7 @@ function toValidElementsArray(node: any): HTMLElement[] {
  * @returns True if the element is visible, false otherwise
  */
 function GME_isVisible(element: Element | null | undefined): boolean {
-  if (
-    !element ||
-    !(
-      element instanceof HTMLElement ||
-      element instanceof SVGElement ||
-      element instanceof SVGPathElement ||
-      element instanceof SVGLineElement ||
-      element instanceof SVGPolylineElement ||
-      element instanceof SVGPolygonElement
-    )
-  ) {
+  if (!element || !(element instanceof HTMLElement || element instanceof SVGElement)) {
     return false
   }
 
@@ -321,11 +320,11 @@ function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
  * Filters out invalid nodes (null, undefined, not in DOM, etc.)
  * Only triggers callback when at least one valid element is found
  * @param query Function that returns the node(s) to watch for (can return single element or array/NodeList)
- * @param callback Function to call when valid node(s) are found, receives array of valid HTMLElements
+ * @param callback Function to call when valid node(s) are found, receives array of valid elements (HTMLElement or SVGElement)
  * @param options Optional configuration options
  * @returns Cleanup function to stop watching
  */
-function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions) {
+function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
   const { minInterval } = options || {}
   let observer: MutationObserver | null = null
   let isActive = true
@@ -424,14 +423,14 @@ function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElem
  * Only triggers callback when the node(s) are actually visible (not hidden by CSS, in viewport, etc.)
  * This function is based on GME_watchFor but filters for visible elements only
  * @param query Function that returns the node(s) to watch for (can return single element or array/NodeList)
- * @param callback Function to call when visible node(s) are found, receives array of visible HTMLElements
+ * @param callback Function to call when visible node(s) are found, receives array of visible elements (HTMLElement or SVGElement)
  * @param options Optional configuration options
  * @returns Cleanup function to stop watching
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions) {
+function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
   // Wrap the callback to filter for visible elements
-  const visibleCallback = (nodes: HTMLElement[]) => {
+  const visibleCallback = (nodes: (HTMLElement | SVGElement)[]) => {
     const visibleElements = nodes.filter((element) => GME_isVisible(element))
     if (visibleElements.length > 0) {
       callback(visibleElements)
@@ -448,12 +447,12 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: H
  * Filters out invalid nodes (null, undefined, not in DOM, etc.)
  * Only triggers callback when at least one valid element is found
  * @param query Function that returns the node(s) to poll for (can return single element or array/NodeList)
- * @param callback Function to call when valid node(s) are found, receives array of valid HTMLElements
+ * @param callback Function to call when valid node(s) are found, receives array of valid elements (HTMLElement or SVGElement)
  * @param options Optional configuration options
  * @returns Cleanup function to stop polling
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: PollForOptions) {
+function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: PollForOptions) {
   const { interval = 1000 } = options || {}
   let intervalId: ReturnType<typeof setInterval> | null = null
   let isActive = true

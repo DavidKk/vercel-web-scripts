@@ -104,18 +104,18 @@ declare interface PollForOptions {
   interval?: number
 }
 
-type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null
+type Query = () => (HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null
 
 type AsyncQuery =
-  | (() => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null)
-  | (() => Promise<HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null>)
+  | (() => (HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null)
+  | (() => Promise<(HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null>)
 
 declare function GME_curl(content: string): Promise<any>
 declare function GME_preview(file: string, content: string): void
 declare function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions): Promise<Awaited<ReturnType<T>>>
-declare function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions): () => void
-declare function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions): () => void
-declare function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: PollForOptions): () => void
+declare function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions): () => void
+declare function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions): () => void
+declare function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: PollForOptions): () => void
 declare function GME_sleep(ms: number): Promise<unknown>
 declare function GME_sha1(str: string): Promise<string>
 declare function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void
