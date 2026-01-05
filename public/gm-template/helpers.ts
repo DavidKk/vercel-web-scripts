@@ -32,6 +32,10 @@ declare interface GMXMLHttpRequestDetails {
 }
 declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
 
+// ============================================================================
+// HTTP / Network Functions
+// ============================================================================
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_curl(content: string) {
   if (!content) {
@@ -94,216 +98,79 @@ function GME_preview(file: string, content: string) {
   document.body.removeChild(form)
 }
 
+// ============================================================================
+// DOM Query and Wait Functions
+// ============================================================================
+
 interface WaitForOptions {
   timeout?: boolean
+}
+
+interface WatchForOptions {
+  /**
+   * Minimum interval in milliseconds between callback executions
+   * Even if MutationObserver triggers frequently, callback will execute at most once per interval
+   * @default undefined (no interval limit)
+   */
+  minInterval?: number
 }
 
 type AsyncQuery =
   | (() => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null)
   | (() => Promise<HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null>)
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
-  const { timeout: openTimeout } = options || {}
-  return new Promise<Awaited<ReturnType<T>>>((resolve, reject) => {
-    const timerId =
-      openTimeout &&
-      setTimeout(() => {
-        observer?.disconnect()
-        reject(new Error('Timeout'))
-      }, 3e3)
-
-    let observer: MutationObserver | null = null
-
-    const checkAndResolve = async () => {
-      try {
-        const result = query()
-        const node = result instanceof Promise ? await result : result
-        if (node) {
-          timerId && clearTimeout(timerId)
-          observer?.disconnect()
-          resolve(node as Awaited<ReturnType<T>>)
-          return true
-        }
-      } catch (error) {
-        // Silently handle errors in query to prevent breaking the watcher
-        // eslint-disable-next-line no-console
-        console.error('Error in GME_waitFor query:', error)
-      }
-      return false
-    }
-
-    // Check immediately once
-    checkAndResolve().then((found) => {
-      if (found) {
-        return
-      }
-
-      observer = new MutationObserver(() => {
-        checkAndResolve()
-      })
-
-      observer.observe(document.body, {
-        subtree: true,
-        childList: true,
-      })
-    })
-  })
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_watchFor<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void) {
-  let observer: MutationObserver | null = null
-  let isActive = true
-
-  const checkAndCallback = async () => {
-    if (!isActive) {
-      return
-    }
-
-    try {
-      const result = query()
-      const node = result instanceof Promise ? await result : result
-      if (node) {
-        callback(node as NonNullable<Awaited<ReturnType<T>>>)
-      }
-    } catch (error) {
-      // Silently handle errors in callback to prevent breaking the watcher
-      // eslint-disable-next-line no-console
-      console.error('Error in GME_watchFor callback:', error)
-    }
-  }
-
-  // Check immediately once
-  checkAndCallback()
-
-  // Use MutationObserver to watch DOM changes
-  observer = new MutationObserver(() => {
-    checkAndCallback()
-  })
-
-  observer.observe(document.body, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-  })
-
-  // Return cleanup function
-  return () => {
-    if (!isActive) {
-      return
-    }
-
-    isActive = false
-    observer?.disconnect()
-    observer = null
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_ok(...contents: any[]) {
-  // eslint-disable-next-line no-console
-  console.log('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_info(...contents: any[]) {
-  // eslint-disable-next-line no-console
-  console.log('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_fail(...contents: any[]) {
-  // eslint-disable-next-line no-console
-  console.log('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_warn(...contents: any[]) {
-  // eslint-disable-next-line no-console
-  console.log('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_uuid() {
-  if (typeof crypto?.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0
-    const v = c === 'x' ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function GME_sha1(str: string) {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(str)
-  const hashBuffer = await crypto.subtle.digest('SHA-1', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
 /**
- * Creates a debounced function that delays invoking the provided function
- * until after the specified wait time has elapsed since the last invocation
- * @param fn The function to debounce
- * @param wait The number of milliseconds to delay
- * @returns A debounced version of the function
+ * Helper function to convert query result to array of valid HTMLElements
+ * Filters out invalid nodes (null, undefined, not in DOM, etc.)
+ * @param node The node(s) to process
+ * @returns Array of valid HTMLElements, empty array if none found
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-  return function debounced(...args: Parameters<T>) {
-    if (timeoutId) {
-      clearTimeout(timeoutId)
-    }
-    timeoutId = setTimeout(() => {
-      fn(...args)
-      timeoutId = null
-    }, wait)
+function toValidElementsArray(node: any): HTMLElement[] {
+  if (!node) {
+    return []
   }
-}
 
-/**
- * Creates a throttled function that invokes the provided function at most once
- * per specified wait time period
- * @param fn The function to throttle
- * @param wait The number of milliseconds to wait between invocations
- * @returns A throttled version of the function
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
-  let lastCallTime = 0
-  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const validElements: HTMLElement[] = []
 
-  return function throttled(...args: Parameters<T>) {
-    const now = Date.now()
-    const timeSinceLastCall = now - lastCallTime
+  // Handle single element
+  if (node instanceof HTMLElement) {
+    // Check if element is in DOM
+    if (document.body.contains(node)) {
+      validElements.push(node)
+    }
+    return validElements
+  }
 
-    if (timeSinceLastCall >= wait) {
-      lastCallTime = now
-      fn(...args)
-    } else {
-      if (timeoutId) {
-        clearTimeout(timeoutId)
+  // Handle NodeList
+  if (node instanceof NodeList) {
+    for (let i = 0; i < node.length; i++) {
+      const element = node[i]
+      if (element instanceof HTMLElement && document.body.contains(element)) {
+        validElements.push(element)
       }
-      timeoutId = setTimeout(() => {
-        lastCallTime = Date.now()
-        fn(...args)
-        timeoutId = null
-      }, wait - timeSinceLastCall)
     }
+    return validElements
   }
+
+  // Handle array
+  if (Array.isArray(node)) {
+    for (const element of node) {
+      if (element instanceof HTMLElement && document.body.contains(element)) {
+        validElements.push(element)
+      }
+    }
+    return validElements
+  }
+
+  // For other Element types, try to check directly
+  if (node instanceof Element && document.body.contains(node)) {
+    if (node instanceof HTMLElement) {
+      validElements.push(node)
+    }
+    return validElements
+  }
+
+  return []
 }
 
 /**
@@ -382,54 +249,72 @@ function GME_isVisible(element: Element | null | undefined): boolean {
   return true
 }
 
-/**
- * Helper function to check if a node or nodes contain any visible element
- * @param node The node(s) to check
- * @returns The first visible element, or null if none are visible
- */
-function findVisibleNode(node: any): Element | null {
-  if (!node) {
-    return null
-  }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
+  const { timeout: openTimeout } = options || {}
+  return new Promise<Awaited<ReturnType<T>>>((resolve, reject) => {
+    const timerId =
+      openTimeout &&
+      setTimeout(() => {
+        observer?.disconnect()
+        reject(new Error('Timeout'))
+      }, 3e3)
 
-  // Handle single element
-  if (node instanceof HTMLElement) {
-    return GME_isVisible(node) ? node : null
-  }
+    let observer: MutationObserver | null = null
 
-  // Handle NodeList or array
-  if (node instanceof NodeList || Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) {
-      const element = node[i]
-      if (element instanceof HTMLElement && GME_isVisible(element)) {
-        return element
+    const checkAndResolve = async () => {
+      try {
+        const result = query()
+        const node = result instanceof Promise ? await result : result
+        if (node) {
+          timerId && clearTimeout(timerId)
+          observer?.disconnect()
+          resolve(node as Awaited<ReturnType<T>>)
+          return true
+        }
+      } catch (error) {
+        // Silently handle errors in query to prevent breaking the watcher
+        // eslint-disable-next-line no-console
+        console.error('Error in GME_waitFor query:', error)
       }
+      return false
     }
-    return null
-  }
 
-  // For other types, try to check directly
-  if (node instanceof Element) {
-    return GME_isVisible(node) ? node : null
-  }
+    // Check immediately once
+    checkAndResolve().then((found) => {
+      if (found) {
+        return
+      }
 
-  return null
+      observer = new MutationObserver(() => {
+        checkAndResolve()
+      })
+
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+      })
+    })
+  })
 }
 
 /**
- * Watches for a node to appear and become visible, then calls the callback
- * Only triggers callback when the node is actually visible (not hidden by CSS, in viewport, etc.)
- * @param query Function that returns the node(s) to watch for
- * @param callback Function to call when a visible node is found
+ * Watches for nodes to appear in the DOM, then calls the callback with valid elements
+ * Filters out invalid nodes (null, undefined, not in DOM, etc.)
+ * Only triggers callback when at least one valid element is found
+ * @param query Function that returns the node(s) to watch for (can return single element or array/NodeList)
+ * @param callback Function to call when valid node(s) are found, receives array of valid HTMLElements
  * @param options Optional configuration options
  * @returns Cleanup function to stop watching
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void) {
+function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions) {
+  const { minInterval } = options || {}
   let observer: MutationObserver | null = null
   let isActive = true
+  let lastCallTime = 0
+  let pendingTimeoutId: ReturnType<typeof setTimeout> | null = null
 
-  const checkAndCallback = async () => {
+  const executeCallback = async () => {
     if (!isActive) {
       return
     }
@@ -438,15 +323,50 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (node: No
       const result = query()
       const node = result instanceof Promise ? await result : result
       if (node) {
-        const visibleNode = findVisibleNode(node)
-        if (visibleNode) {
-          callback(visibleNode as unknown as NonNullable<Awaited<ReturnType<T>>>)
+        const validElements = toValidElementsArray(node)
+        if (validElements.length > 0) {
+          callback(validElements)
+          lastCallTime = Date.now()
         }
       }
     } catch (error) {
       // Silently handle errors in callback to prevent breaking the watcher
       // eslint-disable-next-line no-console
-      console.error('Error in GME_watchForVisible callback:', error)
+      console.error('Error in GME_watchFor callback:', error)
+    }
+  }
+
+  const checkAndCallback = () => {
+    if (!isActive) {
+      return
+    }
+
+    // If no interval limit, execute immediately
+    if (!minInterval) {
+      executeCallback()
+      return
+    }
+
+    const now = Date.now()
+    const timeSinceLastCall = now - lastCallTime
+
+    // If enough time has passed, execute immediately
+    if (timeSinceLastCall >= minInterval) {
+      if (pendingTimeoutId) {
+        clearTimeout(pendingTimeoutId)
+        pendingTimeoutId = null
+      }
+      executeCallback()
+    } else {
+      // Cancel any pending timeout and schedule a new one
+      if (pendingTimeoutId) {
+        clearTimeout(pendingTimeoutId)
+      }
+      const remainingTime = minInterval - timeSinceLastCall
+      pendingTimeoutId = setTimeout(() => {
+        pendingTimeoutId = null
+        executeCallback()
+      }, remainingTime)
     }
   }
 
@@ -465,14 +385,6 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (node: No
     attributes: true,
   })
 
-  // Also listen to scroll and resize events to detect visibility changes
-  const handleVisibilityChange = () => {
-    checkAndCallback()
-  }
-
-  window.addEventListener('scroll', handleVisibilityChange, true)
-  window.addEventListener('resize', handleVisibilityChange)
-
   // Return cleanup function
   return () => {
     if (!isActive) {
@@ -482,7 +394,149 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (node: No
     isActive = false
     observer?.disconnect()
     observer = null
-    window.removeEventListener('scroll', handleVisibilityChange, true)
-    window.removeEventListener('resize', handleVisibilityChange)
+    if (pendingTimeoutId) {
+      clearTimeout(pendingTimeoutId)
+      pendingTimeoutId = null
+    }
   }
+}
+
+/**
+ * Watches for a node to appear and become visible, then calls the callback
+ * Only triggers callback when the node(s) are actually visible (not hidden by CSS, in viewport, etc.)
+ * This function is based on GME_watchFor but filters for visible elements only
+ * @param query Function that returns the node(s) to watch for (can return single element or array/NodeList)
+ * @param callback Function to call when visible node(s) are found, receives array of visible HTMLElements
+ * @param options Optional configuration options
+ * @returns Cleanup function to stop watching
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: HTMLElement[]) => void, options?: WatchForOptions) {
+  // Wrap the callback to filter for visible elements
+  const visibleCallback = (nodes: HTMLElement[]) => {
+    const visibleElements = nodes.filter((element) => GME_isVisible(element))
+    if (visibleElements.length > 0) {
+      callback(visibleElements)
+    }
+  }
+
+  // Use GME_watchFor with the wrapped callback
+  return GME_watchFor(query, visibleCallback, options)
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Creates a debounced function that delays invoking the provided function
+ * until after the specified wait time has elapsed since the last invocation
+ * @param fn The function to debounce
+ * @param wait The number of milliseconds to delay
+ * @returns A debounced version of the function
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+  return function debounced(...args: Parameters<T>) {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+    timeoutId = setTimeout(() => {
+      fn(...args)
+      timeoutId = null
+    }, wait)
+  }
+}
+
+/**
+ * Creates a throttled function that invokes the provided function at most once
+ * per specified wait time period
+ * @param fn The function to throttle
+ * @param wait The number of milliseconds to wait between invocations
+ * @returns A throttled version of the function
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
+  let lastCallTime = 0
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+  return function throttled(...args: Parameters<T>) {
+    const now = Date.now()
+    const timeSinceLastCall = now - lastCallTime
+
+    if (timeSinceLastCall >= wait) {
+      lastCallTime = now
+      fn(...args)
+    } else {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      timeoutId = setTimeout(() => {
+        lastCallTime = Date.now()
+        fn(...args)
+        timeoutId = null
+      }, wait - timeSinceLastCall)
+    }
+  }
+}
+
+// ============================================================================
+// Crypto / Hash Functions
+// ============================================================================
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function GME_sha1(str: string) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(str)
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_uuid() {
+  if (typeof crypto?.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+// ============================================================================
+// Logging Functions
+// ============================================================================
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_ok(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_info(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_fail(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_warn(...contents: any[]) {
+  // eslint-disable-next-line no-console
+  console.log('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
 }
