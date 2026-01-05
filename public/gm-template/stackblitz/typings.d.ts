@@ -88,7 +88,7 @@ declare interface WaitForOptions {
 }
 
 declare interface WatchForOptions {
-  interval?: number
+  // Reserved for future options
 }
 
 type Query = () => HTMLElement[] | HTMLElement | NodeListOf<Element> | Element[] | any[] | null

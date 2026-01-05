@@ -152,14 +152,12 @@ function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
 }
 
 interface WatchForOptions {
-  interval?: number
+  // Reserved for future options
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_watchFor<T extends AsyncQuery>(query: T, callback: (node: NonNullable<Awaited<ReturnType<T>>>) => void, options?: WatchForOptions) {
-  const { interval = 100 } = options || {}
   let observer: MutationObserver | null = null
-  let intervalId: ReturnType<typeof setInterval> | null = null
   let isActive = true
 
   const checkAndCallback = async () => {
@@ -195,23 +193,15 @@ function GME_watchFor<T extends AsyncQuery>(query: T, callback: (node: NonNullab
     attributes: true,
   })
 
-  // Use interval timer as a fallback to ensure nothing is missed
-  intervalId = setInterval(() => {
-    checkAndCallback()
-  }, interval)
-
   // Return cleanup function
   return () => {
     if (!isActive) {
       return
     }
+
     isActive = false
     observer?.disconnect()
     observer = null
-    if (intervalId) {
-      clearInterval(intervalId)
-      intervalId = null
-    }
   }
 }
 
