@@ -85,6 +85,18 @@ declare function GME_registerMenuCommand(item: MenuItem): any
 
 declare interface WaitForOptions {
   timeout?: boolean
+  /**
+   * Container element to observe for DOM changes
+   * If not specified, defaults to document.body
+   * @default document.body
+   */
+  container?: Node
+  /**
+   * MutationObserver options
+   * If not specified, defaults to { subtree: true, childList: true }
+   * @default { subtree: true, childList: true }
+   */
+  observerOptions?: MutationObserverInit
 }
 
 declare interface WatchForOptions {
@@ -94,6 +106,18 @@ declare interface WatchForOptions {
    * @default undefined (no interval limit)
    */
   minInterval?: number
+  /**
+   * Container element to observe for DOM changes
+   * If not specified, defaults to document.body
+   * @default document.body
+   */
+  container?: Node
+  /**
+   * MutationObserver options
+   * If not specified, defaults to { subtree: true, childList: true, characterData: true, attributes: true }
+   * @default { subtree: true, childList: true, characterData: true, attributes: true }
+   */
+  observerOptions?: MutationObserverInit
 }
 
 declare interface PollForOptions {
@@ -102,6 +126,12 @@ declare interface PollForOptions {
    * @default 1000 (1 second)
    */
   interval?: number
+  /**
+   * Use requestIdleCallback for polling when available
+   * This can help reduce CPU load on busy pages
+   * @default false
+   */
+  useIdleCallback?: boolean
 }
 
 type Query = () => (HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null

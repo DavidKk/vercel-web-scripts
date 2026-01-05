@@ -104,6 +104,18 @@ function GME_preview(file: string, content: string) {
 
 interface WaitForOptions {
   timeout?: boolean
+  /**
+   * Container element to observe for DOM changes
+   * If not specified, defaults to document.body
+   * @default document.body
+   */
+  container?: Node
+  /**
+   * MutationObserver options
+   * If not specified, defaults to { subtree: true, childList: true }
+   * @default { subtree: true, childList: true }
+   */
+  observerOptions?: MutationObserverInit
 }
 
 interface WatchForOptions {
@@ -113,6 +125,18 @@ interface WatchForOptions {
    * @default undefined (no interval limit)
    */
   minInterval?: number
+  /**
+   * Container element to observe for DOM changes
+   * If not specified, defaults to document.body
+   * @default document.body
+   */
+  container?: Node
+  /**
+   * MutationObserver options
+   * If not specified, defaults to { subtree: true, childList: true, characterData: true, attributes: true }
+   * @default { subtree: true, childList: true, characterData: true, attributes: true }
+   */
+  observerOptions?: MutationObserverInit
 }
 
 interface PollForOptions {
@@ -121,6 +145,12 @@ interface PollForOptions {
    * @default 1000 (1 second)
    */
   interval?: number
+  /**
+   * Use requestIdleCallback for polling when available
+   * This can help reduce CPU load on busy pages
+   * @default false
+   */
+  useIdleCallback?: boolean
 }
 
 type AsyncQuery =
@@ -191,8 +221,17 @@ function toValidElementsArray(node: any): (HTMLElement | SVGElement)[] {
 }
 
 /**
+ * Cache for visibility check results
+ * Key: element reference, Value: { result: boolean, timestamp: number }
+ * Cache expires after 100ms to handle dynamic changes
+ */
+const visibilityCache = new WeakMap<Element, { result: boolean; timestamp: number }>()
+const VISIBILITY_CACHE_TTL = 100 // 100ms cache TTL
+
+/**
  * Checks if an element is visible in the viewport
  * Considers CSS properties like display, visibility, opacity, and viewport position
+ * Results are cached for 100ms to reduce CPU usage on frequent checks
  * @param element The element to check
  * @returns True if the element is visible, false otherwise
  */
@@ -201,8 +240,16 @@ function GME_isVisible(element: Element | null | undefined): boolean {
     return false
   }
 
+  // Check cache first
+  const cached = visibilityCache.get(element)
+  const now = Date.now()
+  if (cached && now - cached.timestamp < VISIBILITY_CACHE_TTL) {
+    return cached.result
+  }
+
   // Check if element is in the DOM
   if (!document.body.contains(element)) {
+    visibilityCache.set(element, { result: false, timestamp: now })
     return false
   }
 
@@ -211,23 +258,27 @@ function GME_isVisible(element: Element | null | undefined): boolean {
 
   // Check display property
   if (style.display === 'none') {
+    visibilityCache.set(element, { result: false, timestamp: now })
     return false
   }
 
   // Check visibility property
   if (style.visibility === 'hidden' || style.visibility === 'collapse') {
+    visibilityCache.set(element, { result: false, timestamp: now })
     return false
   }
 
   // Check opacity property
   const opacity = parseFloat(style.opacity)
   if (isNaN(opacity) || opacity === 0) {
+    visibilityCache.set(element, { result: false, timestamp: now })
     return false
   }
 
   // Check if element has dimensions
   const rect = element.getBoundingClientRect()
   if (rect.width === 0 && rect.height === 0) {
+    visibilityCache.set(element, { result: false, timestamp: now })
     return false
   }
 
@@ -239,6 +290,7 @@ function GME_isVisible(element: Element | null | undefined): boolean {
   const isInViewport = rect.top < viewportHeight && rect.bottom > 0 && rect.left < viewportWidth && rect.right > 0
 
   if (!isInViewport) {
+    visibilityCache.set(element, { result: false, timestamp: now })
     return false
   }
 
@@ -248,44 +300,59 @@ function GME_isVisible(element: Element | null | undefined): boolean {
     const parentStyle = window.getComputedStyle(parent)
 
     if (parentStyle.display === 'none') {
+      visibilityCache.set(element, { result: false, timestamp: now })
       return false
     }
 
     if (parentStyle.visibility === 'hidden' || parentStyle.visibility === 'collapse') {
+      visibilityCache.set(element, { result: false, timestamp: now })
       return false
     }
 
     const parentOpacity = parseFloat(parentStyle.opacity)
     if (isNaN(parentOpacity) || parentOpacity === 0) {
+      visibilityCache.set(element, { result: false, timestamp: now })
       return false
     }
 
     parent = parent.parentElement
   }
 
-  return true
+  const result = true
+  visibilityCache.set(element, { result, timestamp: now })
+  return result
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
-  const { timeout: openTimeout } = options || {}
+  const { timeout: openTimeout, container = document.body, observerOptions = { subtree: true, childList: true } } = options || {}
   return new Promise<Awaited<ReturnType<T>>>((resolve, reject) => {
-    const timerId =
-      openTimeout &&
-      setTimeout(() => {
-        observer?.disconnect()
-        reject(new Error('Timeout'))
-      }, 3e3)
-
+    let timerId: ReturnType<typeof setTimeout> | null = null
     let observer: MutationObserver | null = null
+    let isResolved = false
+
+    const cleanup = () => {
+      if (timerId) {
+        clearTimeout(timerId)
+        timerId = null
+      }
+      if (observer) {
+        observer.disconnect()
+        observer = null
+      }
+    }
 
     const checkAndResolve = async () => {
+      if (isResolved) {
+        return false
+      }
+
       try {
         const result = query()
         const node = result instanceof Promise ? await result : result
         if (node) {
-          timerId && clearTimeout(timerId)
-          observer?.disconnect()
+          isResolved = true
+          cleanup()
           resolve(node as Awaited<ReturnType<T>>)
           return true
         }
@@ -297,21 +364,37 @@ function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
       return false
     }
 
+    // Set up timeout if needed
+    if (openTimeout) {
+      timerId = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true
+          cleanup()
+          reject(new Error('Timeout'))
+        }
+      }, 3e3)
+    }
+
     // Check immediately once
-    checkAndResolve().then((found) => {
-      if (found) {
-        return
-      }
+    checkAndResolve()
+      .then((found) => {
+        if (found || isResolved) {
+          return
+        }
 
-      observer = new MutationObserver(() => {
-        checkAndResolve()
-      })
+        observer = new MutationObserver(() => {
+          checkAndResolve()
+        })
 
-      observer.observe(document.body, {
-        subtree: true,
-        childList: true,
+        observer.observe(container, observerOptions)
       })
-    })
+      .catch((error) => {
+        if (!isResolved) {
+          isResolved = true
+          cleanup()
+          reject(error)
+        }
+      })
   })
 }
 
@@ -325,7 +408,7 @@ function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
  * @returns Cleanup function to stop watching
  */
 function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
-  const { minInterval } = options || {}
+  const { minInterval, container = document.body, observerOptions = { subtree: true, childList: true, characterData: true, attributes: true } } = options || {}
   let observer: MutationObserver | null = null
   let isActive = true
   let lastCallTime = 0
@@ -378,11 +461,14 @@ function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLEle
       // Cancel any pending timeout and schedule a new one
       if (pendingTimeoutId) {
         clearTimeout(pendingTimeoutId)
+        pendingTimeoutId = null
       }
       const remainingTime = minInterval - timeSinceLastCall
       pendingTimeoutId = setTimeout(() => {
-        pendingTimeoutId = null
-        executeCallback()
+        if (isActive) {
+          pendingTimeoutId = null
+          executeCallback()
+        }
       }, remainingTime)
     }
   }
@@ -395,12 +481,7 @@ function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLEle
     checkAndCallback()
   })
 
-  observer.observe(document.body, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-  })
+  observer.observe(container, observerOptions)
 
   // Return cleanup function
   return () => {
@@ -409,8 +490,10 @@ function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLEle
     }
 
     isActive = false
-    observer?.disconnect()
-    observer = null
+    if (observer) {
+      observer.disconnect()
+      observer = null
+    }
     if (pendingTimeoutId) {
       clearTimeout(pendingTimeoutId)
       pendingTimeoutId = null
@@ -453,8 +536,9 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: (
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: PollForOptions) {
-  const { interval = 1000 } = options || {}
+  const { interval = 1000, useIdleCallback = false } = options || {}
   let intervalId: ReturnType<typeof setInterval> | null = null
+  let idleCallbackId: number | null = null
   let isActive = true
 
   const checkAndCallback = async () => {
@@ -478,13 +562,41 @@ function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElem
     }
   }
 
+  const scheduleNext = () => {
+    if (!isActive) {
+      return
+    }
+
+    if (useIdleCallback && typeof window.requestIdleCallback === 'function') {
+      idleCallbackId = window.requestIdleCallback(
+        () => {
+          idleCallbackId = null
+          if (!isActive) {
+            return
+          }
+          checkAndCallback()
+          // Schedule next check, but ensure minimum interval
+          setTimeout(() => {
+            if (isActive) {
+              scheduleNext()
+            }
+          }, interval)
+        },
+        { timeout: interval }
+      )
+    } else {
+      // Fallback to setInterval if requestIdleCallback is not available
+      intervalId = setInterval(() => {
+        checkAndCallback()
+      }, interval)
+    }
+  }
+
   // Check immediately once
   checkAndCallback()
 
-  // Start polling at regular intervals
-  intervalId = setInterval(() => {
-    checkAndCallback()
-  }, interval)
+  // Start polling
+  scheduleNext()
 
   // Return cleanup function
   return () => {
@@ -496,6 +608,10 @@ function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElem
     if (intervalId) {
       clearInterval(intervalId)
       intervalId = null
+    }
+    if (idleCallbackId !== null && typeof window.cancelIdleCallback === 'function') {
+      window.cancelIdleCallback(idleCallbackId)
+      idleCallbackId = null
     }
   }
 }
