@@ -84,6 +84,15 @@ function createScriptCompiler() {
       grant.forEach((grant) => typeof grant === 'string' && grant && grants.add(grant))
     }
 
+    // Extract module name: prefer @namespace, fallback to filename without extension
+    const moduleName = meta.namespace
+      ? typeof meta.namespace === 'string'
+        ? meta.namespace
+        : Array.isArray(meta.namespace)
+          ? meta.namespace[0]
+          : file.replace(/\.[^/.]+$/, '')
+      : file.replace(/\.[^/.]+$/, '')
+
     const clearedContent = clearMeta(content)
     const compiledContent = (() => {
       try {
@@ -112,15 +121,18 @@ function createScriptCompiler() {
 
     return `
       // ${file}
-      try {
-        if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
-          GME_ok('Executing script \`${file}\`');\n
-          ${compiledContent}
+      ;(function() {
+        const { GME_ok, GME_info, GME_fail, GME_warn } = createGMELogger(${JSON.stringify(moduleName)})
+        try {
+          if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
+            GME_ok('Executing script \`${file}\`');\n
+            ${compiledContent}
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
+          GME_fail('Executing script \`${file}\` failed:', message)
         }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
-        GME_fail('Executing script \`${file}\` failed:', message)
-      }
+      })()
     `
   }
 

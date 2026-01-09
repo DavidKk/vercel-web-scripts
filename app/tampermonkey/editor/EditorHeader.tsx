@@ -13,12 +13,13 @@ interface EditorHeaderProps {
   isSaving: boolean
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void
+  isCompiling: boolean
 }
 
 /**
  * Editor header component with exit, update, and save buttons
  */
-export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevMode, onToggleEditorDevMode }: EditorHeaderProps) {
+export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevMode, onToggleEditorDevMode, isCompiling }: EditorHeaderProps) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
 
@@ -72,13 +73,25 @@ export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevM
         {/* Editor Dev Mode toggle */}
         <button
           onClick={onToggleEditorDevMode}
+          disabled={isCompiling}
           className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
             isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
-          }`}
-          title={isEditorDevMode ? 'Disable editor dev mode' : 'Enable editor dev mode'}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          title={isCompiling ? 'Compiling...' : isEditorDevMode ? 'Disable editor dev mode' : 'Enable editor dev mode'}
         >
-          <FeatherIcon icon={isEditorDevMode ? 'play' : 'play-circle'} className="w-4 h-4" />
-          <span className="text-sm">Dev Mode</span>
+          {isCompiling ? (
+            <>
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+              <span className="text-sm">Compiling...</span>
+            </>
+          ) : (
+            <>
+              <FeatherIcon icon={isEditorDevMode ? 'play' : 'play-circle'} className="w-4 h-4" />
+              <span className="text-sm">Dev Mode</span>
+            </>
+          )}
         </button>
 
         {/* Update button */}

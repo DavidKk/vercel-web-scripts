@@ -27,7 +27,8 @@ declare function GM_unregisterMenuCommand(menuCmdId: number): void
 
 const WEB_SCRIPT_ID = GME_uuid()
 const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMOTE_EXECUTE__
-const IS_DEVELOP_MODE = __IS_DEVELOP_MODE__ && __HOSTNAME_PORT__ === window.location.hostname
+// Use window.location.host instead of hostname to include port number
+const IS_DEVELOP_MODE = __IS_DEVELOP_MODE__ && __HOSTNAME_PORT__ === window.location.host
 
 const LOCAL_DEV_EVENT_KEY = 'files@web-script-dev'
 const EDITOR_DEV_EVENT_KEY = 'files@web-script-editor-dev'
@@ -91,15 +92,6 @@ function getEditorDevHost(): string {
 }
 
 /**
- * Get the files from editor dev mode
- * @returns {Object} The files object or empty object
- */
-function getEditorDevFiles(): Record<string, string> {
-  const response = GM_getValue(EDITOR_DEV_EVENT_KEY) as { files?: Record<string, string> } | null
-  return response?.files || {}
-}
-
-/**
  * Check if any dev mode is active
  * @returns {string|null} Returns 'local' if local dev mode is active, 'editor' if editor dev mode is active, null otherwise
  */
@@ -151,19 +143,23 @@ async function executeLocalScript(): Promise<void> {
     return
   }
 
-  // Get files from cache (files are stored by the host tab)
-  const files = getLocalDevFiles()
+  // Get files and compiled content from cache (stored by the host tab)
+  const response = GM_getValue(LOCAL_DEV_EVENT_KEY) as { files?: Record<string, string>; compiledContent?: string } | null
+  const files = response?.files || {}
+  const compiledContent = response?.compiledContent
+
   if (Object.keys(files).length === 0) {
     return
   }
 
-  const content = await fetchCompileScript(__BASE_URL__, files)
-  if (!content) {
+  // Compiled content is required - if not available, compilation failed on host side
+  if (!compiledContent) {
+    GME_fail('[Local Dev Mode] No compiled content available. Compilation may have failed on host side.')
     return
   }
 
-  GME_ok('Local script fetched successfully.')
-  executeScript(content)
+  GME_ok('[Local Dev Mode] Local script ready, executing...')
+  executeScript(compiledContent)
 }
 
 /**
@@ -171,38 +167,41 @@ async function executeLocalScript(): Promise<void> {
  */
 async function executeEditorScript(): Promise<void> {
   if (!isEditorDevMode()) {
-    GME_info('Editor dev mode not active, skipping execution')
+    GME_info('[Editor Dev Mode] Editor dev mode not active, skipping execution')
     return
   }
 
   const host = getEditorDevHost()
   if (!host) {
-    GME_info('No editor dev mode host found, skipping execution')
+    GME_info('[Editor Dev Mode] No editor dev mode host found, skipping execution')
     return
   }
 
-  // Get files from GM_setValue (like Local Dev Mode)
-  const files = getEditorDevFiles()
+  // Get files and compiled content from GM_setValue (like Local Dev Mode)
+  const response = GM_getValue(EDITOR_DEV_EVENT_KEY) as { files?: Record<string, string>; compiledContent?: string } | null
+  const files = response?.files || {}
+  const compiledContent = response?.compiledContent
+
   if (Object.keys(files).length === 0) {
-    GME_info('No editor files found, skipping execution')
+    GME_info('[Editor Dev Mode] No editor files found, skipping execution')
     return
   }
 
-  GME_info('Executing editor script, host: ' + host + ', file count: ' + Object.keys(files).length)
+  GME_info('[Editor Dev Mode] Executing editor script, host: ' + host + ', file count: ' + Object.keys(files).length)
 
   try {
-    GME_info('Compiling editor script...')
-    const content = await fetchCompileScript(__BASE_URL__, files)
-    if (!content) {
-      GME_fail('Failed to compile editor script')
+    // Compiled content is required - if not available, compilation failed on host side
+    if (!compiledContent) {
+      GME_fail('[Editor Dev Mode] No compiled content available. Compilation may have failed on editor side.')
       return
     }
 
-    GME_ok('Editor script compiled successfully, executing...')
-    executeScript(content)
-    GME_ok('Editor script executed successfully')
+    GME_ok('[Editor Dev Mode] Editor script ready, executing...')
+    executeScript(compiledContent)
+    GME_ok('[Editor Dev Mode] Editor script executed successfully')
   } catch (error: any) {
-    GME_fail('Failed to execute editor script: ' + error.message)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    GME_fail('[Editor Dev Mode] Failed to execute editor script: ' + errorMessage)
   }
 }
 
@@ -315,6 +314,22 @@ async function tryExecuteEditorScript(): Promise<boolean> {
 async function main(): Promise<void> {
   const channel = initDevChannel()
 
+  // In development mode, clear any residual local/editor dev mode flags to ensure remote script execution
+  if (IS_DEVELOP_MODE) {
+    const hasLocalDevMode = isLocalDevMode()
+    const hasEditorDevMode = isEditorDevMode()
+
+    if (hasLocalDevMode) {
+      GM_setValue(LOCAL_DEV_EVENT_KEY, null)
+      GME_info('[Dev Mode] Cleared residual local dev mode flag')
+    }
+
+    if (hasEditorDevMode) {
+      GM_setValue(EDITOR_DEV_EVENT_KEY, null)
+      GME_info('[Dev Mode] Cleared residual editor dev mode flag')
+    }
+  }
+
   if (tryExecuteLocalScript()) {
     function handleLocalScriptUpdate(oldValue: any, newValue: any): void {
       if (!newValue) {
@@ -332,7 +347,7 @@ async function main(): Promise<void> {
       }
 
       // Re-execute script (works for both host and non-host tabs)
-      GME_info('Local files updated, re-executing script...')
+      GME_info('[Local Dev Mode] Local files updated, re-executing script...')
       executeLocalScript()
     }
 
@@ -380,7 +395,7 @@ async function main(): Promise<void> {
         return
       }
 
-      GME_info('Editor files updated, re-executing script...')
+      GME_info('[Editor Dev Mode] Editor files updated, re-executing script...')
       executeEditorScript()
     }
 
@@ -437,9 +452,82 @@ async function main(): Promise<void> {
     window.open(__EDITOR_URL__, '_blank')
   })
 
-  GM_registerMenuCommand('Update Script', () => {
-    const url = __SCRIPT_URL__
-    url && window.open(url, '_blank')
+  /**
+   * Validate script by checking if it exists and can be accessed
+   * Similar to editor's handleUpdate logic
+   * @param scriptUrl Script URL to validate
+   * @returns Object with isValid flag and the URL to use
+   */
+  async function validateScript(scriptUrl: string): Promise<{ isValid: boolean; url: string | null }> {
+    try {
+      GME_info('Validating script compilation...')
+
+      // Extract key from script URL (e.g., /static/{key}/tampermonkey.js)
+      const urlObj = new URL(scriptUrl, window.location.origin)
+      const pathParts = urlObj.pathname.split('/')
+      const keyIndex = pathParts.indexOf('static')
+      if (keyIndex === -1 || keyIndex + 1 >= pathParts.length) {
+        GME_fail('Invalid script URL format')
+        GME_notification('Invalid script URL format', 'error')
+        return { isValid: false, url: null }
+      }
+
+      const key = pathParts[keyIndex + 1]
+      const baseUrl = `${urlObj.protocol}//${urlObj.host}`
+      const userUrl = `${baseUrl}/static/${key}/tampermonkey.user.js`
+      const fallback = `${baseUrl}/static/${key}/tampermonkey.js`
+
+      // Check if tampermonkey.user.js exists (HEAD request)
+      try {
+        const userResponse = await GME_fetch(userUrl, { method: 'HEAD' })
+        if (userResponse.ok) {
+          GME_ok('Script validation passed (tampermonkey.user.js found)')
+          return { isValid: true, url: userUrl }
+        }
+      } catch (error) {
+        // Continue to check fallback
+      }
+
+      // Check fallback tampermonkey.js
+      try {
+        const fallbackResponse = await GME_fetch(fallback, { method: 'HEAD' })
+        if (fallbackResponse.ok) {
+          GME_ok('Script validation passed (tampermonkey.js found)')
+          return { isValid: true, url: fallback }
+        }
+      } catch (error) {
+        // Both failed
+      }
+
+      // Both URLs failed - compilation may have failed
+      GME_fail('Script validation failed: Both tampermonkey.user.js and tampermonkey.js are not available')
+      GME_fail('This usually means script compilation failed. Please check for errors.')
+      GME_notification('Script compilation failed. Please check for errors in the editor.', 'error', 5000)
+      return { isValid: false, url: null }
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      GME_fail(`Script validation failed: ${errorMessage}`)
+      GME_notification(`Script validation failed: ${errorMessage}`, 'error', 5000)
+      return { isValid: false, url: null }
+    }
+  }
+
+  GM_registerMenuCommand('Update Script', async () => {
+    const scriptUrl = __SCRIPT_URL__
+    if (!scriptUrl) {
+      GME_fail('Script URL is not available')
+      GME_notification('Script URL is not available', 'error')
+      return
+    }
+
+    const validation = await validateScript(scriptUrl)
+    if (!validation.isValid || !validation.url) {
+      GME_fail('Script validation failed. Update cancelled.')
+      return
+    }
+
+    GME_ok('Opening update link...')
+    window.open(validation.url, '_blank', 'noopener')
   })
 
   GM_registerMenuCommand('Rule manager', () => {
@@ -621,7 +709,25 @@ async function main(): Promise<void> {
           hasModified = true
         }
 
-        const state = { host: WEB_SCRIPT_ID, lastModified, files }
+        // Compile files if modified - if compilation fails, don't send update
+        let compiledContent: string | null = null
+        if (hasModified && Object.keys(files).length > 0) {
+          try {
+            GME_info('[Local Dev Mode] Compiling local files...')
+            compiledContent = await fetchCompileScript(__BASE_URL__, files)
+            if (!compiledContent) {
+              throw new Error('Compilation returned empty content')
+            }
+            GME_ok('[Local Dev Mode] Local files compiled successfully')
+          } catch (error: any) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            GME_fail('[Local Dev Mode] Failed to compile local files: ' + errorMessage)
+            // Don't send update if compilation fails
+            return
+          }
+        }
+
+        const state = { host: WEB_SCRIPT_ID, lastModified, files, compiledContent }
         const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY) as { lastModified?: number } | null
 
         if (!currentState || !currentState.lastModified || currentState.lastModified < lastModified) {
@@ -629,8 +735,8 @@ async function main(): Promise<void> {
 
           if (hasModified) {
             // Use channel from outer scope (main function)
-            channel.postMessage({ type: 'files-updated', host: WEB_SCRIPT_ID, lastModified, files })
-            GME_info('Local files modified, emitting reload event...')
+            channel.postMessage({ type: 'files-updated', host: WEB_SCRIPT_ID, lastModified, files, compiledContent })
+            GME_info('[Local Dev Mode] Local files modified, emitting reload event...')
           }
         }
       }
@@ -714,7 +820,7 @@ async function main(): Promise<void> {
 
     // If already executed script, re-execute directly
     if (hasExecutedLocalScript) {
-      GME_info('Local files updated, re-executing script...')
+      GME_info('[Local Dev Mode] Local files updated, re-execute script...')
       executeLocalScript()
       return
     }
@@ -767,7 +873,7 @@ async function main(): Promise<void> {
     const isTabActive = !document.hidden && document.hasFocus()
 
     if (!isTabActive) {
-      GME_info('Editor files updated, but tab is not active. Will reload when tab becomes active...')
+      GME_info('[Editor Dev Mode] Editor files updated, but tab is not active. Will reload when tab becomes active...')
 
       // Wait for tab to become active before reloading
       const onTabActive = (): void => {
@@ -790,10 +896,10 @@ async function main(): Promise<void> {
 
         // Now trigger reload or re-execute based on whether script was already executed
         if (hasExecutedEditorScript) {
-          GME_info('Editor files updated, re-executing script (tab now active)...')
+          GME_info('[Editor Dev Mode] Editor files updated, re-executing script (tab now active)...')
           executeEditorScript()
         } else {
-          GME_info('Editor dev mode detected, reloading (tab now active)...')
+          GME_info('[Editor Dev Mode] Editor dev mode detected, reloading (tab now active)...')
           window.location.reload()
         }
       }
@@ -805,13 +911,13 @@ async function main(): Promise<void> {
 
     // Tab is active, proceed with reload or re-execute
     if (hasExecutedEditorScript) {
-      GME_info('Editor files updated, re-executing script...')
+      GME_info('[Editor Dev Mode] Editor files updated, re-executing script...')
       executeEditorScript()
       return
     }
 
     // For tabs that haven't executed the script yet, reload to load the new script
-    GME_info('Editor dev mode detected, reloading...')
+    GME_info('[Editor Dev Mode] Editor dev mode detected, reloading...')
     window.location.reload()
   }
 
@@ -886,7 +992,17 @@ async function main(): Promise<void> {
     }
 
     if (type === 'editor-files-updated') {
-      GME_info('Received editor-files-updated message, host: ' + host + ', lastModified: ' + lastModified + ', file count: ' + Object.keys(files || {}).length)
+      const compiledContent = (event.data as { compiledContent?: string }).compiledContent
+      GME_info(
+        'Received editor-files-updated message, host: ' +
+          host +
+          ', lastModified: ' +
+          lastModified +
+          ', file count: ' +
+          Object.keys(files || {}).length +
+          ', hasCompiledContent: ' +
+          !!compiledContent
+      )
 
       // Check if another dev mode is active
       const activeDevMode = getActiveDevMode()
@@ -918,9 +1034,9 @@ async function main(): Promise<void> {
         return
       }
 
-      const newValue = { host, lastModified, files }
+      const newValue = { host, lastModified, files, compiledContent }
       GM_setValue(EDITOR_DEV_EVENT_KEY, newValue)
-      GME_info('Editor dev mode files stored by editor tab, host: ' + host + ', file count: ' + Object.keys(files).length)
+      GME_info('Editor dev mode files stored by editor tab, host: ' + host + ', file count: ' + Object.keys(files).length + ', hasCompiledContent: ' + !!compiledContent)
       // GM_setValue will automatically trigger GM_addValueChangeListener in all tabs (including this one)
     }
   })

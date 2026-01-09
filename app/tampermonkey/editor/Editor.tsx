@@ -23,6 +23,24 @@ function isDeclarationFile(file: string): boolean {
   return file.endsWith('.d.ts')
 }
 
+/**
+ * Calculate hash for file contents
+ * @param files Record of file paths to content strings
+ * @returns Promise that resolves to hash string
+ */
+async function calculateFilesHash(files: Record<string, string>): Promise<string> {
+  // Sort file keys to ensure consistent hash
+  const sortedFiles = Object.keys(files).sort()
+  const contentString = sortedFiles.map((file) => `${file}:${files[file]}`).join('|')
+
+  // Use Web Crypto API to calculate SHA-256 hash
+  const encoder = new TextEncoder()
+  const data = encoder.encode(contentString)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 import EditorHeader from './EditorHeader'
 
 /**
@@ -58,6 +76,7 @@ export default function Editor(props: EditorProps) {
   const hostIdRef = useRef<string | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const lastSentSnapshotRef = useRef<Record<string, string | null> | null>(null)
+  const lastSentFilesHashRef = useRef<string | null>(null)
 
   // Use custom hook to handle page leave confirmation
   useBeforeUnload(hasUnsavedChanges, 'You have unsaved changes. Are you sure you want to leave?')
@@ -108,9 +127,13 @@ export default function Editor(props: EditorProps) {
 
   /**
    * Send editor files to API for dev mode
+   * Compiles files first, then sends compiled content
+   * Only compiles and broadcasts when file content has changed (based on hash)
+   * @param snapshot File snapshot from Stackblitz VM
+   * @param preCalculatedHash Optional pre-calculated hash to avoid duplicate calculation
    */
-  const { run: sendEditorFiles } = useRequest(
-    async (snapshot: Record<string, string | null>) => {
+  const { run: sendEditorFiles, loading: isCompiling } = useRequest(
+    async (snapshot: Record<string, string | null>, preCalculatedHash?: string) => {
       if (!isEditorDevMode || !hostIdRef.current) {
         return
       }
@@ -141,19 +164,58 @@ export default function Editor(props: EditorProps) {
         return
       }
 
+      // Calculate hash of current files to detect changes (use pre-calculated hash if provided)
+      const currentHash = preCalculatedHash || (await calculateFilesHash(files))
+
+      // If hash hasn't changed, skip compilation and broadcast
+      if (lastSentFilesHashRef.current === currentHash) {
+        // eslint-disable-next-line no-console
+        console.log('[Editor Dev Mode] Files unchanged, skipping compilation')
+        return
+      }
+
+      // Compile files only when content has changed - if compilation fails, don't send update
+      let compiledContent: string
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        const response = await fetch(`${baseUrl}/tampermonkey/compile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ files }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => response.statusText)
+          throw new Error(`Compilation failed: ${errorText || response.statusText}`)
+        }
+
+        compiledContent = await response.text()
+        if (!compiledContent) {
+          throw new Error('Compilation returned empty content')
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[Editor Dev Mode] Compilation failed:', error)
+        // Don't send update if compilation fails
+        return
+      }
+
       const lastModified = Date.now()
 
-      // Send BroadcastChannel message with files content (like Local Dev Mode)
+      // Send BroadcastChannel message with compiled content
       if (channelRef.current) {
         const message = {
           type: 'editor-files-updated',
           host: hostIdRef.current,
           lastModified,
           files,
+          compiledContent,
         }
         channelRef.current.postMessage(message)
         // eslint-disable-next-line no-console
-        console.log('[Editor Dev Mode] BroadcastChannel message sent with files:', {
+        console.log('[Editor Dev Mode] BroadcastChannel message sent:', {
           host: hostIdRef.current,
           lastModified,
           fileCount: Object.keys(files).length,
@@ -161,7 +223,9 @@ export default function Editor(props: EditorProps) {
         })
       }
 
+      // Update refs after successful broadcast
       lastSentSnapshotRef.current = snapshot
+      lastSentFilesHashRef.current = currentHash
     },
     {
       manual: true,
@@ -200,25 +264,64 @@ export default function Editor(props: EditorProps) {
 
         setHasUnsavedChanges(hasChanges)
 
-        // If editor dev mode is enabled, send files to API
+        // If editor dev mode is enabled, check for changes and send files to API
         if (isEditorDevMode && hostIdRef.current) {
-          // Check if snapshot has changed
-          const hasSnapshotChanged =
-            !lastSentSnapshotRef.current ||
-            Object.keys(snapshot).some((file) => {
-              if (file === ENTRY_SCRIPT_FILE) {
-                return false
-              }
-              return snapshot[file] !== lastSentSnapshotRef.current?.[file]
-            })
+          // Filter files for hash calculation (same logic as sendEditorFiles)
+          const filesForHash: Record<string, string> = {}
+          for (const [file, content] of Object.entries(snapshot)) {
+            if (file === ENTRY_SCRIPT_FILE) {
+              continue
+            }
 
-          if (hasSnapshotChanged) {
-            sendEditorFiles(snapshot)
+            if (STACKBLITZ_CONFIG_FILES.includes(file)) {
+              continue
+            }
+
+            if (isDeclarationFile(file)) {
+              continue
+            }
+
+            if (!content) {
+              continue
+            }
+
+            filesForHash[file] = content
+          }
+
+          // Only check hash if there are files to process
+          if (Object.keys(filesForHash).length > 0) {
+            const currentHash = await calculateFilesHash(filesForHash)
+            // Only send if hash has changed (pass pre-calculated hash to avoid duplicate calculation)
+            if (lastSentFilesHashRef.current !== currentHash) {
+              sendEditorFiles(snapshot, currentHash)
+            }
           }
         }
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('Error checking for changes:', error)
+      }
+    }
+
+    /**
+     * Immediately trigger compilation check (for keyboard shortcuts like cmd+s)
+     */
+    const triggerImmediateCompile = async () => {
+      if (!isEditorDevMode || !hostIdRef.current) {
+        return
+      }
+
+      try {
+        const snapshot = await vm.getFsSnapshot()
+        if (!snapshot) {
+          return
+        }
+
+        // Always send files when manually triggered (for DEBUG)
+        sendEditorFiles(snapshot)
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error triggering immediate compile:', error)
       }
     }
 
@@ -231,7 +334,9 @@ export default function Editor(props: EditorProps) {
       if (checkInterval) {
         clearInterval(checkInterval)
       }
-      checkInterval = setInterval(checkForChanges, isUserActive ? 1000 : 3000)
+      // In dev mode, check more frequently (500ms) for faster compilation
+      const interval = isEditorDevMode ? 500 : isUserActive ? 1000 : 3000
+      checkInterval = setInterval(checkForChanges, interval)
     }
 
     /**
@@ -242,20 +347,50 @@ export default function Editor(props: EditorProps) {
       if (checkInterval) {
         clearInterval(checkInterval)
       }
-      checkInterval = setInterval(checkForChanges, 3000)
+      // In dev mode, still check frequently even when inactive
+      const interval = isEditorDevMode ? 1000 : 3000
+      checkInterval = setInterval(checkForChanges, interval)
     }
 
     // Initial check
     checkForChanges()
 
-    // Set up polling with adaptive frequency based on user activity
-    checkInterval = setInterval(checkForChanges, 1000)
+    // Set up polling with adaptive frequency based on user activity and dev mode
+    // In dev mode, use 500ms for faster response; otherwise use 1000ms
+    const initialInterval = isEditorDevMode ? 500 : 1000
+    checkInterval = setInterval(checkForChanges, initialInterval)
+
+    /**
+     * Handle user input to trigger immediate compilation check
+     * Use debounce to avoid too frequent checks
+     */
+    let inputCheckTimer: NodeJS.Timeout | null = null
+    const handleUserInput = () => {
+      handleUserActivity()
+      // If dev mode is enabled, trigger immediate check after a short delay
+      // This allows Stackblitz to save the file to memory first
+      if (isEditorDevMode) {
+        // Clear previous timer to debounce
+        if (inputCheckTimer) {
+          clearTimeout(inputCheckTimer)
+        }
+        // Wait 300ms for Stackblitz to save to memory, then check
+        inputCheckTimer = setTimeout(() => {
+          checkForChanges()
+          inputCheckTimer = null
+        }, 300)
+      }
+    }
 
     // Listen for user activity
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart']
+    const activityEvents = ['mousedown', 'mousemove', 'scroll', 'touchstart']
     activityEvents.forEach((event) => {
       window.addEventListener(event, handleUserActivity, { passive: true })
     })
+
+    // Listen for keyboard input separately to trigger immediate compilation
+    window.addEventListener('keydown', handleUserInput, { passive: true })
+    window.addEventListener('keyup', handleUserInput, { passive: true })
 
     // Listen for user inactivity
     let inactivityTimer: NodeJS.Timeout
@@ -268,15 +403,41 @@ export default function Editor(props: EditorProps) {
       window.addEventListener(event, resetInactivityTimer, { passive: true })
     })
 
+    /**
+     * Handle keyboard shortcuts for immediate compilation (cmd+s / ctrl+s)
+     */
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      // Check for cmd+s (Mac) or ctrl+s (Windows/Linux)
+      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        // Only trigger if dev mode is enabled
+        if (isEditorDevMode) {
+          event.preventDefault() // Prevent browser's default save dialog
+          // Wait a bit for Stackblitz to save to memory, then trigger compile
+          setTimeout(() => {
+            triggerImmediateCompile()
+          }, 100)
+        }
+      }
+    }
+
+    // Listen for keyboard shortcuts (use capture phase to catch early)
+    window.addEventListener('keydown', handleSaveShortcut, true)
+
     return () => {
       if (checkInterval) {
         clearInterval(checkInterval)
       }
       clearTimeout(inactivityTimer)
+      if (inputCheckTimer) {
+        clearTimeout(inputCheckTimer)
+      }
       activityEvents.forEach((event) => {
         window.removeEventListener(event, handleUserActivity)
         window.removeEventListener(event, resetInactivityTimer)
       })
+      window.removeEventListener('keydown', handleUserInput)
+      window.removeEventListener('keyup', handleUserInput)
+      window.removeEventListener('keydown', handleSaveShortcut, true)
     }
   }, [vm, inFiles, isEditorDevMode, sendEditorFiles])
 
@@ -296,6 +457,8 @@ export default function Editor(props: EditorProps) {
         }
 
         hostIdRef.current = null
+        // Reset hash when dev mode is disabled
+        lastSentFilesHashRef.current = null
       }
       return
     }
@@ -320,7 +483,8 @@ export default function Editor(props: EditorProps) {
       // eslint-disable-next-line no-console
       console.log('[Editor Dev Mode] Started, sending message:', message)
 
-      // Send initial snapshot
+      // Send initial snapshot (reset hash to ensure initial send)
+      lastSentFilesHashRef.current = null
       if (vm) {
         vm.getFsSnapshot().then((snapshot) => {
           if (snapshot) {
@@ -344,6 +508,8 @@ export default function Editor(props: EditorProps) {
         }
 
         hostIdRef.current = null
+        // Reset hash on cleanup
+        lastSentFilesHashRef.current = null
       }
 
       if (channelRef.current) {
@@ -475,7 +641,14 @@ export default function Editor(props: EditorProps) {
 
   return (
     <div className="w-screen h-screen flex flex-col bg-black">
-      <EditorHeader scriptKey={scriptKey} onSave={save} isSaving={loading} isEditorDevMode={isEditorDevMode} onToggleEditorDevMode={handleToggleEditorDevMode} />
+      <EditorHeader
+        scriptKey={scriptKey}
+        onSave={save}
+        isSaving={loading}
+        isEditorDevMode={isEditorDevMode}
+        onToggleEditorDevMode={handleToggleEditorDevMode}
+        isCompiling={isCompiling}
+      />
       <div className="flex-1 relative">
         <div ref={editorRef} className="w-full h-full"></div>
 

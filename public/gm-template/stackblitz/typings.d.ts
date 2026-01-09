@@ -370,6 +370,15 @@ type AsyncQuery =
   | (() => Promise<(HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null>)
 
 /**
+ * Fetch-like function using GM_xmlhttpRequest
+ * Compatible with standard fetch API but uses Tampermonkey's GM_xmlhttpRequest
+ * @param input Request URL or Request object
+ * @param init Optional request options (method, headers, body, etc.)
+ * @returns Promise that resolves to a Response object
+ */
+declare function GME_fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
+
+/**
  * Execute curl command and return result
  * @param content Curl command content
  * @returns Promise that resolves to the curl result
@@ -454,6 +463,22 @@ declare function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: nu
  * @returns True if element is visible, false otherwise
  */
 declare function GME_isVisible(element: Element | null | undefined): boolean
+
+/**
+ * Create logging functions with a module prefix
+ * @param prefix Optional prefix to add to log messages (e.g., module name)
+ * @returns Object containing logging functions with module prefix
+ */
+declare function createGMELogger(prefix?: string): {
+  /** Log success message with module prefix */
+  GME_ok: (...contents: any[]) => void
+  /** Log info message with module prefix */
+  GME_info: (...contents: any[]) => void
+  /** Log error message with module prefix */
+  GME_fail: (...contents: any[]) => void
+  /** Log warning message with module prefix */
+  GME_warn: (...contents: any[]) => void
+}
 
 /**
  * Log success message
