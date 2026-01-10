@@ -2,6 +2,8 @@
 
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { TbBrandTypescript } from 'react-icons/tb'
+import { VscJson } from 'react-icons/vsc'
 
 interface FileNode {
   name: string
@@ -18,19 +20,20 @@ interface FileTreeProps {
   onAddFile?: (filePath: string) => void
   onRenameFile?: (oldPath: string, newPath: string) => void
   getFileState?: (filePath: string) => 'synced' | 'local' | 'unsaved'
+  errorPaths?: Set<string>
 }
 
 /**
  * Get file icon based on extension
  */
-function getFileIcon(fileName: string): string {
+function getFileIcon(fileName: string): React.ReactNode {
   const ext = fileName.split('.').pop()?.toLowerCase()
-  const iconMap: Record<string, string> = {
-    ts: '📘',
+  const iconMap: Record<string, React.ReactNode> = {
+    ts: <TbBrandTypescript className="w-4 h-4 text-[#3178c6]" />,
     tsx: '⚛️',
     js: '📜',
     jsx: '⚛️',
-    json: '📋',
+    json: <VscJson className="w-4 h-4 text-[#cbcb41]" />,
     css: '🎨',
     html: '🌐',
     md: '📝',
@@ -75,7 +78,7 @@ function buildFileTree(files: Record<string, { content: string; rawUrl: string }
   return root
 }
 
-export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFile, onAddFile, onRenameFile, getFileState }: FileTreeProps) {
+export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFile, onAddFile, onRenameFile, getFileState, errorPaths }: FileTreeProps) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [editingPath, setEditingPath] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
@@ -185,6 +188,7 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
     const isExpanded = expandedPaths.has(node.path)
     const isEditing = editingPath === node.path
     const isSelected = selectedFile === node.path
+    const hasError = errorPaths?.has(node.path)
     const Icon = node.isDirectory ? (isExpanded ? '📂' : '📁') : getFileIcon(node.name)
 
     return (
@@ -249,7 +253,7 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
               />
             </div>
           ) : (
-            <span className="text-sm flex-1 truncate">{node.name}</span>
+            <span className={`text-sm flex-1 truncate ${hasError ? 'text-red-500 font-medium' : ''}`}>{node.name}</span>
           )}
 
           {/* Delete button (only for files) */}

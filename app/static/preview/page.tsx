@@ -1,50 +1,43 @@
 'use client'
 
-import type { Project, VM } from '@stackblitz/sdk'
-import Stackblitz from '@stackblitz/sdk'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import CodeEditor from '@/components/Editor/CodeEditor'
 import { Spinner } from '@/components/Spinner'
 
 export default function PreviewPage() {
-  const previewRef = useRef<HTMLDivElement>(null)
   const [message, setMessage] = useState<string>()
-  const [vm, setVM] = useState<VM>()
+  const [fileData, setFileData] = useState<{ path: string; content: string } | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
-    ;(async () => {
-      const file = window.sessionStorage.getItem('preview#file')
-      const content = window.sessionStorage.getItem('preview#content')
-      if (!file || !content) {
-        setMessage('No file or content found in session storage')
-        return
-      }
+    const file = window.sessionStorage.getItem('preview#file')
+    const content = window.sessionStorage.getItem('preview#content')
+    if (!file || !content) {
+      setMessage('No file or content found in session storage')
+      setIsInitialized(true)
+      return
+    }
 
-      if (!previewRef.current) {
-        return
-      }
-
-      const files = {
-        [file]: content,
-      }
-
-      const project: Project = { template: 'javascript', title: 'Preview', files }
-      const vm = await Stackblitz.embedProject(previewRef.current, project, {
-        view: 'editor',
-        showSidebar: false,
-        openFile: file,
-      })
-
-      setVM(vm)
-    })()
+    setFileData({ path: file, content })
+    setIsInitialized(true)
   }, [])
+
+  const getFileLanguage = (filePath: string): 'javascript' | 'typescript' | 'json' => {
+    if (filePath.endsWith('.json')) return 'json'
+    if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) return 'typescript'
+    return 'javascript'
+  }
 
   return (
     <div className="w-screen h-[calc(100vh-60px-64px)] relative bg-black">
-      <div ref={previewRef} className="w-full h-full"></div>
-      {message ? <p className="text-white text-center">{message}</p> : null}
-
-      {!vm && (
+      {fileData ? (
+        <CodeEditor content={fileData.content} path={fileData.path} language={getFileLanguage(fileData.path)} readOnly={false} />
+      ) : isInitialized ? (
+        <div className="absolute inset-0 flex items-center justify-center text-white">
+          <p>{message || 'No preview available'}</p>
+        </div>
+      ) : (
         <div className="fixed w-8 h-8 top-0 left-0 right-0 bottom-0 m-auto">
           <span className="w-8 h-8 flex items-center justify-center">
             <Spinner />

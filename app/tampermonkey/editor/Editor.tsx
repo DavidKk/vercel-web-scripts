@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 import { updateFiles } from '@/app/api/scripts/actions'
+import CodeEditor from '@/components/Editor/CodeEditor'
 import { EDITOR_SUPPORTED_EXTENSIONS, ENTRY_SCRIPT_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 
 import EditorHeader from './EditorHeader'
 import FileTree from './FileTree'
-import MonacoEditor from './MonacoEditor'
+import { TAMPERMONKEY_TYPINGS } from './typings'
 import { useEditorManager } from './useEditorManager'
 import { calculateFilesHash, CONFIG_FILES, isDeclarationFile } from './utils'
 
@@ -427,16 +428,18 @@ export default function Editor(props: EditorProps) {
           onAddFile={editorManager.addFile}
           onRenameFile={editorManager.renameFile}
           getFileState={editorManager.getFileState}
+          errorPaths={editorManager.errorPaths}
         />
         <div className="flex-1 relative">
           {editorManager.selectedFile ? (
-            <MonacoEditor
+            <CodeEditor
               content={editorManager.getCurrentFileContent()}
               path={editorManager.selectedFile}
               language={getFileLanguage(editorManager.selectedFile)}
               onChange={(content) => editorManager.updateFileContent(editorManager.selectedFile!, content)}
               onCompile={handleCompile}
-              isDevMode={isEditorDevMode}
+              onValidate={(hasError) => editorManager.setFileHasError(editorManager.selectedFile!, hasError)}
+              extraLibs={[{ content: TAMPERMONKEY_TYPINGS, filePath: 'file:///typings.d.ts' }]}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">

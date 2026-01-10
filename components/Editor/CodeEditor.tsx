@@ -3,11 +3,11 @@
 import { Editor } from '@monaco-editor/react'
 import { useEffect, useRef } from 'react'
 
-import { TAMPERMONKEY_TYPINGS } from './typings'
+import { formatCode } from '@/utils/format'
 
 // Theme colors inspired by One Dark
 const ONE_DARK_THEME = {
-  base: 'vs-dark',
+  base: 'vs-dark' as const,
   inherit: true,
   rules: [
     { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
@@ -32,22 +32,39 @@ const ONE_DARK_THEME = {
   },
 }
 
-interface MonacoEditorProps {
+interface ExtraLib {
+  content: string
+  filePath: string
+}
+
+interface CommonCodeEditorProps {
   content: string
   path?: string
   language?: 'javascript' | 'typescript' | 'json'
   onChange?: (content: string) => void
   onSave?: () => void
   onCompile?: () => void
-  isDevMode?: boolean
+  onValidate?: (hasError: boolean) => void
   readOnly?: boolean
+  extraLibs?: ExtraLib[]
 }
 
-export default function MonacoEditor({ content, path, language = 'javascript', onChange, onSave, onCompile, isDevMode = false, readOnly = false }: MonacoEditorProps) {
+export default function CodeEditor({
+  content,
+  path = 'index.ts',
+  language = 'typescript',
+  onChange,
+  onSave,
+  onCompile,
+  onValidate,
+  readOnly = false,
+  extraLibs = [],
+}: CommonCodeEditorProps) {
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
   const onCompileRef = useRef(onCompile)
-  const isDevModeRef = useRef(isDevMode)
+  const onValidateRef = useRef(onValidate)
+  const languageRef = useRef(language)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -62,8 +79,12 @@ export default function MonacoEditor({ content, path, language = 'javascript', o
   }, [onCompile])
 
   useEffect(() => {
-    isDevModeRef.current = isDevMode
-  }, [isDevMode])
+    onValidateRef.current = onValidate
+  }, [onValidate])
+
+  useEffect(() => {
+    languageRef.current = language
+  }, [language])
 
   const handleEditorWillMount = (monaco: any) => {
     monaco.editor.defineTheme('one-dark', ONE_DARK_THEME)
@@ -93,21 +114,48 @@ export default function MonacoEditor({ content, path, language = 'javascript', o
       lib: ['esnext', 'dom', 'dom.iterable'],
     })
 
-    // Load custom type definitions
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(TAMPERMONKEY_TYPINGS, 'file:///typings.d.ts')
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(TAMPERMONKEY_TYPINGS, 'file:///typings.d.ts')
+    // Load extra type definitions
+    extraLibs.forEach((lib) => {
+      monaco.languages.typescript.typescriptDefaults.addExtraLib(lib.content, lib.filePath)
+      monaco.languages.typescript.javascriptDefaults.addExtraLib(lib.content, lib.filePath)
+    })
   }
 
   const handleEditorDidMount = (editor: any, monaco: any) => {
     // Add Cmd+S keyboard shortcut
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+      // 1. Format code
+      const currentContent = editor.getValue()
+      const formatted = await formatCode(currentContent, languageRef.current)
+      if (formatted !== currentContent) {
+        editor.setValue(formatted)
+      }
+
+      // 2. Trigger onCompile/onSave
       if (onCompileRef.current) {
         onCompileRef.current()
+      }
+      if (onSaveRef.current) {
+        onSaveRef.current()
       }
     })
 
     // Focus on mount
     editor.focus()
+
+    // Listen for marker changes (errors/warnings)
+    const disposable = monaco.editor.onDidChangeMarkers(() => {
+      const model = editor.getModel()
+      if (model && onValidateRef.current) {
+        const markers = monaco.editor.getModelMarkers({ resource: model.uri })
+        const hasError = markers.some((marker: any) => marker.severity === monaco.MarkerSeverity.Error)
+        onValidateRef.current(hasError)
+      }
+    })
+
+    return () => {
+      disposable.dispose()
+    }
   }
 
   const handleEditorChange = (value: string | undefined) => {

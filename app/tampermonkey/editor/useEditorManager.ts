@@ -21,6 +21,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
   const [deletedFiles, setDeletedFiles] = useState<Set<string>>(new Set())
   const [addedFiles, setAddedFiles] = useState<Record<string, FileContent>>({})
   const [unsavedPaths, setUnsavedPaths] = useState<Set<string>>(new Set())
+  const [errorPaths, setErrorPaths] = useState<Set<string>>(new Set())
   const [isInitialized, setIsInitialized] = useState(false)
   const fileContentsRef = useRef<Record<string, string>>({})
   const lastPersistedContentsRef = useRef<Record<string, string | null>>({})
@@ -430,6 +431,21 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
     [committedFiles, deletedFiles, unsavedPaths]
   )
 
+  /**
+   * Set file error state
+   */
+  const setFileHasError = useCallback((filePath: string, hasError: boolean) => {
+    setErrorPaths((prev) => {
+      const next = new Set(prev)
+      if (hasError) {
+        next.add(filePath)
+      } else {
+        next.delete(filePath)
+      }
+      return next
+    })
+  }, [])
+
   const allFiles = useMemo(() => ({ ...committedFiles, ...addedFiles }), [committedFiles, addedFiles])
 
   return {
@@ -438,6 +454,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
     setSelectedFile,
     hasUnsavedChanges,
     unsavedPaths,
+    errorPaths,
     updateFileContent,
     getSnapshot,
     getDirtySnapshot,
@@ -445,6 +462,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
     resetFileContent,
     hasFileChanges,
     getFileState,
+    setFileHasError,
     markAsSaved,
     persistLocal,
     isInitialized,
