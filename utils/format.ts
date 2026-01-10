@@ -1,3 +1,4 @@
+import * as babel from 'prettier/plugins/babel'
 import * as estree from 'prettier/plugins/estree'
 import * as typescript from 'prettier/plugins/typescript'
 import { format } from 'prettier/standalone'
@@ -21,7 +22,7 @@ export async function formatCode(code: string, language: string): Promise<string
     const parser = language === 'json' ? 'json' : 'typescript'
     return await format(code, {
       parser,
-      plugins: [typescript as any, estree as any],
+      plugins: [typescript as any, estree as any, babel as any],
       semi: false,
       singleQuote: true,
       trailingComma: 'es5',
