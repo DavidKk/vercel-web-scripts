@@ -1,3 +1,4 @@
+export const TAMPERMONKEY_TYPINGS = `
 /** Base URL for the application */
 declare const __BASE_URL__: string
 
@@ -583,5 +584,4 @@ declare global {
     name: string
   }
 }
-
-export {}
+`

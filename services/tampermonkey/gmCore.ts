@@ -3,7 +3,6 @@ import ts from 'typescript'
 const SCRIPT_FILES = ['helpers.ts', 'rules.ts', 'scripts.ts']
 const UI_NAMES = ['corner-widget', 'notification']
 const UI_FILES = ['index.html', 'index.ts', 'index.css'] as const
-const STACKBLITZ_FILES = ['package.json', 'tsconfig.json', 'typings.d.ts', 'gitignore']
 
 export async function fetchCoreScripts(baseUrl: string) {
   const promises = SCRIPT_FILES.map(async (file) => {
@@ -65,27 +64,6 @@ export async function fetchCoreUIs(baseUrl: string, tsOnly = false) {
   return contents
 }
 
-export async function fetchStackblitzTemplate(baseUrl: string) {
-  const promises = STACKBLITZ_FILES.map(async (filename) => {
-    const url = `${baseUrl}/gm-template/stackblitz/${filename}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${url}`)
-    }
-
-    if (filename === 'gitignore') {
-      filename = '.gitignore'
-    }
-
-    const content = await response.text()
-    const template = content.trim()
-    return { [filename]: template }
-  })
-
-  const results = await Promise.all(promises)
-  return results.reduce((acc, result) => ({ ...acc, ...result }), {})
-}
-
 export async function compileScripts(contents: Record<string, string>) {
   const compiledContent = (() => {
     try {
@@ -139,19 +117,18 @@ export async function fetchAndCompileMainScript(
   }
 
   let content = await response.text()
-
-  // Replace variable declarations with actual values
-  content = content.replace(/declare const __BASE_URL__: string/g, `const __BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)}`)
-  content = content.replace(/declare const __RULE_API_URL__: string/g, `const __RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)}`)
-  content = content.replace(/declare const __RULE_MANAGER_URL__: string/g, `const __RULE_MANAGER_URL__ = ${JSON.stringify(variables.__RULE_MANAGER_URL__)}`)
-  content = content.replace(/declare const __EDITOR_URL__: string/g, `const __EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)}`)
-  content = content.replace(/declare const __HMK_URL__: string/g, `const __HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)}`)
-  content = content.replace(/declare const __SCRIPT_URL__: string/g, `const __SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)}`)
-  content = content.replace(/declare const __IS_DEVELOP_MODE__: boolean/g, `const __IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__}`)
-  content = content.replace(/declare const __HOSTNAME_PORT__: string/g, `const __HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)}`)
-  content = content.replace(/declare const __GRANTS_STRING__: string/g, `const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)}`)
-  // Keep placeholder for GIST scripts (will be replaced in index.ts after compilation)
-  // The placeholder is inside executeGistScripts function body
+  const variableDeclarations = `
+const __BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
+const __RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
+const __RULE_MANAGER_URL__ = ${JSON.stringify(variables.__RULE_MANAGER_URL__)};
+const __EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)};
+const __HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)};
+const __SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)};
+const __IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__};
+const __HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)};
+const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
+`
+  content = variableDeclarations + content
 
   // Compile TypeScript to JavaScript
   const compiledContent = (() => {
@@ -177,8 +154,4 @@ export async function fetchAndCompileMainScript(
   })()
 
   return compiledContent
-}
-
-export function isMissStackblitzFiles(...files: string[]) {
-  return files.some((file) => !STACKBLITZ_FILES.includes(file))
 }

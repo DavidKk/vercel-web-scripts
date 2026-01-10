@@ -1,5 +1,3 @@
-/// <reference path="./stackblitz/typings.d.ts" />
-
 // Type declarations for this file (types from stackblitz/typings.d.ts)
 // __BASE_URL__ is declared in stackblitz/typings.d.ts
 declare interface GMXMLHttpRequestResponse {
@@ -12,10 +10,12 @@ declare interface GMXMLHttpRequestResponse {
   status: number
   statusText: string
 }
+
 declare interface GMXMLHttpRequestError {
   error: string
   message?: string
 }
+
 declare interface GMXMLHttpRequestDetails {
   method: string
   url: string
@@ -30,6 +30,7 @@ declare interface GMXMLHttpRequestDetails {
   ontimeout?: (error: GMXMLHttpRequestError) => void
   onprogress?: (event: ProgressEvent) => void
 }
+
 declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
 
 // ============================================================================

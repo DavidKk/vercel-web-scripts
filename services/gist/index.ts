@@ -106,10 +106,18 @@ export async function writeGistFiles(params: WriteGistFilesParams) {
           continue
         }
 
-        yield [file, { content }]
+        // Gist API doesn't allow empty content.
+        // Even if we padded in the UI, we should double-check here.
+        const safeContent = content === '' ? ' ' : content
+        yield [file, { content: safeContent }]
       }
     })()
   )
+
+  // GitHub returns 422 if files object is empty
+  if (Object.keys(files).length === 0) {
+    return null
+  }
 
   const response = await fetch(`https://api.github.com/gists/${gistId}`, {
     method: 'PATCH',

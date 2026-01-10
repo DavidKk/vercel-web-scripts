@@ -1,5 +1,3 @@
-/// <reference path="./stackblitz/typings.d.ts" />
-
 const RULE_CACHE_KEY = '#RuleCache@WebScripts'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

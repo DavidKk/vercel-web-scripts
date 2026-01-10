@@ -1,30 +1,3 @@
-/**
- * Main script for Tampermonkey user script
- * This file contains the core logic for executing scripts, dev mode, and rule management
- */
-
-// Type declarations - these match stackblitz/typings.d.ts to avoid conflicts
-// Injected variables (will be replaced at runtime)
-declare const __BASE_URL__: string
-// Used by rules.ts and other scripts - must be declared even if not used in this file
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-declare const __RULE_API_URL__: string
-declare const __RULE_MANAGER_URL__: string
-declare const __EDITOR_URL__: string
-declare const __HMK_URL__: string
-declare const __SCRIPT_URL__: string
-declare const __IS_DEVELOP_MODE__: boolean
-declare const __HOSTNAME_PORT__: string
-declare const __GRANTS_STRING__: string
-declare const __IS_REMOTE_EXECUTE__: boolean
-
-// GM_* function declarations (types from stackblitz/typings.d.ts)
-declare function GM_getValue<T = any>(key: string, defaultValue?: T): T
-declare function GM_setValue(key: string, value: any): void
-declare function GM_addValueChangeListener(key: string, callback: (name: string, oldValue: any, newValue: any, remote: boolean) => void): string
-declare function GM_registerMenuCommand(caption: string, commandFunc: () => void, accessKey?: string): number
-declare function GM_unregisterMenuCommand(menuCmdId: number): void
-
 const WEB_SCRIPT_ID = GME_uuid()
 const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMOTE_EXECUTE__
 // Use window.location.host instead of hostname to include port number
@@ -45,6 +18,7 @@ function initDevChannel(): BroadcastChannel {
   if (!devChannel) {
     devChannel = new BroadcastChannel(DEV_CHANNEL_NAME)
   }
+
   return devChannel
 }
 
@@ -425,6 +399,7 @@ async function main(): Promise<void> {
   const rules = await fetchRulesFromCache()
   // Used by compiled scripts from createUserScript.server.ts
   // This function is called by dynamically compiled scripts, so it must be available globally
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function matchRule(name: string, url: string = window.location.href): boolean {
     return rules.some(({ wildcard, script }: { wildcard?: string; script?: string }) => {
