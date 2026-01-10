@@ -437,7 +437,10 @@ export default function Editor(props: EditorProps) {
               path={editorManager.selectedFile}
               language={getFileLanguage(editorManager.selectedFile)}
               onChange={(content) => editorManager.updateFileContent(editorManager.selectedFile!, content)}
-              onCompile={handleCompile}
+              onSave={async () => {
+                await handleCompile()
+                await editorManager.persistLocal()
+              }}
               onValidate={(hasError) => editorManager.setFileHasError(editorManager.selectedFile!, hasError)}
               extraLibs={[{ content: TAMPERMONKEY_TYPINGS, filePath: 'file:///typings.d.ts' }]}
             />

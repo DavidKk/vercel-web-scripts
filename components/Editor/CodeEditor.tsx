@@ -43,26 +43,14 @@ interface CommonCodeEditorProps {
   language?: 'javascript' | 'typescript' | 'json'
   onChange?: (content: string) => void
   onSave?: () => void
-  onCompile?: () => void
   onValidate?: (hasError: boolean) => void
   readOnly?: boolean
   extraLibs?: ExtraLib[]
 }
 
-export default function CodeEditor({
-  content,
-  path = 'index.ts',
-  language = 'typescript',
-  onChange,
-  onSave,
-  onCompile,
-  onValidate,
-  readOnly = false,
-  extraLibs = [],
-}: CommonCodeEditorProps) {
+export default function CodeEditor({ content, path = 'index.ts', language = 'typescript', onChange, onSave, onValidate, readOnly = false, extraLibs = [] }: CommonCodeEditorProps) {
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
-  const onCompileRef = useRef(onCompile)
   const onValidateRef = useRef(onValidate)
   const languageRef = useRef(language)
 
@@ -73,10 +61,6 @@ export default function CodeEditor({
   useEffect(() => {
     onSaveRef.current = onSave
   }, [onSave])
-
-  useEffect(() => {
-    onCompileRef.current = onCompile
-  }, [onCompile])
 
   useEffect(() => {
     onValidateRef.current = onValidate
@@ -131,10 +115,7 @@ export default function CodeEditor({
         editor.setValue(formatted)
       }
 
-      // 2. Trigger onCompile/onSave
-      if (onCompileRef.current) {
-        onCompileRef.current()
-      }
+      // 2. Trigger onSave
       if (onSaveRef.current) {
         onSaveRef.current()
       }
