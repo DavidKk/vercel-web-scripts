@@ -30,6 +30,7 @@ Refer to the [`.env.example`](./.env.example) file to set the required environme
 - `ACCESS_2FA_SECRET`: 2FA Secret, can generate TOKEN using [https://vercel-2fa.vercel.app](https://vercel-2fa.vercel.app)
 - `JWT_SECRET`: JWT Secret
 - `JWT_EXPIRES_IN`: JWT Token Expiration Time
+- `GEMINI_API_KEY`: GEMINI API Key for AI code rewriting feature (optional), get your API key at [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 ## Quick Start
 

@@ -30,6 +30,7 @@
 - `ACCESS_2FA_SECRET`: 2FA 密钥，可以使用 [https://vercel-2fa.vercel.app](https://vercel-2fa.vercel.app) 生成 TOKEN
 - `JWT_SECRET`: JWT 密钥
 - `JWT_EXPIRES_IN`: JWT 过期时间
+- `GEMINI_API_KEY`: GEMINI API 密钥，用于 AI 代码改写功能（可选），可在 [Google AI Studio](https://makersuite.google.com/app/apikey) 获取
 
 ## 快速开始
 

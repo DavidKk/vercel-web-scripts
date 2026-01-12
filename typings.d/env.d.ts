@@ -20,5 +20,7 @@ declare namespace NodeJS {
     NEXT_PUBLIC_OAUTH_SERVER_PUBLIC_KEY?: string
     /** 三方 JWT 签名密钥（可复用 JWT_SECRET） */
     OAUTH_JWT_SECRET?: string
+    /** GEMINI API Key for AI code rewriting */
+    GEMINI_API_KEY?: string
   }
 }
