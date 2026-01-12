@@ -12,7 +12,6 @@ import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 
 import EditorHeader from './EditorHeader'
 import FileTree from './FileTree'
-import { TAMPERMONKEY_TYPINGS } from './typings'
 import { useEditorManager } from './useEditorManager'
 import { calculateFilesHash, CONFIG_FILES, isDeclarationFile } from './utils'
 
@@ -38,12 +37,13 @@ export interface EditorProps {
   >
   scriptKey: string
   updatedAt: number
+  tampermonkeyTypings: string
 }
 
 const EDITOR_DEV_MODE_STORAGE_KEY = 'editor-dev-mode-enabled'
 
 export default function Editor(props: EditorProps) {
-  const { files: inFiles, scriptKey, updatedAt } = props
+  const { files: inFiles, scriptKey, updatedAt, tampermonkeyTypings } = props
   const router = useRouter()
   const editorManager = useEditorManager(inFiles, scriptKey, updatedAt)
   // Initialize as false to avoid hydration mismatch, restore from localStorage in useEffect
@@ -442,7 +442,7 @@ export default function Editor(props: EditorProps) {
                 await editorManager.persistLocal()
               }}
               onValidate={(hasError) => editorManager.setFileHasError(editorManager.selectedFile!, hasError)}
-              extraLibs={[{ content: TAMPERMONKEY_TYPINGS, filePath: 'file:///typings.d.ts' }]}
+              extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">

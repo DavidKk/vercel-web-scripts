@@ -1,25 +1,63 @@
+/**
+ * Corner Widget Module
+ *
+ * Provides a customizable corner widget UI component for Tampermonkey userscripts.
+ * The widget can be dragged to reposition, displays a menu panel with dynamic menu items,
+ * and supports show/hide functionality.
+ *
+ * Features:
+ * - Draggable positioning with boundary constraints
+ * - Dynamic menu item management (add, remove, update)
+ * - Menu panel toggle functionality
+ * - Shadow DOM isolation
+ * - Pre-registration support for menu items before component initialization
+ *
+ * @module corner-widget
+ */
+
+/**
+ * Menu item configuration interface
+ */
 interface MenuItem {
+  /** Unique identifier for the menu item */
   id: string
+  /** Display text of the menu item */
   text: string
+  /** Optional icon to display before the text */
   icon?: string
+  /** Optional hint text to display on the right side */
   hint?: string
+  /** Optional callback function to execute when the menu item is clicked */
   action?: () => void
 }
 
+/**
+ * Corner widget custom element
+ * A draggable corner widget that displays a menu panel with customizable menu items
+ * Supports drag-to-reposition, menu toggle, and dynamic menu item management
+ */
 class CornerWidget extends HTMLElement {
+  /** Custom element tag name */
   static TAG_NAME = 'vercel-web-script-corner-widget'
-  // Selectors
   /** Drag area selector */
   static DRAG_SELECTOR = '.corner-widget__drag'
+  /** Toggle button selector */
   static TOGGLE_SELECTOR = '.corner-widget__header'
+  /** Menu panel selector */
   static PANEL_SELECTOR = '.corner-widget__panel'
+  /** Menu list container selector */
   static LIST_SELECTOR = '.corner-widget__list'
+  /** CSS class for open panel state */
   static PANEL_OPEN_CLASS = 'corner-widget__panel--open'
+  /** CSS class for dragging state */
   static DRAGGING_CLASS = 'corner-widget--dragging'
+  /** CSS class for menu item elements */
   static ITEM_CLASS = 'corner-widget__item'
+  /** CSS class for hidden widget state */
   static HIDDEN_CLASS = 'corner-widget--hidden'
+  /** Menu item element selector */
   static MENU_ITEM_SELECTOR = '.corner-widget__item'
-  // Pre-stored menu items before component is ready
+  /** Pre-stored menu items before component is ready */
   static PRE_MENU: MenuItem[] = []
 
   /** Whether UI is visible */
@@ -39,7 +77,10 @@ class CornerWidget extends HTMLElement {
   /** Shadow DOM root */
   #shadowRoot: ShadowRoot | null = null
 
-  /** Render menu list */
+  /**
+   * Render the menu list by creating DOM elements for all menu items
+   * Automatically shows/hides the widget based on whether there are menu items
+   */
   #renderMenu() {
     if (!this.#shadowRoot) {
       return
@@ -59,7 +100,11 @@ class CornerWidget extends HTMLElement {
     this.toggle(!!this.#menuItems.length)
   }
 
-  /** Create a menu item element (string template version) */
+  /**
+   * Create a menu item element from menu item configuration
+   * @param item Menu item configuration
+   * @returns Created menu item HTML element
+   */
   #createMenuItem(item: MenuItem): HTMLElement {
     const iconHtml = item.icon ? `<span class="corner-widget__item-icon">${item.icon}</span>` : ''
     const hintHtml = item.hint ? `<span class="corner-widget__item-hint">${item.hint}</span>` : ''
@@ -80,7 +125,11 @@ class CornerWidget extends HTMLElement {
     return li
   }
 
-  /** Find a menu item by id (first-level only) */
+  /**
+   * Find a menu item by id (first-level only)
+   * @param id Menu item id to find
+   * @returns Found menu item or null if not found
+   */
   #findMenuItemById(id: string): MenuItem | null {
     for (const item of this.#menuItems) {
       if (item.id === id) {
@@ -91,7 +140,12 @@ class CornerWidget extends HTMLElement {
     return null
   }
 
-  /** Check whether any target matches the selector */
+  /**
+   * Check whether any target in the event path matches the selector
+   * @param targets Event composed path targets
+   * @param selector CSS selector to match
+   * @returns Whether any target matches the selector
+   */
   #isMatchingTarget(targets: unknown[], selector: string) {
     return targets.some((target) => {
       if (!(target instanceof HTMLElement)) {
@@ -102,6 +156,12 @@ class CornerWidget extends HTMLElement {
     })
   }
 
+  /**
+   * Find the first matching target element from event path
+   * @param targets Event composed path targets
+   * @param selector CSS selector to match
+   * @returns First matching HTMLElement or undefined
+   */
   #findMatchingTarget(targets: unknown[], selector: string): HTMLElement | undefined {
     return targets.find((target): target is HTMLElement => {
       if (!(target instanceof HTMLElement)) {
@@ -112,6 +172,10 @@ class CornerWidget extends HTMLElement {
     })
   }
 
+  /**
+   * Handle mouse down event for drag initiation
+   * @param event Mouse event
+   */
   #mouseDownDragHandler = (event: MouseEvent) => {
     const targets = event.composedPath()
     if (!this.#isMatchingTarget(targets, CornerWidget.DRAG_SELECTOR)) {
@@ -136,6 +200,10 @@ class CornerWidget extends HTMLElement {
     document.addEventListener('mouseup', this.#mouseUpDragHandler)
   }
 
+  /**
+   * Handle mouse move event during dragging
+   * @param event Mouse event
+   */
   #mouseMoveDragHandler = (event: MouseEvent) => {
     if (!this.#isDragging) return
 
@@ -154,6 +222,9 @@ class CornerWidget extends HTMLElement {
     this.style.bottom = `${clampedBottom}px`
   }
 
+  /**
+   * Handle mouse up event to end dragging
+   */
   #mouseUpDragHandler = () => {
     if (!this.#isDragging) return
 
@@ -167,6 +238,10 @@ class CornerWidget extends HTMLElement {
     document.removeEventListener('mouseup', this.#mouseUpDragHandler)
   }
 
+  /**
+   * Handle click event to toggle menu panel
+   * @param event Mouse event
+   */
   #toggleMenuHandler = (event: MouseEvent) => {
     const targets = event.composedPath()
     if (!this.#isMatchingTarget(targets, CornerWidget.TOGGLE_SELECTOR)) {
@@ -180,6 +255,10 @@ class CornerWidget extends HTMLElement {
     this.toggleMenu()
   }
 
+  /**
+   * Handle click event on menu items
+   * @param event Mouse event
+   */
   #menuItemClickHandler = (event: MouseEvent) => {
     const targets = event.composedPath()
     if (!this.#isMatchingTarget(targets, CornerWidget.MENU_ITEM_SELECTOR)) {
@@ -209,6 +288,10 @@ class CornerWidget extends HTMLElement {
     }
   }
 
+  /**
+   * Called when the element is inserted into the DOM
+   * Initializes shadow DOM, event listeners, and renders menu
+   */
   connectedCallback() {
     const template = this.querySelector('template')
     const innerHTML = template ? template.innerHTML : ''
@@ -231,6 +314,10 @@ class CornerWidget extends HTMLElement {
     this.#renderMenu()
   }
 
+  /**
+   * Called when the element is removed from the DOM
+   * Cleans up event listeners and drag state
+   */
   disconnectedCallback() {
     this.#isDragging = false
 
@@ -239,26 +326,74 @@ class CornerWidget extends HTMLElement {
     this.removeEventListener('click', this.#menuItemClickHandler)
   }
 
+  /**
+   * Add a new menu item to the widget
+   * @param item Menu item to add
+   */
   addMenuItem(item: MenuItem) {
     this.#menuItems.push(item)
     this.#renderMenu()
   }
 
+  /**
+   * Remove a menu item by id
+   * @param id Menu item id to remove
+   */
   removeMenuItem(id: string) {
     this.#menuItems = this.#menuItems.filter((item) => item.id !== id)
     this.#renderMenu()
   }
 
+  /**
+   * Update a menu item by id
+   * @param id Menu item id to update
+   * @param updates Partial menu item properties to update
+   * @returns Whether the menu item was found and updated
+   */
+  updateMenuItem(id: string, updates: Partial<Omit<MenuItem, 'id'>>): boolean {
+    const item = this.#findMenuItemById(id)
+    if (!item) {
+      return false
+    }
+
+    if (updates.text !== undefined) {
+      item.text = updates.text
+    }
+    if (updates.icon !== undefined) {
+      item.icon = updates.icon
+    }
+    if (updates.hint !== undefined) {
+      item.hint = updates.hint
+    }
+    if (updates.action !== undefined) {
+      item.action = updates.action
+    }
+
+    this.#renderMenu()
+    return true
+  }
+
+  /**
+   * Clear all menu items
+   */
   clearMenu() {
     this.#menuItems = []
     this.#renderMenu()
   }
 
+  /**
+   * Replace all menu items with new items
+   * @param items Array of menu items to set
+   */
   setMenuItems(items: MenuItem[]) {
     this.#menuItems = [...items]
     this.#renderMenu()
   }
 
+  /**
+   * Toggle menu panel open/close state
+   * @param open Whether to open the menu (defaults to toggle current state)
+   */
   toggleMenu(open = !this.#isMenuOpen) {
     if (!this.#menuItems.length) {
       return
@@ -280,14 +415,24 @@ class CornerWidget extends HTMLElement {
     panel.classList.remove(CornerWidget.PANEL_OPEN_CLASS)
   }
 
+  /**
+   * Open the menu panel
+   */
   openMenu() {
     return this.toggleMenu(true)
   }
 
+  /**
+   * Close the menu panel
+   */
   closeMenu() {
     return this.toggleMenu(false)
   }
 
+  /**
+   * Toggle widget visibility
+   * @param visible Whether to show the widget (defaults to toggle current state)
+   */
   toggle(visible = !this.#isVisible) {
     this.#isVisible = visible
     this.setAttribute('visible', visible ? 'true' : 'false')
@@ -300,10 +445,16 @@ class CornerWidget extends HTMLElement {
     }
   }
 
+  /**
+   * Show the widget
+   */
   show() {
     return this.toggle(true)
   }
 
+  /**
+   * Hide the widget
+   */
   hide() {
     return this.toggle(false)
   }
@@ -313,6 +464,11 @@ if (!customElements.get('vercel-web-script-corner-widget')) {
   customElements.define('vercel-web-script-corner-widget', CornerWidget)
 }
 
+/**
+ * Register a menu command to the corner widget
+ * If the widget is not ready, the item will be stored in PRE_MENU and added when the widget initializes
+ * @param item Menu item to register
+ */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GME_registerMenuCommand(item: MenuItem) {
   const pre = CornerWidget.PRE_MENU
@@ -328,4 +484,38 @@ function GME_registerMenuCommand(item: MenuItem) {
   if (idx >= 0) {
     pre.splice(idx, 1)
   }
+}
+
+/**
+ * Update an existing menu command by id
+ * @param id Menu item id to update
+ * @param updates Partial menu item properties to update
+ * @returns Whether the menu item was found and updated
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_updateMenuCommand(id: string, updates: Partial<Omit<MenuItem, 'id'>>): boolean {
+  const widget = document.querySelector<CornerWidget>(CornerWidget.TAG_NAME) as CornerWidget
+  if (!widget) {
+    // If widget not ready, try to update in PRE_MENU
+    const pre = CornerWidget.PRE_MENU
+    const item = pre.find((item) => item.id === id)
+    if (item) {
+      if (updates.text !== undefined) {
+        item.text = updates.text
+      }
+      if (updates.icon !== undefined) {
+        item.icon = updates.icon
+      }
+      if (updates.hint !== undefined) {
+        item.hint = updates.hint
+      }
+      if (updates.action !== undefined) {
+        item.action = updates.action
+      }
+      return true
+    }
+    return false
+  }
+
+  return widget.updateMenuItem(id, updates)
 }

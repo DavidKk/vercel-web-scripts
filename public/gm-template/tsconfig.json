@@ -10,5 +10,6 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["editor-typings.d.ts"]
 }
