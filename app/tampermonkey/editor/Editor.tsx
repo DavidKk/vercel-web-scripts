@@ -4,12 +4,14 @@ import { useRequest } from 'ahooks'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
+import { rewriteCode } from '@/app/api/ai/actions'
 import { updateFiles } from '@/app/api/scripts/actions'
-import CodeEditor from '@/components/Editor/CodeEditor'
+import CodeEditor, { type CodeEditorRef } from '@/components/Editor/CodeEditor'
 import { EDITOR_SUPPORTED_EXTENSIONS, ENTRY_SCRIPT_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 
+import { AIPanel } from './AIPanel'
 import EditorHeader from './EditorHeader'
 import FileTree from './FileTree'
 import { useEditorManager } from './useEditorManager'
@@ -48,7 +50,10 @@ export default function Editor(props: EditorProps) {
   const editorManager = useEditorManager(inFiles, scriptKey, updatedAt)
   // Initialize as false to avoid hydration mismatch, restore from localStorage in useEffect
   const [isEditorDevMode, setIsEditorDevMode] = useState(false)
+  const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
+  const [selectedDiffMessage, setSelectedDiffMessage] = useState<{ original: string; modified: string } | null>(null)
   const hostIdRef = useRef<string | null>(null)
+  const codeEditorRef = useRef<CodeEditorRef>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const lastSentFilesHashRef = useRef<string | null>(null)
 
@@ -409,6 +414,48 @@ export default function Editor(props: EditorProps) {
     return filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript'
   }
 
+  /**
+   * Handle AI rewrite completion (accept)
+   */
+  function handleAIAccept(rewrittenContent: string) {
+    if (!editorManager.selectedFile) {
+      return
+    }
+    editorManager.updateFileContent(editorManager.selectedFile, rewrittenContent)
+  }
+
+  /**
+   * Handle AI rewrite request
+   */
+  async function handleAIRewrite(instruction: string): Promise<string> {
+    if (!editorManager.selectedFile) {
+      throw new Error('No file selected')
+    }
+
+    const language = getFileLanguage(editorManager.selectedFile)
+    if (language === 'json') {
+      throw new Error('AI rewrite is not supported for JSON files')
+    }
+
+    try {
+      const rewrittenContent = await rewriteCode(editorManager.getCurrentFileContent(), editorManager.selectedFile, instruction, tampermonkeyTypings, language)
+      return rewrittenContent
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to rewrite code')
+    }
+  }
+
+  /**
+   * Handle AI panel toggle
+   */
+  function handleToggleAIPanel() {
+    if (!editorManager.selectedFile) {
+      alert('Please select a file first')
+      return
+    }
+    setIsAIPanelOpen((prev) => !prev)
+  }
+
   return (
     <div className="w-screen h-screen flex flex-col bg-black">
       <EditorHeader
@@ -418,19 +465,27 @@ export default function Editor(props: EditorProps) {
         isEditorDevMode={isEditorDevMode}
         onToggleEditorDevMode={handleToggleEditorDevMode}
         isCompiling={isCompiling}
+        onToggleAI={handleToggleAIPanel}
+        isAIOpen={isAIPanelOpen}
+        isAIDisabled={!editorManager.selectedFile}
       />
       <div className="flex-1 flex overflow-hidden">
-        <FileTree
-          files={editorFiles}
-          selectedFile={editorManager.selectedFile}
-          onSelectFile={editorManager.setSelectedFile}
-          onDeleteFile={editorManager.deleteFile}
-          onAddFile={editorManager.addFile}
-          onRenameFile={editorManager.renameFile}
-          getFileState={editorManager.getFileState}
-          errorPaths={editorManager.errorPaths}
-        />
-        <div className="flex-1 relative">
+        {/* Left: File Tree - Fixed Width */}
+        <div className="flex-shrink-0">
+          <FileTree
+            files={editorFiles}
+            selectedFile={editorManager.selectedFile}
+            onSelectFile={editorManager.setSelectedFile}
+            onDeleteFile={editorManager.deleteFile}
+            onAddFile={editorManager.addFile}
+            onRenameFile={editorManager.renameFile}
+            getFileState={editorManager.getFileState}
+            errorPaths={editorManager.errorPaths}
+          />
+        </div>
+
+        {/* Middle: Code Editor - Flexible */}
+        <div className="flex-1 min-w-0 relative">
           {editorManager.selectedFile ? (
             <CodeEditor
               content={editorManager.getCurrentFileContent()}
@@ -443,6 +498,24 @@ export default function Editor(props: EditorProps) {
               }}
               onValidate={(hasError) => editorManager.setFileHasError(editorManager.selectedFile!, hasError)}
               extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
+              editorRef={codeEditorRef}
+              diffMode={
+                selectedDiffMessage
+                  ? {
+                      original: selectedDiffMessage.original,
+                      modified: selectedDiffMessage.modified,
+                      onAccept: () => {
+                        if (selectedDiffMessage) {
+                          handleAIAccept(selectedDiffMessage.modified)
+                          setSelectedDiffMessage(null)
+                        }
+                      },
+                      onReject: () => {
+                        setSelectedDiffMessage(null)
+                      },
+                    }
+                  : undefined
+              }
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">
@@ -453,6 +526,38 @@ export default function Editor(props: EditorProps) {
             </div>
           )}
         </div>
+
+        {/* Right: AI Panel - Fixed Width */}
+        {editorManager.selectedFile &&
+          (() => {
+            const fileLanguage = getFileLanguage(editorManager.selectedFile!)
+            // Only show AI panel for TypeScript and JavaScript files
+            if (fileLanguage === 'json') {
+              return null
+            }
+            return (
+              <div className="flex-shrink-0">
+                <AIPanel
+                  isOpen={isAIPanelOpen}
+                  onClose={() => setIsAIPanelOpen(false)}
+                  onAccept={handleAIAccept}
+                  originalContent={editorManager.getCurrentFileContent()}
+                  filePath={editorManager.selectedFile}
+                  language={fileLanguage}
+                  tampermonkeyTypings={tampermonkeyTypings}
+                  onRewrite={handleAIRewrite}
+                  onNavigateToLine={(lineNumber) => {
+                    if (codeEditorRef.current) {
+                      codeEditorRef.current.navigateToLine(lineNumber)
+                    }
+                  }}
+                  onShowDiffInEditor={(original, modified) => {
+                    setSelectedDiffMessage({ original, modified })
+                  }}
+                />
+              </div>
+            )
+          })()}
       </div>
     </div>
   )

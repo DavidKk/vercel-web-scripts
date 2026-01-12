@@ -14,12 +14,28 @@ interface EditorHeaderProps {
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void
   isCompiling: boolean
+  /** Callback to toggle AI panel */
+  onToggleAI?: () => void
+  /** Whether AI panel is open */
+  isAIOpen?: boolean
+  /** Whether AI button should be disabled */
+  isAIDisabled?: boolean
 }
 
 /**
  * Editor header component with exit, update, and save buttons
  */
-export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevMode, onToggleEditorDevMode, isCompiling }: EditorHeaderProps) {
+export default function EditorHeader({
+  scriptKey,
+  onSave,
+  isSaving,
+  isEditorDevMode,
+  onToggleEditorDevMode,
+  isCompiling,
+  onToggleAI,
+  isAIOpen = false,
+  isAIDisabled = false,
+}: EditorHeaderProps) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
 
@@ -70,6 +86,21 @@ export default function EditorHeader({ scriptKey, onSave, isSaving, isEditorDevM
 
       {/* Right: Action buttons */}
       <div className="flex items-center gap-2">
+        {/* AI Rewrite button */}
+        {onToggleAI && (
+          <button
+            onClick={onToggleAI}
+            disabled={isSaving || isAIDisabled}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+              isAIOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title={isAIOpen ? 'Close AI panel' : 'Open AI Code Rewriter'}
+          >
+            <FeatherIcon icon="zap" className="w-4 h-4" />
+            <span className="text-sm">AI</span>
+          </button>
+        )}
+
         {/* Editor Dev Mode toggle */}
         <button
           onClick={onToggleEditorDevMode}

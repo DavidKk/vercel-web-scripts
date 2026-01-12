@@ -1,6 +1,6 @@
 'use client'
 
-import { Editor } from '@monaco-editor/react'
+import { DiffEditor, Editor } from '@monaco-editor/react'
 import { useEffect, useRef } from 'react'
 
 import { formatCode } from '@/utils/format'
@@ -37,6 +37,11 @@ interface ExtraLib {
   filePath: string
 }
 
+export interface CodeEditorRef {
+  /** Navigate to a specific line number */
+  navigateToLine: (lineNumber: number) => void
+}
+
 interface CommonCodeEditorProps {
   content: string
   path?: string
@@ -46,13 +51,34 @@ interface CommonCodeEditorProps {
   onValidate?: (hasError: boolean) => void
   readOnly?: boolean
   extraLibs?: ExtraLib[]
+  /** Ref to expose editor methods */
+  editorRef?: React.RefObject<CodeEditorRef | null>
+  /** Diff mode: show diff between original and modified content */
+  diffMode?: {
+    original: string
+    modified: string
+    onAccept?: () => void
+    onReject?: () => void
+  }
 }
 
-export default function CodeEditor({ content, path = 'index.ts', language = 'typescript', onChange, onSave, onValidate, readOnly = false, extraLibs = [] }: CommonCodeEditorProps) {
+export default function CodeEditor({
+  content,
+  path = 'index.ts',
+  language = 'typescript',
+  onChange,
+  onSave,
+  onValidate,
+  readOnly = false,
+  extraLibs = [],
+  editorRef,
+  diffMode,
+}: CommonCodeEditorProps) {
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
   const onValidateRef = useRef(onValidate)
   const languageRef = useRef(language)
+  const editorInstanceRef = useRef<any>(null)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -106,6 +132,33 @@ export default function CodeEditor({ content, path = 'index.ts', language = 'typ
   }
 
   const handleEditorDidMount = (editor: any, monaco: any) => {
+    editorInstanceRef.current = editor
+
+    // Expose navigateToLine method via ref
+    if (editorRef) {
+      ;(editorRef as React.MutableRefObject<CodeEditorRef>).current = {
+        navigateToLine: (lineNumber: number) => {
+          if (editor && lineNumber > 0) {
+            const line = Math.max(1, Math.min(lineNumber, editor.getModel()?.getLineCount() || 1))
+            editor.revealLineInCenter(line)
+            editor.setPosition({ lineNumber: line, column: 1 })
+            editor.focus()
+
+            // Add temporary highlight
+            const model = editor.getModel()
+            if (model) {
+              const range = new monaco.Range(line, 1, line, model.getLineMaxColumn(line))
+              editor.setSelection(range)
+              // Clear selection after 2 seconds
+              setTimeout(() => {
+                editor.setSelection(new monaco.Range(line, 1, line, 1))
+              }, 2000)
+            }
+          }
+        },
+      }
+    }
+
     // Add Cmd+S keyboard shortcut
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       // 1. Format code
@@ -143,6 +196,60 @@ export default function CodeEditor({ content, path = 'index.ts', language = 'typ
     if (onChangeRef.current) {
       onChangeRef.current(value || '')
     }
+  }
+
+  // If diff mode is enabled, show DiffEditor
+  if (diffMode) {
+    return (
+      <div className="h-full w-full overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          <DiffEditor
+            height="100%"
+            width="100%"
+            original={diffMode.original}
+            modified={diffMode.modified}
+            language={language}
+            theme="one-dark"
+            beforeMount={handleEditorWillMount}
+            options={{
+              readOnly: true,
+              fontSize: 14,
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              scrollbar: {
+                vertical: 'auto',
+                horizontal: 'auto',
+              },
+              lineNumbers: 'on',
+              glyphMargin: false,
+              folding: true,
+              renderSideBySide: true,
+              ignoreTrimWhitespace: false,
+              renderIndicators: true,
+            }}
+          />
+        </div>
+        {(diffMode.onAccept || diffMode.onReject) && (
+          <div className="flex items-center justify-end gap-2 p-3 border-t border-[#3e3e3e] bg-[#1e1e1e] flex-shrink-0">
+            {diffMode.onReject && (
+              <button
+                onClick={diffMode.onReject}
+                className="px-4 py-2 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors flex items-center gap-2 text-sm"
+              >
+                <span>Reject</span>
+              </button>
+            )}
+            {diffMode.onAccept && (
+              <button onClick={diffMode.onAccept} className="px-4 py-2 bg-[#059669] text-white hover:bg-[#047857] rounded transition-colors flex items-center gap-2 text-sm">
+                <span>Accept</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
