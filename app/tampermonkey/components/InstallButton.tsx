@@ -1,7 +1,7 @@
 'use client'
 
-import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 import React, { useState } from 'react'
+import { FiDownload } from 'react-icons/fi'
 
 import { Spinner } from '@/components/Spinner'
 
@@ -40,7 +40,7 @@ export default function InstallTampermonkeyButton(props: InstallTampermonkeyButt
       aria-busy={loading}
     >
       <span className="inline-block px-3 py-2 bg-green-900 rounded-l-sm">
-        <ArchiveBoxArrowDownIcon className="w-5 h-5" />
+        <FiDownload className="w-5 h-5" />
       </span>
 
       <span className="inline-block px-3 py-2 bg-green-700 rounded-r-sm">

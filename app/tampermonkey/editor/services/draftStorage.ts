@@ -40,6 +40,8 @@ export class DraftStorage {
 
   /**
    * Save local drafts for a Gist
+   * @param gistId Gist identifier
+   * @param files Files to save
    */
   async saveFiles(gistId: string, files: Record<string, LocalFileRecord>): Promise<void> {
     const db = await this.openDB()
@@ -55,6 +57,8 @@ export class DraftStorage {
 
   /**
    * Get local drafts for a Gist
+   * @param gistId Gist identifier
+   * @returns Draft files or null if not found
    */
   async getFiles(gistId: string): Promise<Record<string, LocalFileRecord> | null> {
     const db = await this.openDB()
@@ -70,6 +74,7 @@ export class DraftStorage {
 
   /**
    * Clear local drafts for a Gist
+   * @param gistId Gist identifier
    */
   async clearFiles(gistId: string): Promise<void> {
     const db = await this.openDB()

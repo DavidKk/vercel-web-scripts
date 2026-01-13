@@ -1,8 +1,8 @@
 'use client'
 
-import { CheckIcon } from '@heroicons/react/24/outline'
 import { DiffEditor } from '@monaco-editor/react'
 import { useEffect, useRef, useState } from 'react'
+import { FiCheck } from 'react-icons/fi'
 
 import { Spinner } from '@/components/Spinner'
 
@@ -177,11 +177,11 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
   if (!isOpen) return null
 
   return (
-    <div className="w-96 h-full bg-[#1e1e1e] border-l border-[#3e3e3e] flex flex-col">
+    <div className="w-96 h-full bg-[#1e1e1e] border-l border-[#2d2d2d] flex flex-col">
       {/* Chat History - Middle */}
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto min-h-0">
         {chatHistory.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-[#5c6370] text-sm">
+          <div className="h-full flex items-center justify-center text-[#858585] text-sm">
             <div className="text-center px-4">
               <p className="mb-2">No chat history</p>
               <p className="text-xs">Enter an instruction below to start</p>
@@ -194,9 +194,9 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
               const hasResult = message.rewrittenContent !== null || message.error !== null
 
               return (
-                <div key={message.id} className={`border border-[#3e3e3e] rounded-lg overflow-hidden ${isSelected ? 'ring-2 ring-[#0e639c]' : ''}`}>
+                <div key={message.id} className={`border border-[#2d2d2d] rounded-lg overflow-hidden ${isSelected ? 'ring-2 ring-[#0e639c]' : ''}`}>
                   {/* Message Header */}
-                  <div className="p-3 bg-[#282c34]">
+                  <div className="p-3 bg-[#252526]">
                     <div className="cursor-pointer hover:bg-[#2d2d2d] transition-colors -m-3 p-3 rounded-t-lg" onClick={() => setSelectedMessageId(isSelected ? null : message.id)}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm text-[#abb2bf] flex-1">{message.instruction}</p>
@@ -210,7 +210,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
                       </div>
                     </div>
                     {message.rewrittenContent && onShowDiffInEditor && (
-                      <div className="mt-2 pt-2 border-t border-[#3e3e3e]">
+                      <div className="mt-2 pt-2 border-t border-[#2d2d2d]">
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -226,7 +226,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
 
                   {/* Diff View - Only show when selected */}
                   {isSelected && hasResult && (
-                    <div className="h-64 border-t border-[#3e3e3e]">
+                    <div className="h-64 border-t border-[#2d2d2d]">
                       {message.error ? (
                         <div className="p-4 bg-red-900/20 text-red-400 text-sm">{message.error}</div>
                       ) : message.rewrittenContent ? (
@@ -313,7 +313,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
                               }}
                             />
                           </div>
-                          <div className="flex items-center justify-end gap-2 p-2 border-t border-[#3e3e3e] bg-[#282c34]">
+                          <div className="flex items-center justify-end gap-2 p-2 border-t border-[#2d2d2d] bg-[#252526]">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -330,7 +330,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
                               }}
                               className="px-3 py-1 text-xs bg-[#059669] text-white hover:bg-[#047857] rounded transition-colors flex items-center gap-1"
                             >
-                              <CheckIcon className="w-3 h-3" />
+                              <FiCheck className="w-3 h-3" />
                               Accept
                             </button>
                           </div>
@@ -346,7 +346,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
       </div>
 
       {/* Input Area - Bottom */}
-      <div className="border-t border-[#3e3e3e] p-4 flex-shrink-0 bg-[#1e1e1e]">
+      <div className="border-t border-[#2d2d2d] p-4 flex-shrink-0 bg-[#1e1e1e]">
         <div className="space-y-2">
           <textarea
             ref={instructionTextareaRef}
@@ -360,7 +360,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
             }}
             disabled={isLoading}
             placeholder="Describe what you want to change... (e.g., 'Add error handling', 'Optimize performance')"
-            className="w-full h-20 px-3 py-2 bg-[#282c34] border border-[#3e3e3e] rounded text-[#abb2bf] placeholder-[#5c6370] focus:outline-none focus:ring-2 focus:ring-[#0e639c] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
+            className="w-full h-20 px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:ring-2 focus:ring-[#0e639c] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
           />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

@@ -1,9 +1,8 @@
 'use client'
 
-import { ArrowLeftEndOnRectangleIcon, ArrowPathRoundedSquareIcon } from '@heroicons/react/16/solid'
-import FeatherIcon from 'feather-icons-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { FiLogOut, FiPlay, FiPlayCircle, FiRefreshCw, FiSave, FiZap } from 'react-icons/fi'
 
 import { Spinner } from '@/components/Spinner'
 
@@ -72,7 +71,7 @@ export default function EditorHeader({
   }
 
   return (
-    <header className="h-12 bg-[#1e1e1e] border-b border-[#3e3e3e] flex items-center justify-between px-4 sticky top-0 z-50">
+    <header className="h-12 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center justify-between px-4 sticky top-0 z-50">
       {/* Left: Exit button */}
       <button
         onClick={() => router.push('/tampermonkey')}
@@ -80,7 +79,7 @@ export default function EditorHeader({
         className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
         title="Exit editor"
       >
-        <ArrowLeftEndOnRectangleIcon className="w-4 h-4" />
+        <FiLogOut className="w-4 h-4" />
         <span className="text-sm">Exit</span>
       </button>
 
@@ -96,7 +95,7 @@ export default function EditorHeader({
             } disabled:opacity-50 disabled:cursor-not-allowed`}
             title={isAIOpen ? 'Close AI panel' : 'Open AI Code Rewriter'}
           >
-            <FeatherIcon icon="zap" className="w-4 h-4" />
+            <FiZap className="w-4 h-4" />
             <span className="text-sm">AI</span>
           </button>
         )}
@@ -119,7 +118,7 @@ export default function EditorHeader({
             </>
           ) : (
             <>
-              <FeatherIcon icon={isEditorDevMode ? 'play' : 'play-circle'} className="w-4 h-4" />
+              {isEditorDevMode ? <FiPlay className="w-4 h-4" /> : <FiPlayCircle className="w-4 h-4" />}
               <span className="text-sm">Dev Mode</span>
             </>
           )}
@@ -141,7 +140,7 @@ export default function EditorHeader({
             </>
           ) : (
             <>
-              <ArrowPathRoundedSquareIcon className="w-4 h-4" />
+              <FiRefreshCw className="w-4 h-4" />
               <span className="text-sm">Update</span>
             </>
           )}
@@ -163,7 +162,7 @@ export default function EditorHeader({
             </>
           ) : (
             <>
-              <FeatherIcon icon="save" className="w-4 h-4" />
+              <FiSave className="w-4 h-4" />
               <span className="text-sm">Save</span>
             </>
           )}

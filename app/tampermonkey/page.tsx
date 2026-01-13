@@ -1,7 +1,7 @@
 import { checkAccess } from '@/services/auth/access'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
 
-import InstallTampermonkeyButton from './InstallButton'
+import InstallTampermonkeyButton from './components/InstallButton'
 
 export default async function Home() {
   await checkAccess({ isApiRouter: false, redirectUrl: '/tampermonkey' })

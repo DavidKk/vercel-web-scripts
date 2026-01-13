@@ -1,9 +1,9 @@
 'use client'
 
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { TbBrandTypescript } from 'react-icons/tb'
-import { VscJson } from 'react-icons/vsc'
+import { VscFolder, VscJson, VscSearch } from 'react-icons/vsc'
 
 interface FileNode {
   name: string
@@ -84,11 +84,79 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
   const [editingValue, setEditingValue] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string; name: string } | null>(null)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const root = useMemo(() => buildFileTree(files), [files])
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const selectedItemRef = useRef<HTMLDivElement>(null)
+  const fileTreePanelRef = useRef<HTMLDivElement>(null)
+
+  // Filter files based on search query
+  const filteredRoot = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return root
+    }
+
+    const query = searchQuery.toLowerCase()
+    const filteredFiles: Record<string, { content: string; rawUrl: string }> = {}
+
+    Object.entries(files).forEach(([path, info]) => {
+      if (path.toLowerCase().includes(query)) {
+        filteredFiles[path] = info
+      }
+    })
+
+    return buildFileTree(filteredFiles)
+  }, [root, files, searchQuery])
+
+  // Auto-expand directories when searching
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const pathsToExpand = new Set<string>()
+      Object.keys(files).forEach((filePath) => {
+        if (filePath.toLowerCase().includes(searchQuery.toLowerCase())) {
+          const parts = filePath.split('/')
+          for (let i = 1; i < parts.length; i++) {
+            pathsToExpand.add(parts.slice(0, i).join('/'))
+          }
+        }
+      })
+      setExpandedPaths((prev) => {
+        const next = new Set(prev)
+        pathsToExpand.forEach((path) => next.add(path))
+        return next
+      })
+    }
+  }, [searchQuery, files])
+
+  // Focus search input when search is opened
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [isSearchOpen])
+
+  // Handle search keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+F or Ctrl+F to open search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f' && !isSearchOpen) {
+        e.preventDefault()
+        setIsSearchOpen(true)
+      }
+      // Escape to close search
+      if (e.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false)
+        setSearchQuery('')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isSearchOpen])
 
   // Auto-scroll to selected file
   useEffect(() => {
@@ -117,6 +185,24 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Handle outside click to close search box (only when search query is empty)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!isSearchOpen || searchQuery.trim()) {
+        return
+      }
+
+      // If click is outside the file tree panel, close search box
+      if (fileTreePanelRef.current && !fileTreePanelRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false)
+        setSearchQuery('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isSearchOpen, searchQuery])
 
   // Auto-expand directories containing selected file
   useEffect(() => {
@@ -269,7 +355,7 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
               }}
               title="Delete file"
             >
-              <TrashIcon className="w-3.5 h-3.5" />
+              <FiTrash2 className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -292,21 +378,62 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
   }
 
   return (
-    <div className="w-64 h-full bg-[#282c34] border-r border-[#3e3e3e] flex flex-col relative">
+    <div ref={fileTreePanelRef} className="w-64 h-full bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col relative">
       {/* Header */}
-      <div className="px-3 py-2 text-xs font-semibold text-[#858585] uppercase border-b border-[#3e3e3e] bg-[#282c34] sticky top-0 z-10 flex items-center justify-between">
+      <div className="h-[33px] px-3 text-xs font-semibold text-[#cccccc] uppercase border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-0 z-10 flex items-center justify-between">
         Files
-        <button
-          className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleStartAdd()
-          }}
-          title="Add File"
-        >
-          <PlusIcon className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsSearchOpen((prev) => !prev)
+              if (!isSearchOpen) {
+                setSearchQuery('')
+              }
+            }}
+            title="Search files (Cmd+F / Ctrl+F)"
+          >
+            <VscSearch className="w-3.5 h-3.5" />
+          </button>
+          <button
+            className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleStartAdd()
+            }}
+            title="Add File"
+          >
+            <FiPlus className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+
+      {/* Search Bar */}
+      {isSearchOpen && (
+        <div className="px-3 py-2 border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-[33px] z-10">
+          <div className="relative flex items-center">
+            <VscSearch className="absolute left-2 w-3.5 h-3.5 text-[#858585]" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search files..."
+              className="w-full pl-7 pr-7 py-1.5 text-sm bg-[#1e1e1e] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:border-[#007acc]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 p-0.5 hover:bg-[#3e3e42] rounded text-[#858585] hover:text-white transition-colors"
+                title="Clear search"
+              >
+                <FiX className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* File tree - hidden scrollbar but scrollable */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -333,19 +460,41 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
             </div>
           </div>
         )}
-        {Array.from(root.children.values())
-          .sort((a, b) => {
-            if (a.isDirectory !== b.isDirectory) {
-              return a.isDirectory ? -1 : 1
-            }
-            return a.name.localeCompare(b.name)
-          })
-          .map((node) => renderNode(node))}
+
+        {/* Empty state or file list */}
+        {filteredRoot.children.size === 0 ? (
+          <div className="flex-1 flex items-center justify-center px-4 py-8">
+            <div className="text-center flex flex-col items-center">
+              {searchQuery.trim() ? (
+                <>
+                  <VscSearch className="w-12 h-12 text-[#858585] mb-3" />
+                  <p className="text-sm text-[#cccccc] mb-1">No files found</p>
+                  <p className="text-xs text-[#858585]">Try a different search term</p>
+                </>
+              ) : (
+                <>
+                  <VscFolder className="w-12 h-12 text-[#858585] mb-3" />
+                  <p className="text-sm text-[#cccccc] mb-1">No files</p>
+                  <p className="text-xs text-[#858585]">Click the + button to add a file</p>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          Array.from(filteredRoot.children.values())
+            .sort((a, b) => {
+              if (a.isDirectory !== b.isDirectory) {
+                return a.isDirectory ? -1 : 1
+              }
+              return a.name.localeCompare(b.name)
+            })
+            .map((node) => renderNode(node))
+        )}
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
-        <div ref={contextMenuRef} className="fixed bg-[#252526] shadow-xl border border-[#454545] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
+        <div ref={contextMenuRef} className="fixed bg-[#252526] shadow-xl border border-[#3a3a3a] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
           <button
             className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
             onClick={() => handleStartRename(contextMenu.path, contextMenu.name)}

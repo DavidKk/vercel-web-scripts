@@ -1,8 +1,8 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ArrowPathIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
 import { useRequest } from 'ahooks'
 import React, { useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 
 import Alert, { type AlertImperativeHandler } from '@/components/Alert'
 import { Spinner } from '@/components/Spinner'
@@ -216,7 +216,7 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
         })}
 
         <button onClick={() => remove(id)} className="flex-basis h-8 text-sm bg-red-500 text-white rounded-sm hover:bg-red-600 px-4" aria-label="Remove config" type="button">
-          <TrashIcon className="h-4 w-4 text-white" />
+          <FiTrash2 className="h-4 w-4 text-white" />
         </button>
       </SortableItem>
     )
@@ -259,11 +259,11 @@ export default React.forwardRef<ConfigManagerReference, ConfigManagerProps<any>>
             aria-label="Add Config"
             title="Add Config"
           >
-            <PlusIcon className="h-5 w-5" />
+            <FiPlus className="h-5 w-5" />
           </button>
 
           <button onClick={reset} className="px-4 py-2 bg-gray-500 cursor-pointer text-sm text-white rounded-sm hover:bg-gray-600" type="button" aria-label="Reset" title="Reset">
-            <ArrowPathIcon className="h-5 w-5" />
+            <FiRefreshCw className="h-5 w-5" />
           </button>
 
           <button

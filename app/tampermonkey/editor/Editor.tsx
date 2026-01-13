@@ -11,10 +11,11 @@ import { EDITOR_SUPPORTED_EXTENSIONS, ENTRY_SCRIPT_FILE, SCRIPTS_FILE_EXTENSION 
 import { useBeforeUnload } from '@/hooks/useClient'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 
-import { AIPanel } from './AIPanel'
-import EditorHeader from './EditorHeader'
-import FileTree from './FileTree'
-import { useEditorManager } from './useEditorManager'
+import { AIPanel } from './components/AIPanel'
+import EditorHeader from './components/EditorHeader'
+import FileTree from './components/FileTree'
+import TabBar from './components/TabBar'
+import { useEditorManager } from './hooks/useEditorManager'
 import { calculateFilesHash, CONFIG_FILES, isDeclarationFile } from './utils'
 
 /**
@@ -52,6 +53,8 @@ export default function Editor(props: EditorProps) {
   const [isEditorDevMode, setIsEditorDevMode] = useState(false)
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
   const [selectedDiffMessage, setSelectedDiffMessage] = useState<{ original: string; modified: string } | null>(null)
+  // Maintain TAB order: use array to preserve opening order
+  const [openFiles, setOpenFiles] = useState<string[]>([])
   const hostIdRef = useRef<string | null>(null)
   const codeEditorRef = useRef<CodeEditorRef>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
@@ -69,6 +72,166 @@ export default function Editor(props: EditorProps) {
 
   // Use custom hook to handle page leave confirmation
   useBeforeUnload(editorManager.hasUnsavedChanges, 'You have unsaved changes. Are you sure you want to leave?')
+
+  // Track previous selected file to handle TAB switching logic
+  const previousSelectedFileRef = useRef<string | null>(null)
+
+  // Initialize open files with selected file
+  useEffect(() => {
+    if (editorManager.selectedFile && openFiles.length === 0) {
+      setOpenFiles([editorManager.selectedFile])
+      previousSelectedFileRef.current = editorManager.selectedFile
+    }
+  }, [])
+
+  // VS Code style TAB management:
+  // 1. Current file always stays in openFiles (default TAB)
+  // 2. When switching files:
+  //    - If previous file has no changes, remove it from openFiles (switch TAB - replace)
+  //    - If previous file has changes, keep it in openFiles (open new TAB - keep old one)
+  // 3. Files with changes are automatically pinned (stay in openFiles)
+  // 4. Maintain TAB opening order (new tabs append to end, don't reorder)
+  useEffect(() => {
+    if (editorManager.selectedFile) {
+      const currentFile = editorManager.selectedFile
+      const previousFile = previousSelectedFileRef.current
+
+      setOpenFiles((prev) => {
+        const next = [...prev]
+
+        // If current file is not in openFiles, add it to the end (maintain opening order)
+        if (!next.includes(currentFile)) {
+          next.push(currentFile)
+        }
+
+        // If switching from another file
+        if (previousFile && previousFile !== currentFile) {
+          // If previous file has no changes, remove it (switch TAB - replace behavior)
+          if (!editorManager.hasFileChanges(previousFile)) {
+            const index = next.indexOf(previousFile)
+            if (index >= 0) {
+              next.splice(index, 1)
+            }
+          }
+          // If previous file has changes, keep it (open new TAB - keep old one)
+        }
+
+        return next
+      })
+
+      previousSelectedFileRef.current = currentFile
+    }
+  }, [editorManager.selectedFile, editorManager.hasFileChanges])
+
+  // Pin files to openFiles when they get changes (TAB becomes fixed/pinned)
+  // This ensures that once a file is edited, its TAB stays open
+  // Watch unsavedPaths to immediately pin files when they are edited
+  useEffect(() => {
+    setOpenFiles((prev) => {
+      const next = [...prev]
+      let changed = false
+
+      // Pin all files that have changes
+      const allFiles = Object.keys(editorManager.files)
+      for (const filePath of allFiles) {
+        if (editorManager.hasFileChanges(filePath)) {
+          if (!next.includes(filePath)) {
+            next.push(filePath)
+            changed = true
+          }
+        }
+      }
+
+      return changed ? next : prev
+    })
+  }, [editorManager.unsavedPaths, editorManager.hasFileChanges])
+
+  /**
+   * Handle file selection - switch to the selected file
+   * VS Code behavior:
+   * - If current file has no changes, switch TAB (replace current TAB)
+   * - If current file has changes, open new TAB (keep current TAB)
+   * @param filePath Path of the file to switch to
+   */
+  function handleFileSelect(filePath: string) {
+    editorManager.setSelectedFile(filePath)
+    // TAB management is handled in useEffect based on file changes
+  }
+
+  /**
+   * Handle tab click - switch to the clicked file
+   * @param filePath Path of the file to switch to
+   */
+  function handleTabClick(filePath: string) {
+    handleFileSelect(filePath)
+  }
+
+  /**
+   * Handle tab close - close the tab and switch to another file if needed
+   * @param filePath Path of the file to close
+   * @param event Mouse event
+   */
+  function handleTabClose(filePath: string, event: React.MouseEvent) {
+    event.stopPropagation()
+
+    // If closing the active file, switch to another open file first
+    if (editorManager.selectedFile === filePath) {
+      const remainingFiles = openFiles.filter((f) => f !== filePath)
+      if (remainingFiles.length > 0) {
+        // Try to find a file in the same directory first
+        const currentDir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : ''
+        const sameDirFile = remainingFiles.find((f) => f.startsWith(currentDir + '/') || (!f.includes('/') && currentDir === ''))
+        editorManager.setSelectedFile(sameDirFile || remainingFiles[0])
+      } else {
+        editorManager.setSelectedFile(null)
+      }
+    }
+
+    // Remove from open files (maintain order)
+    setOpenFiles((prev) => prev.filter((f) => f !== filePath))
+  }
+
+  /**
+   * Handle close tabs to the right
+   * @param filePaths Array of file paths to close (already calculated in TabBar based on display order)
+   */
+  function handleCloseTabsToRight(filePaths: string[]) {
+    if (filePaths.length === 0) {
+      return
+    }
+
+    // Get remaining files before closing
+    const remainingFiles = openFiles.filter((f) => !filePaths.includes(f))
+
+    // Remove files from openFiles (maintain order)
+    setOpenFiles((prev) => prev.filter((f) => !filePaths.includes(f)))
+
+    // If current file is being closed, switch to the last remaining file
+    if (editorManager.selectedFile && filePaths.includes(editorManager.selectedFile)) {
+      if (remainingFiles.length > 0) {
+        editorManager.setSelectedFile(remainingFiles[remainingFiles.length - 1])
+      } else {
+        // If all files are closed, select the first remaining file (should be the one that was right-clicked)
+        const firstRemaining = Array.from(openFiles).find((f) => !filePaths.includes(f))
+        if (firstRemaining) {
+          editorManager.setSelectedFile(firstRemaining)
+        } else {
+          editorManager.setSelectedFile(null)
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle close other tabs
+   * @param filePath Path of the file to keep open
+   */
+  function handleCloseOtherTabs(filePath: string) {
+    setOpenFiles([filePath])
+    if (editorManager.selectedFile !== filePath) {
+      editorManager.setSelectedFile(filePath)
+    }
+  }
 
   /**
    * Save files to server
@@ -475,7 +638,7 @@ export default function Editor(props: EditorProps) {
           <FileTree
             files={editorFiles}
             selectedFile={editorManager.selectedFile}
-            onSelectFile={editorManager.setSelectedFile}
+            onSelectFile={handleFileSelect}
             onDeleteFile={editorManager.deleteFile}
             onAddFile={editorManager.addFile}
             onRenameFile={editorManager.renameFile}
@@ -485,46 +648,63 @@ export default function Editor(props: EditorProps) {
         </div>
 
         {/* Middle: Code Editor - Flexible */}
-        <div className="flex-1 min-w-0 relative">
-          {editorManager.selectedFile ? (
-            <CodeEditor
-              content={editorManager.getCurrentFileContent()}
-              path={editorManager.selectedFile}
-              language={getFileLanguage(editorManager.selectedFile)}
-              onChange={(content) => editorManager.updateFileContent(editorManager.selectedFile!, content)}
-              onSave={async () => {
-                await handleCompile()
-                await editorManager.persistLocal()
-              }}
-              onValidate={(hasError) => editorManager.setFileHasError(editorManager.selectedFile!, hasError)}
-              extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
-              editorRef={codeEditorRef}
-              diffMode={
-                selectedDiffMessage
-                  ? {
-                      original: selectedDiffMessage.original,
-                      modified: selectedDiffMessage.modified,
-                      onAccept: () => {
-                        if (selectedDiffMessage) {
-                          handleAIAccept(selectedDiffMessage.modified)
-                          setSelectedDiffMessage(null)
-                        }
-                      },
-                      onReject: () => {
-                        setSelectedDiffMessage(null)
-                      },
-                    }
-                  : undefined
-              }
+        <div className="flex-1 min-w-0 relative flex flex-col">
+          {/* Tab Bar */}
+          {openFiles.length > 0 && (
+            <TabBar
+              tabs={openFiles.map((path) => ({ path, name: path.split('/').pop() || path }))}
+              activeTab={editorManager.selectedFile}
+              onTabClick={handleTabClick}
+              onTabClose={handleTabClose}
+              onCloseTabsToRight={handleCloseTabsToRight}
+              onCloseOtherTabs={handleCloseOtherTabs}
+              getFileState={editorManager.getFileState}
+              hasError={(filePath) => editorManager.errorPaths.has(filePath)}
             />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <p className="text-lg mb-2">No file selected</p>
-                <p className="text-sm">Select a file from the sidebar to start editing</p>
-              </div>
-            </div>
           )}
+
+          {/* Code Editor */}
+          <div className="flex-1 min-w-0 relative">
+            {editorManager.selectedFile ? (
+              <CodeEditor
+                content={editorManager.getCurrentFileContent()}
+                path={editorManager.selectedFile}
+                language={getFileLanguage(editorManager.selectedFile)}
+                onChange={(content) => editorManager.updateFileContent(editorManager.selectedFile!, content)}
+                onSave={async () => {
+                  await handleCompile()
+                  await editorManager.persistLocal()
+                }}
+                onValidate={(hasError) => editorManager.setFileHasError(editorManager.selectedFile!, hasError)}
+                extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
+                editorRef={codeEditorRef}
+                diffMode={
+                  selectedDiffMessage
+                    ? {
+                        original: selectedDiffMessage.original,
+                        modified: selectedDiffMessage.modified,
+                        onAccept: () => {
+                          if (selectedDiffMessage) {
+                            handleAIAccept(selectedDiffMessage.modified)
+                            setSelectedDiffMessage(null)
+                          }
+                        },
+                        onReject: () => {
+                          setSelectedDiffMessage(null)
+                        },
+                      }
+                    : undefined
+                }
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#1e1e1e] text-[#858585]">
+                <div className="text-center">
+                  <p className="text-lg mb-2">No file selected</p>
+                  <p className="text-sm">Select a file from the sidebar to start editing</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: AI Panel - Fixed Width */}

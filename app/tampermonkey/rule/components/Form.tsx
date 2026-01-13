@@ -10,7 +10,8 @@ import type { RuleConfig } from '@/services/tampermonkey/types'
 
 import type { ScriptFieldProps } from './ScriptField'
 import { ScriptField } from './ScriptField'
-import { WildcardField, type WildcardFieldProps } from './WildcardField'
+import type { WildcardFieldProps } from './WildcardField'
+import { WildcardField } from './WildcardField'
 
 export interface FormProps {
   rules: RuleConfig[]

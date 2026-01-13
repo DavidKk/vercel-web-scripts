@@ -5,30 +5,42 @@ import { useEffect, useRef } from 'react'
 
 import { formatCode } from '@/utils/format'
 
-// Theme colors inspired by One Dark
-const ONE_DARK_THEME = {
+// Theme colors inspired by VS Code Dark+ theme
+const VS_CODE_DARK_THEME = {
   base: 'vs-dark' as const,
   inherit: true,
   rules: [
-    { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
-    { token: 'keyword', foreground: 'c678dd' },
-    { token: 'number', foreground: 'd19a66' },
-    { token: 'string', foreground: '98c379' },
-    { token: 'operator', foreground: '56b6c2' },
-    { token: 'type', foreground: 'e5c07b' },
-    { token: 'function', foreground: '61afef' },
-    { token: 'variable', foreground: 'abb2bf' },
-    { token: 'constant', foreground: 'd19a66' },
+    { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '569cd6' },
+    { token: 'number', foreground: 'b5cea8' },
+    { token: 'string', foreground: 'ce9178' },
+    { token: 'operator', foreground: 'd4d4d4' },
+    { token: 'type', foreground: '4ec9b0' },
+    { token: 'function', foreground: 'dcdcaa' },
+    { token: 'variable', foreground: '9cdcfe' },
+    { token: 'constant', foreground: '569cd6' },
   ],
   colors: {
-    'editor.background': '#282c34',
-    'editor.foreground': '#abb2bf',
-    'editorCursor.foreground': '#528bff',
-    'editor.lineHighlightBackground': '#2c313a',
-    'editorLineNumber.foreground': '#4b5263',
-    'editor.selectionBackground': '#3e4451',
-    'editorIndentGuide.background': '#3b4048',
-    'editorIndentGuide.activeBackground': '#c8ccd4',
+    'editor.background': '#1e1e1e',
+    'editor.foreground': '#d4d4d4',
+    'editorCursor.foreground': '#aeafad',
+    'editor.lineHighlightBackground': '#2a2d2e',
+    'editorLineNumber.foreground': '#858585',
+    'editor.selectionBackground': '#264f78',
+    'editorIndentGuide.background': '#404040',
+    'editorIndentGuide.activeBackground': '#707070',
+    'editorWidget.background': '#252526',
+    'editorWidget.border': '#3a3a3a',
+    'editorSuggestWidget.background': '#252526',
+    'editorSuggestWidget.border': '#3a3a3a',
+    'editorSuggestWidget.selectedBackground': '#2a2d2e',
+    'editorHoverWidget.background': '#252526',
+    'editorHoverWidget.border': '#3a3a3a',
+    'editorError.foreground': '#f48771',
+    'editorWarning.foreground': '#cca700',
+    'editorInfo.foreground': '#75beff',
+    'editorBracketMatch.background': '#0e639c',
+    'editorBracketMatch.border': '#0e639c',
   },
 }
 
@@ -97,7 +109,7 @@ export default function CodeEditor({
   }, [language])
 
   const handleEditorWillMount = (monaco: any) => {
-    monaco.editor.defineTheme('one-dark', ONE_DARK_THEME)
+    monaco.editor.defineTheme('vs-code-dark', VS_CODE_DARK_THEME)
 
     // Configure typescript defaults
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -209,7 +221,7 @@ export default function CodeEditor({
             original={diffMode.original}
             modified={diffMode.modified}
             language={language}
-            theme="one-dark"
+            theme="vs-code-dark"
             beforeMount={handleEditorWillMount}
             options={{
               readOnly: true,
@@ -232,17 +244,17 @@ export default function CodeEditor({
           />
         </div>
         {(diffMode.onAccept || diffMode.onReject) && (
-          <div className="flex items-center justify-end gap-2 p-3 border-t border-[#3e3e3e] bg-[#1e1e1e] flex-shrink-0">
+          <div className="flex items-center justify-end gap-2 p-3 border-t border-[#2d2d2d] bg-[#1e1e1e] flex-shrink-0">
             {diffMode.onReject && (
               <button
                 onClick={diffMode.onReject}
-                className="px-4 py-2 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors flex items-center gap-2 text-sm"
+                className="px-4 py-2 text-[#d4d4d4] hover:text-[#ffffff] hover:bg-[#2d2d2d] rounded transition-colors flex items-center gap-2 text-sm"
               >
                 <span>Reject</span>
               </button>
             )}
             {diffMode.onAccept && (
-              <button onClick={diffMode.onAccept} className="px-4 py-2 bg-[#059669] text-white hover:bg-[#047857] rounded transition-colors flex items-center gap-2 text-sm">
+              <button onClick={diffMode.onAccept} className="px-4 py-2 bg-[#059669] text-[#ffffff] hover:bg-[#047857] rounded transition-colors flex items-center gap-2 text-sm">
                 <span>Accept</span>
               </button>
             )}
@@ -260,7 +272,7 @@ export default function CodeEditor({
         path={path}
         language={language}
         value={content}
-        theme="one-dark"
+        theme="vs-code-dark"
         beforeMount={handleEditorWillMount}
         onMount={handleEditorDidMount}
         onChange={handleEditorChange}

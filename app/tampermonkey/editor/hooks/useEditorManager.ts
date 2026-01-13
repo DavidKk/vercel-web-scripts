@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { LocalFileRecord } from './indexedDB'
-import { draftStorage } from './indexedDB'
+import type { LocalFileRecord } from '../services/draftStorage'
+import { draftStorage } from '../services/draftStorage'
 
 interface FileContent {
   content: string
@@ -12,6 +12,10 @@ interface FileContent {
 
 /**
  * Hook to manage editor files state
+ * @param initialFiles Initial files from server
+ * @param scriptKey Script key identifier
+ * @param gistUpdatedAt Gist last updated timestamp
+ * @returns Editor manager object with file state and operations
  */
 export function useEditorManager(initialFiles: Record<string, FileContent>, scriptKey: string, gistUpdatedAt: number) {
   // committedFiles tracks the files as they exist on the server (or after the last save)
@@ -88,6 +92,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Get snapshot of only changed/added/deleted files
+   * @returns Record of file paths to their content (null for deleted files)
    */
   const getDirtySnapshot = useCallback((): Record<string, string | null> => {
     const dirtySnapshot: Record<string, string | null> = {}
@@ -188,6 +193,8 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Update file content
+   * @param filePath Path of the file to update
+   * @param content New content
    */
   const updateFileContent = useCallback(
     (filePath: string, content: string) => {
@@ -227,6 +234,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Add new file
+   * @param filePath Path of the new file
    */
   const addFile = useCallback((filePath: string) => {
     const name = filePath.replace(/\.ts$/, '')
@@ -256,6 +264,8 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Rename file
+   * @param oldPath Old file path
+   * @param newPath New file path
    */
   const renameFile = useCallback(
     (oldPath: string, newPath: string) => {
@@ -310,6 +320,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Delete file
+   * @param filePath Path of the file to delete
    */
   const deleteFile = useCallback(
     (filePath: string) => {
@@ -347,6 +358,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Get current snapshot of all files
+   * @returns Record of all file paths to their content
    */
   const getSnapshot = useCallback((): Record<string, string | null> => {
     const snapshot: Record<string, string | null> = { ...fileContentsRef.current }
@@ -359,6 +371,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Get current file content
+   * @returns Content of the currently selected file
    */
   const getCurrentFileContent = useCallback((): string => {
     if (!selectedFile || deletedFiles.has(selectedFile)) return ''
@@ -367,6 +380,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Reset file content to original
+   * @param filePath Path of the file to reset
    */
   const resetFileContent = useCallback(
     (filePath: string) => {
@@ -404,6 +418,8 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Check if file has unsaved changes
+   * @param filePath Path of the file to check
+   * @returns True if file has changes
    */
   const hasFileChanges = useCallback(
     (filePath: string): boolean => {
@@ -418,6 +434,8 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Get file state for indicator
+   * @param filePath Path of the file
+   * @returns File state: 'synced', 'local', or 'unsaved'
    */
   const getFileState = useCallback(
     (filePath: string): 'synced' | 'local' | 'unsaved' => {
@@ -433,6 +451,8 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
 
   /**
    * Set file error state
+   * @param filePath Path of the file
+   * @param hasError Whether the file has errors
    */
   const setFileHasError = useCallback((filePath: string, hasError: boolean) => {
     setErrorPaths((prev) => {

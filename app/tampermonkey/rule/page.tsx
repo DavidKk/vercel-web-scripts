@@ -1,7 +1,7 @@
 import { getRules, getScripts } from '@/app/actions/tampermonkey'
 import { checkAccess } from '@/services/auth/access'
 
-import Form from './Form'
+import Form from './components/Form'
 
 export default async function RulePage() {
   await checkAccess({ isApiRouter: false, redirectUrl: '/tampermonkey/rule' })

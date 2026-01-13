@@ -1,5 +1,5 @@
-import { BackspaceIcon } from '@heroicons/react/24/solid'
 import { useEffect, useState } from 'react'
+import { FiDelete } from 'react-icons/fi'
 
 import { fuzzySearch } from '@/utils/find'
 
@@ -43,7 +43,7 @@ export function FilterBar<T extends FilterBarItems>(props: FilterBarProps<T>) {
       />
 
       <button className="h-8 flex items-center justify-center text-sm border-gray-300 border rounded-sm box-border px-3" onClick={() => setNameFilter('')} type="button">
-        <BackspaceIcon className="h-4 w-4 text-gray-500" />
+        <FiDelete className="h-4 w-4 text-gray-500" />
       </button>
     </div>
   )
