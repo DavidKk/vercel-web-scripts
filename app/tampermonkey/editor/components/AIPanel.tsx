@@ -76,6 +76,25 @@ const ONE_DARK_THEME = {
 /**
  * AI panel component with diff view for code rewriting
  */
+/**
+ * Detect if the current platform is macOS
+ * @returns true if macOS, false otherwise
+ */
+function isMacOS(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return /Mac|iPhone|iPod|iPad/i.test(navigator.platform) || /Mac/i.test(navigator.userAgent)
+}
+
+/**
+ * Get the keyboard shortcut text based on platform
+ * @returns "Cmd" for macOS, "Ctrl" for Windows/Linux
+ */
+function getShortcutKey(): string {
+  return isMacOS() ? 'Cmd' : 'Ctrl'
+}
+
 export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, language, tampermonkeyTypings, onRewrite, onNavigateToLine, onShowDiffInEditor }: AIPanelProps) {
   const [instruction, setInstruction] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -83,6 +102,9 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const instructionTextareaRef = useRef<HTMLTextAreaElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  // Get shortcut key for placeholder
+  const shortcutKey = getShortcutKey()
 
   /**
    * Reset panel state
@@ -177,7 +199,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
   if (!isOpen) return null
 
   return (
-    <div className="w-96 h-full bg-[#1e1e1e] border-l border-[#2d2d2d] flex flex-col">
+    <div className="w-full h-full bg-[#1e1e1e] border-l border-[#2d2d2d] flex flex-col">
       {/* Chat History - Middle */}
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto min-h-0">
         {chatHistory.length === 0 ? (
@@ -359,16 +381,13 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
               }
             }}
             disabled={isLoading}
-            placeholder="Describe what you want to change... (e.g., 'Add error handling', 'Optimize performance')"
+            placeholder={`Describe what you want to change... (e.g., 'Add error handling', 'Optimize performance') - Press ${shortcutKey} + Enter to submit`}
             className="w-full h-20 px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:ring-2 focus:ring-[#0e639c] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
           />
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <p className="text-xs text-[#5c6370]">Press Cmd/Ctrl + Enter to submit</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#5c6370]">Model:</span>
-                <span className="text-xs text-[#61afef] font-medium">GEMINI</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#5c6370]">Model:</span>
+              <span className="text-xs text-[#61afef] font-medium">GEMINI</span>
             </div>
             <button
               onClick={handleRewrite}

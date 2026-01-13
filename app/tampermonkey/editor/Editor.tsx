@@ -14,6 +14,7 @@ import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
 import { AIPanel } from './components/AIPanel'
 import EditorHeader from './components/EditorHeader'
 import FileTree from './components/FileTree'
+import { Resizer } from './components/Resizer'
 import TabBar from './components/TabBar'
 import { useEditorManager } from './hooks/useEditorManager'
 import { calculateFilesHash, CONFIG_FILES, isDeclarationFile } from './utils'
@@ -55,6 +56,9 @@ export default function Editor(props: EditorProps) {
   const [selectedDiffMessage, setSelectedDiffMessage] = useState<{ original: string; modified: string } | null>(null)
   // Maintain TAB order: use array to preserve opening order
   const [openFiles, setOpenFiles] = useState<string[]>([])
+  // Panel widths for resizable panels
+  const [leftPanelWidth, setLeftPanelWidth] = useState(250)
+  const [rightPanelWidth, setRightPanelWidth] = useState(400)
   const hostIdRef = useRef<string | null>(null)
   const codeEditorRef = useRef<CodeEditorRef>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
@@ -633,8 +637,8 @@ export default function Editor(props: EditorProps) {
         isAIDisabled={!editorManager.selectedFile}
       />
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: File Tree - Fixed Width */}
-        <div className="flex-shrink-0">
+        {/* Left: File Tree - Resizable Width */}
+        <div className="flex-shrink-0" style={{ width: `${leftPanelWidth}px` }}>
           <FileTree
             files={editorFiles}
             selectedFile={editorManager.selectedFile}
@@ -646,6 +650,9 @@ export default function Editor(props: EditorProps) {
             errorPaths={editorManager.errorPaths}
           />
         </div>
+
+        {/* Left Resizer */}
+        <Resizer initialWidth={leftPanelWidth} minWidth={150} maxWidth={600} onResize={setLeftPanelWidth} storageKey="editor-left-panel-width" />
 
         {/* Middle: Code Editor - Flexible */}
         <div className="flex-1 min-w-0 relative flex flex-col">
@@ -707,8 +714,9 @@ export default function Editor(props: EditorProps) {
           </div>
         </div>
 
-        {/* Right: AI Panel - Fixed Width */}
+        {/* Right: AI Panel - Resizable Width */}
         {editorManager.selectedFile &&
+          isAIPanelOpen &&
           (() => {
             const fileLanguage = getFileLanguage(editorManager.selectedFile!)
             // Only show AI panel for TypeScript and JavaScript files
@@ -716,26 +724,40 @@ export default function Editor(props: EditorProps) {
               return null
             }
             return (
-              <div className="flex-shrink-0">
-                <AIPanel
-                  isOpen={isAIPanelOpen}
-                  onClose={() => setIsAIPanelOpen(false)}
-                  onAccept={handleAIAccept}
-                  originalContent={editorManager.getCurrentFileContent()}
-                  filePath={editorManager.selectedFile}
-                  language={fileLanguage}
-                  tampermonkeyTypings={tampermonkeyTypings}
-                  onRewrite={handleAIRewrite}
-                  onNavigateToLine={(lineNumber) => {
-                    if (codeEditorRef.current) {
-                      codeEditorRef.current.navigateToLine(lineNumber)
-                    }
+              <>
+                {/* Right Resizer */}
+                <Resizer
+                  initialWidth={rightPanelWidth}
+                  minWidth={300}
+                  maxWidth={800}
+                  onResize={(newWidth) => {
+                    // Ensure state is updated
+                    setRightPanelWidth(newWidth)
                   }}
-                  onShowDiffInEditor={(original, modified) => {
-                    setSelectedDiffMessage({ original, modified })
-                  }}
+                  storageKey="editor-right-panel-width"
+                  reverse={true}
                 />
-              </div>
+                <div className="flex-shrink-0" style={{ width: `${rightPanelWidth}px` }}>
+                  <AIPanel
+                    isOpen={isAIPanelOpen}
+                    onClose={() => setIsAIPanelOpen(false)}
+                    onAccept={handleAIAccept}
+                    originalContent={editorManager.getCurrentFileContent()}
+                    filePath={editorManager.selectedFile}
+                    language={fileLanguage}
+                    tampermonkeyTypings={tampermonkeyTypings}
+                    onRewrite={handleAIRewrite}
+                    onNavigateToLine={(lineNumber) => {
+                      if (codeEditorRef.current) {
+                        codeEditorRef.current.navigateToLine(lineNumber)
+                      }
+                    }}
+                    onShowDiffInEditor={(original, modified) => {
+                      setSelectedDiffMessage({ original, modified })
+                    }}
+                  />
+                </div>
+              </>
             )
           })()}
       </div>

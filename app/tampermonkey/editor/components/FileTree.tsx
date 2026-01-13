@@ -378,7 +378,7 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
   }
 
   return (
-    <div ref={fileTreePanelRef} className="w-64 h-full bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col relative">
+    <div ref={fileTreePanelRef} className="w-full h-full bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col relative">
       {/* Header */}
       <div className="h-[33px] px-3 text-xs font-semibold text-[#cccccc] uppercase border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-0 z-10 flex items-center justify-between">
         Files
