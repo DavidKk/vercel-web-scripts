@@ -21,6 +21,10 @@ interface FileTreeProps {
   onRenameFile?: (oldPath: string, newPath: string) => void
   getFileState?: (filePath: string) => 'synced' | 'local' | 'unsaved'
   errorPaths?: Set<string>
+  onResetFile?: (filePath: string) => void
+  onShowDiff?: (filePath: string) => void
+  getCommittedContent?: (filePath: string) => string | null
+  getCurrentContent?: (filePath: string) => string | null
 }
 
 /**
@@ -78,7 +82,57 @@ function buildFileTree(files: Record<string, { content: string; rawUrl: string }
   return root
 }
 
-export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFile, onAddFile, onRenameFile, getFileState, errorPaths }: FileTreeProps) {
+/**
+ * Find a node by path in the file tree
+ * @param root Root node of the tree
+ * @param path Path to find
+ * @returns Found node or null
+ */
+function findNodeByPath(root: FileNode, path: string): FileNode | null {
+  // Recursively search through the tree
+  function searchNode(node: FileNode): FileNode | null {
+    if (node.path === path) {
+      return node
+    }
+
+    for (const child of node.children.values()) {
+      const found = searchNode(child)
+      if (found) {
+        return found
+      }
+    }
+
+    return null
+  }
+
+  return searchNode(root)
+}
+
+/**
+ * Detect if running on macOS
+ * @returns True if running on macOS
+ */
+function isMacOS(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return navigator.platform.toUpperCase().indexOf('MAC') >= 0 || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
+}
+
+export default function FileTree({
+  files,
+  selectedFile,
+  onSelectFile,
+  onDeleteFile,
+  onAddFile,
+  onRenameFile,
+  getFileState,
+  errorPaths,
+  onResetFile,
+  onShowDiff,
+  getCommittedContent,
+  getCurrentContent,
+}: FileTreeProps) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [editingPath, setEditingPath] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
@@ -138,6 +192,19 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
       searchInputRef.current.focus()
     }
   }, [isSearchOpen])
+
+  // Auto-focus file tree container when selection changes or rename completes
+  // This allows the container to receive keyboard events like Enter/F2 for renaming
+  // When editingPath becomes null (rename finished), refocus to enable immediate rename again
+  useEffect(() => {
+    if (selectedFile && scrollContainerRef.current && !editingPath && !isSearchOpen) {
+      // Focus the container so it can receive keyboard events
+      // Use setTimeout to ensure DOM is updated and selectedFile is synced after rename
+      setTimeout(() => {
+        scrollContainerRef.current?.focus()
+      }, 0)
+    }
+  }, [selectedFile, editingPath, isSearchOpen])
 
   // Handle search keyboard shortcuts
   useEffect(() => {
@@ -245,10 +312,14 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
         const dirPath = editingPath.includes('/') ? editingPath.substring(0, editingPath.lastIndexOf('/') + 1) : ''
         const newPath = dirPath + editingValue
         onRenameFile?.(editingPath, newPath)
+        // selectedFile will be updated by onRenameFile callback
+        // The useEffect will handle refocusing when selectedFile updates
       }
     }
     setEditingPath(null)
     setEditingValue('')
+    // Don't manually focus here - let useEffect handle it when selectedFile updates
+    // This ensures the new selectedFile path is used for the next rename
   }
 
   const handleStartAdd = () => {
@@ -300,6 +371,20 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
             }
           }}
           onContextMenu={(e) => !node.isDirectory && handleContextMenu(e, node.path, node.name)}
+          onKeyDown={(e) => {
+            if (!node.isDirectory && isSelected) {
+              // macOS: Enter to rename, Windows/Linux: F2 to rename
+              if ((isMacOS() && e.key === 'Enter') || (!isMacOS() && e.key === 'F2')) {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!isEditing) {
+                  setEditingPath(node.path)
+                  setEditingValue(node.name)
+                }
+              }
+            }
+          }}
+          tabIndex={isSelected ? 0 : -1}
         >
           {/* Expand/Collapse icon or State Dot */}
           <div className="w-3 h-3 mr-1 flex items-center justify-center flex-shrink-0">
@@ -330,10 +415,14 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
                 onChange={(e) => setEditingValue(e.target.value)}
                 onBlur={handleFinishRename}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleFinishRename()
+                  if (e.key === 'Enter') {
+                    handleFinishRename()
+                  }
                   if (e.key === 'Escape') {
                     setEditingPath(null)
                     setEditingValue('')
+                    // Restore focus to container after canceling rename
+                    // useEffect will handle refocusing when editingPath becomes null
                   }
                 }}
               />
@@ -436,7 +525,35 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
       )}
 
       {/* File tree - hidden scrollbar but scrollable */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] outline-none focus:ring-0"
+        role="tree"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          // Handle keyboard navigation at tree level
+          // When focus is on the container and a file is selected, Enter/F2 triggers rename
+          if (selectedFile && !editingPath && !isSearchOpen) {
+            // macOS: Enter to rename, Windows/Linux: F2 to rename
+            if ((isMacOS() && e.key === 'Enter') || (!isMacOS() && e.key === 'F2')) {
+              e.preventDefault()
+              e.stopPropagation()
+              // Check if the selected file exists in files (handles path changes after rename)
+              // selectedFile is already updated to the new path after rename
+              if (files[selectedFile]) {
+                // Find the selected file node and trigger rename
+                const selectedNode = findNodeByPath(filteredRoot, selectedFile)
+                if (selectedNode && !selectedNode.isDirectory) {
+                  setEditingPath(selectedFile)
+                  // Extract filename from path
+                  const fileName = selectedFile.split('/').pop() || selectedFile
+                  setEditingValue(fileName)
+                }
+              }
+            }
+          }
+        }}
+      >
         {isAdding && (
           <div className="flex items-center px-2 py-1.5" style={{ paddingLeft: '24px' }}>
             <span className="mr-2 text-sm flex-shrink-0">📘</span>
@@ -501,6 +618,40 @@ export default function FileTree({ files, selectedFile, onSelectFile, onDeleteFi
           >
             Rename
           </button>
+          {onResetFile && getFileState?.(contextMenu.path) !== 'synced' && (
+            <button
+              className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
+              onClick={() => {
+                if (window.confirm(`Are you sure you want to reset ${contextMenu.name} to its original content? All unsaved changes will be lost.`)) {
+                  onResetFile(contextMenu.path)
+                }
+                setContextMenu(null)
+              }}
+            >
+              Reset
+            </button>
+          )}
+          {onShowDiff &&
+            getFileState?.(contextMenu.path) !== 'synced' &&
+            (() => {
+              const committedContent = getCommittedContent?.(contextMenu.path) || ''
+              const currentContent = getCurrentContent?.(contextMenu.path) || ''
+              // Only show Diff if content actually differs
+              if (committedContent === currentContent) {
+                return null
+              }
+              return (
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
+                  onClick={() => {
+                    onShowDiff(contextMenu.path)
+                    setContextMenu(null)
+                  }}
+                >
+                  Diff
+                </button>
+              )
+            })()}
           <button
             className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#ce3c3c] hover:text-white transition-colors"
             onClick={() => {

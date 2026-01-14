@@ -31,8 +31,14 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
   const lastPersistedContentsRef = useRef<Record<string, string | null>>({})
 
   // Update committed files when prop changes (e.g. after router.refresh())
+  // Use JSON.stringify to compare content instead of object reference
+  const initialFilesStringRef = useRef<string>('')
   useEffect(() => {
-    setCommittedFiles(initialFiles)
+    const currentString = JSON.stringify(initialFiles)
+    if (currentString !== initialFilesStringRef.current) {
+      initialFilesStringRef.current = currentString
+      setCommittedFiles(initialFiles)
+    }
   }, [initialFiles])
 
   // Conflict resolution and draft loading
@@ -385,12 +391,23 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
   const resetFileContent = useCallback(
     (filePath: string) => {
       if (addedFiles[filePath]) {
+        // Remove from added files
         setAddedFiles((prev) => {
           const next = { ...prev }
           delete next[filePath]
+          // Recalculate hasUnsavedChanges
+          const hasChanges =
+            deletedFiles.size > 0 ||
+            Object.keys(next).length > 0 ||
+            unsavedPaths.size > 0 ||
+            Object.keys(fileContentsRef.current).some(
+              (file) => !deletedFiles.has(file) && next[file] === undefined && fileContentsRef.current[file] !== committedFiles[file]?.content
+            )
+          setHasUnsavedChanges(hasChanges)
           return next
         })
         delete fileContentsRef.current[filePath]
+        delete lastPersistedContentsRef.current[filePath]
         setUnsavedPaths((prev) => {
           const next = new Set(prev)
           next.delete(filePath)
@@ -398,22 +415,40 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
         })
         if (selectedFile === filePath) setSelectedFile(null)
       } else if (committedFiles[filePath]) {
+        // Reset to committed content
         const originalContent = committedFiles[filePath].content
         fileContentsRef.current[filePath] = originalContent
+        // Reset persisted content to committed content
+        lastPersistedContentsRef.current[filePath] = originalContent
+
+        // Remove from deleted files and recalculate state
         setDeletedFiles((prev) => {
           const next = new Set(prev)
           next.delete(filePath)
+
+          // Remove from unsaved paths
+          setUnsavedPaths((prevUnsaved) => {
+            const nextUnsaved = new Set(prevUnsaved)
+            nextUnsaved.delete(filePath)
+
+            // Recalculate hasUnsavedChanges with updated state
+            const hasChanges =
+              next.size > 0 ||
+              Object.keys(addedFiles).length > 0 ||
+              nextUnsaved.size > 0 ||
+              Object.keys(fileContentsRef.current).some(
+                (file) => !next.has(file) && addedFiles[file] === undefined && fileContentsRef.current[file] !== committedFiles[file]?.content
+              )
+
+            setHasUnsavedChanges(hasChanges)
+            return nextUnsaved
+          })
+
           return next
         })
-        setUnsavedPaths((prev) => {
-          const next = new Set(prev)
-          next.delete(filePath)
-          return next
-        })
-        updateFileContent(filePath, originalContent)
       }
     },
-    [committedFiles, updateFileContent, addedFiles, selectedFile]
+    [committedFiles, addedFiles, selectedFile, deletedFiles, unsavedPaths]
   )
 
   /**
@@ -490,5 +525,7 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
     deletedFiles,
     addFile,
     renameFile,
+    committedFiles,
+    fileContentsRef,
   }
 }

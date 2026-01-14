@@ -2,21 +2,24 @@
 
 import { useRequest } from 'ahooks'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { rewriteCode } from '@/app/api/ai/actions'
 import { updateFiles } from '@/app/api/scripts/actions'
 import CodeEditor, { type CodeEditorRef } from '@/components/Editor/CodeEditor'
-import { EDITOR_SUPPORTED_EXTENSIONS, ENTRY_SCRIPT_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { EDITOR_SUPPORTED_EXTENSIONS, ENTRY_SCRIPT_FILE, ENTRY_SCRIPT_RULES_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
+import type { RuleConfig } from '@/services/tampermonkey/types'
 
 import { AIPanel } from './components/AIPanel'
 import EditorHeader from './components/EditorHeader'
 import FileTree from './components/FileTree'
 import { Resizer } from './components/Resizer'
+import { RulePanel } from './components/RulePanel'
 import TabBar from './components/TabBar'
 import { useEditorManager } from './hooks/useEditorManager'
+import { draftStorage } from './services/draftStorage'
 import { calculateFilesHash, CONFIG_FILES, isDeclarationFile } from './utils'
 
 /**
@@ -42,27 +45,45 @@ export interface EditorProps {
   scriptKey: string
   updatedAt: number
   tampermonkeyTypings: string
+  rules: RuleConfig[]
 }
 
 const EDITOR_DEV_MODE_STORAGE_KEY = 'editor-dev-mode-enabled'
 
 export default function Editor(props: EditorProps) {
-  const { files: inFiles, scriptKey, updatedAt, tampermonkeyTypings } = props
+  const { files: inFiles, scriptKey, updatedAt, tampermonkeyTypings, rules: initialRules } = props
   const router = useRouter()
-  const editorManager = useEditorManager(inFiles, scriptKey, updatedAt)
+
+  // Add rules file to files for editorManager
+  // Use useMemo to prevent infinite loop from object reference changes
+  const filesWithRules = useMemo(() => {
+    return {
+      ...inFiles,
+      [ENTRY_SCRIPT_RULES_FILE]: {
+        content: JSON.stringify(initialRules, null, 2),
+        rawUrl: '',
+      },
+    }
+  }, [inFiles, initialRules])
+
+  const editorManager = useEditorManager(filesWithRules, scriptKey, updatedAt)
   // Initialize as false to avoid hydration mismatch, restore from localStorage in useEffect
   const [isEditorDevMode, setIsEditorDevMode] = useState(false)
-  const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
+  const [rightPanelType, setRightPanelType] = useState<'ai' | 'rules' | null>(null)
   const [selectedDiffMessage, setSelectedDiffMessage] = useState<{ original: string; modified: string } | null>(null)
   // Maintain TAB order: use array to preserve opening order
   const [openFiles, setOpenFiles] = useState<string[]>([])
   // Panel widths for resizable panels
   const [leftPanelWidth, setLeftPanelWidth] = useState(250)
   const [rightPanelWidth, setRightPanelWidth] = useState(400)
+  // Rules state
+  const [rules, setRules] = useState<RuleConfig[]>(initialRules)
+  const [hasRuleChanges, setHasRuleChanges] = useState(false)
   const hostIdRef = useRef<string | null>(null)
   const codeEditorRef = useRef<CodeEditorRef>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const lastSentFilesHashRef = useRef<string | null>(null)
+  const handleCompileRef = useRef<(() => Promise<void>) | null>(null)
 
   // Restore dev mode state from localStorage after mount (client-side only)
   useEffect(() => {
@@ -74,8 +95,45 @@ export default function Editor(props: EditorProps) {
     }
   }, [])
 
+  // Load rules draft from IndexedDB on mount and sync with editorManager
+  useEffect(() => {
+    async function loadRulesDraft() {
+      if (!editorManager.isInitialized) {
+        return
+      }
+
+      const drafts = await draftStorage.getFiles(scriptKey)
+      if (drafts && drafts[ENTRY_SCRIPT_RULES_FILE]) {
+        const draft = drafts[ENTRY_SCRIPT_RULES_FILE]
+        // If draft is newer than initial load, use it
+        if (draft.content && draft.updatedAt > updatedAt) {
+          try {
+            const draftRules = JSON.parse(draft.content)
+            if (Array.isArray(draftRules)) {
+              setRules(draftRules)
+              setHasRuleChanges(true)
+              // Update editorManager with draft content
+              editorManager.updateFileContent(ENTRY_SCRIPT_RULES_FILE, draft.content)
+            }
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to parse rules draft:', error)
+          }
+        }
+      }
+    }
+    loadRulesDraft()
+  }, [scriptKey, updatedAt, editorManager.isInitialized])
+
+  // Sync rules when props change (e.g., after save and refresh)
+  useEffect(() => {
+    if (!hasRuleChanges) {
+      setRules(initialRules)
+    }
+  }, [initialRules, hasRuleChanges])
+
   // Use custom hook to handle page leave confirmation
-  useBeforeUnload(editorManager.hasUnsavedChanges, 'You have unsaved changes. Are you sure you want to leave?')
+  useBeforeUnload(editorManager.hasUnsavedChanges || hasRuleChanges, 'You have unsaved changes. Are you sure you want to leave?')
 
   // Track previous selected file to handle TAB switching logic
   const previousSelectedFileRef = useRef<string | null>(null)
@@ -151,15 +209,53 @@ export default function Editor(props: EditorProps) {
   }, [editorManager.unsavedPaths, editorManager.hasFileChanges])
 
   /**
+   * Fetch rules from local tampermonkey.rules.json file
+   * @returns Rules array from local file
+   */
+  function fetchRulesFromLocal(): RuleConfig[] {
+    try {
+      // Get rules file content from editorManager
+      // First try to get from fileContentsRef (current content), then from committedFiles
+      const currentContent = editorManager.fileContentsRef.current[ENTRY_SCRIPT_RULES_FILE]
+      const committedContent = editorManager.committedFiles[ENTRY_SCRIPT_RULES_FILE]?.content
+      const rulesContent = currentContent || committedContent
+
+      if (!rulesContent) {
+        return initialRules
+      }
+
+      const rules = JSON.parse(rulesContent)
+      if (Array.isArray(rules)) {
+        return rules
+      }
+
+      return initialRules
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to parse rules from local file:', error)
+      return initialRules // Fallback to initial rules
+    }
+  }
+
+  /**
    * Handle file selection - switch to the selected file
    * VS Code behavior:
    * - If current file has no changes, switch TAB (replace current TAB)
    * - If current file has changes, open new TAB (keep current TAB)
+   * Also refreshes rules if the selected file is a script file
    * @param filePath Path of the file to switch to
    */
-  function handleFileSelect(filePath: string) {
+  async function handleFileSelect(filePath: string) {
     editorManager.setSelectedFile(filePath)
     // TAB management is handled in useEffect based on file changes
+
+    // Refresh rules when selecting a script file
+    if (SCRIPTS_FILE_EXTENSION.some((ext) => filePath.endsWith(ext))) {
+      const freshRules = fetchRulesFromLocal()
+      setRules(freshRules)
+      // Reset rule changes flag since we're loading fresh rules from local file
+      setHasRuleChanges(false)
+    }
   }
 
   /**
@@ -243,37 +339,64 @@ export default function Editor(props: EditorProps) {
    */
   const { run: save, loading } = useRequest(
     async () => {
-      // Check if there are unsaved changes before saving
-      if (!editorManager.hasUnsavedChanges) {
+      const filesToUpdate = []
+
+      // Save file changes
+      if (editorManager.hasUnsavedChanges) {
+        const snapshot = editorManager.getDirtySnapshot()
+
+        for (const [file, content] of Object.entries(snapshot)) {
+          if (content === null) {
+            filesToUpdate.push({ file, content: null })
+            continue
+          }
+
+          if (!content.trim()) {
+            alert(`File "${file}" cannot be empty.`)
+            return
+          }
+
+          filesToUpdate.push({ file, content })
+        }
+      }
+
+      // Save rule changes
+      if (hasRuleChanges) {
+        // Filter out empty rules (wildcard is empty or only whitespace)
+        const filteredRules = rules.filter((rule) => rule.wildcard && rule.wildcard.trim().length > 0)
+        const rulesContent = JSON.stringify(filteredRules, null, 2)
+        filesToUpdate.push({ file: ENTRY_SCRIPT_RULES_FILE, content: rulesContent })
+      }
+
+      if (filesToUpdate.length === 0) {
         // eslint-disable-next-line no-console
         console.log('[Save] No changes to save')
         return
       }
 
-      const snapshot = editorManager.getDirtySnapshot()
-      const filesToUpdate = []
-
-      for (const [file, content] of Object.entries(snapshot)) {
-        if (content === null) {
-          filesToUpdate.push({ file, content: null })
-          continue
-        }
-
-        if (!content.trim()) {
-          alert(`File "${file}" cannot be empty.`)
-          return
-        }
-
-        filesToUpdate.push({ file, content })
-      }
-
-      if (filesToUpdate.length === 0) {
-        return
-      }
       await updateFiles(...filesToUpdate)
 
       // Mark files as saved to reset hasUnsavedChanges
-      editorManager.markAsSaved()
+      if (editorManager.hasUnsavedChanges) {
+        editorManager.markAsSaved()
+      }
+
+      // Reset rule changes and clear local draft
+      if (hasRuleChanges) {
+        setHasRuleChanges(false)
+        // Clear rules draft from IndexedDB after successful save
+        const drafts = await draftStorage.getFiles(scriptKey)
+        if (drafts && drafts[ENTRY_SCRIPT_RULES_FILE]) {
+          const updatedDrafts = { ...drafts }
+          delete updatedDrafts[ENTRY_SCRIPT_RULES_FILE]
+          if (Object.keys(updatedDrafts).length === 0) {
+            await draftStorage.clearFiles(scriptKey)
+          } else {
+            await draftStorage.saveFiles(scriptKey, updatedDrafts)
+          }
+        }
+      }
+
       // Refresh the page to get the latest files from the server
       router.refresh()
     },
@@ -282,6 +405,32 @@ export default function Editor(props: EditorProps) {
       throttleWait: 1e3,
     }
   )
+
+  /**
+   * Handle rules change
+   * @param updatedRules Updated rule configurations
+   */
+  function handleRulesChange(updatedRules: RuleConfig[]) {
+    setRules(updatedRules)
+    setHasRuleChanges(true)
+
+    // Update editorManager with new rules content to show file as edited
+    updateRulesInEditorManager()
+  }
+
+  /**
+   * Update rules content in editorManager
+   * This makes the rules file show as edited in the file tree
+   */
+  function updateRulesInEditorManager() {
+    // Filter out empty rules
+    const filteredRules = rules.filter((rule) => rule.wildcard && rule.wildcard.trim().length > 0)
+    const rulesContent = JSON.stringify(filteredRules, null, 2)
+
+    // Update editorManager with current rules content
+    // This will mark the file as having changes
+    editorManager.updateFileContent(ENTRY_SCRIPT_RULES_FILE, rulesContent)
+  }
 
   /**
    * Compile and send editor files for dev mode
@@ -394,14 +543,41 @@ export default function Editor(props: EditorProps) {
    * Compile files (triggered by CMD+S)
    * Always persists to local IndexedDB, and also compiles if in dev mode
    */
-  const handleCompile = () => {
-    // Always persist to local storage on Cmd+S
-    editorManager.persistLocal()
+  const handleCompile = async () => {
+    // Update rules content in editorManager first
+    updateRulesInEditorManager()
+
+    // Then persist all files (including rules) to local storage
+    await editorManager.persistLocal()
 
     if (isEditorDevMode && editorManager.hasUnsavedChanges) {
       sendEditorFiles(true) // Force compilation
     }
   }
+
+  // Update handleCompile ref
+  useEffect(() => {
+    handleCompileRef.current = handleCompile
+  }, [handleCompile])
+
+  // Handle CMD+S / CTRL+S globally to prevent browser save dialog
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Check for CMD+S (Mac) or CTRL+S (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (handleCompileRef.current) {
+          handleCompileRef.current()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   // Initialize editor dev mode
   useEffect(() => {
@@ -592,6 +768,67 @@ export default function Editor(props: EditorProps) {
   }
 
   /**
+   * Handle reset file to original content
+   * @param filePath Path of the file to reset
+   */
+  function handleResetFile(filePath: string) {
+    editorManager.resetFileContent(filePath)
+    // The editor will automatically update when getCurrentFileContent changes
+  }
+
+  /**
+   * Handle show diff for a file
+   * @param filePath Path of the file to show diff
+   */
+  function handleShowDiff(filePath: string) {
+    const committedContent = editorManager.committedFiles[filePath]?.content || ''
+    const currentContent = editorManager.getCurrentFileContent() || ''
+
+    // If this file is currently selected, show diff in editor
+    if (editorManager.selectedFile === filePath) {
+      setSelectedDiffMessage({
+        original: committedContent,
+        modified: currentContent,
+      })
+    } else {
+      // Otherwise, select the file first, then show diff
+      editorManager.setSelectedFile(filePath)
+      // Use setTimeout to ensure the file is selected before showing diff
+      setTimeout(() => {
+        setSelectedDiffMessage({
+          original: committedContent,
+          modified: editorManager.getCurrentFileContent() || '',
+        })
+      }, 100)
+    }
+  }
+
+  /**
+   * Get committed content for a file
+   * @param filePath Path of the file
+   * @returns Committed content or null
+   */
+  function getCommittedContent(filePath: string): string | null {
+    return editorManager.committedFiles[filePath]?.content || null
+  }
+
+  /**
+   * Get current content for a file
+   * @param filePath Path of the file
+   * @returns Current content or null
+   */
+  function getCurrentContent(filePath: string): string | null {
+    if (editorManager.deletedFiles.has(filePath)) {
+      return null
+    }
+    // Use getCurrentFileContent if it's the selected file, otherwise get from refs
+    if (editorManager.selectedFile === filePath) {
+      return editorManager.getCurrentFileContent()
+    }
+    return editorManager.fileContentsRef.current[filePath] ?? editorManager.committedFiles[filePath]?.content ?? null
+  }
+
+  /**
    * Handle AI rewrite request
    */
   async function handleAIRewrite(instruction: string): Promise<string> {
@@ -620,7 +857,14 @@ export default function Editor(props: EditorProps) {
       alert('Please select a file first')
       return
     }
-    setIsAIPanelOpen((prev) => !prev)
+    setRightPanelType((prev) => (prev === 'ai' ? null : 'ai'))
+  }
+
+  /**
+   * Handle Rules panel toggle
+   */
+  function handleToggleRulesPanel() {
+    setRightPanelType((prev) => (prev === 'rules' ? null : 'rules'))
   }
 
   return (
@@ -633,8 +877,10 @@ export default function Editor(props: EditorProps) {
         onToggleEditorDevMode={handleToggleEditorDevMode}
         isCompiling={isCompiling}
         onToggleAI={handleToggleAIPanel}
-        isAIOpen={isAIPanelOpen}
+        isAIOpen={rightPanelType === 'ai'}
         isAIDisabled={!editorManager.selectedFile}
+        onToggleRules={handleToggleRulesPanel}
+        isRulesOpen={rightPanelType === 'rules'}
       />
       <div className="flex-1 flex overflow-hidden">
         {/* Left: File Tree - Resizable Width */}
@@ -648,6 +894,10 @@ export default function Editor(props: EditorProps) {
             onRenameFile={editorManager.renameFile}
             getFileState={editorManager.getFileState}
             errorPaths={editorManager.errorPaths}
+            onResetFile={handleResetFile}
+            onShowDiff={handleShowDiff}
+            getCommittedContent={getCommittedContent}
+            getCurrentContent={getCurrentContent}
           />
         </div>
 
@@ -671,7 +921,7 @@ export default function Editor(props: EditorProps) {
           )}
 
           {/* Code Editor */}
-          <div className="flex-1 min-w-0 relative">
+          <div className="flex-1 min-w-0 relative" style={{ minHeight: 0 }}>
             {editorManager.selectedFile ? (
               <CodeEditor
                 content={editorManager.getCurrentFileContent()}
@@ -714,52 +964,54 @@ export default function Editor(props: EditorProps) {
           </div>
         </div>
 
-        {/* Right: AI Panel - Resizable Width */}
-        {editorManager.selectedFile &&
-          isAIPanelOpen &&
-          (() => {
-            const fileLanguage = getFileLanguage(editorManager.selectedFile!)
-            // Only show AI panel for TypeScript and JavaScript files
-            if (fileLanguage === 'json') {
-              return null
-            }
-            return (
-              <>
-                {/* Right Resizer */}
-                <Resizer
-                  initialWidth={rightPanelWidth}
-                  minWidth={300}
-                  maxWidth={800}
-                  onResize={(newWidth) => {
-                    // Ensure state is updated
-                    setRightPanelWidth(newWidth)
-                  }}
-                  storageKey="editor-right-panel-width"
-                  reverse={true}
-                />
-                <div className="flex-shrink-0" style={{ width: `${rightPanelWidth}px` }}>
-                  <AIPanel
-                    isOpen={isAIPanelOpen}
-                    onClose={() => setIsAIPanelOpen(false)}
-                    onAccept={handleAIAccept}
-                    originalContent={editorManager.getCurrentFileContent()}
-                    filePath={editorManager.selectedFile}
-                    language={fileLanguage}
-                    tampermonkeyTypings={tampermonkeyTypings}
-                    onRewrite={handleAIRewrite}
-                    onNavigateToLine={(lineNumber) => {
-                      if (codeEditorRef.current) {
-                        codeEditorRef.current.navigateToLine(lineNumber)
-                      }
-                    }}
-                    onShowDiffInEditor={(original, modified) => {
-                      setSelectedDiffMessage({ original, modified })
-                    }}
-                  />
-                </div>
-              </>
-            )
-          })()}
+        {/* Right: Panel (AI or Rules) - Resizable Width */}
+        {rightPanelType && (
+          <>
+            {/* Right Resizer */}
+            <Resizer
+              initialWidth={rightPanelWidth}
+              minWidth={300}
+              maxWidth={800}
+              onResize={(newWidth) => {
+                setRightPanelWidth(newWidth)
+              }}
+              storageKey="editor-right-panel-width"
+              reverse={true}
+            />
+            <div className="flex-shrink-0" style={{ width: `${rightPanelWidth}px` }}>
+              {rightPanelType === 'ai' &&
+                editorManager.selectedFile &&
+                (() => {
+                  const fileLanguage = getFileLanguage(editorManager.selectedFile!)
+                  // Only show AI panel for TypeScript and JavaScript files
+                  if (fileLanguage === 'json') {
+                    return null
+                  }
+                  return (
+                    <AIPanel
+                      isOpen={true}
+                      onClose={() => setRightPanelType(null)}
+                      onAccept={handleAIAccept}
+                      originalContent={editorManager.getCurrentFileContent()}
+                      filePath={editorManager.selectedFile}
+                      language={fileLanguage}
+                      tampermonkeyTypings={tampermonkeyTypings}
+                      onRewrite={handleAIRewrite}
+                      onNavigateToLine={(lineNumber) => {
+                        if (codeEditorRef.current) {
+                          codeEditorRef.current.navigateToLine(lineNumber)
+                        }
+                      }}
+                      onShowDiffInEditor={(original, modified) => {
+                        setSelectedDiffMessage({ original, modified })
+                      }}
+                    />
+                  )
+                })()}
+              {rightPanelType === 'rules' && <RulePanel allRules={rules} selectedFile={editorManager.selectedFile} onRulesChange={handleRulesChange} />}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

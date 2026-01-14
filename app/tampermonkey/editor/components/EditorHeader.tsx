@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { FiLogOut, FiPlay, FiPlayCircle, FiRefreshCw, FiSave, FiZap } from 'react-icons/fi'
+import { LuAsterisk } from 'react-icons/lu'
 
 import { Spinner } from '@/components/Spinner'
 
@@ -19,6 +20,10 @@ interface EditorHeaderProps {
   isAIOpen?: boolean
   /** Whether AI button should be disabled */
   isAIDisabled?: boolean
+  /** Callback to toggle Rules panel */
+  onToggleRules?: () => void
+  /** Whether Rules panel is open */
+  isRulesOpen?: boolean
 }
 
 /**
@@ -34,6 +39,8 @@ export default function EditorHeader({
   onToggleAI,
   isAIOpen = false,
   isAIDisabled = false,
+  onToggleRules,
+  isRulesOpen = false,
 }: EditorHeaderProps) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
@@ -85,6 +92,21 @@ export default function EditorHeader({
 
       {/* Right: Action buttons */}
       <div className="flex items-center gap-2">
+        {/* Rules button */}
+        {onToggleRules && (
+          <button
+            onClick={onToggleRules}
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+              isRulesOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title={isRulesOpen ? 'Close URL Rules panel' : 'Open URL Rules panel'}
+          >
+            <LuAsterisk className="w-4 h-4" />
+            <span className="text-sm">Rules</span>
+          </button>
+        )}
+
         {/* AI Rewrite button */}
         {onToggleAI && (
           <button

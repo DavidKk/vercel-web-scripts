@@ -41,6 +41,7 @@ export function Resizer({
   const [isDragging, setIsDragging] = useState(false)
   const [width, setWidth] = useState(initialWidth)
   const startXRef = useRef(0)
+  const startYRef = useRef(0)
   const startWidthRef = useRef(initialWidth)
   const isDraggingRef = useRef(false)
   const onResizeRef = useRef(onResize)
@@ -102,28 +103,42 @@ export function Resizer({
   const handleMouseMoveRef = useRef<(event: MouseEvent) => void>((event: MouseEvent) => {
     if (!isDraggingRef.current) return
 
-    const deltaX = event.clientX - startXRef.current
-    let adjustedDeltaX: number
-
-    if (reverseRef.current) {
-      // For right-side panels: Resizer is on the left side of the panel
-      // When dragging left (deltaX < 0), the resizer moves left, panel should expand
-      // When dragging right (deltaX > 0), the resizer moves right, panel should shrink
-      // So we need to reverse: newWidth = startWidth - deltaX
-      // Left drag: deltaX < 0 -> -deltaX > 0 -> width increases ✓
-      // Right drag: deltaX > 0 -> -deltaX < 0 -> width decreases ✓
-      adjustedDeltaX = -deltaX
+    let delta: number
+    if (direction === 'vertical') {
+      // For vertical resizer: use clientY
+      const deltaY = event.clientY - startYRef.current
+      if (reverseRef.current) {
+        // For bottom panels: Resizer is above the panel
+        // When dragging up (deltaY < 0), the resizer moves up, panel should expand
+        // When dragging down (deltaY > 0), the resizer moves down, panel should shrink
+        // So we need to reverse: newHeight = startHeight - deltaY
+        delta = -deltaY
+      } else {
+        // For top panels: Resizer is below the panel
+        // When dragging down (deltaY > 0), the resizer moves down, panel should expand
+        // When dragging up (deltaY < 0), the resizer moves up, panel should shrink
+        // So we use normal: newHeight = startHeight + deltaY
+        delta = deltaY
+      }
     } else {
-      // For left-side panels: Resizer is on the right side of the panel
-      // When dragging right (deltaX > 0), the resizer moves right, panel should expand
-      // When dragging left (deltaX < 0), the resizer moves left, panel should shrink
-      // So we use normal: newWidth = startWidth + deltaX
-      // Right drag: deltaX > 0 -> width increases ✓
-      // Left drag: deltaX < 0 -> width decreases ✓
-      adjustedDeltaX = deltaX
+      // For horizontal resizer: use clientX
+      const deltaX = event.clientX - startXRef.current
+      if (reverseRef.current) {
+        // For right-side panels: Resizer is on the left side of the panel
+        // When dragging left (deltaX < 0), the resizer moves left, panel should expand
+        // When dragging right (deltaX > 0), the resizer moves right, panel should shrink
+        // So we need to reverse: newWidth = startWidth - deltaX
+        delta = -deltaX
+      } else {
+        // For left-side panels: Resizer is on the right side of the panel
+        // When dragging right (deltaX > 0), the resizer moves right, panel should expand
+        // When dragging left (deltaX < 0), the resizer moves left, panel should shrink
+        // So we use normal: newWidth = startWidth + deltaX
+        delta = deltaX
+      }
     }
 
-    const newWidth = startWidthRef.current + adjustedDeltaX
+    const newWidth = startWidthRef.current + delta
     const clampedWidth = Math.max(minWidthRef.current, Math.min(maxWidthRef.current, newWidth))
 
     // Update internal state and notify parent
@@ -159,6 +174,7 @@ export function Resizer({
     isDraggingRef.current = true
     setIsDragging(true)
     startXRef.current = event.clientX
+    startYRef.current = event.clientY
     startWidthRef.current = width
 
     if (onResizeStartRef.current) {
@@ -183,7 +199,7 @@ export function Resizer({
 
   return (
     <div
-      className={`relative flex-shrink-0 cursor-col-resize hover:bg-[#007acc] transition-colors ${isDragging ? 'bg-[#007acc]' : 'bg-[#3c3c3c]'}`}
+      className={`relative flex-shrink-0 ${direction === 'horizontal' ? 'cursor-col-resize' : 'cursor-row-resize'} hover:bg-[#007acc] transition-colors ${isDragging ? 'bg-[#007acc]' : 'bg-[#3c3c3c]'}`}
       style={{ width: direction === 'horizontal' ? '4px' : '100%', height: direction === 'horizontal' ? '100%' : '4px' }}
       onMouseDown={handleMouseDown}
       role="separator"

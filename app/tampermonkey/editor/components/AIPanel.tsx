@@ -382,7 +382,7 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
             }}
             disabled={isLoading}
             placeholder={`Describe what you want to change... (e.g., 'Add error handling', 'Optimize performance') - Press ${shortcutKey} + Enter to submit`}
-            className="w-full h-20 px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:ring-2 focus:ring-[#0e639c] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
+            className="w-full h-20 px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:ring-2 focus:ring-[#0e639c] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
