@@ -49,8 +49,19 @@
   bottom: 10%;
   left: var(--cw-right-hidden);
   z-index: 2147483647;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  transition: left var(--cw-duration) var(--cw-easing), opacity var(--cw-duration) var(--cw-easing);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    'Apple Color Emoji',
+    'Segoe UI Emoji';
+  transition:
+    left var(--cw-duration) var(--cw-easing),
+    opacity var(--cw-duration) var(--cw-easing);
   opacity: 0.4; /* Default opacity 40% */
 }
 
@@ -82,7 +93,7 @@
   border-radius: var(--cw-radius);
   overflow: hidden;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -103,7 +114,7 @@
   height: var(--cw-button-size);
   font-size: var(--cw-drag-size);
   color: #8b8b8b;
-  opacity: .7;
+  opacity: 0.7;
   cursor: grab;
   user-select: none;
   letter-spacing: -2px;
@@ -156,13 +167,13 @@
   transition: all var(--cw-duration) ease;
 }
 
-.corner-widget__toggle:hover { 
-  background: #39404a; 
+.corner-widget__toggle:hover {
+  background: #39404a;
   transform: scale(1.05);
 }
 
-.corner-widget__toggle:active { 
-  transform: scale(0.95); 
+.corner-widget__toggle:active {
+  transform: scale(0.95);
 }
 
 .corner-widget__panel {
@@ -197,7 +208,7 @@
   padding: var(--cw-item-padding);
   border-radius: var(--cw-radius-small);
   background: #1e2126;
-  border: 1px solid rgba(255,255,255,.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
   font-size: var(--cw-font-small);
   line-height: 1.3;
@@ -207,7 +218,7 @@
 
 .corner-widget__item:hover {
   background: #262b32;
-  border-color: rgba(255,255,255,.12);
+  border-color: rgba(255, 255, 255, 0.12);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -217,7 +228,7 @@
 }
 
 .corner-widget__item-hint {
-  opacity: .5;
+  opacity: 0.5;
   font-size: var(--cw-font-xs);
 }
 
@@ -229,7 +240,7 @@
   top: 0;
   min-width: 120px;
   background: #1e2126;
-  border: 1px solid rgba(255,255,255,.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--cw-radius-small);
   padding: calc(var(--cw-spacing) * 0.33);
   margin: 0;
@@ -238,7 +249,9 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   opacity: 0;
   visibility: hidden;
-  transition: opacity var(--cw-duration) ease, visibility var(--cw-duration) ease;
+  transition:
+    opacity var(--cw-duration) ease,
+    visibility var(--cw-duration) ease;
 }
 
 .corner-widget__submenu--open {
@@ -258,7 +271,7 @@
 }
 
 /* Parent item styles when it has a submenu */
-.corner-widget__item[data-has-children="true"] {
+.corner-widget__item[data-has-children='true'] {
   position: relative;
 }
 
@@ -298,17 +311,29 @@
 
 /* Small badge hint: ping once when collapsed to draw attention */
 @keyframes ping {
-  0% { transform: scale(1); opacity: .8;}
-  80% { transform: scale(1.8); opacity: 0;}
-  100% { transform: scale(1.8); opacity: 0;}
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  80% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
 }
 
 .corner-widget__badge {
   position: absolute;
-  top: -3px; right: -3px;
-  width: var(--cw-badge-size); height: var(--cw-badge-size); border-radius: 999px;
+  top: -3px;
+  right: -3px;
+  width: var(--cw-badge-size);
+  height: var(--cw-badge-size);
+  border-radius: 999px;
   background: #22c55e;
-  animation: ping 1.4s cubic-bezier(0,0,.2,1) 1;
+  animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) 1;
 }
 
 /* Main floating dock (makes the "default peek" more visible) */
@@ -319,7 +344,7 @@
   height: var(--cw-dock-height);
   border-radius: var(--cw-radius-xs) 0 0 var(--cw-radius-xs);
   background: #1e2126;
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-right: none;
   top: var(--cw-dock-top);
 }

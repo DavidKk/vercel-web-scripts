@@ -1,3 +1,5 @@
+/// <reference path="./editor-typings.d.ts" />
+
 // Type declarations for this file (types from stackblitz/typings.d.ts)
 // __BASE_URL__ is declared in stackblitz/typings.d.ts
 declare interface GMXMLHttpRequestResponse {
@@ -398,9 +400,10 @@ interface PollForOptions {
   useIdleCallback?: boolean
 }
 
-type AsyncQuery =
-  | (() => (HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null)
-  | (() => Promise<(HTMLElement | SVGElement)[] | HTMLElement | SVGElement | NodeListOf<Element> | Element[] | any[] | null>)
+/**
+ * AsyncQuery type is declared in editor-typings.d.ts
+ * This file uses it but doesn't redeclare it to avoid duplicate identifier errors
+ */
 
 /**
  * Helper function to check if an element is a valid element (HTMLElement or SVGElement)

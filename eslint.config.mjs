@@ -8,16 +8,7 @@ import tsConfig from './eslintrc/ts.mjs'
 
 export default [
   {
-    ignores: [
-      '.next/**/*',
-      '.husky/**/*',
-      'coverage/**/*',
-      'node_modules',
-      'test-results/**/*',
-      'playwright-report/**/*',
-      'blob-report/**/*',
-      'public/gm-template/editor-typings.d.ts',
-    ],
+    ignores: ['.next/**/*', '.husky/**/*', 'coverage/**/*', 'node_modules', 'test-results/**/*', 'playwright-report/**/*', 'blob-report/**/*'],
   },
   {
     languageOptions: {

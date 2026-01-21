@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 
 import { getGistInfo } from '@/services/gist'
 
-import { compileScripts, fetchAndCompileMainScript, fetchCoreScripts, fetchCoreUIs } from './gmCore'
+import { compileMainScript, compileScripts, getCoreScriptsSource, getMainScriptSource, loadCoreUIsInline } from './gmCore'
 import { DEFAULT_GRANTS, GRANTS } from './grant'
 import { clearMeta } from './meta'
 
@@ -13,7 +13,14 @@ export interface CreateBannerParams {
   version: string
 }
 
-export async function createBanner({ grant, connect, scriptUrl, version }: CreateBannerParams) {
+/**
+ * Create banner for Tampermonkey script
+ * Uses inline imports (?raw) to load static resources at build time
+ * No runtime fetch needed, works in both Node.js and Edge Runtime
+ * @param params Banner creation parameters
+ * @returns Function that generates the final script content
+ */
+export function createBanner({ grant, connect, scriptUrl, version }: CreateBannerParams) {
   const key = getTampermonkeyScriptKey()
   const uri = new URL(scriptUrl)
   const { protocol, hostname, port } = uri
@@ -23,10 +30,11 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
   const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/tampermonkey/editor`
   const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS))).sort()
-  const contents = await fetchCoreScripts(__BASE_URL__)
-  const uiScriptContents = await fetchCoreUIs(__BASE_URL__)
-  const coreScriptContents = await compileScripts({
-    ...contents,
+
+  // Load static resources using inline imports (no fetch needed)
+  const uiScriptContents = loadCoreUIsInline()
+  const coreScriptContents = compileScripts({
+    ...getCoreScriptsSource(),
     ...uiScriptContents,
   })
 
@@ -35,7 +43,7 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
   const hostnamePort = `${hostname}${port ? ':' + port : ''}`
 
   // Pre-compile main script with base variables (GIST scripts will be injected later)
-  const mainScriptContents = await fetchAndCompileMainScript(__BASE_URL__, {
+  const mainScriptContents = compileMainScript(getMainScriptSource(), {
     __BASE_URL__,
     __RULE_API_URL__,
     __RULE_MANAGER_URL__,

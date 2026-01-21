@@ -1,70 +1,129 @@
+// Import core scripts using ?raw to inline file content at build time
+import helpersSource from '@templates/helpers.ts?raw'
+import mainSource from '@templates/main.ts?raw'
+import rulesSource from '@templates/rules.ts?raw'
+import scriptsSource from '@templates/scripts.ts?raw'
+import cornerWidgetCss from '@templates/ui/corner-widget/index.css?raw'
+import cornerWidgetHtml from '@templates/ui/corner-widget/index.html?raw'
+import cornerWidgetTs from '@templates/ui/corner-widget/index.ts?raw'
+import notificationCss from '@templates/ui/notification/index.css?raw'
+import notificationHtml from '@templates/ui/notification/index.html?raw'
+import notificationTs from '@templates/ui/notification/index.ts?raw'
 import ts from 'typescript'
 
-const SCRIPT_FILES = ['helpers.ts', 'rules.ts', 'scripts.ts']
-const UI_NAMES = ['corner-widget', 'notification']
-const UI_FILES = ['index.html', 'index.ts', 'index.css'] as const
-
-export async function fetchCoreScripts(baseUrl: string) {
-  const promises = SCRIPT_FILES.map(async (file) => {
-    const url = `${baseUrl}/gm-template/${file}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error('Failed to fetch template')
-    }
-
-    const content = await response.text()
-    return { [file]: content }
-  })
-
-  const results = await Promise.all(promises)
-  return results.reduce((acc, result) => ({ ...acc, ...result }), {})
+/**
+ * UI module configuration interface
+ * Each module defines its name, TypeScript source, CSS, HTML, and custom element name
+ */
+interface UIModuleConfig {
+  /** Module name used as key in the returned object */
+  name: string
+  /** TypeScript source code */
+  ts: string
+  /** CSS styles */
+  css: string
+  /** HTML template */
+  html: string
+  /** Custom element name for DOM insertion */
+  elementName: string
 }
 
-export async function fetchCoreUIs(baseUrl: string, tsOnly = false) {
-  const group = new Map<string, Record<string, string>>()
-  const promises = UI_NAMES.map(async (name) => {
-    const files = await Promise.all(
-      (tsOnly ? ['index.ts'] : UI_FILES).map(async (filename) => {
-        const url = `${baseUrl}/gm-template/ui/${name}/${filename}`
-        const response = await fetch(url)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${url}`)
-        }
+/**
+ * UI module configuration
+ * To add a new UI module, simply add a new entry to this array
+ */
+const UI_MODULES: UIModuleConfig[] = [
+  {
+    name: 'corner-widget',
+    ts: cornerWidgetTs,
+    css: cornerWidgetCss,
+    html: cornerWidgetHtml,
+    elementName: 'vercel-web-script-corner-widget',
+  },
+  {
+    name: 'notification',
+    ts: notificationTs,
+    css: notificationCss,
+    html: notificationHtml,
+    elementName: 'vercel-web-script-notification',
+  },
+]
 
-        const content = await response.text()
-        const template = content.trim()
-        const extname = filename.split('.').pop()!
-        return { [extname]: template }
-      })
-    )
+/**
+ * Get core scripts from templates
+ * Loaded at build time using ?raw imports
+ * Works in both Node.js and Edge Runtime (no filesystem access needed)
+ * @returns Object containing all core script file contents
+ */
+export function getCoreScriptsSource(): Record<string, string> {
+  return {
+    'helpers.ts': helpersSource,
+    'rules.ts': rulesSource,
+    'scripts.ts': scriptsSource,
+  }
+}
 
-    group.set(
-      name,
-      files.reduce((acc, file) => ({ ...acc, ...file }), {})
-    )
-  })
+/**
+ * Get main script content from templates
+ * Loaded at build time using ?raw import
+ * @returns Main script content
+ */
+export function getMainScriptSource(): string {
+  return mainSource
+}
 
-  await Promise.all(promises)
+/**
+ * Load UI resources from templates at build time
+ * @param tsOnly Whether to load only TypeScript files
+ * @returns Object containing all UI file contents
+ */
+export function loadCoreUIsInline(tsOnly = false): Record<string, string> {
   const contents: Record<string, string> = {}
-  group.entries().forEach(([name, item]) => {
-    const { html = '', css = '', ts = '' } = item
-    const content = tsOnly
-      ? ts
-      : `${ts}
-      if (!document.querySelector('vercel-web-script-${name}')) {
-        const container = document.createElement('vercel-web-script-${name}');
-        container.innerHTML = \`<template><style>${css}</style>${html}</template>\`;
-        document.body.appendChild(container);
-      }
-    `
 
-    contents[name] = content
-  })
+  /**
+   * Helper function to safely append element to document.body
+   * Waits for document.body to be available before appending
+   * This is necessary because scripts run at @run-at document-start
+   * when document.body may not exist yet
+   */
+  const safeAppendToBody = `(function(container) {
+    if (document.body) {
+      document.body.appendChild(container);
+    } else {
+      const observer = new MutationObserver(function(mutations, obs) {
+        if (document.body) {
+          obs.disconnect();
+          document.body.appendChild(container);
+        }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
+  })`
+
+  for (const module of UI_MODULES) {
+    const content = tsOnly
+      ? module.ts
+      : `${module.ts}
+      (function() {
+        if (!document.querySelector('${module.elementName}')) {
+          const container = document.createElement('${module.elementName}');
+          container.innerHTML = \`<template><style>${module.css}</style>${module.html}</template>\`;
+          ${safeAppendToBody}(container);
+        }
+      })();
+    `
+    contents[module.name] = content
+  }
 
   return contents
 }
 
-export async function compileScripts(contents: Record<string, string>) {
+/**
+ * Compile TypeScript content to JavaScript
+ * @param contents Record of file contents to compile
+ * @returns Compiled JavaScript content
+ */
+export function compileScripts(contents: Record<string, string>): string {
   const compiledContent = (() => {
     try {
       const sortedKeys = Object.keys(contents).sort()
@@ -85,6 +144,7 @@ export async function compileScripts(contents: Record<string, string>) {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(`Compiling gm script failed:`, error)
+      throw error
     }
   })()
 
@@ -92,13 +152,13 @@ export async function compileScripts(contents: Record<string, string>) {
 }
 
 /**
- * Fetch and compile main script
- * @param baseUrl Base URL for fetching the script
+ * Compile main script with injected variables
+ * @param content Main script content
  * @param variables Variables to inject into the script
  * @returns Compiled script content
  */
-export async function fetchAndCompileMainScript(
-  baseUrl: string,
+export function compileMainScript(
+  content: string,
   variables: {
     __BASE_URL__: string
     __RULE_API_URL__: string
@@ -110,14 +170,7 @@ export async function fetchAndCompileMainScript(
     __HOSTNAME_PORT__: string
     __GRANTS_STRING__: string
   }
-): Promise<string> {
-  const url = `${baseUrl}/gm-template/main.ts`
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch main script from ${url}`)
-  }
-
-  let content = await response.text()
+): string {
   const variableDeclarations = `
 const __BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
 const __RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
@@ -129,12 +182,11 @@ const __IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__};
 const __HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)};
 const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
 `
-  content = variableDeclarations + content
+  const fullContent = variableDeclarations + content
 
-  // Compile TypeScript to JavaScript
   const compiledContent = (() => {
     try {
-      const result = ts.transpileModule(content, {
+      const result = ts.transpileModule(fullContent, {
         compilerOptions: {
           module: ts.ModuleKind.None,
           target: ts.ScriptTarget.ESNext,

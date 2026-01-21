@@ -19,10 +19,12 @@
   padding: 12px 16px 12px 52px;
   margin-bottom: 10px;
   border-radius: 5px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   opacity: 0;
   transform: translateY(-10px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .notification.show {
@@ -51,7 +53,7 @@
 }
 
 .notification.success::before {
-  content: "✔";
+  content: '✔';
   color: var(--color-success);
 }
 
@@ -60,7 +62,7 @@
 }
 
 .notification.error::before {
-  content: "✘";
+  content: '✘';
   color: var(--color-error);
 }
 
@@ -69,7 +71,7 @@
 }
 
 .notification.info::before {
-  content: "ℹ";
+  content: 'ℹ';
   color: var(--color-info);
 }
 
@@ -78,6 +80,6 @@
 }
 
 .notification.warn::before {
-  content: "⚠";
+  content: '⚠';
   color: var(--color-warning);
 }
