@@ -5,8 +5,18 @@ import * as ts from 'typescript'
 
 import { EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 
-import { createBanner } from '.'
+import { createBanner } from './createBanner'
 import { clearMeta, extractMeta } from './meta'
+
+/**
+ * RunAt execution timing values for Tampermonkey scripts
+ */
+enum RunAt {
+  DocumentStart = 'document-start',
+  DocumentBody = 'document-body',
+  DocumentEnd = 'document-end',
+  DocumentIdle = 'document-idle',
+}
 
 const PRETTIER_CONFIG: prettier.Options = {
   parser: 'babel',
@@ -17,6 +27,25 @@ const PRETTIER_CONFIG: prettier.Options = {
   semi: false,
   trailingComma: 'es5',
   bracketSpacing: true,
+}
+
+/**
+ * Extract first value from meta field (string or array)
+ * @param value Meta field value (string, string array, or undefined)
+ * @param defaultValue Default value if meta field is missing or invalid
+ * @returns First value from array or the string value, or defaultValue
+ */
+function extractMetaValue(value: string | string[] | undefined, defaultValue: string): string {
+  if (!value) {
+    return defaultValue
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  if (Array.isArray(value) && value.length > 0) {
+    return value[0]
+  }
+  return defaultValue
 }
 
 export interface CreateScriptParams {
@@ -46,8 +75,8 @@ function compileScripts(files: Record<string, string>) {
     parts.push(compiledContent)
   }
 
-  const grant = Array.from(grants)
-  const connect = Array.from(connects)
+  const grant = Array.from(grants).sort()
+  const connect = Array.from(connects).sort()
   const content = parts.join('\n\n').trim()
   return { content, grant, connect }
 }
@@ -85,13 +114,11 @@ function createScriptCompiler() {
     }
 
     // Extract module name: prefer @namespace, fallback to filename without extension
-    const moduleName = meta.namespace
-      ? typeof meta.namespace === 'string'
-        ? meta.namespace
-        : Array.isArray(meta.namespace)
-          ? meta.namespace[0]
-          : file.replace(/\.[^/.]+$/, '')
-      : file.replace(/\.[^/.]+$/, '')
+    const defaultModuleName = file.replace(/\.[^/.]+$/, '')
+    const moduleName = extractMetaValue(meta.namespace, defaultModuleName)
+
+    // Extract runAt meta value
+    const runAt = extractMetaValue(meta.runAt, RunAt.DocumentIdle)
 
     const clearedContent = clearMeta(content)
     const compiledContent = (() => {
@@ -104,6 +131,7 @@ function createScriptCompiler() {
             esModuleInterop: true,
             allowJs: true,
             checkJs: false,
+            removeComments: true,
           },
           fileName: file,
         })
@@ -119,9 +147,28 @@ function createScriptCompiler() {
       return
     }
 
+    const executionWrapper = getExecutionWrapper(runAt, moduleName, match, file, compiledContent)
+
     return `
       // ${file}
-      ;(function() {
+      ${executionWrapper}
+    `
+  }
+
+  return { compile, matches, grants, connects }
+}
+
+/**
+ * Get execution wrapper based on runAt value
+ * @param runAt The @run-at meta value
+ * @param moduleName Module name for logging
+ * @param match Match patterns for URL matching
+ * @param file File name
+ * @param compiledContent Compiled script content
+ * @returns Execution wrapper code
+ */
+function getExecutionWrapper(runAt: string, moduleName: string, match: string[], file: string, compiledContent: string): string {
+  const scriptContent = `
         const { GME_ok, GME_info, GME_fail, GME_warn } = createGMELogger(${JSON.stringify(moduleName)})
         try {
           if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
@@ -132,9 +179,64 @@ function createScriptCompiler() {
           const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
           GME_fail('Executing script \`${file}\` failed:', message)
         }
-      })()
-    `
-  }
+      `
 
-  return { compile, matches, grants, connects }
+  switch (runAt) {
+    case RunAt.DocumentStart:
+      // Execute immediately when script loads
+      return `;(function() {${scriptContent}})()`
+
+    case RunAt.DocumentBody:
+      // Execute when document.body exists
+      return `;(function() {
+        function executeScript() {
+          ${scriptContent}
+        }
+        if (document.body) {
+          executeScript()
+        } else {
+          const observer = new MutationObserver(function(mutations, obs) {
+            if (document.body) {
+              obs.disconnect()
+              executeScript()
+            }
+          })
+          observer.observe(document.documentElement, { childList: true, subtree: true })
+        }
+      })()`
+
+    case RunAt.DocumentEnd:
+      // Execute when DOMContentLoaded fires
+      return `;(function() {
+        function executeScript() {
+          ${scriptContent}
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', executeScript)
+        } else {
+          executeScript()
+        }
+      })()`
+
+    case RunAt.DocumentIdle:
+    default:
+      // Execute after DOMContentLoaded, when page is idle
+      return `;(function() {
+        function executeScript() {
+          ${scriptContent}
+        }
+        function runWhenIdle() {
+          if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(executeScript, { timeout: 2000 })
+          } else {
+            setTimeout(executeScript, 1)
+          }
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', runWhenIdle)
+        } else {
+          runWhenIdle()
+        }
+      })()`
+  }
 }

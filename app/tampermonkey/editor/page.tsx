@@ -1,7 +1,7 @@
 import { getRules } from '@/app/actions/tampermonkey'
 import { fetchFiles } from '@/app/api/scripts/actions'
 import { checkAccess } from '@/services/auth/access'
-import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
+import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 
 import Editor from './Editor'
 import { loadTampermonkeyTypings } from './typings'

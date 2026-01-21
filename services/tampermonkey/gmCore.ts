@@ -67,7 +67,8 @@ export async function fetchCoreUIs(baseUrl: string, tsOnly = false) {
 export async function compileScripts(contents: Record<string, string>) {
   const compiledContent = (() => {
     try {
-      const combinedContent = Object.values(contents).join('\n')
+      const sortedKeys = Object.keys(contents).sort()
+      const combinedContent = sortedKeys.map((key) => contents[key]).join('\n')
       const result = ts.transpileModule(combinedContent, {
         compilerOptions: {
           module: ts.ModuleKind.None,

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { EXCLUDED_FILES } from '@/constants/file'
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
-import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
+import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 import { createUserScript } from '@/services/tampermonkey/createUserScript.server'
 
 export interface Params {

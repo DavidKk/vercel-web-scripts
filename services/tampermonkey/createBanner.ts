@@ -4,7 +4,7 @@ import { getGistInfo } from '@/services/gist'
 
 import { compileScripts, fetchAndCompileMainScript, fetchCoreScripts, fetchCoreUIs } from './gmCore'
 import { DEFAULT_GRANTS, GRANTS } from './grant'
-import { clearMeta, extractMeta, prependMeta } from './meta'
+import { clearMeta } from './meta'
 
 export interface CreateBannerParams {
   grant: string[]
@@ -22,7 +22,7 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
   const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/tampermonkey/editor`
-  const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS)))
+  const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS))).sort()
   const contents = await fetchCoreScripts(__BASE_URL__)
   const uiScriptContents = await fetchCoreUIs(__BASE_URL__)
   const coreScriptContents = await compileScripts({
@@ -66,8 +66,15 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
 // @match        */*
 // @noframes
 // @connect      ${uri.hostname}
-${connect.map((c) => `// @connect      ${c}`).join('\n')}
-${grants.map((g) => `// @grant        ${g}`).join('\n')}
+// @run-at       ${'document-start'}
+${connect
+  .sort()
+  .map((c) => `// @connect      ${c}`)
+  .join('\n')}
+${grants
+  .filter((g) => ['none'].some((n) => n !== g))
+  .map((g) => `// @grant        ${g}`)
+  .join('\n')}
 // ==/UserScript==
 
 ${coreScriptContents}
@@ -81,5 +88,3 @@ export function getTampermonkeyScriptKey() {
   const { gistId } = getGistInfo()
   return createHash('sha256').update(gistId).digest('hex')
 }
-
-export { clearMeta, extractMeta, prependMeta }

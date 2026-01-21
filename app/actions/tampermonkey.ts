@@ -2,7 +2,7 @@
 
 import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFile } from '@/services/gist'
-import { extractMeta } from '@/services/tampermonkey'
+import { extractMeta } from '@/services/tampermonkey/meta'
 import { isRuleConfig, type RuleConfig } from '@/services/tampermonkey/types'
 
 export interface Script {

@@ -1,5 +1,5 @@
 import { checkAccess } from '@/services/auth/access'
-import { getTampermonkeyScriptKey } from '@/services/tampermonkey'
+import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 
 import InstallTampermonkeyButton from './components/InstallButton'
 

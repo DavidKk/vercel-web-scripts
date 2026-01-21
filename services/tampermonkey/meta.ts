@@ -18,12 +18,18 @@ export function extractMeta(content: string) {
       continue
     }
 
-    const name = key.slice(1).trim()
+    let name = key.slice(1).trim()
+    // Convert run-at to runAt for camelCase consistency
+    if (name === 'run-at') {
+      name = 'runAt'
+    }
+
     const value = parts.join(' ')
     const text = typeof value === 'string' ? value.trim() : ''
 
     if (meta[name]) {
-      meta[name] = Array.isArray(meta[name]) ? [...meta[name], text] : [meta[name], text]
+      const existing = meta[name]
+      meta[name] = Array.isArray(existing) ? [...existing, text] : [existing, text]
       continue
     }
 
