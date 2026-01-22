@@ -1,84 +1,21 @@
-// Import core scripts using ?raw to inline file content at build time
-import helpersSource from '@templates/helpers.ts?raw'
-import mainSource from '@templates/main.ts?raw'
-import rulesSource from '@templates/rules.ts?raw'
-import scriptsSource from '@templates/scripts.ts?raw'
-import cornerWidgetCss from '@templates/ui/corner-widget/index.css?raw'
-import cornerWidgetHtml from '@templates/ui/corner-widget/index.html?raw'
-import cornerWidgetTs from '@templates/ui/corner-widget/index.ts?raw'
-import notificationCss from '@templates/ui/notification/index.css?raw'
-import notificationHtml from '@templates/ui/notification/index.html?raw'
-import notificationTs from '@templates/ui/notification/index.ts?raw'
+// Import template resources from unified templates index
+import { getCoreScriptsSource, getMainScriptSource, getUIModules } from '@templates/index'
 import ts from 'typescript'
 
 /**
- * UI module configuration interface
- * Each module defines its name, TypeScript source, CSS, HTML, and custom element name
- */
-interface UIModuleConfig {
-  /** Module name used as key in the returned object */
-  name: string
-  /** TypeScript source code */
-  ts: string
-  /** CSS styles */
-  css: string
-  /** HTML template */
-  html: string
-  /** Custom element name for DOM insertion */
-  elementName: string
-}
-
-/**
- * UI module configuration
- * To add a new UI module, simply add a new entry to this array
- */
-const UI_MODULES: UIModuleConfig[] = [
-  {
-    name: 'corner-widget',
-    ts: cornerWidgetTs,
-    css: cornerWidgetCss,
-    html: cornerWidgetHtml,
-    elementName: 'vercel-web-script-corner-widget',
-  },
-  {
-    name: 'notification',
-    ts: notificationTs,
-    css: notificationCss,
-    html: notificationHtml,
-    elementName: 'vercel-web-script-notification',
-  },
-]
-
-/**
  * Get core scripts from templates
- * Loaded at build time using ?raw imports
- * Works in both Node.js and Edge Runtime (no filesystem access needed)
- * @returns Object containing all core script file contents
+ * Delegates to templates/index.ts for centralized resource management
+ * @returns Array of core script file contents, in order
  */
-export function getCoreScriptsSource(): Record<string, string> {
-  return {
-    'helpers.ts': helpersSource,
-    'rules.ts': rulesSource,
-    'scripts.ts': scriptsSource,
-  }
-}
-
-/**
- * Get main script content from templates
- * Loaded at build time using ?raw import
- * @returns Main script content
- */
-export function getMainScriptSource(): string {
-  return mainSource
-}
+export { getCoreScriptsSource, getMainScriptSource }
 
 /**
  * Load UI resources from templates at build time
  * @param tsOnly Whether to load only TypeScript files
- * @returns Object containing all UI file contents
+ * @returns Array of UI file contents, in order
  */
-export function loadCoreUIsInline(tsOnly = false): Record<string, string> {
-  const contents: Record<string, string> = {}
+export function loadCoreUIsInline(tsOnly = false): string[] {
+  const contents: string[] = []
 
   /**
    * Helper function to safely append element to document.body
@@ -86,7 +23,7 @@ export function loadCoreUIsInline(tsOnly = false): Record<string, string> {
    * This is necessary because scripts run at @run-at document-start
    * when document.body may not exist yet
    */
-  const safeAppendToBody = `(function(container) {
+  const safeAppendToBody = `;(function(container) {
     if (document.body) {
       document.body.appendChild(container);
     } else {
@@ -96,23 +33,31 @@ export function loadCoreUIsInline(tsOnly = false): Record<string, string> {
           document.body.appendChild(container);
         }
       });
+
       observer.observe(document.documentElement, { childList: true, subtree: true });
     }
   })`
+
+  // Get UI modules from centralized templates index
+  const UI_MODULES = getUIModules()
 
   for (const module of UI_MODULES) {
     const content = tsOnly
       ? module.ts
       : `${module.ts}
-      (function() {
+      ;(function() {
         if (!document.querySelector('${module.elementName}')) {
           const container = document.createElement('${module.elementName}');
+          // Set innerHTML before appending to DOM to ensure template is available in connectedCallback
           container.innerHTML = \`<template><style>${module.css}</style>${module.html}</template>\`;
-          ${safeAppendToBody}(container);
+          // Use requestAnimationFrame to ensure innerHTML is processed before appending
+          requestAnimationFrame(function() {
+            ${safeAppendToBody}(container);
+          });
         }
       })();
     `
-    contents[module.name] = content
+    contents.push(content)
   }
 
   return contents
@@ -120,14 +65,13 @@ export function loadCoreUIsInline(tsOnly = false): Record<string, string> {
 
 /**
  * Compile TypeScript content to JavaScript
- * @param contents Record of file contents to compile
+ * @param contents Array of file contents to compile, in order
  * @returns Compiled JavaScript content
  */
-export function compileScripts(contents: Record<string, string>): string {
+export function compileScripts(contents: string[]): string {
   const compiledContent = (() => {
     try {
-      const sortedKeys = Object.keys(contents).sort()
-      const combinedContent = sortedKeys.map((key) => contents[key]).join('\n')
+      const combinedContent = contents.join('\n')
       const result = ts.transpileModule(combinedContent, {
         compilerOptions: {
           module: ts.ModuleKind.None,
@@ -136,6 +80,7 @@ export function compileScripts(contents: Record<string, string>): string {
           esModuleInterop: true,
           allowJs: true,
           checkJs: false,
+          removeComments: true,
         },
         fileName: 'gm-core.ts',
       })

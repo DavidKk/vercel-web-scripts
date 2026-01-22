@@ -32,11 +32,9 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
   const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS))).sort()
 
   // Load static resources using inline imports (no fetch needed)
+  const coreScriptsSource = getCoreScriptsSource()
   const uiScriptContents = loadCoreUIsInline()
-  const coreScriptContents = compileScripts({
-    ...getCoreScriptsSource(),
-    ...uiScriptContents,
-  })
+  const coreScriptContents = compileScripts([...coreScriptsSource, ...uiScriptContents])
 
   const grantsString = GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')
   const isDevelopMode = process.env.NODE_ENV === 'development'
