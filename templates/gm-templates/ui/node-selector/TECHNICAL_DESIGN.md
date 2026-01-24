@@ -166,13 +166,11 @@ interface NodeInfo {
 #### 3.3.1 节点检测机制
 
 1. **鼠标移动监听**：
-
    - 在 `document` 上监听 `mousemove` 事件
    - 使用 `document.elementFromPoint()` 获取鼠标下方的元素
    - 过滤掉选择器自身的元素（避免干扰）
 
 2. **元素过滤**：
-
    - **必须排除的元素**：
      - 选择器组件自身的元素（Shadow DOM 内的元素）
      - 所有插件UI元素（`vercel-web-script-*` 自定义元素）：
@@ -241,7 +239,6 @@ interface NodeInfo {
 #### 3.3.2 高亮框实现
 
 1. **绝对定位**：
-
    - 使用 `position: fixed` 实现绝对定位
    - **容器位置**：高亮框在 Shadow DOM 中（`node-selector-highlight`），与其他UI统一管理
    - 通过 `getBoundingClientRect()` 获取高亮目标节点（`currentHighlightTarget`）的位置和尺寸
@@ -250,7 +247,6 @@ interface NodeInfo {
    - **Shadow DOM 定位**：`position: fixed` 在 Shadow DOM 中仍然相对于视口定位，不受 Shadow DOM 边界影响
 
 2. **跟随机制**：
-
    - 使用 `ResizeObserver` 监听高亮目标节点尺寸变化
    - 使用 `MutationObserver` 监听 DOM 结构变化（可选）
    - 在 `scroll` 和 `resize` 事件中更新位置
@@ -264,12 +260,10 @@ interface NodeInfo {
 #### 3.3.3 提示框实现
 
 1. **容器位置**：
-
    - 提示框在 Shadow DOM 中（`node-selector-tooltip`），与其他UI统一管理
    - 使用 `position: fixed` 定位，相对于视口
 
 2. **位置计算**：
-
    - 默认显示在鼠标位置附近
    - 避免超出视口边界（自动调整位置）
    - 考虑高亮框的位置，避免重叠
@@ -282,7 +276,6 @@ interface NodeInfo {
 #### 3.3.4 点击选中功能
 
 1. **点击监听**：
-
    - 在 `document` 上监听 `click` 事件
    - 仅在 `enableClickSelection` 为 `true` 时启用
    - **排除检查**：点击时，如果点击的是插件元素或被排除的元素，忽略该点击
@@ -297,7 +290,6 @@ interface NodeInfo {
 #### 3.3.5 节点标记功能
 
 1. **标记前检查**：
-
    - **必须排除**：不能标记插件自身的UI元素（`vercel-web-script-*` 自定义元素）
    - **排除检查**：调用 `markNode` 时，先检查节点是否应该被排除
    - 如果节点是插件元素或被排除的元素，返回 `null` 并记录警告
@@ -320,7 +312,6 @@ interface NodeInfo {
      ```
 
 2. **标记UI实现**：
-
    - 为标记的节点添加一个标记指示器（marker element）
    - **容器位置**：标记UI直接放在 `document.body` 上（不在 Shadow DOM 内），以便覆盖页面内容
    - **定位方式**：使用 `position: fixed`，通过 `getBoundingClientRect()` 获取节点位置，计算标记UI的位置
@@ -330,7 +321,6 @@ interface NodeInfo {
    - **样式隔离**：所有UI都在 Shadow DOM 中，天然样式隔离，不会影响页面样式
 
 3. **节点特征生成**：
-
    - **优先级策略**（生成稳定选择器）：
      1. 如果节点有 `id` 属性，使用 `#id` 选择器
      2. 如果节点有稳定的 `data-*` 属性（如 `data-testid`, `data-id`），使用属性选择器
@@ -408,7 +398,6 @@ interface NodeInfo {
      - **注意**：`signature` 用于生成默认标签的哈希输入，`selector` 用于查找节点，两者可以不同
 
 4. **标记持久化**：
-
    - 使用 `GM_setValue` / `GM_getValue` 存储标记信息
    - **存储格式**：使用对象格式 `Record<string, MarkedNodeInfo>`（不能使用 Map，因为需要 JSON 序列化）
    - 每个标记包含：
@@ -438,14 +427,12 @@ interface NodeInfo {
        ```
 
 5. **标记恢复机制**：
-
    - 页面加载时（或组件初始化时），从存储中读取标记信息
    - 使用存储的选择器尝试查找节点
    - 如果找到节点，重新创建标记UI
    - 如果节点不存在，标记为"已失效"，可选择清理
 
 6. **标记UI更新**：
-
    - 使用 `ResizeObserver` 监听标记节点的位置和尺寸变化
    - 使用 `Map<markId, ResizeObserver>` 管理每个标记节点的观察器
    - 当节点位置改变时，更新标记指示器的位置
@@ -465,12 +452,10 @@ interface NodeInfo {
 #### 3.3.6 性能优化
 
 1. **节流处理**：
-
    - 对 `mousemove` 事件进行节流（如：16ms，约 60fps）
    - 使用 `requestAnimationFrame` 优化位置更新
 
 2. **事件委托**：
-
    - 在 `document` 级别监听事件，减少事件监听器数量
 
 3. **观察器管理**：
@@ -495,7 +480,6 @@ interface NodeInfo {
    ```
 
 2. **父子关系验证**（可选但推荐）：
-
    - 验证 `highlightTarget` 是否是 `hoverNode` 的祖先节点或自身
    - 如果验证失败，回退到使用 `hoverNode` 作为高亮目标
    - 避免高亮不相关的元素导致用户困惑
@@ -774,43 +758,35 @@ GME_enableNodeSelector({
 ## 六、边界情况处理
 
 1. **节点被删除**：
-
    - 监听节点移除，自动清理高亮框和观察器
 
 2. **节点被移动**：
-
    - 通过 `MutationObserver` 检测 DOM 变化
    - 通过 `ResizeObserver` 检测尺寸变化
 
 3. **页面滚动**：
-
    - 监听 `scroll` 事件，更新高亮框位置
    - 使用 `getBoundingClientRect()` 自动处理滚动偏移
 
 4. **视口变化**：
-
    - 监听 `resize` 事件，重新计算位置
    - 确保提示框不超出视口
 
 5. **Shadow DOM**：
-
    - 正确处理 Shadow DOM 内的元素
    - 使用 `composedPath()` 获取事件路径
    - **重要**：排除插件 Shadow DOM 内的所有元素（不能选择或标记）
 
 6. **插件元素排除**：
-
    - 不能选择或标记任何 `vercel-web-script-*` 自定义元素
    - 不能选择或标记标记UI元素（`[data-node-selector-marker]`）
    - 不能选择或标记插件 Shadow DOM 内的元素
    - 如果尝试标记插件元素，`markNode` 会返回 `null`
 
 7. **iframe**：
-
    - 可选：支持跨 iframe 选择（需要特殊处理）
 
 8. **标记节点失效**：
-
    - 当存储的选择器无法找到节点时，标记为失效
    - 提供清理失效标记的机制
    - 在恢复标记时，跳过失效的标记

@@ -16,8 +16,8 @@
     "lint": "pnpm lint:ts",
     "lint:ts": "eslint -c eslint.config.mjs --fix .",
     "typecheck": "tsc --noEmit",
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "test": "jest -c ./jest.config.ts --coverage --reporters=default --reporters=jest-junit --passWithNoTests",
     "test:watch": "jest --watch",
@@ -39,12 +39,12 @@
     "ahooks": "^3.8.4",
     "cookie": "^1.0.2",
     "jsonwebtoken": "^9.0.2",
-    "next": "15.5.9",
+    "next": "16.1.4",
     "otplib": "^12.0.1",
     "prettier": "^3.4.2",
     "puppeteer": "^24.2.1",
-    "react": "^19.1.2",
-    "react-dom": "^19.1.2",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
     "ts-morph": "^26.0.0",
     "typescript": "^5.7.2"
@@ -66,7 +66,7 @@
     "cz-customizable": "^7.2.1",
     "cz-customizable-i18n-config": "^0.0.1-alpha.2",
     "eslint": "^9",
-    "eslint-config-next": "15.5.9",
+    "eslint-config-next": "16.1.4",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-prettier": "^5.2.1",
@@ -90,5 +90,5 @@
     "typescript": "^5.7.2",
     "typescript-transform-paths": "^3.4.7"
   },
-  "packageManager": "pnpm@10.25.0+sha512.5e82639027af37cf832061bcc6d639c219634488e0f2baebe785028a793de7b525ffcd3f7ff574f5e9860654e098fe852ba8ac5dd5cefe1767d23a020a92f501"
+  "packageManager": "pnpm@10.28.1+sha512.7d7dbbca9e99447b7c3bf7a73286afaaf6be99251eb9498baefa7d406892f67b879adb3a1d7e687fc4ccc1a388c7175fbaae567a26ab44d1067b54fcb0d6a316"
 }
