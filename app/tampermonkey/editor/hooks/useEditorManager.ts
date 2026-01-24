@@ -44,43 +44,66 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
   // Conflict resolution and draft loading
   useEffect(() => {
     async function init() {
-      const drafts = await draftStorage.getFiles(scriptKey)
-      if (!drafts) {
-        setIsInitialized(true)
-        return
-      }
-
-      const newDeletedFiles = new Set<string>()
-      const newAddedFiles: Record<string, FileContent> = {}
-      const newFileContents: Record<string, string> = {}
-      const persistedContents: Record<string, string | null> = {}
-
-      // Compare each draft with remote
-      Object.entries(drafts).forEach(([path, record]) => {
-        // If local draft is newer than Gist update, use it
-        if (record.updatedAt > gistUpdatedAt) {
-          persistedContents[path] = record.content
-          if (record.status === 'deleted' || record.content === null) {
-            newDeletedFiles.add(path)
-          } else if (record.status === 'added') {
-            newAddedFiles[path] = { content: record.content, rawUrl: '' }
-            newFileContents[path] = record.content
-          } else {
-            // modified
-            newFileContents[path] = record.content
-          }
+      try {
+        const drafts = await draftStorage.getFiles(scriptKey)
+        if (!drafts) {
+          setIsInitialized(true)
+          return
         }
-      })
 
-      lastPersistedContentsRef.current = persistedContents
-      if (newDeletedFiles.size > 0) setDeletedFiles(newDeletedFiles)
-      if (Object.keys(newAddedFiles).length > 0) setAddedFiles(newAddedFiles)
-      Object.assign(fileContentsRef.current, newFileContents)
-      setIsInitialized(true)
+        const newDeletedFiles = new Set<string>()
+        const newAddedFiles: Record<string, FileContent> = {}
+        const newFileContents: Record<string, string> = {}
+        const persistedContents: Record<string, string | null> = {}
 
-      // Set hasUnsavedChanges if any draft was applied
-      if (newDeletedFiles.size > 0 || Object.keys(newAddedFiles).length > 0 || Object.keys(newFileContents).length > 0) {
-        setHasUnsavedChanges(true)
+        // Compare each draft with remote
+        Object.entries(drafts).forEach(([path, record]) => {
+          // If local draft is newer than Gist update, use it
+          if (record.updatedAt > gistUpdatedAt) {
+            persistedContents[path] = record.content
+            if (record.status === 'deleted' || record.content === null) {
+              newDeletedFiles.add(path)
+            } else if (record.status === 'added') {
+              newAddedFiles[path] = { content: record.content, rawUrl: '' }
+              newFileContents[path] = record.content
+            } else {
+              // modified
+              newFileContents[path] = record.content
+            }
+          }
+        })
+
+        lastPersistedContentsRef.current = persistedContents
+        if (newDeletedFiles.size > 0) setDeletedFiles(newDeletedFiles)
+        if (Object.keys(newAddedFiles).length > 0) setAddedFiles(newAddedFiles)
+        Object.assign(fileContentsRef.current, newFileContents)
+        setIsInitialized(true)
+
+        // Set hasUnsavedChanges if any draft was applied
+        if (newDeletedFiles.size > 0 || Object.keys(newAddedFiles).length > 0 || Object.keys(newFileContents).length > 0) {
+          setHasUnsavedChanges(true)
+        }
+      } catch (error) {
+        // Handle IndexedDB errors during initialization
+        if (error instanceof Error && error.name === 'VersionError') {
+          // eslint-disable-next-line no-console
+          console.error('[Editor] IndexedDB version conflict during initialization. Attempting to reset database...')
+
+          try {
+            await draftStorage.resetDatabase()
+            // eslint-disable-next-line no-console
+            console.log('[Editor] Database reset successful. Continuing with initialization...')
+          } catch (resetError) {
+            // eslint-disable-next-line no-console
+            console.error('[Editor] Failed to reset database during initialization:', resetError)
+          }
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('[Editor] Failed to load drafts during initialization:', error)
+        }
+
+        // Continue initialization even if draft loading fails
+        setIsInitialized(true)
       }
     }
     init()
@@ -158,43 +181,96 @@ export function useEditorManager(initialFiles: Record<string, FileContent>, scri
     setHasUnsavedChanges(false)
 
     // Clear local drafts after successful remote save
-    await draftStorage.clearFiles(scriptKey)
-    lastPersistedContentsRef.current = {}
+    try {
+      await draftStorage.clearFiles(scriptKey)
+      lastPersistedContentsRef.current = {}
+    } catch (error) {
+      // Handle IndexedDB version errors
+      if (error instanceof Error && error.name === 'VersionError') {
+        // eslint-disable-next-line no-console
+        console.error('[Editor] IndexedDB version conflict while clearing drafts. Attempting to reset database...')
+
+        try {
+          await draftStorage.resetDatabase()
+          // eslint-disable-next-line no-console
+          console.log('[Editor] Database reset successful.')
+        } catch (resetError) {
+          // eslint-disable-next-line no-console
+          console.error('[Editor] Failed to reset database:', resetError)
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('[Editor] Failed to clear local drafts:', error)
+      }
+      // Don't throw error here as the main save operation was successful
+    }
   }, [deletedFiles, addedFiles, committedFiles, scriptKey])
 
   /**
    * Persist current dirty state to IndexedDB (as a draft)
    */
   const persistLocal = useCallback(async () => {
-    const dirtySnapshot = getDirtySnapshot()
-    if (Object.keys(dirtySnapshot).length === 0) {
-      await draftStorage.clearFiles(scriptKey)
-      lastPersistedContentsRef.current = {}
-      setUnsavedPaths(new Set())
-      setHasUnsavedChanges(false)
-      return
-    }
-
-    const now = Date.now()
-    const records: Record<string, LocalFileRecord> = {}
-
-    Object.entries(dirtySnapshot).forEach(([path, content]) => {
-      let status: 'modified' | 'added' | 'deleted' = 'modified'
-      if (addedFiles[path]) status = 'added'
-      else if (deletedFiles.has(path)) status = 'deleted'
-
-      records[path] = {
-        path,
-        content,
-        updatedAt: now,
-        status,
+    try {
+      const dirtySnapshot = getDirtySnapshot()
+      if (Object.keys(dirtySnapshot).length === 0) {
+        await draftStorage.clearFiles(scriptKey)
+        lastPersistedContentsRef.current = {}
+        setUnsavedPaths(new Set())
+        setHasUnsavedChanges(false)
+        return
       }
-    })
 
-    await draftStorage.saveFiles(scriptKey, records)
-    lastPersistedContentsRef.current = dirtySnapshot
-    setUnsavedPaths(new Set())
-    setHasUnsavedChanges(true)
+      const now = Date.now()
+      const records: Record<string, LocalFileRecord> = {}
+
+      Object.entries(dirtySnapshot).forEach(([path, content]) => {
+        let status: 'modified' | 'added' | 'deleted' = 'modified'
+        if (addedFiles[path]) status = 'added'
+        else if (deletedFiles.has(path)) status = 'deleted'
+
+        records[path] = {
+          path,
+          content,
+          updatedAt: now,
+          status,
+        }
+      })
+
+      await draftStorage.saveFiles(scriptKey, records)
+      lastPersistedContentsRef.current = dirtySnapshot
+      setUnsavedPaths(new Set())
+      setHasUnsavedChanges(true)
+    } catch (error) {
+      // Handle IndexedDB version errors
+      if (error instanceof Error && error.name === 'VersionError') {
+        // eslint-disable-next-line no-console
+        console.error('[Editor] IndexedDB version conflict detected. Attempting to reset database...')
+
+        try {
+          await draftStorage.resetDatabase()
+          // eslint-disable-next-line no-console
+          console.log('[Editor] Database reset successful. Please try saving again.')
+
+          // Show user-friendly notification
+          if (typeof window !== 'undefined') {
+            alert('数据库版本冲突已解决，请重新保存文件。')
+          }
+        } catch (resetError) {
+          // eslint-disable-next-line no-console
+          console.error('[Editor] Failed to reset database:', resetError)
+          if (typeof window !== 'undefined') {
+            alert('数据库重置失败。请刷新页面或清除浏览器数据后重试。')
+          }
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('[Editor] Failed to persist local changes:', error)
+        if (typeof window !== 'undefined') {
+          alert('保存本地更改失败: ' + (error instanceof Error ? error.message : String(error)))
+        }
+      }
+      throw error
+    }
   }, [getDirtySnapshot, addedFiles, deletedFiles, scriptKey])
 
   /**

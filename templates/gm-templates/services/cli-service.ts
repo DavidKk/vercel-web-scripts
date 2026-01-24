@@ -213,11 +213,13 @@ class CLIService {
   }
 }
 
-// Create singleton instance
-const cliService = new CLIService()
-
-// Initialize global help
-cliService.initializeGlobalHelp()
+// Create singleton instance (use closure to keep it private)
+const cliService = (() => {
+  const service = new CLIService()
+  // Initialize global help
+  service.initializeGlobalHelp()
+  return service
+})()
 
 /**
  * Register a module with CLI commands

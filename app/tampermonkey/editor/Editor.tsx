@@ -34,6 +34,11 @@ function generateHostId(): string {
  */
 const EDITOR_DEV_CHANNEL_NAME = 'web-script-dev'
 
+/**
+ * PostMessage type for communicating with Tampermonkey script
+ */
+const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
+
 export interface EditorProps {
   files: Record<
     string,
@@ -49,6 +54,35 @@ export interface EditorProps {
 }
 
 const EDITOR_DEV_MODE_STORAGE_KEY = 'editor-dev-mode-enabled'
+
+/**
+ * Early initialization to notify Tampermonkey script about DEV MODE status
+ * This prevents race conditions with Tampermonkey script checking DEV MODE status
+ */
+if (typeof window !== 'undefined') {
+  const isDevModeEnabled = localStorage.getItem(EDITOR_DEV_MODE_STORAGE_KEY) === 'true'
+  if (isDevModeEnabled) {
+    // Send early message to Tampermonkey script immediately
+    const tempHost = `editor-early-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+
+    // Use setTimeout to ensure this runs after Tampermonkey script is ready
+    setTimeout(() => {
+      window.postMessage(
+        {
+          type: EDITOR_POST_MESSAGE_TYPE,
+          message: {
+            type: 'editor-dev-mode-early-init',
+            host: tempHost,
+          },
+        },
+        window.location.origin
+      )
+
+      // eslint-disable-next-line no-console
+      console.log('[Editor Early Init] Sent early DEV MODE notification to Tampermonkey')
+    }, 100) // Small delay to ensure Tampermonkey script is listening
+  }
+}
 
 export default function Editor(props: EditorProps) {
   const { files: inFiles, scriptKey, updatedAt, tampermonkeyTypings, rules: initialRules } = props
@@ -102,24 +136,31 @@ export default function Editor(props: EditorProps) {
         return
       }
 
-      const drafts = await draftStorage.getFiles(scriptKey)
-      if (drafts && drafts[ENTRY_SCRIPT_RULES_FILE]) {
-        const draft = drafts[ENTRY_SCRIPT_RULES_FILE]
-        // If draft is newer than initial load, use it
-        if (draft.content && draft.updatedAt > updatedAt) {
-          try {
-            const draftRules = JSON.parse(draft.content)
-            if (Array.isArray(draftRules)) {
-              setRules(draftRules)
-              setHasRuleChanges(true)
-              // Update editorManager with draft content
-              editorManager.updateFileContent(ENTRY_SCRIPT_RULES_FILE, draft.content)
+      try {
+        const drafts = await draftStorage.getFiles(scriptKey)
+        if (drafts && drafts[ENTRY_SCRIPT_RULES_FILE]) {
+          const draft = drafts[ENTRY_SCRIPT_RULES_FILE]
+          // If draft is newer than initial load, use it
+          if (draft.content && draft.updatedAt > updatedAt) {
+            try {
+              const draftRules = JSON.parse(draft.content)
+              if (Array.isArray(draftRules)) {
+                setRules(draftRules)
+                setHasRuleChanges(true)
+                // Update editorManager with draft content
+                editorManager.updateFileContent(ENTRY_SCRIPT_RULES_FILE, draft.content)
+              }
+            } catch (error) {
+              // eslint-disable-next-line no-console
+              console.error('Failed to parse rules draft:', error)
             }
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('Failed to parse rules draft:', error)
           }
         }
+      } catch (error) {
+        // Handle IndexedDB errors
+        // eslint-disable-next-line no-console
+        console.error('Failed to load rules draft from IndexedDB:', error)
+        // Continue without draft loading - rules will use initialRules
       }
     }
     loadRulesDraft()
@@ -184,6 +225,16 @@ export default function Editor(props: EditorProps) {
       previousSelectedFileRef.current = currentFile
     }
   }, [editorManager.selectedFile, editorManager.hasFileChanges])
+
+  // Update editor content when selected file changes
+  useEffect(() => {
+    if (codeEditorRef.current && editorManager.selectedFile) {
+      const newContent = editorManager.getCurrentFileContent()
+
+      // Use forceUpdate=true for file switching to ensure content is updated
+      codeEditorRef.current.setContent(newContent, true)
+    }
+  }, [editorManager.selectedFile])
 
   // Pin files to openFiles when they get changes (TAB becomes fixed/pinned)
   // This ensures that once a file is edited, its TAB stays open
@@ -385,15 +436,21 @@ export default function Editor(props: EditorProps) {
       if (hasRuleChanges) {
         setHasRuleChanges(false)
         // Clear rules draft from IndexedDB after successful save
-        const drafts = await draftStorage.getFiles(scriptKey)
-        if (drafts && drafts[ENTRY_SCRIPT_RULES_FILE]) {
-          const updatedDrafts = { ...drafts }
-          delete updatedDrafts[ENTRY_SCRIPT_RULES_FILE]
-          if (Object.keys(updatedDrafts).length === 0) {
-            await draftStorage.clearFiles(scriptKey)
-          } else {
-            await draftStorage.saveFiles(scriptKey, updatedDrafts)
+        try {
+          const drafts = await draftStorage.getFiles(scriptKey)
+          if (drafts && drafts[ENTRY_SCRIPT_RULES_FILE]) {
+            const updatedDrafts = { ...drafts }
+            delete updatedDrafts[ENTRY_SCRIPT_RULES_FILE]
+            if (Object.keys(updatedDrafts).length === 0) {
+              await draftStorage.clearFiles(scriptKey)
+            } else {
+              await draftStorage.saveFiles(scriptKey, updatedDrafts)
+            }
           }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to clear rules draft from IndexedDB:', error)
+          // Don't block the save process if draft cleanup fails
         }
       }
 
@@ -445,29 +502,77 @@ export default function Editor(props: EditorProps) {
 
       const snapshot = editorManager.getSnapshot()
 
-      // Filter out ENTRY_SCRIPT_FILE, config files, declaration files, and null content
+      // Filter files for dev mode compilation
+      // Include: .ts, .js files and rules file; Exclude: main script, config files, declaration files, empty content
       const files: Record<string, string> = {}
+      const filteredFiles: string[] = []
+
       for (const [file, content] of Object.entries(snapshot)) {
+        // Always exclude the main generated script file
         if (file === ENTRY_SCRIPT_FILE) {
+          filteredFiles.push(`${file} (main script - excluded)`)
           continue
         }
 
+        // Exclude config files
         if (CONFIG_FILES.includes(file)) {
+          filteredFiles.push(`${file} (config file - excluded)`)
           continue
         }
 
+        // Exclude declaration files
         if (isDeclarationFile(file)) {
+          filteredFiles.push(`${file} (declaration file - excluded)`)
           continue
         }
 
+        // Exclude files with no content
         if (!content) {
+          filteredFiles.push(`${file} (empty content - excluded)`)
           continue
         }
 
+        // Include all other files (including .ts, .js, and .json files like rules)
         files[file] = content
       }
 
+      // eslint-disable-next-line no-console
+      console.log('[Editor Dev Mode] File processing:', {
+        totalFiles: Object.keys(snapshot).length,
+        validFiles: Object.keys(files),
+        filteredFiles,
+      })
+
       if (Object.keys(files).length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn('[Editor Dev Mode] No script files found for DEV MODE.', {
+          suggestion: 'Please create .ts or .js files in your project',
+          howTo: 'Click the "+" button in the file tree to add a new TypeScript file',
+          allFiles: Object.keys(snapshot),
+          filteredOut: filteredFiles,
+        })
+
+        // Send a special message to indicate DEV MODE is active but no files available
+        if (channelRef.current && hostIdRef.current) {
+          const message = {
+            type: 'editor-no-files',
+            host: hostIdRef.current,
+            lastModified: Date.now(),
+            files: {},
+            compiledContent: '',
+            message: 'DEV MODE active but no script files found. Please create .ts or .js files.',
+          }
+          channelRef.current.postMessage(message)
+
+          // Also send postMessage for Tampermonkey script compatibility
+          window.postMessage(
+            {
+              type: EDITOR_POST_MESSAGE_TYPE,
+              message,
+            },
+            window.location.origin
+          )
+        }
         return
       }
 
@@ -521,6 +626,16 @@ export default function Editor(props: EditorProps) {
           compiledContent,
         }
         channelRef.current.postMessage(message)
+
+        // Also send postMessage for Tampermonkey script compatibility
+        window.postMessage(
+          {
+            type: EDITOR_POST_MESSAGE_TYPE,
+            message,
+          },
+          window.location.origin
+        )
+
         // eslint-disable-next-line no-console
         console.log('[Editor Dev Mode] BroadcastChannel message sent:', {
           host: hostIdRef.current,
@@ -586,10 +701,21 @@ export default function Editor(props: EditorProps) {
       if (hostIdRef.current) {
         // Notify via BroadcastChannel
         if (channelRef.current) {
-          channelRef.current.postMessage({
+          const message = {
             type: 'editor-dev-mode-stopped',
             host: hostIdRef.current,
-          })
+          }
+          channelRef.current.postMessage(message)
+
+          // Also send postMessage for Tampermonkey script compatibility
+          window.postMessage(
+            {
+              type: EDITOR_POST_MESSAGE_TYPE,
+              message,
+            },
+            window.location.origin
+          )
+
           // eslint-disable-next-line no-console
           console.log('[Editor Dev Mode] Stopped, sending message')
         }
@@ -622,6 +748,16 @@ export default function Editor(props: EditorProps) {
         host: hostIdRef.current,
       }
       channelRef.current.postMessage(message)
+
+      // Also send postMessage for Tampermonkey script compatibility
+      window.postMessage(
+        {
+          type: EDITOR_POST_MESSAGE_TYPE,
+          message,
+        },
+        window.location.origin
+      )
+
       // eslint-disable-next-line no-console
       console.log('[Editor Dev Mode] Started, sending message:', message)
 
@@ -629,7 +765,11 @@ export default function Editor(props: EditorProps) {
       // After refresh, we need to force send even if hash hasn't changed
       // because GM_setValue might have been cleared or the script tab needs to receive the update
       lastSentFilesHashRef.current = null
-      sendEditorFiles(true) // Force compilation and broadcast
+
+      // Small delay to ensure early init message is processed first
+      setTimeout(() => {
+        sendEditorFiles(true) // Force compilation and broadcast
+      }, 50)
     }
 
     // Cleanup on unmount
@@ -637,10 +777,21 @@ export default function Editor(props: EditorProps) {
       if (hostIdRef.current) {
         // Notify via BroadcastChannel that host is stopping
         if (channelRef.current) {
-          channelRef.current.postMessage({
+          const message = {
             type: 'editor-dev-mode-stopped',
             host: hostIdRef.current,
-          })
+          }
+          channelRef.current.postMessage(message)
+
+          // Also send postMessage for Tampermonkey script compatibility
+          window.postMessage(
+            {
+              type: EDITOR_POST_MESSAGE_TYPE,
+              message,
+            },
+            window.location.origin
+          )
+
           // eslint-disable-next-line no-console
           console.log('[Editor Dev Mode] Stopped, sending message')
         }
@@ -684,10 +835,21 @@ export default function Editor(props: EditorProps) {
     const sendStopMessage = () => {
       if (channelRef.current && hostIdRef.current) {
         try {
-          channelRef.current.postMessage({
+          const message = {
             type: 'editor-dev-mode-stopped',
             host: hostIdRef.current,
-          })
+          }
+          channelRef.current.postMessage(message)
+
+          // Also send postMessage for Tampermonkey script compatibility
+          window.postMessage(
+            {
+              type: EDITOR_POST_MESSAGE_TYPE,
+              message,
+            },
+            window.location.origin
+          )
+
           // eslint-disable-next-line no-console
           console.log('[Editor Dev Mode] Page unloading, sent stop message')
         } catch (error) {

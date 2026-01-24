@@ -1,48 +1,12 @@
 'use client'
 
 import { DiffEditor, Editor } from '@monaco-editor/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
+import { Spinner } from '@/components/Spinner'
 import { formatCode } from '@/utils/format'
 
-// Theme colors inspired by VS Code Dark+ theme
-const VS_CODE_DARK_THEME = {
-  base: 'vs-dark' as const,
-  inherit: true,
-  rules: [
-    { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
-    { token: 'keyword', foreground: '569cd6' },
-    { token: 'number', foreground: 'b5cea8' },
-    { token: 'string', foreground: 'ce9178' },
-    { token: 'operator', foreground: 'd4d4d4' },
-    { token: 'type', foreground: '4ec9b0' },
-    { token: 'function', foreground: 'dcdcaa' },
-    { token: 'variable', foreground: '9cdcfe' },
-    { token: 'constant', foreground: '569cd6' },
-  ],
-  colors: {
-    'editor.background': '#1e1e1e',
-    'editor.foreground': '#d4d4d4',
-    'editorCursor.foreground': '#aeafad',
-    'editor.lineHighlightBackground': '#2a2d2e',
-    'editorLineNumber.foreground': '#858585',
-    'editor.selectionBackground': '#264f78',
-    'editorIndentGuide.background': '#404040',
-    'editorIndentGuide.activeBackground': '#707070',
-    'editorWidget.background': '#252526',
-    'editorWidget.border': '#3a3a3a',
-    'editorSuggestWidget.background': '#252526',
-    'editorSuggestWidget.border': '#3a3a3a',
-    'editorSuggestWidget.selectedBackground': '#2a2d2e',
-    'editorHoverWidget.background': '#252526',
-    'editorHoverWidget.border': '#3a3a3a',
-    'editorError.foreground': '#f48771',
-    'editorWarning.foreground': '#cca700',
-    'editorInfo.foreground': '#75beff',
-    'editorBracketMatch.background': '#0e639c',
-    'editorBracketMatch.border': '#0e639c',
-  },
-}
+import { DEFAULT_EDITOR_OPTIONS, DIFF_EDITOR_OPTIONS, setupMonacoEditor } from './config'
 
 interface ExtraLib {
   content: string
@@ -52,6 +16,10 @@ interface ExtraLib {
 export interface CodeEditorRef {
   /** Navigate to a specific line number */
   navigateToLine: (lineNumber: number) => void
+  /** Set editor content (for file switching) */
+  setContent: (content: string, forceUpdate?: boolean) => void
+  /** Get current editor content */
+  getContent: () => string
 }
 
 interface CommonCodeEditorProps {
@@ -91,6 +59,9 @@ export default function CodeEditor({
   const onValidateRef = useRef(onValidate)
   const languageRef = useRef(language)
   const editorInstanceRef = useRef<any>(null)
+  const previousContentRef = useRef<string>('')
+  const isInternalChangeRef = useRef(false)
+  const [isEditorReady, setIsEditorReady] = useState(false)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -108,39 +79,11 @@ export default function CodeEditor({
     languageRef.current = language
   }, [language])
 
+  // Note: We don't use useEffect to sync content changes as it causes cursor jumping
+  // Instead, content changes should be handled explicitly via ref methods
+
   const handleEditorWillMount = (monaco: any) => {
-    monaco.editor.defineTheme('vs-code-dark', VS_CODE_DARK_THEME)
-
-    // Configure typescript defaults
-    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-      target: monaco.languages.typescript.ScriptTarget.ESNext,
-      allowNonTsExtensions: true,
-      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-      module: monaco.languages.typescript.ModuleKind.CommonJS,
-      noEmit: true,
-      typeRoots: ['node_modules/@types'],
-      jsx: monaco.languages.typescript.JsxEmit.React,
-      allowJs: true,
-      lib: ['esnext', 'dom', 'dom.iterable'],
-    })
-
-    // Same for javascript
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-      target: monaco.languages.typescript.ScriptTarget.ESNext,
-      allowNonTsExtensions: true,
-      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-      module: monaco.languages.typescript.ModuleKind.CommonJS,
-      noEmit: true,
-      typeRoots: ['node_modules/@types'],
-      allowJs: true,
-      lib: ['esnext', 'dom', 'dom.iterable'],
-    })
-
-    // Load extra type definitions
-    extraLibs.forEach((lib) => {
-      monaco.languages.typescript.typescriptDefaults.addExtraLib(lib.content, lib.filePath)
-      monaco.languages.typescript.javascriptDefaults.addExtraLib(lib.content, lib.filePath)
-    })
+    setupMonacoEditor(monaco, extraLibs)
   }
 
   /**
@@ -255,7 +198,16 @@ export default function CodeEditor({
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorInstanceRef.current = editor
 
-    // Expose navigateToLine method via ref
+    // Set initial content using setValue
+    // Always set content, even if it's empty string
+    const initialContent = content || ''
+    editor.setValue(initialContent)
+    previousContentRef.current = initialContent
+
+    // Mark editor as ready
+    setIsEditorReady(true)
+
+    // Expose editor methods via ref
     if (editorRef) {
       ;(editorRef as React.MutableRefObject<CodeEditorRef>).current = {
         navigateToLine: (lineNumber: number) => {
@@ -276,6 +228,37 @@ export default function CodeEditor({
               }, 2000)
             }
           }
+        },
+        setContent: (newContent: string, forceUpdate = false) => {
+          if (editor) {
+            const currentContent = editor.getValue()
+
+            // Always update if forceUpdate is true, or if content is different
+            if (forceUpdate || newContent !== currentContent) {
+              // Set internal change flag to prevent onChange callback
+              isInternalChangeRef.current = true
+
+              // Simply set the new content
+              editor.setValue(newContent)
+
+              // Update content reference immediately (synchronously)
+              previousContentRef.current = newContent
+
+              // For file switching (forceUpdate=true), reset cursor to top
+              if (forceUpdate) {
+                editor.setPosition({ lineNumber: 1, column: 1 })
+                editor.revealLine(1)
+              }
+
+              // Reset flag synchronously to avoid race conditions
+              setTimeout(() => {
+                isInternalChangeRef.current = false
+              }, 0)
+            }
+          }
+        },
+        getContent: () => {
+          return editor ? editor.getValue() : ''
         },
       }
     }
@@ -336,15 +319,31 @@ export default function CodeEditor({
   }
 
   const handleEditorChange = (value: string | undefined) => {
-    if (onChangeRef.current) {
-      onChangeRef.current(value || '')
+    const newValue = value || ''
+
+    // Update previous content reference
+    previousContentRef.current = newValue
+
+    // Only trigger onChange if this is a real user change (not from setValue)
+    if (!isInternalChangeRef.current && onChangeRef.current) {
+      onChangeRef.current(newValue)
     }
   }
 
   // If diff mode is enabled, show DiffEditor
   if (diffMode) {
     return (
-      <div className="h-full w-full overflow-hidden flex flex-col">
+      <div className="h-full w-full overflow-hidden flex flex-col relative">
+        {/* Loading State for Diff Mode */}
+        {!isEditorReady && (
+          <div className="absolute inset-0 bg-[#1e1e1e] flex items-center justify-center z-10">
+            <div className="flex flex-col items-center gap-3">
+              <Spinner color="text-[#cccccc]" />
+              <span className="text-sm text-[#cccccc]">Loading Diff Editor...</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-hidden">
           <DiffEditor
             height="100%"
@@ -354,24 +353,10 @@ export default function CodeEditor({
             language={language}
             theme="vs-code-dark"
             beforeMount={handleEditorWillMount}
-            options={{
-              readOnly: true,
-              fontSize: 14,
-              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              scrollbar: {
-                vertical: 'auto',
-                horizontal: 'auto',
-              },
-              lineNumbers: 'on',
-              glyphMargin: false,
-              folding: true,
-              renderSideBySide: true,
-              ignoreTrimWhitespace: false,
-              renderIndicators: true,
+            onMount={() => {
+              setIsEditorReady(true)
             }}
+            options={DIFF_EDITOR_OPTIONS}
           />
         </div>
         {(diffMode.onAccept || diffMode.onReject) && (
@@ -396,34 +381,30 @@ export default function CodeEditor({
   }
 
   return (
-    <div className="h-full w-full overflow-hidden">
+    <div className="h-full w-full overflow-hidden relative">
+      {/* Loading State */}
+      {!isEditorReady && (
+        <div className="absolute inset-0 bg-[#1e1e1e] flex items-center justify-center z-10">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner color="text-[#cccccc]" />
+            <span className="text-sm text-[#cccccc]">Loading Editor...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Editor */}
       <Editor
         height="100%"
         width="100%"
         path={path}
         language={language}
-        value={content}
         theme="vs-code-dark"
         beforeMount={handleEditorWillMount}
         onMount={handleEditorDidMount}
         onChange={handleEditorChange}
         options={{
+          ...DEFAULT_EDITOR_OPTIONS,
           readOnly,
-          fontSize: 14,
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-          minimap: { enabled: false },
-          scrollBeyondLastLine: false,
-          padding: { top: 16, bottom: 16 },
-          automaticLayout: true,
-          scrollbar: {
-            vertical: 'hidden',
-            horizontal: 'hidden',
-          },
-          lineNumbers: 'on',
-          glyphMargin: false,
-          folding: true,
-          lineDecorationsWidth: 10,
-          lineNumbersMinChars: 3,
         }}
       />
     </div>

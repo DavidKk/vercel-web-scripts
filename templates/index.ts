@@ -7,19 +7,33 @@
 // ============================================================================
 // Core Scripts
 // ============================================================================
-import cliServiceSource from './gm-templates/cliService.ts?raw'
-import helpersSource from './gm-templates/helpers.ts?raw'
+import helpersDomSource from './gm-templates/helpers/dom.ts?raw'
+import helpersHttpSource from './gm-templates/helpers/http.ts?raw'
+import helpersLoggerSource from './gm-templates/helpers/logger.ts?raw'
+import helpersUtilsSource from './gm-templates/helpers/utils.ts?raw'
 import mainSource from './gm-templates/main.ts?raw'
 import rulesSource from './gm-templates/rules.ts?raw'
 import scriptsSource from './gm-templates/scripts.ts?raw'
+import cliServiceSource from './gm-templates/services/cli-service.ts?raw'
+import scriptUpdateSource from './gm-templates/services/script-update.ts?raw'
+import tabCommunicationSource from './gm-templates/services/tab-communication.ts?raw'
 
 /**
  * Get core scripts from templates
  * @returns Array of core script file contents, in order
  */
 export function getCoreScriptsSource(): string[] {
-  // CLI service should be loaded after helpers but before UI modules
-  return [helpersSource, cliServiceSource, rulesSource, scriptsSource]
+  // Load order:
+  // 1. helpers/http - HTTP/Network functions
+  // 2. helpers/utils - Utility functions (GME_sleep, GME_debounce, etc.)
+  // 3. helpers/logger - Logging functions (GME_ok, GME_info, GME_debug, etc.)
+  // 4. helpers/dom - DOM query and wait functions
+  // 5. tab-communication - provides cross-tab communication (required by script-update)
+  // 6. script-update - depends on tab-communication
+  // 7. cli-service - CLI service
+  // 8. rules - rule processing
+  // 9. scripts - script loading utilities
+  return [helpersHttpSource, helpersUtilsSource, helpersLoggerSource, helpersDomSource, tabCommunicationSource, scriptUpdateSource, cliServiceSource, rulesSource, scriptsSource]
 }
 
 /**

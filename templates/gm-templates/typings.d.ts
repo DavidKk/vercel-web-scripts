@@ -26,6 +26,73 @@ declare function fetchCompileScript(host: string, files: Record<string, string>)
 declare function fetchRulesFromCache(refetch?: boolean): Promise<any[]>
 declare function matchUrl(pattern: string, url?: string): boolean
 
+// Tab communication service types and functions (defined in services/tab-communication.ts)
+// These are global types and functions, available in all files
+interface TabInfo {
+  id: string
+  url: string
+  hostname: string
+  pathname: string
+  title?: string
+  origin?: string
+  search?: string
+  hash?: string
+  isActive?: boolean
+  lastHeartbeat: number
+  lastActivity?: number
+  metadata?: Record<string, any>
+}
+
+interface TabMessage {
+  _channel: string
+  _version: string
+  type: 'broadcast' | 'send' | 'reply' | 'register' | 'unregister'
+  from: string
+  sender?: TabInfo
+  to?: string | string[]
+  messageId?: string
+  data: any
+  timestamp: number
+  urlPattern?: string
+}
+
+interface TabCommunicationConfig {
+  namespace?: string
+  heartbeatInterval?: number
+  tabTimeout?: number
+  metadata?: Record<string, any>
+}
+
+interface TabCommunication {
+  getTabId(): string
+  getRegisteredTabs(): TabInfo[]
+  getTabInfo(tabId: string): TabInfo | null
+  broadcast(data: any, urlPattern?: string): Promise<void>
+  send(toTabId: string, data: any, timeout?: number): Promise<any>
+  reply(messageId: string, data: any, toTabId: string): Promise<void>
+  onMessage(messageType: 'broadcast' | 'send' | 'reply' | 'register' | 'unregister' | '*', handler: (message: TabMessage, sender: TabInfo) => void | Promise<void>): string
+  offMessage(handlerId: string): void
+  onReply(handler: (message: TabMessage, sender: TabInfo) => any | Promise<any> | void | Promise<void>): string
+  offReply(handlerId: string): void
+}
+
+// Tab communication and script update services are defined in services/*.ts
+// They are global functions, no need to declare here as they are compiled together
+// TypeScript will infer types from the actual implementations
+
+// Script update service types (defined in services/script-update.ts)
+interface ScriptUpdateConfig {
+  defaultScriptUrl?: string
+  namespace?: string
+}
+
+interface ScriptUpdate {
+  update(scriptUrl?: string): Promise<void>
+  isHostTab(): boolean
+  getHostTabId(): string | null
+  destroy(): void
+}
+
 // File System Access API types
 interface FileSystemHandle {
   readonly kind: 'file' | 'directory'

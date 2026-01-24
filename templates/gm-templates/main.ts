@@ -3,24 +3,17 @@ const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMO
 // Use window.location.host instead of hostname to include port number
 const IS_DEVELOP_MODE = __IS_DEVELOP_MODE__ && __HOSTNAME_PORT__ === window.location.host
 
+// Guard against multiple initializations
+if ((window as any).__WEB_SCRIPT_INITIALIZED__) {
+  GME_info('[Main] Loader already running, skipping initialization')
+  // We return empty string or null to satisfy callers if needed, but here it's top-level
+} else {
+  ;(window as any).__WEB_SCRIPT_INITIALIZED__ = WEB_SCRIPT_ID
+}
+
 const LOCAL_DEV_EVENT_KEY = 'files@web-script-dev'
 const EDITOR_DEV_EVENT_KEY = 'files@web-script-editor-dev'
-const DEV_CHANNEL_NAME = 'web-script-dev'
-
-/** BroadcastChannel for cross-tab communication */
-let devChannel: BroadcastChannel | null = null
-
-/**
- * Initialize BroadcastChannel for dev mode communication
- * @returns {BroadcastChannel} The BroadcastChannel instance
- */
-function initDevChannel(): BroadcastChannel {
-  if (!devChannel) {
-    devChannel = new BroadcastChannel(DEV_CHANNEL_NAME)
-  }
-
-  return devChannel
-}
+const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
 
 /**
  * Check if local dev mode is active
@@ -138,44 +131,64 @@ async function executeLocalScript(): Promise<void> {
 
 /**
  * Execute editor dev mode script
+ * @returns {boolean} True if script was executed, false if waiting for files
  */
-async function executeEditorScript(): Promise<void> {
+async function executeEditorScript(): Promise<boolean> {
   if (!isEditorDevMode()) {
-    GME_info('[Editor Dev Mode] Editor dev mode not active, skipping execution')
-    return
+    return false
   }
 
   const host = getEditorDevHost()
   if (!host) {
-    GME_info('[Editor Dev Mode] No editor dev mode host found, skipping execution')
-    return
+    return false
   }
 
   // Get files and compiled content from GM_setValue (like Local Dev Mode)
-  const response = GM_getValue(EDITOR_DEV_EVENT_KEY) as { files?: Record<string, string>; compiledContent?: string } | null
+  const response = GM_getValue(EDITOR_DEV_EVENT_KEY) as { files?: Record<string, string>; compiledContent?: string; lastModified?: number; _early?: boolean } | null
   const files = response?.files || {}
   const compiledContent = response?.compiledContent
+  const lastModified = response?.lastModified || 0
+  const isEarlyInit = response?._early || false
 
   if (Object.keys(files).length === 0) {
-    GME_info('[Editor Dev Mode] No editor files found, skipping execution')
-    return
+    if (isEarlyInit) {
+      GME_info('[Editor Dev Mode] Early initialization detected, waiting for real files from editor...')
+      return true // Return true to keep DEV MODE active, files will come later
+    }
+    return false
   }
 
-  GME_info('[Editor Dev Mode] Executing editor script, host: ' + host + ', file count: ' + Object.keys(files).length)
-
   try {
-    // Compiled content is required - if not available, compilation failed on host side
+    // Compiled content is required - if not available, wait for editor to send it
     if (!compiledContent) {
-      GME_fail('[Editor Dev Mode] No compiled content available. Compilation may have failed on editor side.')
-      return
+      if (isEarlyInit) {
+        GME_info('[Editor Dev Mode] Early initialization - no compiled content yet. DEV MODE active, waiting for files...')
+        return true // Keep DEV MODE active
+      }
+      GME_info('[Editor Dev Mode] No compiled content available yet. Waiting for editor to compile and send files...')
+      return false
     }
 
-    GME_ok('[Editor Dev Mode] Editor script ready, executing...')
+    /**
+     * Prevent re-executing the same editor build in a loop.
+     * The editor host may broadcast the same payload multiple times (or multiple listeners may process it).
+     * We only execute when lastModified advances.
+     */
+    const lastExecuted = (window as any).__WEB_SCRIPT_EDITOR_LAST_MODIFIED__ as number | undefined
+    if (typeof lastExecuted === 'number' && lastExecuted >= lastModified) {
+      GME_debug('[Editor Dev Mode] Editor script already executed, skipping. lastExecuted: ' + lastExecuted + ', lastModified: ' + lastModified)
+      return true
+    }
+    ;(window as any).__WEB_SCRIPT_EDITOR_LAST_MODIFIED__ = lastModified
+
+    GME_ok('[Editor Dev Mode] Executing editor script')
     executeScript(compiledContent)
     GME_ok('[Editor Dev Mode] Editor script executed successfully')
+    return true
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     GME_fail('[Editor Dev Mode] Failed to execute editor script: ' + errorMessage)
+    return false
   }
 }
 
@@ -227,11 +240,206 @@ let hasExecutedLocalScript = false
 let hasExecutedEditorScript = false
 
 /**
+ * Global rules cache for matchRule function
+ * Updated in main() function after fetching rules
+ */
+let globalRules: Array<{ wildcard?: string; script?: string }> = []
+
+/**
+ * Handle editor dev mode updates from GM_addValueChangeListener
+ * This function is called when EDITOR_DEV_EVENT_KEY changes
+ */
+
+function handleEditorDevModeUpdate(oldValue: any, newValue: any): void {
+  // Handle editor dev mode stopped (newValue is null)
+  if (!newValue) {
+    // Add a short delay before reloading to avoid rapid stop/start cycles
+    // This can happen when editor page is refreshed or navigated
+    const hasRecentExecution = (window as any).__WEB_SCRIPT_EDITOR_LAST_MODIFIED__
+    const now = Date.now()
+
+    if (hasRecentExecution && now - hasRecentExecution < 5000) {
+      GME_info('[Editor Dev Mode] Ignoring stop signal (editor may be refreshing)')
+      return
+    }
+
+    // If this tab was using editor dev mode, reload to go back to normal mode
+    if (hasExecutedEditorScript) {
+      GME_info('[Editor Dev Mode] Reloading to return to normal mode')
+      hasExecutedEditorScript = false
+      window.location.reload()
+    }
+    return
+  }
+
+  // Skip if current page is the editor page
+  if (window.location.pathname.includes('/tampermonkey/editor')) {
+    return
+  }
+
+  // If new value does not have compiled content yet, its just the startup signal
+  // Wait for the update with actual code
+  if (!newValue.compiledContent) {
+    GME_info('[Editor Dev Mode] Dev mode started signal received (no content yet), waiting for files...')
+    return
+  }
+
+  // Skip if this is the same update (same lastModified) and we've already executed
+  // This prevents re-execution when the same update is received multiple times
+  if (oldValue?.lastModified && newValue?.lastModified && oldValue.lastModified >= newValue.lastModified && hasExecutedEditorScript) {
+    return
+  }
+
+  const activeHost = getEditorDevHost()
+  if (!activeHost) {
+    return
+  }
+
+  GME_info('[Editor Dev Mode] Processing update from host: ' + activeHost)
+
+  if (newValue.host !== activeHost) {
+    return
+  }
+
+  // Only trigger reload/re-execute when tab is active to avoid excessive reloads
+  const isTabHidden = document.hidden
+
+  // If page is visible, execute immediately regardless of focus
+  // If page is hidden, wait for it to become visible
+  if (isTabHidden) {
+    // Use a flag to avoid multiple pending listeners
+    if ((window as any).__WEB_SCRIPT_PENDING_RELOAD__) {
+      GME_debug('[Editor Dev Mode] Already waiting for tab visibility, skipping additional listener')
+      return
+    }
+    ;(window as any).__WEB_SCRIPT_PENDING_RELOAD__ = true
+
+    GME_info('[Editor Dev Mode] Editor files updated, but tab is hidden. Will reload when tab becomes visible...')
+
+    // Also add a backup timeout to execute even if tab doesn't become visible
+    setTimeout(() => {
+      if ((window as any).__WEB_SCRIPT_PENDING_RELOAD__) {
+        GME_info('[Editor Dev Mode] Timeout reached, executing script even though tab may be hidden...')
+        delete (window as any).__WEB_SCRIPT_PENDING_RELOAD__
+
+        if (hasExecutedEditorScript) {
+          executeEditorScript()
+        } else {
+          window.location.reload()
+        }
+      }
+    }, 3000) // 3 second timeout
+
+    // Wait for tab to become active before reloading
+    const onTabActive = (): void => {
+      // Only check if tab is hidden, not focus
+      if (document.hidden) {
+        return
+      }
+
+      // Remove listeners
+      document.removeEventListener('visibilitychange', onTabActive)
+      window.removeEventListener('focus', onTabActive)
+      delete (window as any).__WEB_SCRIPT_PENDING_RELOAD__
+
+      // Check if dev mode is still active
+      const currentDevMode = GM_getValue(EDITOR_DEV_EVENT_KEY) as { compiledContent?: string } | null
+      if (!currentDevMode || !currentDevMode.compiledContent) {
+        GME_info('Editor dev mode stopped or no content while waiting for tab to be visible.')
+        if (hasExecutedEditorScript && !currentDevMode) {
+          hasExecutedEditorScript = false
+          window.location.reload()
+        }
+        return
+      }
+
+      if (hasExecutedEditorScript) {
+        GME_info('[Editor Dev Mode] Editor files updated, re-executing script (tab now visible)...')
+        executeEditorScript()
+      } else {
+        GME_info('[Editor Dev Mode] Editor dev mode detected, reloading (tab now visible)...')
+        window.location.reload()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onTabActive)
+    window.addEventListener('focus', onTabActive)
+    return
+  }
+
+  // Tab is visible (not hidden), proceed immediately
+
+  if (hasExecutedEditorScript) {
+    // Use a flag to prevent multiple simultaneous re-execution attempts
+    if ((window as any).__WEB_SCRIPT_REEXECUTING_EDITOR_SCRIPT__) {
+      GME_debug('[Editor Dev Mode] Re-execution already in progress, skipping...')
+      return
+    }
+
+    ;(window as any).__WEB_SCRIPT_REEXECUTING_EDITOR_SCRIPT__ = true
+    GME_info('[Editor Dev Mode] Editor files updated, re-executing script...')
+    executeEditorScript()
+      .then(() => {
+        delete (window as any).__WEB_SCRIPT_REEXECUTING_EDITOR_SCRIPT__
+      })
+      .catch((error) => {
+        delete (window as any).__WEB_SCRIPT_REEXECUTING_EDITOR_SCRIPT__
+        GME_fail('[Editor Dev Mode] Error re-executing script: ' + (error instanceof Error ? error.message : String(error)))
+      })
+    return
+  }
+
+  // Script not executed yet, try to execute now
+  // Use a flag to prevent multiple simultaneous execution attempts
+  if ((window as any).__WEB_SCRIPT_EXECUTING_EDITOR_SCRIPT__) {
+    GME_debug('[Editor Dev Mode] Script execution already in progress, skipping...')
+    return
+  }
+
+  ;(window as any).__WEB_SCRIPT_EXECUTING_EDITOR_SCRIPT__ = true
+  executeEditorScript()
+    .then((executed) => {
+      delete (window as any).__WEB_SCRIPT_EXECUTING_EDITOR_SCRIPT__
+      if (executed) {
+        hasExecutedEditorScript = true
+      }
+    })
+    .catch((error) => {
+      delete (window as any).__WEB_SCRIPT_EXECUTING_EDITOR_SCRIPT__
+      GME_fail('[Editor Dev Mode] Error executing script: ' + (error instanceof Error ? error.message : String(error)))
+    })
+}
+
+/**
+ * Match rule function for dynamically compiled scripts
+ * This function is called by dynamically compiled scripts from createUserScript.server.ts
+ * Must be available globally, so defined outside main() function
+ * @param name Script name to match
+ * @param url URL to match against (defaults to current page URL)
+ * @returns True if rule matches
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function matchRule(name: string, url: string = window.location.href): boolean {
+  return globalRules.some(({ wildcard, script }) => {
+    if (script !== name) {
+      return false
+    }
+
+    return wildcard && matchUrl(wildcard, url)
+  })
+}
+
+/**
  * Try to execute local script if conditions are met
  * @returns {boolean} True if script was executed
  */
 function tryExecuteLocalScript(): boolean {
   if (hasExecutedLocalScript || IS_REMOTE_SCRIPT) {
+    return false
+  }
+
+  // Editor page (HOST) should not execute scripts, it only sends files to other pages
+  if (window.location.pathname.includes('/tampermonkey/editor')) {
     return false
   }
 
@@ -258,10 +466,15 @@ function tryExecuteLocalScript(): boolean {
 
 /**
  * Try to execute editor script if conditions are met
- * @returns {Promise<boolean>} True if script was executed
+ * @returns {Promise<boolean>} True if script was executed or if editor dev mode is active (to prevent remote script execution)
  */
 async function tryExecuteEditorScript(): Promise<boolean> {
   if (hasExecutedEditorScript || IS_REMOTE_SCRIPT) {
+    return false
+  }
+
+  // Editor page (HOST) should not execute scripts, it only sends files to other pages
+  if (window.location.pathname.includes('/tampermonkey/editor')) {
     return false
   }
 
@@ -271,14 +484,25 @@ async function tryExecuteEditorScript(): Promise<boolean> {
       return false
     }
 
-    // Check if this is the active host
-    // We need to check by fetching from API or checking GM_getValue
-    // For now, we'll allow any tab to execute if editor dev mode is active
-    // The host check will be done in executeEditorScript
-    hasExecutedEditorScript = true
-    await executeEditorScript()
+    // Try to execute script immediately if files are already available
+    const executed = await executeEditorScript()
+
+    // If script was executed, mark as executed
+    if (executed) {
+      hasExecutedEditorScript = true
+      return true
+    }
+
+    // If script was not executed (files not ready yet)
+    // Don't poll or timeout - GM_addValueChangeListener will handle file updates
+    // When editor sends files via postMessage -> GM_setValue, the listener will trigger
+    // handleEditorDevModeUpdate which will execute the script
+
+    // Return true to indicate dev mode is active and prevent remote script execution
+    // The script will be executed automatically when files arrive via GM_addValueChangeListener
     return true
   }
+
   return false
 }
 
@@ -286,25 +510,213 @@ async function tryExecuteEditorScript(): Promise<boolean> {
  * Main function that orchestrates script execution
  */
 async function main(): Promise<void> {
-  const channel = initDevChannel()
+  GME_info('[Main] Starting main function, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
 
-  // In development mode, clear any residual local/editor dev mode flags to ensure remote script execution
+  // Set up GM_addValueChangeListener early so we can receive messages from Editor page (even if cross-domain)
+  // This must be set up before checking editor dev mode, so we can receive messages immediately
+  GM_addValueChangeListener(EDITOR_DEV_EVENT_KEY, (name, oldValue, newValue) => {
+    handleEditorDevModeUpdate(oldValue, newValue)
+  })
+  GME_info('[Main] GM_addValueChangeListener for EDITOR_DEV_EVENT_KEY set up early')
+
+  // Check if editor dev mode is already active (Editor page may have set it before this script loaded)
+  const existingEditorDevMode = GM_getValue(EDITOR_DEV_EVENT_KEY)
+  if (existingEditorDevMode) {
+    GME_info('[Main] Editor dev mode already active when script loaded, processing existing value')
+    // Trigger handler with null as oldValue to simulate initial load
+    handleEditorDevModeUpdate(null, existingEditorDevMode)
+  }
+
+  // Set up window.postMessage listener for Editor page (to receive messages from Editor.tsx)
+  // This allows Editor.tsx (webpage) to communicate with Tampermonkey script
+  const isEditorPage = window.location.pathname.includes('/tampermonkey/editor')
+  if (isEditorPage) {
+    GME_info('[Main] Editor page detected, setting up window.postMessage listener')
+    window.addEventListener('message', (event: MessageEvent) => {
+      // Only accept messages from same origin (Editor.tsx is on the same page)
+      if (event.origin !== window.location.origin) {
+        return
+      }
+
+      // Check if it's an editor message
+      if (event.data?.type !== EDITOR_POST_MESSAGE_TYPE) {
+        return
+      }
+
+      const message = event.data.message as {
+        type: string
+        host?: string
+        lastModified?: number
+        files?: Record<string, string>
+        compiledContent?: string
+      }
+
+      GME_info('[Main] Received postMessage from Editor.tsx, type: ' + message.type + ', host: ' + (message.host || 'unknown'))
+
+      // Handle early editor dev mode initialization
+      if (message.type === 'editor-dev-mode-early-init') {
+        const host = message.host
+        if (!host) {
+          return
+        }
+
+        GME_info('[Main] Editor dev mode early init via postMessage, host: ' + host)
+        // Set EDITOR_DEV_EVENT_KEY immediately for early detection
+        GM_setValue(EDITOR_DEV_EVENT_KEY, { host, lastModified: 0, files: {}, compiledContent: '', _early: true })
+        GME_info('[Main] Early editor dev mode flag set, waiting for real files...')
+        return
+      }
+
+      // Handle editor-dev-mode-started
+      if (message.type === 'editor-dev-mode-started') {
+        const host = message.host
+        if (!host) {
+          return
+        }
+
+        GME_info('[Main] Editor dev mode started via postMessage, host: ' + host)
+
+        // Check if another dev mode is active
+        const activeDevMode = getActiveDevMode()
+        if (activeDevMode === 'local') {
+          GME_notification('Local file watch is already running. Please stop it first.', 'error')
+          return
+        }
+
+        // New host replaces old host directly (simple approach)
+        const currentEditorHost = getEditorDevHost()
+        if (currentEditorHost && currentEditorHost !== host) {
+          GME_info('New editor host replacing old host, old: ' + currentEditorHost + ', new: ' + host)
+          // Clear old host
+          GM_setValue(EDITOR_DEV_EVENT_KEY, null)
+        }
+
+        // Set EDITOR_DEV_EVENT_KEY immediately so other tabs can detect editor dev mode
+        // Files will be sent later via editor-files-updated message
+        const currentState = GM_getValue(EDITOR_DEV_EVENT_KEY) as { host?: string } | null
+        if (!currentState || currentState.host !== host) {
+          GM_setValue(EDITOR_DEV_EVENT_KEY, { host, lastModified: 0, files: {}, compiledContent: '' })
+          GME_info('Editor dev mode flag set via postMessage, host: ' + host + ', waiting for files...')
+        } else {
+          GME_info('Editor dev mode already active for host: ' + host + ', waiting for files...')
+        }
+        return
+      }
+
+      // Handle editor-dev-mode-stopped
+      if (message.type === 'editor-dev-mode-stopped') {
+        const host = message.host
+        GME_info('[Main] Editor dev mode stopped via postMessage, host: ' + (host || 'unknown'))
+        // Editor dev mode stopped, clear the key
+        const currentHost = getEditorDevHost()
+        if (!currentHost || currentHost === host) {
+          GM_setValue(EDITOR_DEV_EVENT_KEY, null)
+          GME_info('Editor dev mode cleared via postMessage')
+        } else {
+          GME_info('Host mismatch on stop, current: ' + currentHost + ', stopped: ' + (host || 'unknown') + ', keeping current host')
+        }
+        return
+      }
+
+      // Handle editor-no-files
+      if (message.type === 'editor-no-files') {
+        const userMessage = (message as any).message
+        GME_info('[Editor Dev Mode] ' + (userMessage || 'No script files found in editor'))
+        return
+      }
+
+      // Handle editor-files-updated
+      if (message.type === 'editor-files-updated') {
+        const { host, lastModified, files, compiledContent } = message
+        if (!host) {
+          return
+        }
+
+        GME_info(
+          '[Main] Received editor-files-updated via postMessage, host: ' +
+            host +
+            ', lastModified: ' +
+            (lastModified || 0) +
+            ', file count: ' +
+            Object.keys(files || {}).length +
+            ', hasCompiledContent: ' +
+            !!compiledContent
+        )
+
+        // Check if another dev mode is active
+        const activeDevMode = getActiveDevMode()
+        if (activeDevMode === 'local') {
+          GME_info('Local file watch is active, ignoring editor update')
+          return
+        }
+
+        // Check if this is the active editor host or if no editor host is set yet
+        const currentEditorHost = getEditorDevHost()
+        if (currentEditorHost && currentEditorHost !== host) {
+          GME_info('Host mismatch, current: ' + currentEditorHost + ', received: ' + host + ', ignoring update')
+          return
+        }
+
+        // Only editor tab executes GM_setValue (this will trigger GM_addValueChangeListener in all tabs)
+        const currentState = GM_getValue(EDITOR_DEV_EVENT_KEY) as { lastModified?: number; compiledContent?: string } | null
+        // Only skip if we already have compiledContent and lastModified is newer or equal
+        // If currentState has no compiledContent (just the initial flag), always update
+        if (currentState?.compiledContent && currentState?.lastModified && lastModified && currentState.lastModified >= lastModified) {
+          GME_info('No update needed, current lastModified: ' + currentState.lastModified + ', received: ' + lastModified)
+          return
+        }
+
+        // Always update if we don't have compiledContent yet, or if lastModified is newer
+        // Remove _early flag when real files arrive
+        const newValue = { host, lastModified: lastModified || Date.now(), files: files || {}, compiledContent: compiledContent || '' }
+        GM_setValue(EDITOR_DEV_EVENT_KEY, newValue)
+        GME_info('Editor dev mode files stored via postMessage, host: ' + host + ', file count: ' + Object.keys(files || {}).length + ', hasCompiledContent: ' + !!compiledContent)
+        // GM_setValue will automatically trigger GM_addValueChangeListener in all tabs (including this one)
+        return
+      }
+    })
+  }
+
+  // Check dev modes first (editor dev mode works in both dev and prod)
+  const hasLocalDevMode = isLocalDevMode()
+  const hasEditorDevMode = isEditorDevMode()
+
+  // Only clear dev mode flags in development mode if they are not active
   if (IS_DEVELOP_MODE) {
-    const hasLocalDevMode = isLocalDevMode()
-    const hasEditorDevMode = isEditorDevMode()
-
+    // Only clear local dev mode flag if there's no active host
     if (hasLocalDevMode) {
-      GM_setValue(LOCAL_DEV_EVENT_KEY, null)
-      GME_info('[Dev Mode] Cleared residual local dev mode flag')
+      const localHost = getLocalDevHost()
+      if (!localHost) {
+        GM_setValue(LOCAL_DEV_EVENT_KEY, null)
+        GME_info('[Dev Mode] Cleared residual local dev mode flag (no active host)')
+      }
     }
 
+    // Only clear editor dev mode flag if there's no active host
+    // This allows editor dev mode to persist across page refreshes
     if (hasEditorDevMode) {
+      const editorHost = getEditorDevHost()
+      if (!editorHost) {
+        GM_setValue(EDITOR_DEV_EVENT_KEY, null)
+        GME_info('[Dev Mode] Cleared residual editor dev mode flag (no active host)')
+      } else {
+        GME_info('[Dev Mode] Editor dev mode has active host: ' + editorHost + ', keeping flag')
+      }
+    }
+  } else if (hasEditorDevMode) {
+    // In production mode, still validate editor dev mode host
+    const editorHost = getEditorDevHost()
+    if (!editorHost) {
       GM_setValue(EDITOR_DEV_EVENT_KEY, null)
-      GME_info('[Dev Mode] Cleared residual editor dev mode flag')
+      GME_info('[Editor Dev Mode] Cleared residual editor dev mode flag (no active host)')
+    } else {
+      GME_info('[Editor Dev Mode] Editor dev mode has active host in production mode: ' + editorHost)
     }
   }
 
-  if (tryExecuteLocalScript()) {
+  // Try local script only in development mode
+  if (IS_DEVELOP_MODE && tryExecuteLocalScript()) {
+    GME_info('[Main] Local dev mode active, executing local script')
     function handleLocalScriptUpdate(oldValue: any, newValue: any): void {
       if (!newValue) {
         return
@@ -315,8 +727,7 @@ async function main(): Promise<void> {
       }
 
       // Check if there are cached files (from host tab)
-      const host = getLocalDevHost()
-      if (!host) {
+      if (!getLocalDevHost()) {
         return
       }
 
@@ -329,60 +740,33 @@ async function main(): Promise<void> {
       handleLocalScriptUpdate(oldValue, newValue)
     })
 
-    channel.addEventListener('message', (event) => {
-      const { type, host, lastModified } = event.data as {
-        type: string
-        host: string
-        lastModified: number
-      }
-
-      if (type === 'files-updated' && host === WEB_SCRIPT_ID) {
-        // HOST tab already executed GM_setValue, which will trigger GM_addValueChangeListener
-        // This channel listener is for faster response, but we don't need to execute GM_setValue again
-        // Just check if we need to handle the update immediately
-        const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY) as { lastModified?: number } | null
-        if (currentState?.lastModified && currentState.lastModified >= lastModified) {
-          return
-        }
-
-        // Wait for GM_addValueChangeListener to trigger (HOST tab already executed GM_setValue)
-        // This is just for logging/debugging
-        GME_info('Received files-updated message, waiting for GM_addValueChangeListener to trigger...')
-      }
-    })
-
     return
   }
 
-  if (await tryExecuteEditorScript()) {
-    function handleEditorScriptUpdate(oldValue: any, newValue: any): void {
-      if (!newValue) {
-        return
-      }
+  const editorScriptResult = await tryExecuteEditorScript()
+  if (editorScriptResult) {
+    // EDITOR_DEV_EVENT_KEY listener is already set up early in main() function
+    // The global handler (handleEditorDevModeUpdate) will handle all updates
+    // If files are not ready yet, they will be executed automatically when editor sends them
+    return
+  }
 
-      if (oldValue?.lastModified >= newValue?.lastModified) {
-        return
-      }
-
-      const host = getEditorDevHost()
-      if (!host) {
-        return
-      }
-
-      GME_info('[Editor Dev Mode] Editor files updated, re-executing script...')
-      executeEditorScript()
+  GME_info('[Main] After editor script check, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
+  if (IS_DEVELOP_MODE && !IS_REMOTE_SCRIPT) {
+    GME_info('[Main] Entering dev mode path')
+    // Editor page (HOST) should not execute remote scripts in dev mode
+    // It only sends files to other pages via GM_setValue (triggered by postMessage from Editor.tsx)
+    if (window.location.pathname.includes('/tampermonkey/editor')) {
+      GME_info('[Dev Mode] Current page is editor page (HOST), skipping remote script execution')
+      // Initialize script-update service to listen for updates (but don't execute)
+      getScriptUpdate()
+      return
     }
 
-    GM_addValueChangeListener(EDITOR_DEV_EVENT_KEY, (name, oldValue, newValue) => {
-      handleEditorScriptUpdate(oldValue, newValue)
-    })
+    GME_info('[Main] Non-editor page in dev mode, initializing services and executing remote script')
+    // Initialize script-update service to listen for update messages
+    getScriptUpdate()
 
-    // Note: editor-files-updated messages are handled by the global channel listener below
-    // The editor sends messages with host = 'editor-xxx', not WEB_SCRIPT_ID
-    return
-  }
-
-  if (IS_DEVELOP_MODE && !IS_REMOTE_SCRIPT) {
     watchHMRUpdates({
       onUpdate: () => window.location.reload(),
     })
@@ -392,24 +776,17 @@ async function main(): Promise<void> {
     return
   }
 
+  GME_info('[Main] Not in dev mode path, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
+
   if (IS_REMOTE_SCRIPT) {
-    GME_info('Executing remote script')
+    GME_info('[Main] IS_REMOTE_SCRIPT=true, executing remote script')
   }
 
+  GME_info('[Main] Fetching rules and setting up matchRule function')
+  // Fetch rules and update global cache for matchRule function
   const rules = await fetchRulesFromCache()
-  // Used by compiled scripts from createUserScript.server.ts
-  // This function is called by dynamically compiled scripts, so it must be available globally
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function matchRule(name: string, url: string = window.location.href): boolean {
-    return rules.some(({ wildcard, script }: { wildcard?: string; script?: string }) => {
-      if (script !== name) {
-        return false
-      }
-
-      return wildcard && matchUrl(wildcard, url)
-    })
-  }
+  globalRules = rules
+  GME_info('[Main] Rules fetched, count: ' + rules.length)
 
   /**
    * Execute GIST compiled scripts
@@ -427,82 +804,9 @@ async function main(): Promise<void> {
     window.open(__EDITOR_URL__, '_blank')
   })
 
-  /**
-   * Validate script by checking if it exists and can be accessed
-   * Similar to editor's handleUpdate logic
-   * @param scriptUrl Script URL to validate
-   * @returns Object with isValid flag and the URL to use
-   */
-  async function validateScript(scriptUrl: string): Promise<{ isValid: boolean; url: string | null }> {
-    try {
-      GME_info('Validating script compilation...')
-
-      // Extract key from script URL (e.g., /static/{key}/tampermonkey.js)
-      const urlObj = new URL(scriptUrl, window.location.origin)
-      const pathParts = urlObj.pathname.split('/')
-      const keyIndex = pathParts.indexOf('static')
-      if (keyIndex === -1 || keyIndex + 1 >= pathParts.length) {
-        GME_fail('Invalid script URL format')
-        GME_notification('Invalid script URL format', 'error')
-        return { isValid: false, url: null }
-      }
-
-      const key = pathParts[keyIndex + 1]
-      const baseUrl = `${urlObj.protocol}//${urlObj.host}`
-      const userUrl = `${baseUrl}/static/${key}/tampermonkey.user.js`
-      const fallback = `${baseUrl}/static/${key}/tampermonkey.js`
-
-      // Check if tampermonkey.user.js exists (HEAD request)
-      try {
-        const userResponse = await GME_fetch(userUrl, { method: 'HEAD' })
-        if (userResponse.ok) {
-          GME_ok('Script validation passed (tampermonkey.user.js found)')
-          return { isValid: true, url: userUrl }
-        }
-      } catch (error) {
-        // Continue to check fallback
-      }
-
-      // Check fallback tampermonkey.js
-      try {
-        const fallbackResponse = await GME_fetch(fallback, { method: 'HEAD' })
-        if (fallbackResponse.ok) {
-          GME_ok('Script validation passed (tampermonkey.js found)')
-          return { isValid: true, url: fallback }
-        }
-      } catch (error) {
-        // Both failed
-      }
-
-      // Both URLs failed - compilation may have failed
-      GME_fail('Script validation failed: Both tampermonkey.user.js and tampermonkey.js are not available')
-      GME_fail('This usually means script compilation failed. Please check for errors.')
-      GME_notification('Script compilation failed. Please check for errors in the editor.', 'error', 5000)
-      return { isValid: false, url: null }
-    } catch (error: any) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      GME_fail(`Script validation failed: ${errorMessage}`)
-      GME_notification(`Script validation failed: ${errorMessage}`, 'error', 5000)
-      return { isValid: false, url: null }
-    }
-  }
-
   GM_registerMenuCommand('Update Script', async () => {
-    const scriptUrl = __SCRIPT_URL__
-    if (!scriptUrl) {
-      GME_fail('Script URL is not available')
-      GME_notification('Script URL is not available', 'error')
-      return
-    }
-
-    const validation = await validateScript(scriptUrl)
-    if (!validation.isValid || !validation.url) {
-      GME_fail('Script validation failed. Update cancelled.')
-      return
-    }
-
-    GME_ok('Opening update link...')
-    window.open(validation.url, '_blank', 'noopener')
+    const scriptUpdate = getScriptUpdate()
+    await scriptUpdate.update()
   })
 
   GM_registerMenuCommand('Rule manager', () => {
@@ -535,13 +839,8 @@ async function main(): Promise<void> {
         const host = getEditorDevHost()
         if (host) {
           // Clear the editor dev mode key
+          // GM_setValue will automatically trigger GM_addValueChangeListener in all tabs
           GM_setValue(EDITOR_DEV_EVENT_KEY, null)
-
-          // Notify other tabs via BroadcastChannel
-          channel.postMessage({
-            type: 'editor-dev-mode-stopped',
-            host: host,
-          })
 
           GME_notification('Editor dev mode stopped. All tabs will return to normal mode.', 'success')
           GME_info('Editor dev mode manually stopped by user, host: ' + host)
@@ -706,12 +1005,11 @@ async function main(): Promise<void> {
         const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY) as { lastModified?: number } | null
 
         if (!currentState || !currentState.lastModified || currentState.lastModified < lastModified) {
+          // GM_setValue will automatically trigger GM_addValueChangeListener in all tabs
           GM_setValue(LOCAL_DEV_EVENT_KEY, state)
 
           if (hasModified) {
-            // Use channel from outer scope (main function)
-            channel.postMessage({ type: 'files-updated', host: WEB_SCRIPT_ID, lastModified, files, compiledContent })
-            GME_info('[Local Dev Mode] Local files modified, emitting reload event...')
+            GME_info('[Local Dev Mode] Local files modified, GM_setValue triggered, all tabs will receive update via GM_addValueChangeListener...')
           }
         }
       }
@@ -809,212 +1107,11 @@ async function main(): Promise<void> {
     createReloadHandler('Local', () => !!GM_getValue(LOCAL_DEV_EVENT_KEY))
   }
 
-  function handleEditorDevModeUpdate(oldValue: any, newValue: any): void {
-    // Handle editor dev mode stopped (newValue is null)
-    if (!newValue) {
-      // If this tab was using editor dev mode, reload to go back to normal mode
-      if (hasExecutedEditorScript) {
-        GME_info('Editor dev mode stopped, reloading to return to normal mode...')
-        // Reset the flag so it doesn't try to execute editor script again
-        hasExecutedEditorScript = false
-        window.location.reload()
-      }
-      return
-    }
-
-    // Skip if current page is the editor page (editor page shouldn't reload itself)
-    if (window.location.pathname.includes('/tampermonkey/editor')) {
-      GME_info('Current page is editor page, skipping update')
-      return
-    }
-
-    if (oldValue?.lastModified >= newValue?.lastModified) {
-      GME_info('No update needed, old lastModified: ' + oldValue.lastModified + ', new: ' + newValue.lastModified)
-      return
-    }
-
-    const activeHost = getEditorDevHost()
-    if (!activeHost) {
-      GME_info('No active editor dev mode host, skipping update')
-      return
-    }
-
-    if (newValue.host !== activeHost) {
-      GME_info('Host mismatch, active: ' + activeHost + ', received: ' + newValue.host + ', skipping update')
-      return
-    }
-
-    // Only trigger reload/re-execute when tab is active to avoid excessive reloads
-    const isTabActive = !document.hidden && document.hasFocus()
-
-    if (!isTabActive) {
-      GME_info('[Editor Dev Mode] Editor files updated, but tab is not active. Will reload when tab becomes active...')
-
-      // Wait for tab to become active before reloading
-      const onTabActive = (): void => {
-        if (document.hidden || !document.hasFocus()) {
-          return
-        }
-
-        // Remove listeners
-        document.removeEventListener('visibilitychange', onTabActive)
-        window.removeEventListener('focus', onTabActive)
-
-        // Check if dev mode is still active
-        const currentDevMode = GM_getValue(EDITOR_DEV_EVENT_KEY)
-        if (!currentDevMode) {
-          GME_info('Editor dev mode stopped while waiting for tab to be active. Reloading to return to normal mode...')
-          hasExecutedEditorScript = false
-          window.location.reload()
-          return
-        }
-
-        // Now trigger reload or re-execute based on whether script was already executed
-        if (hasExecutedEditorScript) {
-          GME_info('[Editor Dev Mode] Editor files updated, re-executing script (tab now active)...')
-          executeEditorScript()
-        } else {
-          GME_info('[Editor Dev Mode] Editor dev mode detected, reloading (tab now active)...')
-          window.location.reload()
-        }
-      }
-
-      document.addEventListener('visibilitychange', onTabActive)
-      window.addEventListener('focus', onTabActive)
-      return
-    }
-
-    // Tab is active, proceed with reload or re-execute
-    if (hasExecutedEditorScript) {
-      GME_info('[Editor Dev Mode] Editor files updated, re-executing script...')
-      executeEditorScript()
-      return
-    }
-
-    // For tabs that haven't executed the script yet, reload to load the new script
-    GME_info('[Editor Dev Mode] Editor dev mode detected, reloading...')
-    window.location.reload()
-  }
-
   GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
     handleLocalDevModeUpdate(oldValue, newValue)
   })
 
-  GM_addValueChangeListener(EDITOR_DEV_EVENT_KEY, (name, oldValue, newValue) => {
-    handleEditorDevModeUpdate(oldValue, newValue)
-  })
-
-  channel.addEventListener('message', (event) => {
-    // Skip local dev mode messages if local dev mode is active (isDevMode is only set for local dev mode)
-    // Editor dev mode messages should still be processed
-    const { type, host, lastModified, files } = event.data as {
-      type: string
-      host: string
-      lastModified: number
-      files: Record<string, string>
-    }
-
-    if (isDevMode && type === 'files-updated') {
-      return
-    }
-
-    if (type === 'files-updated' && host === WEB_SCRIPT_ID) {
-      // HOST tab already executed GM_setValue, which will trigger GM_addValueChangeListener in all tabs
-      // Other tabs don't need to execute GM_setValue again, they will receive notification via GM_addValueChangeListener
-      // This channel listener is only for logging/debugging purposes
-      const currentState = GM_getValue(LOCAL_DEV_EVENT_KEY) as { lastModified?: number } | null
-      if (currentState?.lastModified && currentState.lastModified >= lastModified) {
-        return
-      }
-
-      // Only log, don't execute GM_setValue (HOST tab already did it)
-      GME_info('Received files-updated message from HOST, waiting for GM_addValueChangeListener to trigger...')
-    }
-
-    if (type === 'editor-dev-mode-started') {
-      GME_info('Editor dev mode started, host: ' + host)
-
-      // Check if another dev mode is active
-      const activeDevMode = getActiveDevMode()
-      if (activeDevMode === 'local') {
-        GME_notification('Local file watch is already running. Please stop it first.', 'error')
-        return
-      }
-
-      // New host replaces old host directly (simple approach)
-      const currentEditorHost = getEditorDevHost()
-      if (currentEditorHost && currentEditorHost !== host) {
-        GME_info('New editor host replacing old host, old: ' + currentEditorHost + ', new: ' + host)
-        // Clear old host
-        GM_setValue(EDITOR_DEV_EVENT_KEY, null)
-      }
-
-      // Wait for files to be sent via editor-files-updated message
-      GME_info('Editor dev mode activated, waiting for files...')
-    }
-
-    if (type === 'editor-dev-mode-stopped') {
-      GME_info('Editor dev mode stopped, host: ' + host)
-      // Editor dev mode stopped, clear the key
-      // Note: We clear even if host doesn't match, in case of race conditions
-      const currentHost = getEditorDevHost()
-      if (!currentHost || currentHost === host) {
-        GM_setValue(EDITOR_DEV_EVENT_KEY, null)
-        GME_info('Editor dev mode cleared')
-      } else {
-        GME_info('Host mismatch on stop, current: ' + currentHost + ', stopped: ' + host + ', keeping current host')
-      }
-    }
-
-    if (type === 'editor-files-updated') {
-      const compiledContent = (event.data as { compiledContent?: string }).compiledContent
-      GME_info(
-        'Received editor-files-updated message, host: ' +
-          host +
-          ', lastModified: ' +
-          lastModified +
-          ', file count: ' +
-          Object.keys(files || {}).length +
-          ', hasCompiledContent: ' +
-          !!compiledContent
-      )
-
-      // Check if another dev mode is active
-      const activeDevMode = getActiveDevMode()
-      if (activeDevMode === 'local') {
-        GME_info('Local file watch is active, ignoring editor update')
-        return
-      }
-
-      // Check if this is the active editor host or if no editor host is set yet
-      const currentEditorHost = getEditorDevHost()
-      if (currentEditorHost && currentEditorHost !== host) {
-        GME_info('Host mismatch, current: ' + currentEditorHost + ', received: ' + host + ', ignoring update')
-        return
-      }
-
-      // Check if current tab is the editor tab (only editor tab should execute GM_setValue)
-      const isEditorTab = window.location.pathname.includes('/tampermonkey/editor')
-
-      if (!isEditorTab) {
-        // Other tabs don't need to execute GM_setValue, they will receive notification via GM_addValueChangeListener
-        GME_info('Not editor tab, waiting for GM_addValueChangeListener to trigger...')
-        return
-      }
-
-      // Only editor tab executes GM_setValue (like HOST tab in Local Dev Mode)
-      const currentState = GM_getValue(EDITOR_DEV_EVENT_KEY) as { lastModified?: number } | null
-      if (currentState?.lastModified && currentState.lastModified >= lastModified) {
-        GME_info('No update needed, current lastModified: ' + currentState.lastModified + ', received: ' + lastModified)
-        return
-      }
-
-      const newValue = { host, lastModified, files, compiledContent }
-      GM_setValue(EDITOR_DEV_EVENT_KEY, newValue)
-      GME_info('Editor dev mode files stored by editor tab, host: ' + host + ', file count: ' + Object.keys(files).length + ', hasCompiledContent: ' + !!compiledContent)
-      // GM_setValue will automatically trigger GM_addValueChangeListener in all tabs (including this one)
-    }
-  })
+  // EDITOR_DEV_EVENT_KEY listener is already set up early in main() function
 }
 
 main()
