@@ -828,7 +828,7 @@ async function main(): Promise<void> {
       const fallback = `${baseUrl}/static/${key}/tampermonkey.js`
 
       // Check if tampermonkey.user.js exists (HEAD request)
-      let url = fallback
+      let url: string | null = null
       try {
         const userResponse = await GME_fetch(userUrl, { method: 'HEAD' })
         if (userResponse.ok) {
@@ -838,24 +838,31 @@ async function main(): Promise<void> {
           // Check fallback tampermonkey.js
           const fallbackResponse = await GME_fetch(fallback, { method: 'HEAD' })
           if (fallbackResponse.ok) {
+            url = fallback
             GME_ok('[Update Script] Script validation passed (tampermonkey.js found)')
           } else {
+            // Both URLs failed - compilation may have failed
             GME_fail('[Update Script] Script validation failed: Both tampermonkey.user.js and tampermonkey.js are not available')
-            GME_notification('Script compilation failed. Opening fallback URL anyway.', 'error', 5000)
-            // Still open fallback URL even if validation failed
+            GME_fail('[Update Script] This usually means script compilation failed. Please check for errors.')
+            GME_notification('Script compilation failed. Please check for errors in the editor.', 'error', 5000)
+            // Return early without opening any URL (consistent with script-update service behavior)
+            return
           }
         }
       } catch (error: any) {
+        // Network error - fallback to opening the default URL (same as editor behavior)
         const errorMessage = error instanceof Error ? error.message : String(error)
         GME_fail('[Update Script] Script validation failed: ' + errorMessage)
-        GME_info('[Update Script] Opening fallback URL due to validation error')
-        // Fallback to opening the default URL even if check fails
+        GME_info('[Update Script] Opening fallback URL due to network error')
+        url = fallback
       }
 
-      // Open new page for Tampermonkey to auto-update
-      GME_ok('[Update Script] Opening script update URL: ' + url)
-      window.open(url, '_blank', 'noopener')
-      GME_notification('Script update page opened. Tampermonkey will automatically update the script.', 'success', 3000)
+      // Only open URL if validation passed or network error occurred
+      if (url) {
+        GME_ok('[Update Script] Opening script update URL: ' + url)
+        window.open(url, '_blank', 'noopener')
+        GME_notification('Script update page opened. Tampermonkey will automatically update the script.', 'success', 3000)
+      }
     } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       GME_fail('[Update Script] Update failed: ' + errorMessage)
