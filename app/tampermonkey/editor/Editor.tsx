@@ -228,12 +228,36 @@ export default function Editor(props: EditorProps) {
 
   // Update editor content when selected file changes
   useEffect(() => {
-    if (codeEditorRef.current && editorManager.selectedFile) {
+    async function updateEditorContent() {
+      // Wait for editor to be ready before switching files
+      if (!codeEditorRef.current || !editorManager.selectedFile) {
+        return
+      }
+
+      // Check if editor is ready, if not wait for it
+      if (!codeEditorRef.current.isReady()) {
+        // Wait for editor to be ready (max 5 seconds timeout)
+        const maxWaitTime = 5000
+        const startTime = Date.now()
+        while (!codeEditorRef.current.isReady() && Date.now() - startTime < maxWaitTime) {
+          await new Promise((resolve) => setTimeout(resolve, 50))
+        }
+        // If still not ready after timeout, skip file switch
+        if (!codeEditorRef.current.isReady()) {
+          // eslint-disable-next-line no-console
+          console.warn('[Editor] Editor not ready, cannot switch file')
+          return
+        }
+      }
+
       const newContent = editorManager.getCurrentFileContent()
 
       // Use forceUpdate=true for file switching to ensure content is updated
-      codeEditorRef.current.setContent(newContent, true)
+      // setContent is now async and will wait for editor to be ready
+      await codeEditorRef.current.setContent(newContent, true)
     }
+
+    updateEditorContent()
   }, [editorManager.selectedFile])
 
   // Pin files to openFiles when they get changes (TAB becomes fixed/pinned)

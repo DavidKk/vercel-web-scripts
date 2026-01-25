@@ -17,9 +17,11 @@ export interface CodeEditorRef {
   /** Navigate to a specific line number */
   navigateToLine: (lineNumber: number) => void
   /** Set editor content (for file switching) */
-  setContent: (content: string, forceUpdate?: boolean) => void
+  setContent: (content: string, forceUpdate?: boolean) => Promise<void>
   /** Get current editor content */
   getContent: () => string
+  /** Check if editor is ready */
+  isReady: () => boolean
 }
 
 interface CommonCodeEditorProps {
@@ -61,6 +63,9 @@ export default function CodeEditor({
   const editorInstanceRef = useRef<any>(null)
   const previousContentRef = useRef<string>('')
   const isInternalChangeRef = useRef(false)
+  const isEditorReadyRef = useRef(false)
+  const setContentCancelRef = useRef<(() => void) | null>(null)
+  const setContentSequenceRef = useRef(0)
   const [isEditorReady, setIsEditorReady] = useState(false)
 
   useEffect(() => {
@@ -205,6 +210,7 @@ export default function CodeEditor({
     previousContentRef.current = initialContent
 
     // Mark editor as ready
+    isEditorReadyRef.current = true
     setIsEditorReady(true)
 
     // Expose editor methods via ref
@@ -229,7 +235,51 @@ export default function CodeEditor({
             }
           }
         },
-        setContent: (newContent: string, forceUpdate = false) => {
+        setContent: async (newContent: string, forceUpdate = false) => {
+          // Cancel previous setContent operation if it's still pending
+          if (setContentCancelRef.current) {
+            setContentCancelRef.current()
+            setContentCancelRef.current = null
+          }
+
+          // Increment sequence number to track this operation
+          const currentSequence = ++setContentSequenceRef.current
+          let isCancelled = false
+
+          // Create cancel function for this operation
+          const cancel = () => {
+            isCancelled = true
+            if (setContentCancelRef.current === cancel) {
+              setContentCancelRef.current = null
+            }
+          }
+          setContentCancelRef.current = cancel
+
+          // Wait for editor to be ready before setting content
+          if (!isEditorReadyRef.current) {
+            // Wait for editor to be ready (max 5 seconds timeout)
+            const maxWaitTime = 5000
+            const startTime = Date.now()
+            while (!isEditorReadyRef.current && !isCancelled && Date.now() - startTime < maxWaitTime) {
+              await new Promise((resolve) => setTimeout(resolve, 50))
+            }
+            // If cancelled or still not ready after timeout, return early
+            if (isCancelled) {
+              return
+            }
+            if (!isEditorReadyRef.current) {
+              // eslint-disable-next-line no-console
+              console.warn('[CodeEditor] Editor not ready, cannot set content')
+              setContentCancelRef.current = null
+              return
+            }
+          }
+
+          // Check if cancelled before proceeding
+          if (isCancelled || currentSequence !== setContentSequenceRef.current) {
+            return
+          }
+
           if (editor) {
             const currentContent = editor.getValue()
 
@@ -238,27 +288,80 @@ export default function CodeEditor({
               // Set internal change flag to prevent onChange callback
               isInternalChangeRef.current = true
 
-              // Simply set the new content
-              editor.setValue(newContent)
-
-              // Update content reference immediately (synchronously)
-              previousContentRef.current = newContent
-
-              // For file switching (forceUpdate=true), reset cursor to top
-              if (forceUpdate) {
-                editor.setPosition({ lineNumber: 1, column: 1 })
-                editor.revealLine(1)
+              // Wait for model to be ready before setting value
+              const model = editor.getModel()
+              if (!model) {
+                // eslint-disable-next-line no-console
+                console.warn('[CodeEditor] Editor model not ready, cannot set content')
+                isInternalChangeRef.current = false
+                setContentCancelRef.current = null
+                return
               }
 
-              // Reset flag synchronously to avoid race conditions
-              setTimeout(() => {
+              // Check if cancelled before setting value
+              if (isCancelled || currentSequence !== setContentSequenceRef.current) {
                 isInternalChangeRef.current = false
-              }, 0)
+                return
+              }
+
+              // Use requestAnimationFrame to ensure model is fully ready
+              await new Promise<void>((resolve) => {
+                requestAnimationFrame(() => {
+                  // Check if cancelled before setting value
+                  if (isCancelled || currentSequence !== setContentSequenceRef.current) {
+                    isInternalChangeRef.current = false
+                    setContentCancelRef.current = null
+                    resolve() // Resolve instead of reject to avoid unhandled promise rejection
+                    return
+                  }
+
+                  // Set the new content
+                  editor.setValue(newContent)
+
+                  // Update content reference immediately (synchronously)
+                  previousContentRef.current = newContent
+
+                  // For file switching (forceUpdate=true), reset cursor to top
+                  if (forceUpdate) {
+                    editor.setPosition({ lineNumber: 1, column: 1 })
+                    editor.revealLine(1)
+                  }
+
+                  // Wait one more frame to ensure setValue has completed
+                  requestAnimationFrame(() => {
+                    // Check if cancelled before completing
+                    if (isCancelled || currentSequence !== setContentSequenceRef.current) {
+                      isInternalChangeRef.current = false
+                      setContentCancelRef.current = null
+                      resolve() // Resolve instead of reject
+                      return
+                    }
+
+                    // Reset flag after setValue has completed
+                    setTimeout(() => {
+                      isInternalChangeRef.current = false
+                      // Only clear cancel ref if this is still the current operation
+                      if (currentSequence === setContentSequenceRef.current) {
+                        setContentCancelRef.current = null
+                      }
+                      resolve()
+                    }, 0)
+                  })
+                })
+              })
+            } else {
+              // Content is the same, clear cancel ref
+              setContentCancelRef.current = null
             }
+          } else {
+            setContentCancelRef.current = null
           }
         },
         getContent: () => {
           return editor ? editor.getValue() : ''
+        },
+        isReady: () => {
+          return isEditorReadyRef.current && editor !== null
         },
       }
     }

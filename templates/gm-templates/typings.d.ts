@@ -16,53 +16,180 @@ declare function GM_listValues(): string[]
 declare function GM_addValueChangeListener(key: string, callback: (name: string, oldValue: any, newValue: any, remote: boolean) => void): string
 declare function GM_removeValueChangeListener(listenerId: string): void
 declare function GM_log(...messages: any[]): void
-declare function GM_registerMenuCommand(caption: string, commandFunc: () => void, accessKey?: string): number
-declare function GM_unregisterMenuCommand(menuCmdId: number): void
-declare function GM_notification(text: string, title?: string, image?: string, onClick?: () => void): void
-declare function GM_openInTab(url: string, openInBackground?: boolean): void
-declare function GM_setClipboard(data: string, type?: 'text' | 'html'): void
-declare function GM_addElement(parent: HTMLElement | Document, tagName: string, attributes?: Record<string, string>): HTMLElement
+declare function GM_registerMenuCommand(
+  name: string,
+  callback: (event: MouseEvent | KeyboardEvent) => void,
+  optionsOrAccessKey?:
+    | {
+        id?: number | string
+        accessKey?: string
+        autoClose?: boolean
+        title?: string
+      }
+    | string
+): number | string
+declare function GM_unregisterMenuCommand(menuCmdId: number | string): void
+declare function GM_notification(
+  details:
+    | {
+        text: string
+        title?: string
+        tag?: string
+        image?: string
+        highlight?: boolean
+        silent?: boolean
+        timeout?: number
+        url?: string
+        onclick?: (event: Event) => void
+        ondone?: () => void
+      }
+    | string,
+  titleOrOndone?: string | (() => void),
+  image?: string,
+  onClick?: () => void
+): void
+declare function GM_openInTab(
+  url: string,
+  options?:
+    | {
+        active?: boolean
+        insert?: number
+        setParent?: boolean
+        incognito?: boolean
+        loadInBackground?: boolean
+      }
+    | boolean
+): {
+  close: () => void
+  onclose: () => void
+  closed: boolean
+}
+declare function GM_setClipboard(data: string, info?: 'text' | 'html' | { type: 'text' | 'html'; mimetype?: string }, cb?: () => void): void
+declare function GM_addElement(
+  parentOrTagName: HTMLElement | Document | string,
+  tagNameOrAttributes?: string | Record<string, string>,
+  attributes?: Record<string, string>
+): HTMLElement
 declare function GM_addStyle(css: string): HTMLStyleElement
-declare function GM_download(details: {
-  url: string
-  name: string
-  saveAs?: boolean
-  headers?: Record<string, string>
-  onerror?: (error: any) => void
-  ontimeout?: () => void
-  onload?: () => void
-}): void
+declare function GM_download(
+  details:
+    | {
+        url: string | Blob | File
+        name: string
+        saveAs?: boolean
+        conflictAction?: 'uniquify' | 'overwrite' | 'prompt'
+        headers?: Record<string, string>
+        onerror?: (error: { error: string; details?: string }) => void
+        ontimeout?: () => void
+        onload?: () => void
+        onprogress?: (event: ProgressEvent) => void
+      }
+    | string,
+  name?: string
+): {
+  abort: () => void
+}
 declare function GM_getResourceText(name: string): string
 declare function GM_getResourceURL(name: string): string
-declare function GM_info(): {
-  script: {
-    name: string
-    namespace: string
-    version: string
-    description: string
-    author: string
-    match: string[]
-    exclude: string[]
-    include: string[]
-    grant: string[]
-    require: string[]
-    resource: Record<string, string>
-    connect: string[]
-    'run-at': string
+declare const GM_info: {
+  container?: {
+    id: string
+    name?: string
   }
-  scriptMetaStr: string
-  scriptWillUpdate: boolean
+  downloadMode: string
+  isFirstPartyIsolation?: boolean
+  isIncognito: boolean
+  sandboxMode?: 'js' | 'raw' | 'dom'
   scriptHandler: string
-  version: string
-  platform: {
-    os: string
-    arch: string
-    browserName: string
-    browserVersion: string
+  scriptMetaStr: string | null
+  scriptUpdateURL: string | null
+  scriptWillUpdate: boolean
+  userAgentData?: {
+    brands?: { brand: string; version: string }[]
+    mobile?: boolean
+    platform?: string
+    architecture?: string
+    bitness?: string
+  }
+  version?: string
+  script: {
+    antifeatures: { [antifeature: string]: { [locale: string]: string } }
+    author: string | null
+    blockers: string[]
+    connects: string[]
+    copyright: string | null
+    deleted?: number
+    description_i18n: { [locale: string]: string } | null
+    description: string
+    downloadURL: string | null
+    excludes: string[]
+    fileURL: string | null
+    grant: string[]
+    header: string | null
+    homepage: string | null
+    icon: string | null
+    icon64: string | null
+    includes: string[]
+    lastModified: number
+    matches: string[]
+    name_i18n: { [locale: string]: string } | null
+    name: string
+    namespace: string | null
+    position: number
+    resources: Array<{
+      name: string
+      url: string
+      error?: string
+      content?: string
+      meta?: string
+    }>
+    supportURL: string | null
+    system?: boolean
+    'run-at': string | null
+    'run-in': string[] | null
+    unwrap: boolean | null
+    updateURL: string | null
+    version: string
+    webRequest: Array<{
+      selector: { include?: string | string[]; match?: string | string[]; exclude?: string | string[] } | string
+      action: string | { cancel?: boolean; redirect?: { url: string; from?: string; to?: string } | string }
+    }> | null
+    options: {
+      check_for_updates: boolean
+      comment: string | null
+      compatopts_for_requires: boolean
+      compat_wrappedjsobject: boolean
+      compat_metadata: boolean
+      compat_foreach: boolean
+      compat_powerful_this: boolean | null
+      sandbox: string | null
+      noframes: boolean | null
+      unwrap: boolean | null
+      run_at: string | null
+      run_in: string | null
+      override: {
+        use_includes: string[]
+        orig_includes: string[]
+        merge_includes: boolean
+        use_matches: string[]
+        orig_matches: string[]
+        merge_matches: boolean
+        use_excludes: string[]
+        orig_excludes: string[]
+        merge_excludes: boolean
+        use_connects: string[]
+        orig_connects: string[]
+        merge_connects: boolean
+        use_blockers: string[]
+        orig_run_at: string | null
+        orig_run_in: string[] | null
+        orig_noframes: boolean | null
+      }
+    }
   }
 }
 declare function GM_setValues(obj: Record<string, any>): void
-declare function GM_getValues(keys: string[]): Record<string, any>
+declare function GM_getValues(keys: string[] | Record<string, any>): Record<string, any>
 declare function GM_deleteValues(keys: string[]): void
 declare interface GMXMLHttpRequestResponse {
   finalUrl: string
@@ -79,23 +206,51 @@ declare interface GMXMLHttpRequestError {
   message?: string
 }
 declare interface GMXMLHttpRequestDetails {
-  method: string
-  url: string
+  method?: string
+  url: string | URL | Blob | File
   headers?: Record<string, string>
-  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams
-  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
-  body?: any
+  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams | object | any[]
+  redirect?: 'follow' | 'error' | 'manual'
+  cookie?: string
+  cookiePartition?: {
+    topLevelSite?: string
+  }
+  binary?: boolean
+  nocache?: boolean
+  revalidate?: boolean
   timeout?: number
-  onload?: (response: GMXMLHttpRequestResponse) => void
-  onerror?: (error: GMXMLHttpRequestError) => void
+  context?: any
+  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
+  overrideMimeType?: string
+  anonymous?: boolean
+  fetch?: boolean
+  proxy?: {
+    type: 'direct' | 'http' | 'https' | 'socks' | 'socks4'
+    host: string
+    port: number
+    username?: string
+    password?: string
+    proxyDNS?: boolean
+    failoverTimeout?: number
+    proxyAuthorizationHeader?: string
+    connectionIsolationKey?: string
+  }
+  user?: string
+  password?: string
   onabort?: (error: GMXMLHttpRequestError) => void
-  ontimeout?: (error: GMXMLHttpRequestError) => void
+  onerror?: (error: GMXMLHttpRequestError) => void
+  onloadstart?: (response: GMXMLHttpRequestResponse) => void
   onprogress?: (event: ProgressEvent) => void
+  onreadystatechange?: (response: GMXMLHttpRequestResponse) => void
+  ontimeout?: (error: GMXMLHttpRequestError) => void
+  onload?: (response: GMXMLHttpRequestResponse) => void
 }
-declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
-declare function GM_getTab(callback: (tab: any) => void): void
-declare function GM_saveTab(tab: any): void
-declare function GM_getTabs(callback: (tabs: any[]) => void): void
+declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): {
+  abort: () => void
+}
+declare function GM_getTab(callback?: (tab: any) => void): void
+declare function GM_saveTab(tab: any, callback?: (error?: string) => void): void
+declare function GM_getTabs(callback?: (tabs: Record<string, any>) => void): void
 declare function GM_webRequest(details: any): void
 declare function GM_cookie(details: any): void
 declare const unsafeWindow: Window

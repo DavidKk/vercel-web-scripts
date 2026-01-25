@@ -47,29 +47,69 @@ declare interface GMXMLHttpRequestError {
  */
 declare interface GMXMLHttpRequestDetails {
   /** HTTP method (GET, POST, etc.) */
-  method: string
-  /** Request URL */
-  url: string
+  method?: string
+  /** Request URL, Blob, or File */
+  url: string | URL | Blob | File
   /** Optional request headers */
   headers?: Record<string, string>
   /** Optional request data */
-  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams
-  /** Response type */
-  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
-  /** Request body (alternative to data) */
-  body?: any
+  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams | object | any[]
+  /** Redirect handling */
+  redirect?: 'follow' | 'error' | 'manual'
+  /** Cookie to patch into sent cookie set */
+  cookie?: string
+  /** Cookie partition key */
+  cookiePartition?: {
+    topLevelSite?: string
+  }
+  /** Send data string in binary mode */
+  binary?: boolean
+  /** Don't cache the resource */
+  nocache?: boolean
+  /** Revalidate maybe cached content */
+  revalidate?: boolean
   /** Request timeout in milliseconds */
   timeout?: number
-  /** Callback when request completes successfully */
-  onload?: (response: GMXMLHttpRequestResponse) => void
-  /** Callback when request fails */
-  onerror?: (error: GMXMLHttpRequestError) => void
+  /** Property added to response object */
+  context?: any
+  /** Response type */
+  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
+  /** MIME type override */
+  overrideMimeType?: string
+  /** Don't send cookies with the request */
+  anonymous?: boolean
+  /** Use fetch instead of XMLHttpRequest */
+  fetch?: boolean
+  /** Proxy configuration (Firefox only) */
+  proxy?: {
+    type: 'direct' | 'http' | 'https' | 'socks' | 'socks4'
+    host: string
+    port: number
+    username?: string
+    password?: string
+    proxyDNS?: boolean
+    failoverTimeout?: number
+    proxyAuthorizationHeader?: string
+    connectionIsolationKey?: string
+  }
+  /** User name for authentication */
+  user?: string
+  /** Password for authentication */
+  password?: string
   /** Callback when request is aborted */
   onabort?: (error: GMXMLHttpRequestError) => void
-  /** Callback when request times out */
-  ontimeout?: (error: GMXMLHttpRequestError) => void
+  /** Callback when request fails */
+  onerror?: (error: GMXMLHttpRequestError) => void
+  /** Callback on load start */
+  onloadstart?: (response: GMXMLHttpRequestResponse) => void
   /** Callback for progress updates */
   onprogress?: (event: ProgressEvent) => void
+  /** Callback when ready state changes */
+  onreadystatechange?: (response: GMXMLHttpRequestResponse) => void
+  /** Callback when request times out */
+  ontimeout?: (error: GMXMLHttpRequestError) => void
+  /** Callback when request completes successfully */
+  onload?: (response: GMXMLHttpRequestResponse) => void
 }
 
 /** Unsafe window object that bypasses content security policy */
@@ -78,8 +118,11 @@ declare const unsafeWindow: Window
 /**
  * Make an HTTP request using Greasemonkey API
  * @param details Request configuration details
+ * @returns Object with abort function to cancel the request
  */
-declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
+declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): {
+  abort: () => void
+}
 
 /**
  * Store a value in the script's storage
@@ -116,10 +159,10 @@ declare function GM_setValues(obj: Record<string, any>): void
 
 /**
  * Retrieve multiple values from the script's storage
- * @param keys Array of storage keys
+ * @param keysOrDefaults Array of storage keys or object with default values
  * @returns Object with key-value pairs
  */
-declare function GM_getValues(keys: string[]): Record<string, any>
+declare function GM_getValues(keys: string[] | Record<string, any>): Record<string, any>
 
 /**
  * Delete multiple values from the script's storage
@@ -150,67 +193,213 @@ declare function GM_log(...messages: any[]): void
 /**
  * Set clipboard content
  * @param data Text or HTML to copy to clipboard
- * @param type Clipboard format ('text' or 'html'), defaults to 'text'
+ * @param info Clipboard format - can be a string ('text' or 'html') or an object with type and optional mimetype
+ * @param cb Optional callback function called when the clipboard has been set
  */
-declare function GM_setClipboard(data: string, type?: 'text' | 'html'): void
+declare function GM_setClipboard(data: string, info?: 'text' | 'html' | { type: 'text' | 'html'; mimetype?: string }, cb?: () => void): void
 
 /**
  * Register a menu command in the userscript menu
- * @param caption Menu item caption
- * @param commandFunc Function to execute when menu item is clicked
- * @param accessKey Optional keyboard shortcut key
+ * @param name Menu item name
+ * @param callback Function to execute when menu item is clicked
+ * @param optionsOrAccessKey Options object or access key string
  * @returns Menu command ID
  */
-declare function GM_registerMenuCommand(caption: string, commandFunc: () => void, accessKey?: string): number
+declare function GM_registerMenuCommand(
+  name: string,
+  callback: (event: MouseEvent | KeyboardEvent) => void,
+  optionsOrAccessKey?:
+    | {
+        id?: number | string
+        accessKey?: string
+        autoClose?: boolean
+        title?: string
+      }
+    | string
+): number | string
 
 /**
  * Unregister a menu command
  * @param menuCmdId Menu command ID returned from GM_registerMenuCommand
  */
-declare function GM_unregisterMenuCommand(menuCmdId: number): void
+declare function GM_unregisterMenuCommand(menuCmdId: number | string): void
 
 /**
  * Show a notification
- * @param text Notification text
- * @param title Optional notification title
- * @param image Optional notification image URL
- * @param onClick Optional callback when notification is clicked
+ * @param details Notification details object or text string
+ * @param titleOrOndone Title string or ondone callback (if details is string)
+ * @param image Image URL (if details is string)
+ * @param onClick Click callback (if details is string)
  */
-declare function GM_notification(text: string, title?: string, image?: string, onClick?: () => void): void
+declare function GM_notification(
+  details:
+    | {
+        text: string
+        title?: string
+        tag?: string
+        image?: string
+        highlight?: boolean
+        silent?: boolean
+        timeout?: number
+        url?: string
+        onclick?: (event: Event) => void
+        ondone?: () => void
+      }
+    | string,
+  titleOrOndone?: string | (() => void),
+  image?: string,
+  onClick?: () => void
+): void
 
 /**
- * Get information about the userscript
- * @param text Information text
+ * Get information about the userscript and Tampermonkey
+ * This is a constant object, not a function
  */
-declare function GM_info(text: string): void
+declare const GM_info: {
+  container?: {
+    id: string
+    name?: string
+  }
+  downloadMode: string
+  isFirstPartyIsolation?: boolean
+  isIncognito: boolean
+  sandboxMode?: 'js' | 'raw' | 'dom'
+  scriptHandler: string
+  scriptMetaStr: string | null
+  scriptUpdateURL: string | null
+  scriptWillUpdate: boolean
+  userAgentData?: {
+    brands?: { brand: string; version: string }[]
+    mobile?: boolean
+    platform?: string
+    architecture?: string
+    bitness?: string
+  }
+  version?: string
+  script: {
+    antifeatures: { [antifeature: string]: { [locale: string]: string } }
+    author: string | null
+    blockers: string[]
+    connects: string[]
+    copyright: string | null
+    deleted?: number
+    description_i18n: { [locale: string]: string } | null
+    description: string
+    downloadURL: string | null
+    excludes: string[]
+    fileURL: string | null
+    grant: string[]
+    header: string | null
+    homepage: string | null
+    icon: string | null
+    icon64: string | null
+    includes: string[]
+    lastModified: number
+    matches: string[]
+    name_i18n: { [locale: string]: string } | null
+    name: string
+    namespace: string | null
+    position: number
+    resources: Array<{
+      name: string
+      url: string
+      error?: string
+      content?: string
+      meta?: string
+    }>
+    supportURL: string | null
+    system?: boolean
+    'run-at': string | null
+    'run-in': string[] | null
+    unwrap: boolean | null
+    updateURL: string | null
+    version: string
+    webRequest: Array<{
+      selector: { include?: string | string[]; match?: string | string[]; exclude?: string | string[] } | string
+      action: string | { cancel?: boolean; redirect?: { url: string; from?: string; to?: string } | string }
+    }> | null
+    options: {
+      check_for_updates: boolean
+      comment: string | null
+      compatopts_for_requires: boolean
+      compat_wrappedjsobject: boolean
+      compat_metadata: boolean
+      compat_foreach: boolean
+      compat_powerful_this: boolean | null
+      sandbox: string | null
+      noframes: boolean | null
+      unwrap: boolean | null
+      run_at: string | null
+      run_in: string | null
+      override: {
+        use_includes: string[]
+        orig_includes: string[]
+        merge_includes: boolean
+        use_matches: string[]
+        orig_matches: string[]
+        merge_matches: boolean
+        use_excludes: string[]
+        orig_excludes: string[]
+        merge_excludes: boolean
+        use_connects: string[]
+        orig_connects: string[]
+        merge_connects: boolean
+        use_blockers: string[]
+        orig_run_at: string | null
+        orig_run_in: string[] | null
+        orig_noframes: boolean | null
+      }
+    }
+  }
+}
 
 /**
  * Open a URL in a new tab
  * @param url URL to open
- * @param openInBackground Whether to open in background (default: false)
+ * @param options Options object or boolean for loadInBackground
+ * @returns Object with close function, onclose listener, and closed flag
  */
-declare function GM_openInTab(url: string, openInBackground?: boolean): void
+declare function GM_openInTab(
+  url: string,
+  options?:
+    | {
+        active?: boolean
+        insert?: number
+        setParent?: boolean
+        incognito?: boolean
+        loadInBackground?: boolean
+      }
+    | boolean
+): {
+  close: () => void
+  onclose: () => void
+  closed: boolean
+}
 
 /**
  * Download a file
- * @param details Download configuration
+ * @param details Download configuration object or URL string
+ * @param name Filename (if details is string)
+ * @returns Object with abort function
  */
-declare function GM_download(details: {
-  /** URL of the file to download */
-  url: string
-  /** Filename for the downloaded file */
-  name: string
-  /** Whether to show save-as dialog */
-  saveAs?: boolean
-  /** Optional request headers */
-  headers?: Record<string, string>
-  /** Callback when download fails */
-  onerror?: (error: any) => void
-  /** Callback when download times out */
-  ontimeout?: () => void
-  /** Callback when download completes */
-  onload?: () => void
-}): void
+declare function GM_download(
+  details:
+    | {
+        url: string | Blob | File
+        name: string
+        saveAs?: boolean
+        conflictAction?: 'uniquify' | 'overwrite' | 'prompt'
+        headers?: Record<string, string>
+        onerror?: (error: { error: string; details?: string }) => void
+        ontimeout?: () => void
+        onload?: () => void
+        onprogress?: (event: ProgressEvent) => void
+      }
+    | string,
+  name?: string
+): {
+  abort: () => void
+}
 
 /**
  * Get resource text by name
@@ -228,12 +417,16 @@ declare function GM_getResourceURL(name: string): string
 
 /**
  * Add an element to the DOM
- * @param parent Parent element or document
- * @param tagName HTML tag name
- * @param attributes Optional element attributes
+ * @param parentOrTagName Parent element, document, or tag name string
+ * @param tagNameOrAttributes Tag name string or attributes object
+ * @param attributes Optional element attributes (if parent is provided)
  * @returns Created element
  */
-declare function GM_addElement(parent: HTMLElement | Document, tagName: string, attributes?: Record<string, string>): HTMLElement
+declare function GM_addElement(
+  parentOrTagName: HTMLElement | Document | string,
+  tagNameOrAttributes?: string | Record<string, string>,
+  attributes?: Record<string, string>
+): HTMLElement
 
 /**
  * Add CSS styles to the page
@@ -244,21 +437,22 @@ declare function GM_addStyle(css: string): HTMLStyleElement
 
 /**
  * Get current tab information
- * @param callback Callback function with tab information
+ * @param callback Optional callback function with tab information
  */
-declare function GM_getTab(callback: (tab: any) => void): void
+declare function GM_getTab(callback?: (tab: any) => void): void
 
 /**
  * Save tab information
  * @param tab Tab object to save
+ * @param callback Optional callback function called when operation completes
  */
-declare function GM_saveTab(tab: any): void
+declare function GM_saveTab(tab: any, callback?: (error?: string) => void): void
 
 /**
  * Get all tabs information
- * @param callback Callback function with array of tab information
+ * @param callback Optional callback function with tabs object
  */
-declare function GM_getTabs(callback: (tabs: any[]) => void): void
+declare function GM_getTabs(callback?: (tabs: Record<string, any>) => void): void
 
 /**
  * Intercept and modify web requests
