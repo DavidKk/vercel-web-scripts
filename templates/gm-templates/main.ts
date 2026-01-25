@@ -804,9 +804,63 @@ async function main(): Promise<void> {
     window.open(__EDITOR_URL__, '_blank')
   })
 
+  /**
+   * Handle update script menu - check script validity and open update URL
+   * Similar to editor update button: check script, then open new page for Tampermonkey to auto-update
+   */
   GM_registerMenuCommand('Update Script', async () => {
-    const scriptUpdate = getScriptUpdate()
-    await scriptUpdate.update()
+    try {
+      GME_info('[Update Script] Checking script validity...')
+
+      // Extract key from script URL (e.g., /static/{key}/tampermonkey.js)
+      const urlObj = new URL(__SCRIPT_URL__, window.location.origin)
+      const pathParts = urlObj.pathname.split('/')
+      const keyIndex = pathParts.indexOf('static')
+      if (keyIndex === -1 || keyIndex + 1 >= pathParts.length) {
+        GME_fail('[Update Script] Invalid script URL format')
+        GME_notification('Invalid script URL format', 'error')
+        return
+      }
+
+      const key = pathParts[keyIndex + 1]
+      const baseUrl = `${urlObj.protocol}//${urlObj.host}`
+      const userUrl = `${baseUrl}/static/${key}/tampermonkey.user.js`
+      const fallback = `${baseUrl}/static/${key}/tampermonkey.js`
+
+      // Check if tampermonkey.user.js exists (HEAD request)
+      let url = fallback
+      try {
+        const userResponse = await GME_fetch(userUrl, { method: 'HEAD' })
+        if (userResponse.ok) {
+          url = userUrl
+          GME_ok('[Update Script] Script validation passed (tampermonkey.user.js found)')
+        } else {
+          // Check fallback tampermonkey.js
+          const fallbackResponse = await GME_fetch(fallback, { method: 'HEAD' })
+          if (fallbackResponse.ok) {
+            GME_ok('[Update Script] Script validation passed (tampermonkey.js found)')
+          } else {
+            GME_fail('[Update Script] Script validation failed: Both tampermonkey.user.js and tampermonkey.js are not available')
+            GME_notification('Script compilation failed. Opening fallback URL anyway.', 'error', 5000)
+            // Still open fallback URL even if validation failed
+          }
+        }
+      } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        GME_fail('[Update Script] Script validation failed: ' + errorMessage)
+        GME_info('[Update Script] Opening fallback URL due to validation error')
+        // Fallback to opening the default URL even if check fails
+      }
+
+      // Open new page for Tampermonkey to auto-update
+      GME_ok('[Update Script] Opening script update URL: ' + url)
+      window.open(url, '_blank', 'noopener')
+      GME_notification('Script update page opened. Tampermonkey will automatically update the script.', 'success', 3000)
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      GME_fail('[Update Script] Update failed: ' + errorMessage)
+      GME_notification('Script update failed: ' + errorMessage, 'error', 5000)
+    }
   })
 
   GM_registerMenuCommand('Rule manager', () => {
