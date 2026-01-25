@@ -20,7 +20,7 @@ interface LayoutState {
  * Object store name for layout
  */
 const STORE_NAME = OBJECT_STORES.LAYOUT
-const STORAGE_KEY = 'editorLayoutState'
+const DEFAULT_STORAGE_KEY = 'editorLayoutState'
 
 /**
  * Layout storage service using IndexedDB
@@ -38,8 +38,12 @@ export class LayoutStorageService {
   /**
    * Save layout state to IndexedDB
    * @param state Layout state to save
+   * @param storageKey Optional storage key
    */
-  async saveLayoutState(state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null }): Promise<void> {
+  async saveLayoutState(
+    state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null },
+    storageKey: string = DEFAULT_STORAGE_KEY
+  ): Promise<void> {
     if (!indexedDBService.isAvailable()) {
       // eslint-disable-next-line no-console
       console.warn('[LayoutStorageService] IndexedDB is not available, cannot save layout state')
@@ -68,18 +72,18 @@ export class LayoutStorageService {
         const store = transaction.objectStore(STORE_NAME)
 
         // Continue with the rest of the logic using retryDb
-        await this.writeStateToStore(store, state)
+        await this.writeStateToStore(store, state, storageKey)
         // eslint-disable-next-line no-console
-        console.log('[LayoutStorageService] Layout state saved successfully (after retry)')
+        console.log(`[LayoutStorageService] Layout state saved successfully (after retry) for key: ${storageKey}`)
         return
       }
 
       const transaction = db.transaction([STORE_NAME], 'readwrite')
       const store = transaction.objectStore(STORE_NAME)
 
-      await this.writeStateToStore(store, state)
+      await this.writeStateToStore(store, state, storageKey)
       // eslint-disable-next-line no-console
-      console.log('[LayoutStorageService] Layout state saved successfully', state)
+      console.log(`[LayoutStorageService] Layout state saved successfully for key: ${storageKey}`, state)
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[LayoutStorageService] Failed to save layout state to IndexedDB:', error)
@@ -91,15 +95,20 @@ export class LayoutStorageService {
    * Write state to object store
    * @param store Object store instance
    * @param state Layout state
+   * @param storageKey Storage key
    */
-  private async writeStateToStore(store: IDBObjectStore, state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null }): Promise<void> {
+  private async writeStateToStore(
+    store: IDBObjectStore,
+    state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null },
+    storageKey: string
+  ): Promise<void> {
     const layoutState: LayoutState = {
       ...state,
       updatedAt: Date.now(),
     }
 
     return new Promise<void>((resolve, reject) => {
-      const request = store.put(layoutState, STORAGE_KEY)
+      const request = store.put(layoutState, storageKey)
 
       request.onsuccess = () => {
         resolve()
@@ -115,11 +124,15 @@ export class LayoutStorageService {
   /**
    * Read state from object store
    * @param store Object store instance
+   * @param storageKey Storage key
    * @returns Layout state or null if not found
    */
-  private async readStateFromStore(store: IDBObjectStore): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null } | null> {
+  private async readStateFromStore(
+    store: IDBObjectStore,
+    storageKey: string
+  ): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null } | null> {
     const state = await new Promise<LayoutState | undefined>((resolve, reject) => {
-      const request = store.get(STORAGE_KEY)
+      const request = store.get(storageKey)
       request.onsuccess = () => {
         resolve(request.result)
       }
@@ -143,9 +156,10 @@ export class LayoutStorageService {
 
   /**
    * Load layout state from IndexedDB
+   * @param storageKey Optional storage key
    * @returns Layout state or null if not found
    */
-  async loadLayoutState(): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null } | null> {
+  async loadLayoutState(storageKey: string = DEFAULT_STORAGE_KEY): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null } | null> {
     if (!indexedDBService.isAvailable()) {
       // eslint-disable-next-line no-console
       console.warn('[LayoutStorageService] IndexedDB is not available, cannot load layout state')
@@ -174,15 +188,15 @@ export class LayoutStorageService {
         const store = transaction.objectStore(STORE_NAME)
 
         // Continue with the rest of the logic using retryDb
-        return await this.readStateFromStore(store)
+        return await this.readStateFromStore(store, storageKey)
       }
 
       const transaction = db.transaction([STORE_NAME], 'readonly')
       const store = transaction.objectStore(STORE_NAME)
 
-      const result = await this.readStateFromStore(store)
+      const result = await this.readStateFromStore(store, storageKey)
       // eslint-disable-next-line no-console
-      console.log('[LayoutStorageService] Layout state loaded:', result)
+      console.log(`[LayoutStorageService] Layout state loaded for key ${storageKey}:`, result)
       return result
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -193,8 +207,9 @@ export class LayoutStorageService {
 
   /**
    * Clear layout state from IndexedDB
+   * @param storageKey Optional storage key
    */
-  async clearLayoutState(): Promise<void> {
+  async clearLayoutState(storageKey: string = DEFAULT_STORAGE_KEY): Promise<void> {
     if (!indexedDBService.isAvailable()) {
       return
     }
@@ -219,7 +234,7 @@ export class LayoutStorageService {
         const store = transaction.objectStore(STORE_NAME)
 
         await new Promise<void>((resolve, reject) => {
-          const request = store.delete(STORAGE_KEY)
+          const request = store.delete(storageKey)
           request.onsuccess = () => resolve()
           request.onerror = () => reject(request.error)
         })
@@ -230,7 +245,7 @@ export class LayoutStorageService {
       const store = transaction.objectStore(STORE_NAME)
 
       await new Promise<void>((resolve, reject) => {
-        const request = store.delete(STORAGE_KEY)
+        const request = store.delete(storageKey)
         request.onsuccess = () => resolve()
         request.onerror = () => reject(request.error)
       })

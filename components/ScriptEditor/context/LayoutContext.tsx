@@ -41,6 +41,8 @@ export interface LayoutProviderProps {
   initialRightPanelWidth?: number
   /** Initial right panel type */
   initialRightPanelType?: 'ai' | 'rules' | null
+  /** Storage key for layout state */
+  storageKey?: string
   /** Children */
   children: React.ReactNode
 }
@@ -51,7 +53,7 @@ export interface LayoutProviderProps {
  * @param props Component props
  * @returns Provider component
  */
-export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelWidth = 400, initialRightPanelType = null, children }: LayoutProviderProps) {
+export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelWidth = 400, initialRightPanelType = null, storageKey, children }: LayoutProviderProps) {
   const [leftPanelWidth, setLeftPanelWidthState] = useState(initialLeftPanelWidth)
   const [rightPanelWidth, setRightPanelWidthState] = useState(initialRightPanelWidth)
   const [rightPanelType, setRightPanelTypeState] = useState<'ai' | 'rules' | null>(initialRightPanelType)
@@ -67,7 +69,7 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
     let mounted = true
 
     layoutStorageService
-      .loadLayoutState()
+      .loadLayoutState(storageKey)
       .then((state) => {
         if (!mounted) return
 
@@ -79,11 +81,14 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
           // If no state exists, save initial values to IndexedDB
           // This ensures the store is created and initial values are persisted
           layoutStorageService
-            .saveLayoutState({
-              leftPanelWidth: initialLeftPanelWidth,
-              rightPanelWidth: initialRightPanelWidth,
-              rightPanelType: initialRightPanelType,
-            })
+            .saveLayoutState(
+              {
+                leftPanelWidth: initialLeftPanelWidth,
+                rightPanelWidth: initialRightPanelWidth,
+                rightPanelType: initialRightPanelType,
+              },
+              storageKey
+            )
             .catch((error) => {
               // eslint-disable-next-line no-console
               console.error('[LayoutProvider] Failed to save initial layout state:', error)
@@ -102,7 +107,7 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
     return () => {
       mounted = false
     }
-  }, []) // Only run once on mount
+  }, [storageKey, initialLeftPanelWidth, initialRightPanelWidth, initialRightPanelType])
 
   // Save layout state to IndexedDB when it changes
   useEffect(() => {
@@ -112,14 +117,14 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
 
     // Debounce saves to avoid too frequent writes
     const timeoutId = setTimeout(() => {
-      layoutStorageService.saveLayoutState({ leftPanelWidth, rightPanelWidth, rightPanelType }).catch((error) => {
+      layoutStorageService.saveLayoutState({ leftPanelWidth, rightPanelWidth, rightPanelType }, storageKey).catch((error) => {
         // eslint-disable-next-line no-console
         console.error('[LayoutProvider] Failed to save layout state to IndexedDB:', error)
       })
     }, 300)
 
     return () => clearTimeout(timeoutId)
-  }, [leftPanelWidth, rightPanelWidth, rightPanelType, isInitialized])
+  }, [leftPanelWidth, rightPanelWidth, rightPanelType, isInitialized, storageKey])
 
   /**
    * Set left panel width

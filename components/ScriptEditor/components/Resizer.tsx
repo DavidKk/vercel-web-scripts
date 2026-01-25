@@ -49,8 +49,9 @@ export function Resizer({ onResizeStart, onResizeEnd, onResize, initialWidth = 2
 
   // Sync width with initialWidth prop (when parent state changes)
   useEffect(() => {
-    setWidth(initialWidth)
-    startWidthRef.current = initialWidth
+    if (!isDraggingRef.current) {
+      setWidth(initialWidth)
+    }
   }, [initialWidth])
 
   /**
