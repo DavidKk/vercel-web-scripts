@@ -15,6 +15,11 @@ import mainSource from './gm-templates/main.ts?raw'
 import rulesSource from './gm-templates/rules.ts?raw'
 import scriptsSource from './gm-templates/scripts.ts?raw'
 import cliServiceSource from './gm-templates/services/cli-service.ts?raw'
+import devModeSource from './gm-templates/services/dev-mode.ts?raw'
+import editorDevModeSource from './gm-templates/services/editor-dev-mode.ts?raw'
+import localDevModeSource from './gm-templates/services/local-dev-mode.ts?raw'
+import menuSource from './gm-templates/services/menu.ts?raw'
+import scriptExecutionSource from './gm-templates/services/script-execution.ts?raw'
 import scriptUpdateSource from './gm-templates/services/script-update.ts?raw'
 import tabCommunicationSource from './gm-templates/services/tab-communication.ts?raw'
 
@@ -31,9 +36,29 @@ export function getCoreScriptsSource(): string[] {
   // 5. tab-communication - provides cross-tab communication (required by script-update)
   // 6. script-update - depends on tab-communication
   // 7. cli-service - CLI service
-  // 8. rules - rule processing
-  // 9. scripts - script loading utilities
-  return [helpersHttpSource, helpersUtilsSource, helpersLoggerSource, helpersDomSource, tabCommunicationSource, scriptUpdateSource, cliServiceSource, rulesSource, scriptsSource]
+  // 8. dev-mode - dev mode constants and utility functions (required by other services)
+  // 9. script-execution - script execution functions (depends on dev-mode)
+  // 10. editor-dev-mode - editor dev mode handling (depends on dev-mode, script-execution)
+  // 11. local-dev-mode - local dev mode handling (depends on dev-mode, script-execution)
+  // 12. menu - menu registration (depends on dev-mode)
+  // 13. rules - rule processing
+  // 14. scripts - script loading utilities
+  return [
+    helpersHttpSource,
+    helpersUtilsSource,
+    helpersLoggerSource,
+    helpersDomSource,
+    tabCommunicationSource,
+    scriptUpdateSource,
+    cliServiceSource,
+    devModeSource,
+    scriptExecutionSource,
+    editorDevModeSource,
+    localDevModeSource,
+    menuSource,
+    rulesSource,
+    scriptsSource,
+  ]
 }
 
 /**
