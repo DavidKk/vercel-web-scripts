@@ -3,11 +3,11 @@ import { fetchFiles } from '@/app/api/scripts/actions'
 import { checkAccess } from '@/services/auth/access'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 
-import Editor from '../tampermonkey/editor/Editor'
-import { loadTampermonkeyTypings } from '../tampermonkey/editor/typings'
+import Editor from './Editor'
+import { loadTampermonkeyTypings } from './typings'
 
-export default async function EditorPage() {
-  await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
+export default async function Home() {
+  await checkAccess({ isApiRouter: false, redirectUrl: '/tampermonkey/editor' })
 
   const scriptKey = getTampermonkeyScriptKey()
   const { files, updatedAt } = await fetchFiles()
