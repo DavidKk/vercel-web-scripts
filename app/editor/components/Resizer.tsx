@@ -17,8 +17,6 @@ export interface ResizerProps {
   maxWidth?: number
   /** Direction of resize (horizontal for vertical splitter) */
   direction?: 'horizontal' | 'vertical'
-  /** Storage key for persisting width */
-  storageKey?: string
   /** Reverse the drag direction (for right-side panels) */
   reverse?: boolean
 }
@@ -27,17 +25,7 @@ export interface ResizerProps {
  * Resizable splitter component
  * Allows dragging to adjust panel width
  */
-export function Resizer({
-  onResizeStart,
-  onResizeEnd,
-  onResize,
-  initialWidth = 200,
-  minWidth = 150,
-  maxWidth = 800,
-  direction = 'horizontal',
-  storageKey,
-  reverse = false,
-}: ResizerProps) {
+export function Resizer({ onResizeStart, onResizeEnd, onResize, initialWidth = 200, minWidth = 150, maxWidth = 800, direction = 'horizontal', reverse = false }: ResizerProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [width, setWidth] = useState(initialWidth)
   const startXRef = useRef(0)
@@ -49,7 +37,6 @@ export function Resizer({
   const maxWidthRef = useRef(maxWidth)
   const onResizeStartRef = useRef(onResizeStart)
   const onResizeEndRef = useRef(onResizeEnd)
-  const hasLoadedFromStorageRef = useRef(false)
 
   // Update refs when props change
   useEffect(() => {
@@ -60,36 +47,11 @@ export function Resizer({
     onResizeEndRef.current = onResizeEnd
   }, [onResize, minWidth, maxWidth, onResizeStart, onResizeEnd])
 
-  // Load width from localStorage on mount (only once) and sync with parent
+  // Sync width with initialWidth prop (when parent state changes)
   useEffect(() => {
-    if (!hasLoadedFromStorageRef.current) {
-      if (storageKey && typeof window !== 'undefined') {
-        const savedWidth = localStorage.getItem(storageKey)
-        if (savedWidth) {
-          const parsedWidth = parseInt(savedWidth, 10)
-          if (!isNaN(parsedWidth) && parsedWidth >= minWidth && parsedWidth <= maxWidth) {
-            setWidth(parsedWidth)
-            startWidthRef.current = parsedWidth
-            onResizeRef.current(parsedWidth)
-            hasLoadedFromStorageRef.current = true
-            return
-          }
-        }
-      }
-      // If no saved width, use initialWidth and notify parent
-      setWidth(initialWidth)
-      startWidthRef.current = initialWidth
-      onResizeRef.current(initialWidth)
-      hasLoadedFromStorageRef.current = true
-    }
-  }, [storageKey, minWidth, maxWidth, initialWidth, onResize])
-
-  // Save width to localStorage when it changes
-  useEffect(() => {
-    if (storageKey && typeof window !== 'undefined') {
-      localStorage.setItem(storageKey, width.toString())
-    }
-  }, [width, storageKey])
+    setWidth(initialWidth)
+    startWidthRef.current = initialWidth
+  }, [initialWidth])
 
   /**
    * Handle mouse move event during dragging

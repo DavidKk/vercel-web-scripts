@@ -194,6 +194,10 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
     }
   }
 
+  const loadStoredFiles = (storedFiles: Record<string, any>) => {
+    files = storedFiles
+  }
+
   return {
     files,
     initialFiles,
@@ -210,6 +214,7 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
     hasAnyUnsavedChanges,
     getUnsavedFiles,
     initializeFiles,
+    loadStoredFiles: loadStoredFiles as any,
   }
 }
 
@@ -217,6 +222,39 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
 export { createFileStateProvider }
 
 describe('FileStateContext', () => {
+  describe('loadStoredFiles', () => {
+    it('should restore full file metadata from storage', () => {
+      const fileState = createFileStateProvider()
+      const storedFiles = {
+        'file1.ts': {
+          path: 'file1.ts',
+          status: FileStatus.Unchanged,
+          content: {
+            originalContent: 'content1',
+            modifiedContent: 'content1',
+          },
+          updatedAt: Date.now(),
+        },
+        'file2.ts': {
+          path: 'file2.ts',
+          status: FileStatus.ModifiedUnsaved,
+          content: {
+            originalContent: 'original',
+            modifiedContent: 'modified',
+          },
+          updatedAt: Date.now(),
+        },
+      }
+
+      fileState.loadStoredFiles(storedFiles)
+
+      expect(fileState.getFile('file1.ts')).toEqual(storedFiles['file1.ts'])
+      expect(fileState.getFile('file2.ts')).toEqual(storedFiles['file2.ts'])
+      expect(fileState.getFileStatus('file1.ts')).toBe(FileStatus.Unchanged)
+      expect(fileState.getFileStatus('file2.ts')).toBe(FileStatus.ModifiedUnsaved)
+    })
+  })
+
   describe('renameFile', () => {
     it('should preserve file status and content when renaming', () => {
       const fileState = createFileStateProvider({ 'file1.ts': 'content1' })

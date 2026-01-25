@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useFileState } from '../context/FileStateContext'
 import { fileStorageService } from '../services/fileStorage'
-import { type FileMetadata, FileStatus } from '../types'
+import { type FileMetadata } from '../types'
 
 /**
  * Hook for local file storage management
@@ -92,17 +92,8 @@ export function useFileStorage(storageKey: string) {
       const loadedFiles = await loadFiles()
       if (loadedFiles && Object.keys(loadedFiles).length > 0) {
         // IndexedDB has data - use it (priority)
-        Object.entries(loadedFiles).forEach(([path, file]) => {
-          // Restore file content and status from IndexedDB
-          fileState.updateFile(path, file.content.modifiedContent)
-          // If status was saved, mark it as saved
-          if (file.status === FileStatus.ModifiedSaved || file.status === FileStatus.NewSaved) {
-            // Use setTimeout to avoid state update during render
-            setTimeout(() => {
-              fileState.markFileAsSaved(path)
-            }, 0)
-          }
-        })
+        // Store metadata exactly as it was loaded
+        fileState.loadStoredFiles(loadedFiles)
       } else if (fileState.initialFiles && Object.keys(fileState.initialFiles).length > 0) {
         // IndexedDB has no data - use initialFiles as fallback
         fileState.initializeFiles(fileState.initialFiles)

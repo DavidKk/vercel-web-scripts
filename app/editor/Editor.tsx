@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { rewriteCode } from '@/app/api/ai/actions'
 import { updateFiles } from '@/app/api/scripts/actions'
 import CodeEditor, { type CodeEditorRef } from '@/components/Editor/CodeEditor'
+import { useLayout } from '@/components/ScriptEditor/context/LayoutContext'
 import { EDITOR_SUPPORTED_EXTENSIONS, ENTRY_SCRIPT_FILE, ENTRY_SCRIPT_RULES_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { useBeforeUnload } from '@/hooks/useClient'
 import { extractMeta, prependMeta } from '@/services/tampermonkey/meta'
@@ -101,15 +102,13 @@ export default function Editor(props: EditorProps) {
   }, [inFiles, initialRules])
 
   const editorManager = useEditorManager(filesWithRules, scriptKey, updatedAt)
+  // Use layout context for panel state
+  const layout = useLayout()
   // Initialize as false to avoid hydration mismatch, restore from localStorage in useEffect
   const [isEditorDevMode, setIsEditorDevMode] = useState(false)
-  const [rightPanelType, setRightPanelType] = useState<'ai' | 'rules' | null>(null)
   const [selectedDiffMessage, setSelectedDiffMessage] = useState<{ original: string; modified: string } | null>(null)
   // Maintain TAB order: use array to preserve opening order
   const [openFiles, setOpenFiles] = useState<string[]>([])
-  // Panel widths for resizable panels
-  const [leftPanelWidth, setLeftPanelWidth] = useState(250)
-  const [rightPanelWidth, setRightPanelWidth] = useState(400)
   // Rules state
   const [rules, setRules] = useState<RuleConfig[]>(initialRules)
   const [hasRuleChanges, setHasRuleChanges] = useState(false)
@@ -1043,14 +1042,14 @@ export default function Editor(props: EditorProps) {
       alert('Please select a file first')
       return
     }
-    setRightPanelType((prev) => (prev === 'ai' ? null : 'ai'))
+    layout.toggleRightPanel('ai')
   }
 
   /**
    * Handle Rules panel toggle
    */
   function handleToggleRulesPanel() {
-    setRightPanelType((prev) => (prev === 'rules' ? null : 'rules'))
+    layout.toggleRightPanel('rules')
   }
 
   return (
@@ -1063,14 +1062,14 @@ export default function Editor(props: EditorProps) {
         onToggleEditorDevMode={handleToggleEditorDevMode}
         isCompiling={isCompiling}
         onToggleAI={handleToggleAIPanel}
-        isAIOpen={rightPanelType === 'ai'}
+        isAIOpen={layout.rightPanelType === 'ai'}
         isAIDisabled={!editorManager.selectedFile}
         onToggleRules={handleToggleRulesPanel}
-        isRulesOpen={rightPanelType === 'rules'}
+        isRulesOpen={layout.rightPanelType === 'rules'}
       />
       <div className="flex-1 flex overflow-hidden">
         {/* Left: File Tree - Resizable Width */}
-        <div className="flex-shrink-0" style={{ width: `${leftPanelWidth}px` }}>
+        <div className="flex-shrink-0" style={{ width: `${layout.leftPanelWidth}px` }}>
           <FileTree
             files={editorFiles}
             selectedFile={editorManager.selectedFile}
@@ -1088,7 +1087,7 @@ export default function Editor(props: EditorProps) {
         </div>
 
         {/* Left Resizer */}
-        <Resizer initialWidth={leftPanelWidth} minWidth={150} maxWidth={600} onResize={setLeftPanelWidth} storageKey="editor-left-panel-width" />
+        <Resizer initialWidth={layout.leftPanelWidth} minWidth={150} maxWidth={600} onResize={layout.setLeftPanelWidth} />
 
         {/* Middle: Code Editor - Flexible */}
         <div className="flex-1 min-w-0 relative flex flex-col">
@@ -1151,21 +1150,12 @@ export default function Editor(props: EditorProps) {
         </div>
 
         {/* Right: Panel (AI or Rules) - Resizable Width */}
-        {rightPanelType && (
+        {layout.rightPanelType && (
           <>
             {/* Right Resizer */}
-            <Resizer
-              initialWidth={rightPanelWidth}
-              minWidth={300}
-              maxWidth={800}
-              onResize={(newWidth) => {
-                setRightPanelWidth(newWidth)
-              }}
-              storageKey="editor-right-panel-width"
-              reverse={true}
-            />
-            <div className="flex-shrink-0" style={{ width: `${rightPanelWidth}px` }}>
-              {rightPanelType === 'ai' &&
+            <Resizer initialWidth={layout.rightPanelWidth} minWidth={300} maxWidth={800} onResize={layout.setRightPanelWidth} reverse={true} />
+            <div className="flex-shrink-0" style={{ width: `${layout.rightPanelWidth}px` }}>
+              {layout.rightPanelType === 'ai' &&
                 editorManager.selectedFile &&
                 (() => {
                   const fileLanguage = getFileLanguage(editorManager.selectedFile!)
@@ -1176,7 +1166,7 @@ export default function Editor(props: EditorProps) {
                   return (
                     <AIPanel
                       isOpen={true}
-                      onClose={() => setRightPanelType(null)}
+                      onClose={() => layout.setRightPanelType(null)}
                       onAccept={handleAIAccept}
                       originalContent={editorManager.getCurrentFileContent()}
                       filePath={editorManager.selectedFile}
@@ -1194,7 +1184,7 @@ export default function Editor(props: EditorProps) {
                     />
                   )
                 })()}
-              {rightPanelType === 'rules' && <RulePanel allRules={rules} selectedFile={editorManager.selectedFile} onRulesChange={handleRulesChange} />}
+              {layout.rightPanelType === 'rules' && <RulePanel allRules={rules} selectedFile={editorManager.selectedFile} onRulesChange={handleRulesChange} />}
             </div>
           </>
         )}

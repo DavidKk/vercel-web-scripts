@@ -134,10 +134,15 @@ export class IndexedDBService {
             const missingStores = requiredStores.filter((storeName) => !db.objectStoreNames.contains(storeName))
 
             if (missingStores.length > 0) {
+              // eslint-disable-next-line no-console
+              console.log(`[IndexedDBService] Missing stores detected: ${missingStores.join(', ')}, current version: ${version}, target version: ${DB_VERSION}`)
               db.close()
 
               // Open with a higher version to trigger onupgradeneeded
-              const upgradeVersion = version + 1
+              // Use Math.max to ensure we upgrade to at least DB_VERSION
+              const upgradeVersion = Math.max(version + 1, DB_VERSION)
+              // eslint-disable-next-line no-console
+              console.log(`[IndexedDBService] Opening database with version ${upgradeVersion} to create missing stores`)
               const upgradeRequest = indexedDB.open(DB_NAME, upgradeVersion)
 
               let upgradeCompleted = false
@@ -147,9 +152,15 @@ export class IndexedDBService {
               upgradeRequest.onupgradeneeded = (upgradeEvent: any) => {
                 const upgradeDb = upgradeEvent.target.result
 
+                // eslint-disable-next-line no-console
+                console.log('[IndexedDBService] Database upgrade triggered (missing stores), creating stores...')
+                // eslint-disable-next-line no-console
+                console.log(`[IndexedDBService] Missing stores: ${missingStores.join(', ')}`)
                 // 使用配置创建所有对象存储
                 Object.values(STORE_CONFIGS).forEach((config) => {
                   if (!upgradeDb.objectStoreNames.contains(config.name)) {
+                    // eslint-disable-next-line no-console
+                    console.log(`[IndexedDBService] Creating object store: ${config.name}`)
                     createObjectStore(upgradeDb, config)
                   }
                 })
@@ -203,9 +214,13 @@ export class IndexedDBService {
           request.onupgradeneeded = (event: any) => {
             const db = event.target.result
 
+            // eslint-disable-next-line no-console
+            console.log('[IndexedDBService] Database upgrade triggered, creating missing stores...')
             // 使用配置创建所有对象存储
             Object.values(STORE_CONFIGS).forEach((config) => {
               if (!db.objectStoreNames.contains(config.name)) {
+                // eslint-disable-next-line no-console
+                console.log(`[IndexedDBService] Creating object store: ${config.name}`)
                 createObjectStore(db, config)
               }
             })

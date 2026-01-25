@@ -34,6 +34,7 @@ const mockFileState = {
   updateFile: jest.fn(),
   markFileAsSaved: jest.fn(),
   getUnsavedFiles: jest.fn(() => []) as jest.MockedFunction<() => string[]>,
+  loadStoredFiles: jest.fn(),
 }
 
 jest.mock('@/components/ScriptEditor/context/FileStateContext', () => ({
@@ -446,6 +447,32 @@ describe('useFileStorage', () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
 
       expect(mockFileStorageService.loadFiles).toHaveBeenCalledWith('test-key')
+    })
+
+    it('should use loadStoredFiles to restore state when IndexedDB has data', async () => {
+      const { useFileStorage } = await import('@/components/ScriptEditor/hooks/useFileStorage')
+
+      const testFiles: Record<string, FileMetadata> = {
+        'file1.ts': {
+          path: 'file1.ts',
+          status: FileStatus.Unchanged,
+          content: {
+            originalContent: 'content',
+            modifiedContent: 'content',
+          },
+          updatedAt: Date.now(),
+        },
+      }
+
+      mockFileStorageService.loadFiles.mockResolvedValue(testFiles)
+
+      useFileStorage('test-key')
+
+      // Wait for the async initialize function to complete
+      // Since we can't capture the promise directly (React effect), we wait for microtasks
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mockFileState.loadStoredFiles).toHaveBeenCalledWith(testFiles)
     })
   })
 })

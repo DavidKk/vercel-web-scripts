@@ -38,6 +38,8 @@ export interface FileStateContextValue {
   getUnsavedFiles: () => string[]
   /** Initialize files from initialFiles (used when IndexedDB has no data) */
   initializeFiles: (files: Record<string, string>) => void
+  /** Load files from storage (Atomic restoration of full metadata) */
+  loadStoredFiles: (files: FileStateRecord) => void
 }
 
 /**
@@ -398,6 +400,14 @@ export function FileStateProvider({ initialFiles = {}, children }: FileStateProv
       .map((file) => file.path)
   }, [files])
 
+  /**
+   * Load files from storage (Atomic restoration of full metadata)
+   * @param storedFiles Files to load from storage
+   */
+  const loadStoredFiles = useCallback((storedFiles: FileStateRecord) => {
+    setFiles(storedFiles)
+  }, [])
+
   const value = useMemo<FileStateContextValue>(
     () => ({
       files,
@@ -415,6 +425,7 @@ export function FileStateProvider({ initialFiles = {}, children }: FileStateProv
       hasAnyUnsavedChanges,
       getUnsavedFiles,
       initializeFiles,
+      loadStoredFiles,
     }),
     [
       files,
@@ -432,6 +443,7 @@ export function FileStateProvider({ initialFiles = {}, children }: FileStateProv
       hasAnyUnsavedChanges,
       getUnsavedFiles,
       initializeFiles,
+      loadStoredFiles,
     ]
   )
 

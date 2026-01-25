@@ -15,8 +15,9 @@ export const DB_NAME = 'script_editor_storage'
  * Version 2: Separated file states and contents
  * Version 3: Separated original contents and modified contents
  * Version 4: Merged file contents into single table, simplified table structure
+ * Version 5: Added layout store for editor panel state
  */
-export const DB_VERSION = 4
+export const DB_VERSION = 5
 
 /**
  * Object store (table) names
@@ -28,6 +29,8 @@ export const OBJECT_STORES = {
   FILE_CONTENTS: 'fileContents',
   /** Tabs table */
   TABS: 'tabs',
+  /** Layout table */
+  LAYOUT: 'layout',
 } as const
 
 /**
@@ -120,12 +123,18 @@ export const FILE_CONTENTS_STORE_CONFIG: ObjectStoreConfig = createFileTableConf
 export const TABS_STORE_CONFIG: ObjectStoreConfig = createSimpleTableConfig(OBJECT_STORES.TABS)
 
 /**
+ * Layout table configuration
+ */
+export const LAYOUT_STORE_CONFIG: ObjectStoreConfig = createSimpleTableConfig(OBJECT_STORES.LAYOUT)
+
+/**
  * All object store configuration mappings
  */
 export const STORE_CONFIGS: Record<string, ObjectStoreConfig> = {
   [OBJECT_STORES.FILE_STATES]: FILE_STATES_STORE_CONFIG,
   [OBJECT_STORES.FILE_CONTENTS]: FILE_CONTENTS_STORE_CONFIG,
   [OBJECT_STORES.TABS]: TABS_STORE_CONFIG,
+  [OBJECT_STORES.LAYOUT]: LAYOUT_STORE_CONFIG,
 }
 
 /**
