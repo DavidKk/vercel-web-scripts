@@ -19,3 +19,26 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Override browser autofill background color and font size */
+/* Use inherit to allow autofill font size to match the input's actual font size */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #252526 inset !important;
+  -webkit-text-fill-color: #d4d4d4 !important;
+  box-shadow: 0 0 0 1000px #252526 inset !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  font-family: inherit !important;
+  -webkit-text-size-adjust: 100% !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Ensure autofill text color matches in all states */
+input:-webkit-autofill:not(:focus),
+input:-webkit-autofill:hover:not(:focus),
+input:-webkit-autofill:active:not(:focus) {
+  -webkit-text-fill-color: #d4d4d4 !important;
+}

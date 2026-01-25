@@ -28,7 +28,7 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
   const __HMK_URL__ = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${hostname}${port ? ':' + port : ''}/_next/webpack-hmr`
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
   const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
-  const __EDITOR_URL__ = `${__BASE_URL__}/tampermonkey/editor`
+  const __EDITOR_URL__ = `${__BASE_URL__}/editor`
   const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS))).sort()
 
   // Load static resources using inline imports (no fetch needed)

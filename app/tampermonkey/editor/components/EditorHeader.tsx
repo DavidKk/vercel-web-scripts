@@ -77,14 +77,33 @@ export default function EditorHeader({
     }
   }
 
+  /**
+   * Handle logout - clear authentication and redirect to login
+   */
+  const handleLogout = async () => {
+    if (isSaving) {
+      return
+    }
+
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      router.push('/')
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Logout failed:', error)
+      // Still redirect even if logout API fails
+      router.push('/')
+    }
+  }
+
   return (
     <header className="h-12 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center justify-between px-4 sticky top-0 z-50">
       {/* Left: Exit button */}
       <button
-        onClick={() => router.push('/tampermonkey')}
+        onClick={handleLogout}
         disabled={isSaving}
         className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-        title="Exit editor"
+        title="Logout"
       >
         <FiLogOut className="w-4 h-4" />
         <span className="text-sm">Exit</span>

@@ -2,9 +2,6 @@ import type { NextConfig } from 'next'
 import path from 'path'
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
-  },
   webpack(config) {
     // Allow `import foo from './file.ts?raw'` to inline file content as string
     // This rule must be added BEFORE other loaders to ensure it takes precedence

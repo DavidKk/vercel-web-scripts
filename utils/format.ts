@@ -3,14 +3,6 @@ import * as estree from 'prettier/plugins/estree'
 import * as typescript from 'prettier/plugins/typescript'
 import { format } from 'prettier/standalone'
 
-export function formatProjectName(name: string): string {
-  return name
-    .replace('vercel-', '')
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
 /**
  * Format code using Prettier
  * @param code Code content
