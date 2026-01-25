@@ -10,9 +10,10 @@ import { restoreCursorPosition, saveCursorContext } from './utils'
  * @param monaco Monaco object
  * @param language Language of the current file
  * @param onSave Callback for save action
+ * @param onDelete Callback for delete action
  */
-export function registerEditorShortcuts(editor: any, monaco: any, language: string, onSave?: () => void) {
-  // Add Cmd+S keyboard shortcut
+export function registerEditorShortcuts(editor: any, monaco: any, language: string, onSave?: () => void, onDelete?: () => void) {
+  // Add Cmd+S / Ctrl+S keyboard shortcut
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
     // 1. Format code with cursor position preservation
     const currentContent = editor.getValue()
@@ -45,6 +46,14 @@ export function registerEditorShortcuts(editor: any, monaco: any, language: stri
     // 2. Trigger onSave
     if (onSave) {
       onSave()
+    }
+  })
+
+  // Add Cmd+Delete / Ctrl+Delete keyboard shortcut
+  // monaco.KeyMod.CtrlCmd automatically maps to Cmd on Mac and Ctrl on Win/Linux
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Delete, () => {
+    if (onDelete) {
+      onDelete()
     }
   })
 }

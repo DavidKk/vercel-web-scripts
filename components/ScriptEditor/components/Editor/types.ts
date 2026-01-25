@@ -26,6 +26,7 @@ export interface InternalCodeEditorProps {
   language?: 'javascript' | 'typescript' | 'json' | 'css' | 'less' | 'scss' | 'html' | 'markdown'
   onChange?: (content: string) => void
   onSave?: () => void
+  onDelete?: () => void
   onValidate?: (hasError: boolean) => void
   readOnly?: boolean
   extraLibs?: ExtraLib[]

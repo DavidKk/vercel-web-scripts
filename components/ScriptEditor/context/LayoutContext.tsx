@@ -190,10 +190,10 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
  * @returns Layout context value
  * @throws Error if used outside LayoutProvider
  */
-export function useLayout(): LayoutContextValue {
+export function useLayoutContext(): LayoutContextValue {
   const context = useContext(LayoutContext)
   if (!context) {
-    throw new Error('useLayout must be used within LayoutProvider')
+    throw new Error('useLayoutContext must be used within LayoutProvider')
   }
   return context
 }

@@ -21,6 +21,7 @@ export default function InternalCodeEditor({
   language = 'typescript',
   onChange,
   onSave,
+  onDelete,
   onValidate,
   readOnly = false,
   extraLibs = [],
@@ -147,7 +148,7 @@ export default function InternalCodeEditor({
     }
 
     // Register shortcuts
-    registerEditorShortcuts(editor, monaco, language, onSave)
+    registerEditorShortcuts(editor, monaco, language, onSave, onDelete)
 
     editor.focus()
     const disposable = monaco.editor.onDidChangeMarkers(() => {

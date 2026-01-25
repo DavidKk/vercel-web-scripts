@@ -7,8 +7,8 @@ import FileListPanel from './components/FileListPanel'
 import { Resizer } from './components/Resizer'
 import TabBar from './components/TabBar'
 import { useFileState } from './context/FileStateContext'
-import { useLayout } from './context/LayoutContext'
 import { useFileStorage } from './hooks/useFileStorage'
+import { useLayout } from './hooks/useLayout'
 import { useTabBar } from './hooks/useTabBar'
 import type { ScriptEditorProps } from './ScriptEditor'
 
@@ -185,6 +185,7 @@ export function ScriptEditorContent({
               language={getFileLanguage(tabBar.activeTab)}
               onChange={handleContentChange}
               onSave={() => tabBar.activeTab && fileStorage.saveFile(tabBar.activeTab)}
+              onDelete={() => tabBar.activeTab && handleDeleteFile(tabBar.activeTab)}
               onReady={onReady}
               extraLibs={extraLibs}
               editorRef={codeEditorRef}
