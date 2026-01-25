@@ -1,6 +1,7 @@
 'use client'
 
 import type { FileMetadata } from '../types'
+import { indexedDBService, OBJECT_STORES } from './indexedDBService'
 
 /**
  * Stored file record structure for IndexedDB
@@ -15,105 +16,21 @@ interface StoredFileRecord {
 }
 
 /**
- * Database configuration
+ * Object store name for files
  */
-const DB_NAME = 'script_editor_storage'
-const STORE_NAME = 'files'
-const DB_VERSION = 1
+const STORE_NAME = OBJECT_STORES.FILES
 
 /**
  * File storage service using IndexedDB
  * Manages file content and state persistence
  */
 export class FileStorageService {
-  private db: IDBDatabase | null = null
-
   /**
-   * Get the current database version or determine appropriate version
-   * @returns Current database version
-   */
-  private async getCurrentDBVersion(): Promise<number> {
-    return new Promise((resolve) => {
-      // Try to open without version to get current version
-      const request = indexedDB.open(DB_NAME)
-
-      request.onerror = () => {
-        // If database doesn't exist, start with version 1
-        resolve(1)
-      }
-
-      request.onsuccess = (event: any) => {
-        const db = event.target.result as IDBDatabase
-        const currentVersion = db.version || 1
-        db.close()
-        resolve(currentVersion)
-      }
-
-      request.onupgradeneeded = () => {
-        // This shouldn't happen when opening without version, but handle it
-        resolve(1)
-      }
-    })
-  }
-
-  /**
-   * Open IndexedDB database
+   * Get database instance
    * @returns Database instance
    */
-  private async openDB(): Promise<IDBDatabase> {
-    if (this.db) return this.db
-
-    if (typeof window === 'undefined') {
-      throw new Error('IndexedDB is only available in browser environment')
-    }
-
-    const version = await this.getCurrentDBVersion()
-
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, Math.max(version, DB_VERSION))
-
-      request.onerror = () => reject(request.error)
-      request.onsuccess = (event: any) => {
-        const db = event.target.result as IDBDatabase
-
-        // Check if the object store exists after opening
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          // eslint-disable-next-line no-console
-          console.log(`[FileStorageService] Object store '${STORE_NAME}' not found in database, upgrading...`)
-          // Object store doesn't exist, need to upgrade
-          db.close()
-
-          // Open with a higher version to trigger onupgradeneeded
-          const upgradeRequest = indexedDB.open(DB_NAME, version + 1)
-
-          upgradeRequest.onerror = () => reject(upgradeRequest.error)
-          upgradeRequest.onsuccess = () => {
-            this.db = upgradeRequest.result
-            resolve(upgradeRequest.result)
-          }
-          upgradeRequest.onupgradeneeded = (upgradeEvent: any) => {
-            const upgradeDb = upgradeEvent.target.result
-            if (!upgradeDb.objectStoreNames.contains(STORE_NAME)) {
-              upgradeDb.createObjectStore(STORE_NAME)
-              // eslint-disable-next-line no-console
-              console.log(`[FileStorageService] Created object store '${STORE_NAME}' successfully`)
-            }
-          }
-        } else {
-          this.db = db
-          resolve(db)
-        }
-      }
-
-      request.onupgradeneeded = (event: any) => {
-        const db = event.target.result
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME)
-          // eslint-disable-next-line no-console
-          console.log(`[FileStorageService] Created object store '${STORE_NAME}' during initial upgrade`)
-        }
-      }
-    })
+  private async getDB(): Promise<IDBDatabase> {
+    return indexedDBService.getDB()
   }
 
   /**
@@ -126,8 +43,12 @@ export class FileStorageService {
       return null
     }
 
+    if (!indexedDBService.isAvailable()) {
+      return null
+    }
+
     try {
-      const db = await this.openDB()
+      const db = await this.getDB()
       return new Promise((resolve, reject) => {
         const transaction = db.transaction([STORE_NAME], 'readonly')
         const store = transaction.objectStore(STORE_NAME)
@@ -167,8 +88,6 @@ export class FileStorageService {
     } catch (error) {
       if (error instanceof Error && error.name === 'NotFoundError') {
         // Object store not found, reset database and return null
-        // eslint-disable-next-line no-console
-        console.log('[FileStorageService] Object store not found, resetting database')
         await this.resetDatabase()
         return null
       }
@@ -189,7 +108,7 @@ export class FileStorageService {
     }
 
     try {
-      const db = await this.openDB()
+      const db = await this.getDB()
 
       // Convert FileMetadata to StoredFileRecord
       const data: Record<string, StoredFileRecord> = {}
@@ -216,7 +135,7 @@ export class FileStorageService {
       if (error instanceof Error && error.name === 'NotFoundError') {
         // Object store not found, reset database and retry
         await this.resetDatabase()
-        const db = await this.openDB()
+        const db = await this.getDB()
 
         // Rebuild data for retry
         const retryData: Record<string, StoredFileRecord> = {}
@@ -255,7 +174,7 @@ export class FileStorageService {
     }
 
     try {
-      const db = await this.openDB()
+      const db = await this.getDB()
       return new Promise((resolve, reject) => {
         const transaction = db.transaction([STORE_NAME], 'readwrite')
         const store = transaction.objectStore(STORE_NAME)
@@ -267,8 +186,6 @@ export class FileStorageService {
     } catch (error) {
       if (error instanceof Error && error.name === 'NotFoundError') {
         // Object store not found, reset database (nothing to clear anyway)
-        // eslint-disable-next-line no-console
-        console.log('[FileStorageService] Object store not found while clearing, resetting database')
         await this.resetDatabase()
         return
       }
@@ -283,23 +200,18 @@ export class FileStorageService {
    * This will delete all stored files
    */
   async resetDatabase(): Promise<void> {
-    // Close current connection if exists
-    if (this.db) {
-      this.db.close()
-      this.db = null
-    }
+    // Close current connection
+    indexedDBService.closeDB()
 
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || !indexedDBService.isAvailable()) {
       return
     }
 
     return new Promise((resolve, reject) => {
-      const deleteRequest = indexedDB.deleteDatabase(DB_NAME)
+      const deleteRequest = indexedDB.deleteDatabase('script_editor_storage')
 
       deleteRequest.onerror = () => reject(deleteRequest.error)
       deleteRequest.onsuccess = () => {
-        // eslint-disable-next-line no-console
-        console.log('[FileStorageService] Database reset successfully')
         resolve()
       }
       deleteRequest.onblocked = () => {

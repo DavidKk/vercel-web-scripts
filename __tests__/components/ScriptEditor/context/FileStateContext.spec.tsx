@@ -145,6 +145,55 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
     }
   }
 
+  const hasUnsavedChanges = (path: string) => {
+    const file = files[path]
+    if (!file) {
+      return false
+    }
+    return file.status === FileStatus.ModifiedUnsaved || file.status === FileStatus.NewUnsaved || file.status === FileStatus.Deleted
+  }
+
+  const hasAnyUnsavedChanges = () => {
+    return Object.values(files).some((file) => file.status === FileStatus.ModifiedUnsaved || file.status === FileStatus.NewUnsaved || file.status === FileStatus.Deleted)
+  }
+
+  const getUnsavedFiles = () => {
+    return Object.values(files)
+      .filter((file) => file.status === FileStatus.ModifiedUnsaved || file.status === FileStatus.NewUnsaved || file.status === FileStatus.Deleted)
+      .map((file) => file.path)
+  }
+
+  const markFileAsSaved = (path: string) => {
+    const file = files[path]
+    if (!file) {
+      return
+    }
+
+    let newStatus: FileStatus = file.status
+    if (file.status === FileStatus.ModifiedUnsaved) {
+      newStatus = FileStatus.ModifiedSaved
+    } else if (file.status === FileStatus.NewUnsaved) {
+      newStatus = FileStatus.NewSaved
+    } else if (file.status === FileStatus.Deleted) {
+      // If deleted file is saved, remove it
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [path]: _, ...rest } = files
+      files = rest
+      return
+    }
+
+    // Update original content to match modified content after save
+    files[path] = {
+      ...file,
+      status: newStatus,
+      content: {
+        originalContent: file.content.modifiedContent,
+        modifiedContent: file.content.modifiedContent,
+      },
+      updatedAt: Date.now(),
+    }
+  }
+
   return {
     files,
     initialFiles,
@@ -156,13 +205,16 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
     deleteFile,
     renameFile,
     resetFile: () => {},
-    markFileAsSaved: () => {},
-    hasUnsavedChanges: () => false,
-    hasAnyUnsavedChanges: () => false,
-    getUnsavedFiles: () => [],
+    markFileAsSaved,
+    hasUnsavedChanges,
+    hasAnyUnsavedChanges,
+    getUnsavedFiles,
     initializeFiles,
   }
 }
+
+// Export for use in other test files
+export { createFileStateProvider }
 
 describe('FileStateContext', () => {
   describe('renameFile', () => {

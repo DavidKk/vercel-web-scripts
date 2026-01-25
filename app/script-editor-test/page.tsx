@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { FileListPanel, FileStateProvider, useFileState, useFileStorage } from '@/components/ScriptEditor'
+import { FileListPanel, FileStateProvider, TabBar, TabBarProvider, tabBarStorageService, useFileState, useFileStorage, useTabBar } from '@/components/ScriptEditor'
 
 /**
  * Test page for ScriptEditor components
@@ -31,7 +31,9 @@ This is a test project for ScriptEditor components.`,
 
   return (
     <FileStateProvider initialFiles={initialFiles}>
-      <ScriptEditorTestContent />
+      <TabBarProvider>
+        <ScriptEditorTestContent />
+      </TabBarProvider>
     </FileStateProvider>
   )
 }
@@ -42,14 +44,14 @@ This is a test project for ScriptEditor components.`,
 function ScriptEditorTestContent() {
   const fileState = useFileState()
   const fileStorage = useFileStorage('script-editor-test')
-  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const tabBar = useTabBar()
   const [leftPanelWidth, setLeftPanelWidth] = useState(250)
 
   /**
    * Handle file selection
    */
   function handleSelectFile(path: string) {
-    setSelectedFile(path)
+    tabBar.openTab(path)
   }
 
   /**
@@ -57,8 +59,8 @@ function ScriptEditorTestContent() {
    */
   function handleDeleteFile(path: string) {
     fileState.deleteFile(path)
-    if (selectedFile === path) {
-      setSelectedFile(null)
+    if (tabBar.activeTab === path) {
+      tabBar.closeTab(path)
     }
   }
 
@@ -67,7 +69,7 @@ function ScriptEditorTestContent() {
    */
   function handleAddFile(fileName: string) {
     fileState.createFile(fileName, '')
-    setSelectedFile(fileName)
+    tabBar.openTab(fileName)
   }
 
   /**
@@ -75,13 +77,27 @@ function ScriptEditorTestContent() {
    */
   function handleRenameFile(oldPath: string, newPath: string) {
     fileState.renameFile(oldPath, newPath)
-    // Update selected file if it matches the old path or is under the renamed directory
-    if (selectedFile === oldPath) {
-      setSelectedFile(newPath)
-    } else if (selectedFile && selectedFile.startsWith(oldPath + '/')) {
-      // If selected file is under the renamed directory, update its path
-      const relativePath = selectedFile.substring(oldPath.length)
-      setSelectedFile(newPath + relativePath)
+    // Update tab if it matches the old path or is under the renamed directory
+    if (tabBar.isTabOpen(oldPath)) {
+      tabBar.closeTab(oldPath)
+      tabBar.openTab(newPath)
+    } else {
+      // Update all tabs that are under the renamed directory
+      const tabsToUpdate: Array<{ oldPath: string; newPath: string }> = []
+      tabBar.openTabs.forEach((tabPath) => {
+        if (tabPath.startsWith(oldPath + '/')) {
+          const relativePath = tabPath.substring(oldPath.length)
+          tabsToUpdate.push({
+            oldPath: tabPath,
+            newPath: newPath + relativePath,
+          })
+        }
+      })
+      // Update tabs
+      tabsToUpdate.forEach(({ oldPath: tabOldPath, newPath: tabNewPath }) => {
+        tabBar.closeTab(tabOldPath)
+        tabBar.openTab(tabNewPath)
+      })
     }
   }
 
@@ -89,10 +105,10 @@ function ScriptEditorTestContent() {
    * Get current file content
    */
   function getCurrentFileContent(): string {
-    if (!selectedFile) {
+    if (!tabBar.activeTab) {
       return ''
     }
-    const file = fileState.getFile(selectedFile)
+    const file = fileState.getFile(tabBar.activeTab)
     return file?.content.modifiedContent || ''
   }
 
@@ -100,8 +116,8 @@ function ScriptEditorTestContent() {
    * Handle content change
    */
   function handleContentChange(content: string) {
-    if (selectedFile) {
-      fileState.updateFile(selectedFile, content)
+    if (tabBar.activeTab) {
+      fileState.updateFile(tabBar.activeTab, content)
     }
   }
 
@@ -109,8 +125,8 @@ function ScriptEditorTestContent() {
    * Handle save
    */
   async function handleSave() {
-    if (selectedFile) {
-      await fileStorage.saveFile(selectedFile)
+    if (tabBar.activeTab) {
+      await fileStorage.saveFile(tabBar.activeTab)
     }
   }
 
@@ -121,9 +137,46 @@ function ScriptEditorTestContent() {
     await fileStorage.saveAllFiles()
   }
 
-  const selectedFileData = selectedFile ? fileState.getFile(selectedFile) : null
+  /**
+   * Handle clear tab bar storage
+   */
+  async function handleClearTabBarStorage() {
+    try {
+      await tabBarStorageService.clearTabBarState()
+      // Reload page to see the effect
+      window.location.reload()
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[Clear TabBar Storage] Error:', error)
+      alert(`Error clearing TabBar storage: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  /**
+   * Handle test tab bar storage
+   */
+  async function handleTestTabBarStorage() {
+    try {
+      // Manually save current state
+      await tabBarStorageService.saveTabBarState(tabBar.openTabs, tabBar.activeTab)
+
+      // Load to verify
+      const loadedState = await tabBarStorageService.loadTabBarState()
+
+      // Show alert with information
+      const message = `TabBar Storage Test:\n\nCurrent State:\n- Open tabs: ${tabBar.openTabs.join(', ') || 'none'}\n- Active tab: ${tabBar.activeTab || 'none'}\n\nLoaded State:\n- Open tabs: ${loadedState?.openTabs.join(', ') || 'none'}\n- Active tab: ${loadedState?.activeTab || 'none'}`
+      alert(message)
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[Test TabBar Storage] Error:', error)
+      alert(`Error testing TabBar storage: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  const selectedFileData = tabBar.activeTab ? fileState.getFile(tabBar.activeTab) : null
   const hasUnsavedChanges = fileState.hasAnyUnsavedChanges()
   const unsavedFiles = fileState.getUnsavedFiles()
+  const tabCount = tabBar.tabCount
 
   return (
     <div className="w-screen h-screen flex flex-col bg-[#1e1e1e] text-[#cccccc]">
@@ -134,6 +187,8 @@ function ScriptEditorTestContent() {
           <div className="text-xs text-[#858585]">
             {Object.keys(fileState.files).length} files
             {unsavedFiles.length > 0 && ` • ${unsavedFiles.length} unsaved`}
+            {tabCount > 0 && ` • ${tabCount} tabs`}
+            {tabBar.activeTab && ` • Active: ${tabBar.activeTab.split('/').pop()}`}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -146,12 +201,18 @@ function ScriptEditorTestContent() {
           </button>
           <button
             onClick={handleSave}
-            disabled={!selectedFile || !fileState.hasUnsavedChanges(selectedFile)}
+            disabled={!tabBar.activeTab || !fileState.hasUnsavedChanges(tabBar.activeTab)}
             className="px-3 py-1.5 text-xs bg-[#007acc] hover:bg-[#005a9e] disabled:bg-[#3e3e42] disabled:text-[#858585] disabled:cursor-not-allowed rounded transition-colors"
           >
             Save
           </button>
           <div className="text-xs text-[#858585]">Storage: {fileStorage.isInitialized ? 'Ready' : 'Loading...'}</div>
+          <button onClick={handleTestTabBarStorage} className="px-3 py-1.5 text-xs bg-[#3e3e42] hover:bg-[#007acc] rounded transition-colors" title="Test TabBar Storage">
+            Test TabBar Storage
+          </button>
+          <button onClick={handleClearTabBarStorage} className="px-3 py-1.5 text-xs bg-[#3e3e42] hover:bg-[#ce3c3c] rounded transition-colors" title="Clear TabBar Storage">
+            Clear TabBar Storage
+          </button>
         </div>
       </div>
 
@@ -160,7 +221,7 @@ function ScriptEditorTestContent() {
         {/* Left: File List Panel */}
         <div className="flex-shrink-0" style={{ width: `${leftPanelWidth}px` }}>
           <FileListPanel
-            selectedFile={selectedFile}
+            selectedFile={tabBar.activeTab}
             onSelectFile={handleSelectFile}
             onDeleteFile={handleDeleteFile}
             onAddFile={handleAddFile}
@@ -194,15 +255,18 @@ function ScriptEditorTestContent() {
 
         {/* Right: Editor Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {selectedFile ? (
+          {/* Tab Bar */}
+          <TabBar onTabClick={handleSelectFile} onTabClose={(path) => tabBar.closeTab(path)} />
+
+          {tabBar.activeTab ? (
             <>
               {/* File info bar */}
               <div className="h-[30px] bg-[#252526] border-b border-[#3e3e42] flex items-center px-4 text-xs">
-                <span className="text-[#cccccc]">{selectedFile}</span>
+                <span className="text-[#cccccc]">{tabBar.activeTab}</span>
                 {selectedFileData && (
                   <span className="ml-4 text-[#858585]">
                     Status: {selectedFileData.status}
-                    {fileState.hasUnsavedChanges(selectedFile) && ' • Unsaved'}
+                    {fileState.hasUnsavedChanges(tabBar.activeTab) && ' • Unsaved'}
                   </span>
                 )}
               </div>
@@ -232,13 +296,19 @@ function ScriptEditorTestContent() {
       {/* Footer */}
       <div className="h-[24px] bg-[#007acc] flex items-center px-4 text-xs">
         <div className="flex items-center gap-4">
-          <span>Selected: {selectedFile || 'None'}</span>
+          <span>Selected: {tabBar.activeTab || 'None'}</span>
           {selectedFileData && (
             <>
               <span>•</span>
               <span>Status: {selectedFileData.status}</span>
               <span>•</span>
               <span>Updated: {new Date(selectedFileData.updatedAt).toLocaleTimeString()}</span>
+            </>
+          )}
+          {tabCount > 0 && (
+            <>
+              <span>•</span>
+              <span>Tabs: {tabCount}</span>
             </>
           )}
         </div>

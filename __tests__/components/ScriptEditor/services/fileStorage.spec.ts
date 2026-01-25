@@ -1,4 +1,5 @@
 import { FileStorageService } from '@/components/ScriptEditor/services/fileStorage'
+import { indexedDBService } from '@/components/ScriptEditor/services/indexedDBService'
 import { FileStatus } from '@/components/ScriptEditor/types'
 
 /**
@@ -7,10 +8,17 @@ import { FileStatus } from '@/components/ScriptEditor/types'
 const mockStorage = new Map<string, any>()
 
 /**
+ * Global databases map for mock (shared across setup/cleanup)
+ */
+let mockDatabases: Map<string, { version: number; stores: Map<string, Map<string, any>> }> | null = null
+
+/**
  * Mock IndexedDB implementation for testing
  */
 function setupIndexedDBMock() {
-  const databases = new Map<string, { version: number; stores: Map<string, Map<string, any>> }>()
+  // Create new databases map for each test
+  mockDatabases = new Map<string, { version: number; stores: Map<string, Map<string, any>> }>()
+  const databases = mockDatabases
 
   const createRequest = (success: boolean, result?: any, error?: any) => {
     const request = {
@@ -135,6 +143,14 @@ function setupIndexedDBMock() {
  */
 function cleanupIndexedDBMock() {
   mockStorage.clear()
+  // Clear all database stores
+  if (mockDatabases) {
+    mockDatabases.forEach((dbInfo) => {
+      dbInfo.stores.clear()
+    })
+    mockDatabases.clear()
+    mockDatabases = null
+  }
   delete (global as any).indexedDB
   if (global.window) {
     delete (global.window as any).indexedDB
@@ -143,12 +159,21 @@ function cleanupIndexedDBMock() {
 
 describe('FileStorageService', () => {
   let service: FileStorageService
+  let originalConsoleError: typeof console.error
 
   beforeEach(() => {
+    // Mock console.error to avoid test output noise
+    // eslint-disable-next-line no-console
+    originalConsoleError = console.error
+    // eslint-disable-next-line no-console
+    console.error = jest.fn()
     setupIndexedDBMock()
+    // Reset indexedDBService singleton state
+    indexedDBService.closeDB()
+    ;(indexedDBService as any).db = null
+    ;(indexedDBService as any).isInitializing = false
+    ;(indexedDBService as any).initPromise = null
     service = new FileStorageService()
-    // Reset service's internal db reference
-    ;(service as any).db = null
   })
 
   afterEach(async () => {
@@ -157,7 +182,15 @@ describe('FileStorageService', () => {
       const nextTick = typeof process !== 'undefined' && process.nextTick ? process.nextTick : (fn: () => void) => setTimeout(fn, 0)
       nextTick(resolve)
     })
+    // Clean up indexedDBService state
+    indexedDBService.closeDB()
+    ;(indexedDBService as any).db = null
+    ;(indexedDBService as any).isInitializing = false
+    ;(indexedDBService as any).initPromise = null
     cleanupIndexedDBMock()
+    // Restore console.error
+    // eslint-disable-next-line no-console
+    console.error = originalConsoleError
   })
 
   describe('loadFiles', () => {
@@ -563,12 +596,20 @@ describe('FileStorageService', () => {
 
   describe('Error handling', () => {
     it('should handle database errors gracefully', async () => {
+      // Close existing connection first
+      indexedDBService.closeDB()
+      ;(indexedDBService as any).db = null
+      ;(indexedDBService as any).isInitializing = false
+      ;(indexedDBService as any).initPromise = null
+
       // Mock an error scenario
       const originalOpen = global.indexedDB.open
       global.indexedDB.open = jest.fn(() => {
         const request = {
           onerror: null,
           onsuccess: null,
+          onupgradeneeded: null,
+          onblocked: null,
           error: new Error('Database error'),
           result: null,
           addEventListener: jest.fn(),
