@@ -149,11 +149,10 @@ declare function GM_log(...messages: any[]): void
 
 /**
  * Set clipboard content
- * @param text Text to copy to clipboard
- * @param info Clipboard format ('text' or 'html')
- * @param callback Callback function called after clipboard is set
+ * @param data Text or HTML to copy to clipboard
+ * @param type Clipboard format ('text' or 'html'), defaults to 'text'
  */
-declare function GM_setClipboard(text: string, info: 'text' | 'html', callback: () => void): void
+declare function GM_setClipboard(data: string, type?: 'text' | 'html'): void
 
 /**
  * Register a menu command in the userscript menu

@@ -20,6 +20,7 @@ declare function GM_registerMenuCommand(caption: string, commandFunc: () => void
 declare function GM_unregisterMenuCommand(menuCmdId: number): void
 declare function GM_notification(text: string, title?: string, image?: string, onClick?: () => void): void
 declare function GM_openInTab(url: string, openInBackground?: boolean): void
+declare function GM_setClipboard(data: string, type?: 'text' | 'html'): void
 
 declare function fetchScript(url: string): Promise<string>
 declare function fetchCompileScript(host: string, files: Record<string, string>): Promise<string>
