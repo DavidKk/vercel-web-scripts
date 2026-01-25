@@ -21,6 +21,84 @@ declare function GM_unregisterMenuCommand(menuCmdId: number): void
 declare function GM_notification(text: string, title?: string, image?: string, onClick?: () => void): void
 declare function GM_openInTab(url: string, openInBackground?: boolean): void
 declare function GM_setClipboard(data: string, type?: 'text' | 'html'): void
+declare function GM_addElement(parent: HTMLElement | Document, tagName: string, attributes?: Record<string, string>): HTMLElement
+declare function GM_addStyle(css: string): HTMLStyleElement
+declare function GM_download(details: {
+  url: string
+  name: string
+  saveAs?: boolean
+  headers?: Record<string, string>
+  onerror?: (error: any) => void
+  ontimeout?: () => void
+  onload?: () => void
+}): void
+declare function GM_getResourceText(name: string): string
+declare function GM_getResourceURL(name: string): string
+declare function GM_info(): {
+  script: {
+    name: string
+    namespace: string
+    version: string
+    description: string
+    author: string
+    match: string[]
+    exclude: string[]
+    include: string[]
+    grant: string[]
+    require: string[]
+    resource: Record<string, string>
+    connect: string[]
+    'run-at': string
+  }
+  scriptMetaStr: string
+  scriptWillUpdate: boolean
+  scriptHandler: string
+  version: string
+  platform: {
+    os: string
+    arch: string
+    browserName: string
+    browserVersion: string
+  }
+}
+declare function GM_setValues(obj: Record<string, any>): void
+declare function GM_getValues(keys: string[]): Record<string, any>
+declare function GM_deleteValues(keys: string[]): void
+declare interface GMXMLHttpRequestResponse {
+  finalUrl: string
+  readyState: number
+  responseHeaders: string
+  response: any
+  responseText: string
+  responseXML: Document | null
+  status: number
+  statusText: string
+}
+declare interface GMXMLHttpRequestError {
+  error: string
+  message?: string
+}
+declare interface GMXMLHttpRequestDetails {
+  method: string
+  url: string
+  headers?: Record<string, string>
+  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams
+  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
+  body?: any
+  timeout?: number
+  onload?: (response: GMXMLHttpRequestResponse) => void
+  onerror?: (error: GMXMLHttpRequestError) => void
+  onabort?: (error: GMXMLHttpRequestError) => void
+  ontimeout?: (error: GMXMLHttpRequestError) => void
+  onprogress?: (event: ProgressEvent) => void
+}
+declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void
+declare function GM_getTab(callback: (tab: any) => void): void
+declare function GM_saveTab(tab: any): void
+declare function GM_getTabs(callback: (tabs: any[]) => void): void
+declare function GM_webRequest(details: any): void
+declare function GM_cookie(details: any): void
+declare const unsafeWindow: Window
 
 declare function fetchScript(url: string): Promise<string>
 declare function fetchCompileScript(host: string, files: Record<string, string>): Promise<string>
