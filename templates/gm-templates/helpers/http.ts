@@ -19,18 +19,44 @@ declare interface GMXMLHttpRequestError {
 }
 
 declare interface GMXMLHttpRequestDetails {
-  method: string
-  url: string
+  method?: string
+  url: string | URL | Blob | File
   headers?: Record<string, string>
-  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams
-  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
-  body?: any
+  data?: string | Document | Blob | FormData | ArrayBuffer | URLSearchParams | object | any[]
+  redirect?: 'follow' | 'error' | 'manual'
+  cookie?: string
+  cookiePartition?: {
+    topLevelSite?: string
+  }
+  binary?: boolean
+  nocache?: boolean
+  revalidate?: boolean
   timeout?: number
-  onload?: (response: GMXMLHttpRequestResponse) => void
-  onerror?: (error: GMXMLHttpRequestError) => void
+  context?: any
+  responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
+  overrideMimeType?: string
+  anonymous?: boolean
+  fetch?: boolean
+  proxy?: {
+    type: 'direct' | 'http' | 'https' | 'socks' | 'socks4'
+    host: string
+    port: number
+    username?: string
+    password?: string
+    proxyDNS?: boolean
+    failoverTimeout?: number
+    proxyAuthorizationHeader?: string
+    connectionIsolationKey?: string
+  }
+  user?: string
+  password?: string
   onabort?: (error: GMXMLHttpRequestError) => void
-  ontimeout?: (error: GMXMLHttpRequestError) => void
+  onerror?: (error: GMXMLHttpRequestError) => void
+  onloadstart?: (response: GMXMLHttpRequestResponse) => void
   onprogress?: (event: ProgressEvent) => void
+  onreadystatechange?: (response: GMXMLHttpRequestResponse) => void
+  ontimeout?: (error: GMXMLHttpRequestError) => void
+  onload?: (response: GMXMLHttpRequestResponse) => void
 }
 
 declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails): void

@@ -150,7 +150,7 @@ function handleLocalDevModeUpdate(oldValue: any, newValue: any, isDevMode: boole
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerWatchLocalFilesMenu(webScriptId: string): () => void {
   let pollInterval: number | null = null
-  let watchLocalFilesMenuId: number | null = null
+  let watchLocalFilesMenuId: number | string | null = null
 
   /**
    * Register or update Watch Local Files menu with current status
