@@ -34,9 +34,11 @@ export function ScriptEditorContent({
   const layout = useLayout()
   const codeEditorRef = useRef<CodeEditorRef>(null)
   const lastActiveTabRef = useRef<string | null>(null)
+  const activeTabRef = useRef<string | null>(null)
 
   // Sync editor content when active tab changes
   useEffect(() => {
+    activeTabRef.current = tabBar.activeTab
     // If we have an active tab and it changed (or first time)
     if (tabBar.activeTab && tabBar.activeTab !== lastActiveTabRef.current) {
       const file = fileState.getFile(tabBar.activeTab)
@@ -184,8 +186,8 @@ export function ScriptEditorContent({
               path={tabBar.activeTab || 'initialization.ts'}
               language={getFileLanguage(tabBar.activeTab)}
               onChange={handleContentChange}
-              onSave={() => tabBar.activeTab && fileStorage.saveFile(tabBar.activeTab)}
-              onDelete={() => tabBar.activeTab && handleDeleteFile(tabBar.activeTab)}
+              onSave={() => activeTabRef.current && fileStorage.saveFile(activeTabRef.current)}
+              onDelete={() => activeTabRef.current && handleDeleteFile(activeTabRef.current)}
               onReady={onReady}
               extraLibs={extraLibs}
               editorRef={codeEditorRef}

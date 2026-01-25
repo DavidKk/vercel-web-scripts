@@ -37,6 +37,8 @@ export function Resizer({ onResizeStart, onResizeEnd, onResize, initialWidth = 2
   const maxWidthRef = useRef(maxWidth)
   const onResizeStartRef = useRef(onResizeStart)
   const onResizeEndRef = useRef(onResizeEnd)
+  const directionRef = useRef(direction)
+  const reverseRef = useRef(reverse)
 
   // Update refs when props change
   useEffect(() => {
@@ -45,7 +47,9 @@ export function Resizer({ onResizeStart, onResizeEnd, onResize, initialWidth = 2
     maxWidthRef.current = maxWidth
     onResizeStartRef.current = onResizeStart
     onResizeEndRef.current = onResizeEnd
-  }, [onResize, minWidth, maxWidth, onResizeStart, onResizeEnd])
+    directionRef.current = direction
+    reverseRef.current = reverse
+  }, [onResize, minWidth, maxWidth, onResizeStart, onResizeEnd, direction, reverse])
 
   // Sync width with initialWidth prop (when parent state changes)
   useEffect(() => {
@@ -57,17 +61,11 @@ export function Resizer({ onResizeStart, onResizeEnd, onResize, initialWidth = 2
   /**
    * Handle mouse move event during dragging
    */
-  const reverseRef = useRef(reverse)
-
-  useEffect(() => {
-    reverseRef.current = reverse
-  }, [reverse])
-
   const handleMouseMoveRef = useRef<(event: MouseEvent) => void>((event: MouseEvent) => {
     if (!isDraggingRef.current) return
 
     let delta: number
-    if (direction === 'vertical') {
+    if (directionRef.current === 'vertical') {
       // For vertical resizer: use clientY
       const deltaY = event.clientY - startYRef.current
       if (reverseRef.current) {

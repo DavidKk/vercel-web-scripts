@@ -36,6 +36,16 @@ export default function InternalCodeEditor({
   const setContentCancelRef = useRef<(() => void) | null>(null)
   const setContentSequenceRef = useRef(0)
 
+  const onSaveRef = useRef(onSave)
+  const onDeleteRef = useRef(onDelete)
+  const onChangeRef = useRef(onChange)
+  const onValidateRef = useRef(onValidate)
+
+  onSaveRef.current = onSave
+  onDeleteRef.current = onDelete
+  onChangeRef.current = onChange
+  onValidateRef.current = onValidate
+
   const [isEditorReady, setIsEditorReady] = useState(false)
   const [isDiffEditorReady, setIsDiffEditorReady] = useState(false)
 
@@ -148,15 +158,22 @@ export default function InternalCodeEditor({
     }
 
     // Register shortcuts
-    registerEditorShortcuts(editor, monaco, language, onSave, onDelete)
+    // Register shortcuts with refs to avoid stale closures
+    registerEditorShortcuts(
+      editor,
+      monaco,
+      () => onSaveRef.current?.(),
+      () => onDeleteRef.current?.(),
+      isInternalChangeRef
+    )
 
     editor.focus()
     const disposable = monaco.editor.onDidChangeMarkers(() => {
       const model = editor.getModel()
-      if (model && onValidate) {
+      if (model && onValidateRef.current) {
         const markers = monaco.editor.getModelMarkers({ resource: model.uri })
         const hasError = markers.some((marker: any) => marker.severity === monaco.MarkerSeverity.Error)
-        onValidate(hasError)
+        onValidateRef.current(hasError)
       }
     })
     return () => disposable.dispose()
@@ -165,8 +182,8 @@ export default function InternalCodeEditor({
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || ''
     previousContentRef.current = newValue
-    if (!isInternalChangeRef.current && onChange) {
-      onChange(newValue)
+    if (!isInternalChangeRef.current && onChangeRef.current) {
+      onChangeRef.current(newValue)
     }
   }
 
