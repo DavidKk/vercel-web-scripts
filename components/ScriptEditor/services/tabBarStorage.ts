@@ -15,9 +15,9 @@ interface TabBarState {
 }
 
 /**
- * Object store name for tab bar
+ * Object store name for tabs
  */
-const STORE_NAME = OBJECT_STORES.TAB_BAR
+const STORE_NAME = OBJECT_STORES.TABS
 const STORAGE_KEY = 'tabBarState'
 
 /**
@@ -185,6 +185,31 @@ export class TabBarStorageService {
 
     try {
       const db = await this.getDB()
+
+      // Verify that the object store exists before trying to use it
+      if (!(await indexedDBService.hasObjectStore(STORE_NAME))) {
+        // Wait a bit and retry (in case upgrade is in progress)
+        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        // Retry opening the database
+        const retryDb = await this.getDB()
+        if (!retryDb.objectStoreNames.contains(STORE_NAME)) {
+          // eslint-disable-next-line no-console
+          console.error(`[TabBarStorageService] Object store '${STORE_NAME}' still not found after retry, cannot clear`)
+          return
+        }
+        // Use the retry database
+        const transaction = retryDb.transaction([STORE_NAME], 'readwrite')
+        const store = transaction.objectStore(STORE_NAME)
+
+        await new Promise<void>((resolve, reject) => {
+          const request = store.delete(STORAGE_KEY)
+          request.onsuccess = () => resolve()
+          request.onerror = () => reject(request.error)
+        })
+        return
+      }
+
       const transaction = db.transaction([STORE_NAME], 'readwrite')
       const store = transaction.objectStore(STORE_NAME)
 

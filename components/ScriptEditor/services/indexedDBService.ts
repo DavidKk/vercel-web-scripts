@@ -1,18 +1,9 @@
 'use client'
 
-/**
- * Database configuration
- */
-const DB_NAME = 'script_editor_storage'
-const DB_VERSION = 1
+import { createObjectStore, DB_NAME, DB_VERSION, OBJECT_STORES, STORE_CONFIGS } from '../conf/indexedDBConfig'
 
-/**
- * Object store names
- */
-export const OBJECT_STORES = {
-  FILES: 'files',
-  TAB_BAR: 'tabBar',
-} as const
+// 重新导出配置，保持向后兼容
+export { createFileKey, INDEX_NAMES, OBJECT_STORES } from '../conf/indexedDBConfig'
 
 /**
  * Unified IndexedDB service
@@ -156,12 +147,13 @@ export class IndexedDBService {
               upgradeRequest.onupgradeneeded = (upgradeEvent: any) => {
                 const upgradeDb = upgradeEvent.target.result
 
-                // Create missing object stores
-                missingStores.forEach((storeName) => {
-                  if (!upgradeDb.objectStoreNames.contains(storeName)) {
-                    upgradeDb.createObjectStore(storeName)
+                // 使用配置创建所有对象存储
+                Object.values(STORE_CONFIGS).forEach((config) => {
+                  if (!upgradeDb.objectStoreNames.contains(config.name)) {
+                    createObjectStore(upgradeDb, config)
                   }
                 })
+
                 upgradeCompleted = true
               }
 
@@ -211,10 +203,10 @@ export class IndexedDBService {
           request.onupgradeneeded = (event: any) => {
             const db = event.target.result
 
-            // Create all required object stores
-            Object.values(OBJECT_STORES).forEach((storeName) => {
-              if (!db.objectStoreNames.contains(storeName)) {
-                db.createObjectStore(storeName)
+            // 使用配置创建所有对象存储
+            Object.values(STORE_CONFIGS).forEach((config) => {
+              if (!db.objectStoreNames.contains(config.name)) {
+                createObjectStore(db, config)
               }
             })
           }
