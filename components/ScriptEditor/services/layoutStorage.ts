@@ -10,8 +10,8 @@ interface LayoutState {
   leftPanelWidth: number
   /** Right panel width */
   rightPanelWidth: number
-  /** Right panel type: 'ai' | 'rules' | null */
-  rightPanelType: 'ai' | 'rules' | null
+  /** Right panel type: string | null */
+  rightPanelType: string | null
   /** Last updated timestamp */
   updatedAt: number
 }
@@ -40,10 +40,7 @@ export class LayoutStorageService {
    * @param state Layout state to save
    * @param storageKey Optional storage key
    */
-  async saveLayoutState(
-    state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null },
-    storageKey: string = DEFAULT_STORAGE_KEY
-  ): Promise<void> {
+  async saveLayoutState(state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: string | null }, storageKey: string = DEFAULT_STORAGE_KEY): Promise<void> {
     if (!indexedDBService.isAvailable()) {
       // eslint-disable-next-line no-console
       console.warn('[LayoutStorageService] IndexedDB is not available, cannot save layout state')
@@ -99,7 +96,7 @@ export class LayoutStorageService {
    */
   private async writeStateToStore(
     store: IDBObjectStore,
-    state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null },
+    state: { leftPanelWidth: number; rightPanelWidth: number; rightPanelType: string | null },
     storageKey: string
   ): Promise<void> {
     const layoutState: LayoutState = {
@@ -127,10 +124,7 @@ export class LayoutStorageService {
    * @param storageKey Storage key
    * @returns Layout state or null if not found
    */
-  private async readStateFromStore(
-    store: IDBObjectStore,
-    storageKey: string
-  ): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null } | null> {
+  private async readStateFromStore(store: IDBObjectStore, storageKey: string): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: string | null } | null> {
     const state = await new Promise<LayoutState | undefined>((resolve, reject) => {
       const request = store.get(storageKey)
       request.onsuccess = () => {
@@ -159,7 +153,7 @@ export class LayoutStorageService {
    * @param storageKey Optional storage key
    * @returns Layout state or null if not found
    */
-  async loadLayoutState(storageKey: string = DEFAULT_STORAGE_KEY): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: 'ai' | 'rules' | null } | null> {
+  async loadLayoutState(storageKey: string = DEFAULT_STORAGE_KEY): Promise<{ leftPanelWidth: number; rightPanelWidth: number; rightPanelType: string | null } | null> {
     if (!indexedDBService.isAvailable()) {
       // eslint-disable-next-line no-console
       console.warn('[LayoutStorageService] IndexedDB is not available, cannot load layout state')

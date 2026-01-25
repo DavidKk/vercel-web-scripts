@@ -12,16 +12,16 @@ export interface LayoutContextValue {
   leftPanelWidth: number
   /** Right panel width */
   rightPanelWidth: number
-  /** Right panel type: 'ai' | 'rules' | null */
-  rightPanelType: 'ai' | 'rules' | null
+  /** Right panel type: string | null */
+  rightPanelType: string | null
   /** Set left panel width */
   setLeftPanelWidth: (width: number) => void
   /** Set right panel width */
   setRightPanelWidth: (width: number) => void
   /** Set right panel type */
-  setRightPanelType: (type: 'ai' | 'rules' | null) => void
+  setRightPanelType: (type: string | null) => void
   /** Toggle right panel (if already open, close it; if closed, open with specified type) */
-  toggleRightPanel: (type: 'ai' | 'rules') => void
+  toggleRightPanel: (type: string) => void
   /** Check if right panel is open */
   isRightPanelOpen: () => boolean
 }
@@ -40,7 +40,7 @@ export interface LayoutProviderProps {
   /** Initial right panel width */
   initialRightPanelWidth?: number
   /** Initial right panel type */
-  initialRightPanelType?: 'ai' | 'rules' | null
+  initialRightPanelType?: string | null
   /** Storage key for layout state */
   storageKey?: string
   /** Children */
@@ -56,7 +56,7 @@ export interface LayoutProviderProps {
 export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelWidth = 400, initialRightPanelType = null, storageKey, children }: LayoutProviderProps) {
   const [leftPanelWidth, setLeftPanelWidthState] = useState(initialLeftPanelWidth)
   const [rightPanelWidth, setRightPanelWidthState] = useState(initialRightPanelWidth)
-  const [rightPanelType, setRightPanelTypeState] = useState<'ai' | 'rules' | null>(initialRightPanelType)
+  const [rightPanelType, setRightPanelTypeState] = useState<string | null>(initialRightPanelType)
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Load layout state from IndexedDB on mount
@@ -146,7 +146,7 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
    * Set right panel type
    * @param type Panel type
    */
-  const setRightPanelType = useCallback((type: 'ai' | 'rules' | null) => {
+  const setRightPanelType = useCallback((type: string | null) => {
     setRightPanelTypeState(type)
   }, [])
 
@@ -156,7 +156,7 @@ export function LayoutProvider({ initialLeftPanelWidth = 250, initialRightPanelW
    * If the panel is closed or open with a different type, open it with the specified type
    * @param type Panel type to toggle
    */
-  const toggleRightPanel = useCallback((type: 'ai' | 'rules') => {
+  const toggleRightPanel = useCallback((type: string) => {
     setRightPanelTypeState((prev) => (prev === type ? null : type))
   }, [])
 

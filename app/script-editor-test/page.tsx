@@ -1,6 +1,6 @@
 'use client'
 
-import { ScriptEditor, tabBarStorageService, useFileState, useFileStorage, useTabBar } from '@/components/ScriptEditor'
+import { ScriptEditor, tabBarStorageService, useFileState, useFileStorage, useLayout, useTabBar } from '@/components/ScriptEditor'
 
 /**
  * Test page for ScriptEditor components
@@ -35,6 +35,25 @@ This is a test project for ScriptEditor components.`,
         layoutStorageKey="script-editor-test-layout"
         title="ScriptEditor Test Page"
         headerActions={<TestPageHeaderActions />}
+        renderRightPanel={(panelType) => (
+          <div className="h-full flex flex-col p-4 bg-[#252526]">
+            <h3 className="text-sm font-semibold mb-4 text-[#abb2bf]">Mock {panelType.toUpperCase()} Panel</h3>
+            <div className="flex-1 text-xs text-[#858585] space-y-2">
+              <p>This is an extensible side panel.</p>
+              <p>
+                Active Panel: <span className="text-[#61afef]">{panelType}</span>
+              </p>
+              <div className="mt-4 p-3 bg-[#1e1e1e] border border-[#3e3e42] rounded">
+                <p>Side panels have access to:</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Editor state</li>
+                  <li>File history</li>
+                  <li>Shared layout</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
         // eslint-disable-next-line no-console
         onReady={() => console.log('🚀 ScriptEditor is ready!')}
       />
@@ -50,6 +69,7 @@ function TestPageHeaderActions() {
   const fileState = useFileState()
   const fileStorage = useFileStorage('script-editor-test')
   const tabBar = useTabBar()
+  const layout = useLayout()
   const hasUnsavedChanges = fileState.hasAnyUnsavedChanges()
 
   /**
@@ -100,6 +120,20 @@ function TestPageHeaderActions() {
 
   return (
     <>
+      <button
+        onClick={() => layout.toggleRightPanel('ai')}
+        className={`px-3 py-1.5 text-xs rounded transition-colors ${layout.rightPanelType === 'ai' ? 'bg-[#007acc] text-white' : 'bg-[#3e3e42] text-[#cccccc] hover:bg-[#4e4e52]'}`}
+      >
+        AI Panel
+      </button>
+      <button
+        onClick={() => layout.toggleRightPanel('rules')}
+        className={`px-3 py-1.5 text-xs rounded transition-colors ${
+          layout.rightPanelType === 'rules' ? 'bg-[#007acc] text-white' : 'bg-[#3e3e42] text-[#cccccc] hover:bg-[#4e4e52]'
+        }`}
+      >
+        Rules
+      </button>
       <button
         onClick={handleSaveAll}
         disabled={!hasUnsavedChanges}
