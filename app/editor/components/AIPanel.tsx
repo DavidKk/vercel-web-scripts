@@ -21,25 +21,13 @@ interface ChatMessage {
 
 interface AIPanelProps {
   /** Whether the panel is open */
-  isOpen: boolean
+  isOpen?: boolean
   /** Callback when panel is closed */
-  onClose: () => void
-  /** Callback when rewrite is accepted */
-  onAccept: (rewrittenContent: string) => void
-  /** Current file content */
-  originalContent: string
-  /** Current file path */
-  filePath: string
-  /** File language */
-  language: 'typescript' | 'javascript'
+  onClose?: () => void
+  /** Callback to trigger AI rewrite */
+  onApplyDiff: () => void
   /** Tampermonkey type definitions */
   tampermonkeyTypings?: string
-  /** Callback to trigger AI rewrite */
-  onRewrite: (instruction: string) => Promise<string>
-  /** Callback to navigate to a specific line in the editor */
-  onNavigateToLine?: (lineNumber: number) => void
-  /** Callback to show diff in editor */
-  onShowDiffInEditor?: (original: string, modified: string) => void
 }
 
 // Theme colors inspired by One Dark
@@ -95,25 +83,30 @@ function getShortcutKey(): string {
   return isMacOS() ? 'Cmd' : 'Ctrl'
 }
 
-export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, language, tampermonkeyTypings, onRewrite, onNavigateToLine, onShowDiffInEditor }: AIPanelProps) {
+import { rewriteCode } from '@/app/api/ai/actions'
+import { useFileState } from '@/components/ScriptEditor/context/FileStateContext'
+import { useTabBar } from '@/components/ScriptEditor/hooks/useTabBar'
+
+export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
+  const fileState = useFileState()
+  const tabBar = useTabBar()
+
   const [instruction, setInstruction] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+
   const instructionTextareaRef = useRef<HTMLTextAreaElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
+  const activeTab = tabBar.activeTab
+  const fileData = activeTab ? fileState.getFile(activeTab) : null
+  const filePath = activeTab || ''
+  const originalContent = fileData?.content.modifiedContent || ''
+  const language = (filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript') as any
+
   // Get shortcut key for placeholder
   const shortcutKey = getShortcutKey()
-
-  /**
-   * Reset panel state
-   */
-  function resetState() {
-    setInstruction('')
-    setChatHistory([])
-    setSelectedMessageId(null)
-  }
 
   /**
    * Generate unique message ID
@@ -122,13 +115,9 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
     return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   }
 
-  /**
-   * Handle rewrite request
-   */
-  async function handleRewrite() {
-    if (!instruction.trim()) {
-      return
-    }
+  // Rewrite handler using the imported action
+  const handleRewrite = async () => {
+    if (!instruction.trim() || !activeTab) return
 
     const userInstruction = instruction.trim()
     const messageId = generateMessageId()
@@ -140,54 +129,54 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
       timestamp: Date.now(),
     }
 
-    // Add user message to history
     setChatHistory((prev) => [...prev, newMessage])
     setSelectedMessageId(messageId)
     setInstruction('')
     setIsLoading(true)
 
     try {
-      const result = await onRewrite(userInstruction)
-      // Update message with result
+      const result = await rewriteCode(originalContent, filePath, userInstruction, tampermonkeyTypings, language)
       setChatHistory((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, rewrittenContent: result } : msg)))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to rewrite code'
-      // Update message with error
       setChatHistory((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, error: errorMessage } : msg)))
     } finally {
       setIsLoading(false)
     }
   }
 
-  /**
-   * Handle accept rewrite
-   */
+  // Handle Accept - Update file content via context
   function handleAccept(messageId: string) {
     const message = chatHistory.find((msg) => msg.id === messageId)
-    if (message && message.rewrittenContent) {
-      onAccept(message.rewrittenContent)
+    if (message && message.rewrittenContent && activeTab) {
+      fileState.updateFile(activeTab, message.rewrittenContent)
+      // Reset state and notify
       resetState()
-      onClose()
+      onApplyDiff()
     }
   }
 
-  // Focus instruction textarea when panel opens
+  /**
+   * Reset panel state
+   */
+  function resetState() {
+    setInstruction('')
+    setChatHistory([])
+    setSelectedMessageId(null)
+  }
+
+  // Focus instruction textarea when mounted
   useEffect(() => {
-    if (isOpen && instructionTextareaRef.current) {
+    if (instructionTextareaRef.current) {
       instructionTextareaRef.current.focus()
     }
-  }, [isOpen])
+  }, [])
 
-  // Reset when panel closes or file changes
+  // Reset chat history when file changes
   useEffect(() => {
-    if (!isOpen) {
-      resetState()
-    } else {
-      // Reset chat history when file changes
-      setChatHistory([])
-      setSelectedMessageId(null)
-    }
-  }, [isOpen, filePath])
+    setChatHistory([])
+    setSelectedMessageId(null)
+  }, [filePath])
 
   // Scroll to bottom when new message is added
   useEffect(() => {
@@ -195,8 +184,6 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
   }, [chatHistory])
-
-  if (!isOpen) return null
 
   return (
     <div className="w-full h-full bg-[#1e1e1e] border-l border-[#2d2d2d] flex flex-col">
@@ -231,18 +218,8 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
                         )}
                       </div>
                     </div>
-                    {message.rewrittenContent && onShowDiffInEditor && (
-                      <div className="mt-2 pt-2 border-t border-[#2d2d2d]">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onShowDiffInEditor(originalContent, message.rewrittenContent!)
-                          }}
-                          className="w-full px-3 py-1.5 text-xs bg-[#0e639c] text-white hover:bg-[#1177bb] rounded transition-colors"
-                        >
-                          Show in Editor
-                        </button>
-                      </div>
+                    {message.rewrittenContent && (
+                      <div className="mt-2 pt-2 border-t border-[#2d2d2d]">{/* Show in Editor button removed as it's complex to implement without parent control for now */}</div>
                     )}
                   </div>
 
@@ -279,28 +256,9 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
                                 ignoreTrimWhitespace: false,
                                 renderIndicators: true,
                               }}
-                              onMount={(editor) => {
+                              onMount={() => {
                                 // Add click handler to navigate to editor
-                                if (onNavigateToLine) {
-                                  const originalEditor = editor.getOriginalEditor()
-                                  const modifiedEditor = editor.getModifiedEditor()
-
-                                  // Handle click on original editor (left side)
-                                  originalEditor.onMouseDown((e: any) => {
-                                    if (e.target?.position) {
-                                      const lineNumber = e.target.position.lineNumber
-                                      onNavigateToLine(lineNumber)
-                                    }
-                                  })
-
-                                  // Handle click on modified editor (right side)
-                                  modifiedEditor.onMouseDown((e: any) => {
-                                    if (e.target?.position) {
-                                      const lineNumber = e.target.position.lineNumber
-                                      onNavigateToLine(lineNumber)
-                                    }
-                                  })
-                                }
+                                // Navigation simplified/removed for now as we don't have direct editor access
                               }}
                               beforeMount={(monaco) => {
                                 monaco.editor.defineTheme('one-dark', ONE_DARK_THEME)
@@ -328,10 +286,11 @@ export function AIPanel({ isOpen, onClose, onAccept, originalContent, filePath, 
                                   lib: ['esnext', 'dom', 'dom.iterable'],
                                 })
 
-                                if (tampermonkeyTypings) {
-                                  monaco.languages.typescript.typescriptDefaults.addExtraLib(tampermonkeyTypings, 'file:///typings.d.ts')
-                                  monaco.languages.typescript.javascriptDefaults.addExtraLib(tampermonkeyTypings, 'file:///typings.d.ts')
-                                }
+                                // Extra libs handling removed/simplified for this panel
+                                // if (tampermonkeyTypings) {
+                                //   monaco.languages.typescript.typescriptDefaults.addExtraLib(tampermonkeyTypings, 'file:///typings.d.ts')
+                                //   monaco.languages.typescript.javascriptDefaults.addExtraLib(tampermonkeyTypings, 'file:///typings.d.ts')
+                                // }
                               }}
                             />
                           </div>

@@ -9,8 +9,6 @@ import type { RuleConfig } from '@/services/tampermonkey/types'
 export interface RulePanelProps {
   /** All rules from the rule file */
   allRules: RuleConfig[]
-  /** Current selected file path */
-  selectedFile: string | null
   /** Callback when rules are updated */
   onRulesChange: (rules: RuleConfig[]) => void
 }
@@ -19,8 +17,12 @@ export interface RulePanelProps {
  * Rule panel component for managing rules in the editor
  * Displays rules filtered by the currently selected file
  */
+import { useTabBar } from '@/components/ScriptEditor/hooks/useTabBar'
+
 export function RulePanel(props: RulePanelProps) {
-  const { allRules, selectedFile, onRulesChange } = props
+  const { allRules, onRulesChange } = props
+  const tabBar = useTabBar()
+  const selectedFile = tabBar.activeTab
   const [rules, setRules] = useState<RuleConfig[]>([])
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 

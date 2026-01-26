@@ -27,6 +27,8 @@ export function ScriptEditorContent({
   showFileCount = true,
   onReady,
   renderRightPanel,
+  onSave: onSaveProp,
+  onDelete: onDeleteProp,
 }: ScriptEditorProps) {
   const fileState = useFileState()
   const fileStorage = useFileStorage(storageKey)
@@ -186,8 +188,26 @@ export function ScriptEditorContent({
               path={tabBar.activeTab || 'initialization.ts'}
               language={getFileLanguage(tabBar.activeTab)}
               onChange={handleContentChange}
-              onSave={() => activeTabRef.current && fileStorage.saveFile(activeTabRef.current)}
-              onDelete={() => activeTabRef.current && handleDeleteFile(activeTabRef.current)}
+              onSave={async () => {
+                if (activeTabRef.current) {
+                  await fileStorage.saveFile(activeTabRef.current)
+                  if (onSaveProp) {
+                    const file = fileState.getFile(activeTabRef.current)
+                    if (file) {
+                      await onSaveProp(activeTabRef.current, file.content.modifiedContent)
+                    }
+                  }
+                }
+              }}
+              onDelete={async () => {
+                if (activeTabRef.current) {
+                  const path = activeTabRef.current
+                  handleDeleteFile(path)
+                  if (onDeleteProp) {
+                    await onDeleteProp(path)
+                  }
+                }
+              }}
               onReady={onReady}
               extraLibs={extraLibs}
               editorRef={codeEditorRef}

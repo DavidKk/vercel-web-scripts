@@ -26,6 +26,10 @@ export interface ScriptEditorProps {
   hideFooter?: boolean
   /** Whether to show file count in header */
   showFileCount?: boolean
+  /** Callback when a file is saved */
+  onSave?: (path: string, content: string) => void | Promise<void>
+  /** Callback when a file is deleted */
+  onDelete?: (path: string) => void | Promise<void>
   /** Callback when editor is ready */
   onReady?: () => void
   /** Render function for the right-side panel content */

@@ -3,9 +3,9 @@
 import { DiffEditor, Editor } from '@monaco-editor/react'
 import { useRef, useState } from 'react'
 
-import { DEFAULT_EDITOR_OPTIONS, DIFF_EDITOR_OPTIONS, setupMonacoEditor } from '@/components/Editor/config'
 import { Spinner } from '@/components/Spinner'
 
+import { DEFAULT_EDITOR_OPTIONS, DIFF_EDITOR_OPTIONS, setupMonacoEditor } from './config'
 import { registerEditorShortcuts } from './shortcuts'
 import type { CodeEditorRef, InternalCodeEditorProps } from './types'
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import CodeEditor from '@/components/Editor/CodeEditor'
+import InternalCodeEditor from '@/components/ScriptEditor/components/Editor'
 import { Spinner } from '@/components/Spinner'
 
 export default function PreviewPage() {
@@ -23,7 +23,7 @@ export default function PreviewPage() {
     setIsInitialized(true)
   }, [])
 
-  const getFileLanguage = (filePath: string): 'javascript' | 'typescript' | 'json' => {
+  const getFileLanguage = (filePath: string): any => {
     if (filePath.endsWith('.json')) return 'json'
     if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) return 'typescript'
     return 'javascript'
@@ -32,7 +32,7 @@ export default function PreviewPage() {
   return (
     <div className="w-screen h-[calc(100vh-60px-64px)] relative bg-black">
       {fileData ? (
-        <CodeEditor content={fileData.content} path={fileData.path} language={getFileLanguage(fileData.path)} readOnly={false} />
+        <InternalCodeEditor defaultValue={fileData.content} path={fileData.path} language={getFileLanguage(fileData.path)} readOnly={false} />
       ) : isInitialized ? (
         <div className="absolute inset-0 flex items-center justify-center text-white">
           <p>{message || 'No preview available'}</p>
