@@ -194,6 +194,24 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
     }
   }
 
+  const markFileAsUnchanged = (path: string) => {
+    const file = files[path]
+    if (!file) {
+      return
+    }
+
+    // Mark as unchanged: set both original and modified content to current modified content
+    files[path] = {
+      ...file,
+      status: FileStatus.Unchanged,
+      content: {
+        originalContent: file.content.modifiedContent,
+        modifiedContent: file.content.modifiedContent,
+      },
+      updatedAt: Date.now(),
+    }
+  }
+
   const loadStoredFiles = (storedFiles: Record<string, any>) => {
     files = storedFiles
   }
@@ -210,6 +228,7 @@ function createFileStateProvider(initialFilesParam?: Record<string, string>): Fi
     renameFile,
     resetFile: () => {},
     markFileAsSaved,
+    markFileAsUnchanged,
     hasUnsavedChanges,
     hasAnyUnsavedChanges,
     getUnsavedFiles,

@@ -2,8 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { FiLogOut, FiPlay, FiPlayCircle, FiRefreshCw, FiSave, FiZap } from 'react-icons/fi'
+import { FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
+import { IoSync } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
+import { MdOutlineCloudUpload } from 'react-icons/md'
 
 import { Spinner } from '@/components/Spinner'
 
@@ -181,30 +183,30 @@ export default function EditorHeader({
             </>
           ) : (
             <>
-              <FiRefreshCw className="w-4 h-4" />
+              <IoSync className="w-4 h-4" />
               <span className="text-sm">Update</span>
             </>
           )}
         </button>
 
-        {/* Save button */}
+        {/* Publish button */}
         <button
           onClick={onSave}
           disabled={isSaving}
           className="flex items-center gap-2 px-4 py-1.5 bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-          title="Save changes"
+          title="Publish changes to production"
         >
           {isSaving ? (
             <>
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />
               </span>
-              <span className="text-sm">Saving...</span>
+              <span className="text-sm">Publishing...</span>
             </>
           ) : (
             <>
-              <FiSave className="w-4 h-4" />
-              <span className="text-sm">Save</span>
+              <MdOutlineCloudUpload className="w-4 h-4" />
+              <span className="text-sm">Publish</span>
             </>
           )}
         </button>

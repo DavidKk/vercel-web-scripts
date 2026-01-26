@@ -30,6 +30,8 @@ export interface FileStateContextValue {
   resetFile: (path: string) => void
   /** Mark file as saved */
   markFileAsSaved: (path: string) => void
+  /** Mark file as unchanged (after publish) */
+  markFileAsUnchanged: (path: string) => void
   /** Check if file has unsaved changes */
   hasUnsavedChanges: (path: string) => boolean
   /** Check if there are any unsaved changes */
@@ -367,6 +369,34 @@ export function FileStateProvider({ initialFiles = {}, children }: FileStateProv
   }, [])
 
   /**
+   * Mark file as unchanged (after publish)
+   * Sets status to Unchanged and updates originalContent to match modifiedContent
+   * @param path File path
+   */
+  const markFileAsUnchanged = useCallback((path: string) => {
+    setFiles((prev) => {
+      const file = prev[path]
+      if (!file) {
+        return prev
+      }
+
+      // Mark as unchanged: set both original and modified content to current modified content
+      return {
+        ...prev,
+        [path]: {
+          ...file,
+          status: FileStatus.Unchanged,
+          content: {
+            originalContent: file.content.modifiedContent,
+            modifiedContent: file.content.modifiedContent,
+          },
+          updatedAt: Date.now(),
+        },
+      }
+    })
+  }, [])
+
+  /**
    * Check if file has unsaved changes
    * @param path File path
    * @returns True if file has unsaved changes
@@ -421,6 +451,7 @@ export function FileStateProvider({ initialFiles = {}, children }: FileStateProv
       renameFile,
       resetFile,
       markFileAsSaved,
+      markFileAsUnchanged,
       hasUnsavedChanges,
       hasAnyUnsavedChanges,
       getUnsavedFiles,
@@ -439,6 +470,7 @@ export function FileStateProvider({ initialFiles = {}, children }: FileStateProv
       renameFile,
       resetFile,
       markFileAsSaved,
+      markFileAsUnchanged,
       hasUnsavedChanges,
       hasAnyUnsavedChanges,
       getUnsavedFiles,

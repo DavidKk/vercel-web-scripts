@@ -1,20 +1,16 @@
 'use client'
 
 import { useRequest } from 'ahooks'
-import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 
-import { updateFiles } from '@/app/api/scripts/actions'
+import { NotificationProvider, NotificationStack } from '@/components/Notification'
 import { FileStateProvider } from '@/components/ScriptEditor/context/FileStateContext'
 import { LayoutProvider } from '@/components/ScriptEditor/context/LayoutContext'
 import { TabBarProvider } from '@/components/ScriptEditor/context/TabBarContext'
-import { ScriptEditorContent } from '@/components/ScriptEditor/ScriptEditorContent'
 import { ENTRY_SCRIPT_RULES_FILE } from '@/constants/file'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 
-import { AIPanel } from './components/AIPanel'
-import { EditorHeaderWrapper } from './components/EditorHeaderWrapper'
-import { RulePanel } from './components/RulePanel'
+import { EditorContent } from './components/EditorContent'
 
 export interface EditorProps {
   files: Record<
@@ -32,7 +28,6 @@ export interface EditorProps {
 
 export default function Editor(props: EditorProps) {
   const { files: inFiles, scriptKey, rules: initialRules } = props
-  const router = useRouter()
 
   // Rules state
   const [rules, setRules] = useState<RuleConfig[]>(initialRules)
@@ -49,41 +44,14 @@ export default function Editor(props: EditorProps) {
     return formatted
   }, [inFiles, initialRules])
 
-  // Save files to server
-  const { runAsync: saveToServer, loading: isSaving } = useRequest(
-    async (path: string, content: string) => {
-      if (!content.trim()) {
-        alert(`File "${path}" cannot be empty.`)
-        return
-      }
-
-      await updateFiles({ file: path, content })
-
-      // If it's the rules file, update our local rules state
-      if (path === ENTRY_SCRIPT_RULES_FILE) {
-        try {
-          const newRules = JSON.parse(content)
-          if (Array.isArray(newRules)) {
-            setRules(newRules)
-          }
-        } catch (e) {
-          // eslint-disable-next-line no-console
-          console.error('Failed to update rules state after save:', e)
-        }
-      }
-
-      router.refresh()
+  // Save files to server (not used for CMD+S, but kept for potential future use)
+  const { loading: isSaving } = useRequest(
+    async () => {
+      // This is not used anymore as CMD+S only saves locally
     },
     {
       manual: true,
     }
-  )
-
-  const handleSave = useCallback(
-    async (path: string, content: string) => {
-      await saveToServer(path, content)
-    },
-    [saveToServer]
   )
 
   // Handle rules change from the Right Panel
@@ -97,44 +65,24 @@ export default function Editor(props: EditorProps) {
   }, [])
 
   return (
-    <FileStateProvider initialFiles={initialFiles}>
-      <LayoutProvider storageKey={`${scriptKey}-layout`}>
-        <TabBarProvider>
-          <div className="w-full h-screen overflow-hidden flex flex-col">
-            <EditorHeaderWrapper
+    <NotificationProvider maxNotifications={10}>
+      <FileStateProvider initialFiles={initialFiles}>
+        <LayoutProvider storageKey={`${scriptKey}-layout`}>
+          <TabBarProvider>
+            <EditorContent
               scriptKey={scriptKey}
-              onSave={() => {
-                // Trigger save for all files via ScriptEditor
-                // This will be handled by Cmd+S in the editor
-              }}
+              initialFiles={initialFiles}
+              tampermonkeyTypings={props.tampermonkeyTypings}
+              rules={rules}
+              onRulesChange={handleRulesChange}
               isSaving={isSaving}
               isEditorDevMode={isEditorDevMode}
               onToggleEditorDevMode={handleToggleEditorDevMode}
-              isCompiling={false}
             />
-            <div className="flex-1 overflow-hidden">
-              <ScriptEditorContent
-                storageKey={scriptKey}
-                layoutStorageKey={`${scriptKey}-layout`}
-                initialFiles={initialFiles}
-                hideHeader={true}
-                hideFooter={true}
-                extraLibs={[{ content: props.tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
-                onSave={handleSave}
-                renderRightPanel={(panelType) => {
-                  if (panelType === 'ai') {
-                    return <AIPanel onApplyDiff={() => {}} tampermonkeyTypings={props.tampermonkeyTypings} />
-                  }
-                  if (panelType === 'rules') {
-                    return <RulePanel allRules={rules} onRulesChange={handleRulesChange} />
-                  }
-                  return null
-                }}
-              />
-            </div>
-          </div>
-        </TabBarProvider>
-      </LayoutProvider>
-    </FileStateProvider>
+            <NotificationStack />
+          </TabBarProvider>
+        </LayoutProvider>
+      </FileStateProvider>
+    </NotificationProvider>
   )
 }
