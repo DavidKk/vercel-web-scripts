@@ -311,3 +311,170 @@ function GME_debug(...contents: any[]) {
   // eslint-disable-next-line no-console
   console.debug(...args)
 }
+
+// ============================================================================
+// Log Group Functions
+// ============================================================================
+
+/**
+ * Group logger interface
+ * Provides methods to log within a group and end the group
+ */
+interface GroupLogger {
+  /** Log info message within the group */
+  info(...contents: any[]): GroupLogger
+  /** Log success message within the group */
+  ok(...contents: any[]): GroupLogger
+  /** Log warning message within the group */
+  warn(...contents: any[]): GroupLogger
+  /** Log error message within the group */
+  fail(...contents: any[]): GroupLogger
+  /** Log debug message within the group */
+  debug(...contents: any[]): GroupLogger
+  /** End the group and output summary */
+  end(): void
+}
+
+/**
+ * Log group class
+ * Collects logs and outputs them in a collapsible group
+ */
+class LogGroup implements GroupLogger {
+  private label: string
+  private scriptName: string
+  private logs: Array<{ type: 'log' | 'debug' | 'warn' | 'error'; args: any[] }> = []
+  private startTime: number
+
+  /**
+   * Create a new log group
+   * @param label Group label
+   * @param scriptName Script name from GM_info
+   */
+  constructor(label: string, scriptName: string) {
+    this.label = label
+    this.scriptName = scriptName
+    this.startTime = Date.now()
+
+    // Immediately output start marker with script name
+    const startLabel = `%c📦 [${scriptName}] ${label}`
+    const startStyle = 'color: #6f42c1; font-weight: bold; font-size: 12px;'
+    // eslint-disable-next-line no-console
+    console.log(startLabel, startStyle)
+  }
+
+  /**
+   * Internal method to log and collect
+   * @param type Console method type
+   * @param prefixText Prefix text with %c placeholder
+   * @param prefixStyle Style for the prefix
+   * @param contents Log contents
+   * @returns This instance for chaining
+   */
+  private log(type: 'log' | 'debug' | 'warn' | 'error', prefixText: string, prefixStyle: string, ...contents: any[]): GroupLogger {
+    const args = processLogContents(prefixText, prefixStyle, ...contents)
+
+    // Immediately output (don't block)
+    // eslint-disable-next-line no-console
+    console[type](...args)
+
+    // Also collect for summary
+    this.logs.push({ type, args })
+
+    return this
+  }
+
+  /**
+   * Log info message within the group
+   * @param contents Messages to log
+   * @returns This instance for chaining
+   */
+  info(...contents: any[]): GroupLogger {
+    return this.log('log', '%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
+  }
+
+  /**
+   * Log success message within the group
+   * @param contents Messages to log
+   * @returns This instance for chaining
+   */
+  ok(...contents: any[]): GroupLogger {
+    return this.log('log', '%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
+  }
+
+  /**
+   * Log warning message within the group
+   * @param contents Messages to log
+   * @returns This instance for chaining
+   */
+  warn(...contents: any[]): GroupLogger {
+    return this.log('warn', '%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
+  }
+
+  /**
+   * Log error message within the group
+   * @param contents Messages to log
+   * @returns This instance for chaining
+   */
+  fail(...contents: any[]): GroupLogger {
+    return this.log('error', '%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
+  }
+
+  /**
+   * Log debug message within the group
+   * @param contents Messages to log
+   * @returns This instance for chaining
+   */
+  debug(...contents: any[]): GroupLogger {
+    return this.log('debug', '%c🔍 [DEBUG]', 'color:#6c757d;font-weight:700;', ...contents)
+  }
+
+  /**
+   * End the group and output summary
+   * Creates a collapsible group showing all collected logs
+   */
+  end(): void {
+    const duration = Date.now() - this.startTime
+    const logCount = this.logs.length
+
+    // Output summary in a collapsible group
+    const summaryLabel = `%c📦 [${this.scriptName}] ${this.label} - ${logCount} logs in ${duration}ms`
+    const summaryStyle = 'color: #6f42c1; font-weight: bold;'
+
+    // eslint-disable-next-line no-console
+    console.groupCollapsed(summaryLabel, summaryStyle)
+
+    // Replay all collected logs
+    this.logs.forEach(({ type, args }) => {
+      // eslint-disable-next-line no-console
+      console[type](...args)
+    })
+
+    // eslint-disable-next-line no-console
+    console.groupEnd()
+  }
+}
+
+/**
+ * Create a log group
+ * Returns a GroupLogger object with info, ok, warn, fail, debug, and end methods
+ * Logs are immediately output and also collected for summary
+ * @param label Group label
+ * @returns GroupLogger instance
+ * @example
+ * const group = GME_group('User Authentication')
+ * group.info('Fetching user data')
+ * group.ok('User authenticated')
+ * group.fail('Connection failed') // Immediately output, not blocked
+ * group.end() // Output summary with all collected logs
+ * @example
+ * // Chain calls
+ * GME_group('Processing Data')
+ *   .info('Step 1')
+ *   .ok('Step 2 completed')
+ *   .end()
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function GME_group(label: string): GroupLogger {
+  const scriptName = typeof GM_info !== 'undefined' && GM_info?.script?.name ? GM_info.script.name : 'Unknown Script'
+  return new LogGroup(label, scriptName)
+}

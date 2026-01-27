@@ -706,6 +706,46 @@ declare function GME_fail(...contents: any[]): void
 declare function GME_warn(...contents: any[]): void
 
 /**
+ * Group logger interface
+ * Provides methods to log within a group and end the group
+ */
+interface GroupLogger {
+  /** Log info message within the group */
+  info(...contents: any[]): GroupLogger
+  /** Log success message within the group */
+  ok(...contents: any[]): GroupLogger
+  /** Log warning message within the group */
+  warn(...contents: any[]): GroupLogger
+  /** Log error message within the group */
+  fail(...contents: any[]): GroupLogger
+  /** Log debug message within the group */
+  debug(...contents: any[]): GroupLogger
+  /** End the group and output summary */
+  end(): void
+}
+
+/**
+ * Create a log group
+ * Returns a GroupLogger object with info, ok, warn, fail, debug, and end methods
+ * Logs are immediately output and also collected for summary
+ * @param label Group label
+ * @returns GroupLogger instance
+ * @example
+ * const group = GME_group('User Authentication')
+ * group.info('Fetching user data')
+ * group.ok('User authenticated')
+ * group.fail('Connection failed') // Immediately output, not blocked
+ * group.end() // Output summary with all collected logs
+ * @example
+ * // Chain calls
+ * GME_group('Processing Data')
+ *   .info('Step 1')
+ *   .ok('Step 2 completed')
+ *   .end()
+ */
+declare function GME_group(label: string): GroupLogger
+
+/**
  * Generate a UUID
  * @returns UUID string
  */
