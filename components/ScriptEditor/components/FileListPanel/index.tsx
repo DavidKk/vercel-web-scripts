@@ -1,31 +1,46 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { VscFileCode, VscFolder, VscSearch } from 'react-icons/vsc'
 
+import { useFileState } from '@/components/ScriptEditor/context/FileStateContext'
+import { FileStatus } from '@/components/ScriptEditor/types'
 import { Spinner } from '@/components/Spinner'
 
-import { useFileState } from '../../context/FileStateContext'
-import { FileStatus } from '../../types'
+import { FileListConfirmDialogs } from './FileListConfirmDialogs'
+import { FileListContextMenu } from './FileListContextMenu'
+import { FileListPanelHeader } from './FileListPanelHeader'
 import { buildFileTree, findNodeByPath } from './fileTree'
-import type { FileListPanelProps, FileNode } from './types'
-import { getFileIcon, getFileStatusIndicator, isMacOS } from './utils'
+import { FileTreeNode } from './FileTreeNode'
+import type { FileListConfirmState, FileListContextMenuState, FileListPanelProps } from './types'
+import { FILE_LIST_ROW } from './types'
+import { isMacOS } from './utils'
 
 export type { FileListPanelProps } from './types'
 
 /**
  * File list panel component
  */
-export default function FileListPanel({ selectedFile, onSelectFile, onDeleteFile, onAddFile, onRenameFile, isLoading = false }: FileListPanelProps) {
+export default function FileListPanel({
+  selectedFile,
+  onSelectFile,
+  onDeleteFile,
+  onAddFile,
+  onRenameFile,
+  isLoading = false,
+  onResetToOnline,
+  readOnly = false,
+}: FileListPanelProps) {
   const fileState = useFileState()
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [editingPath, setEditingPath] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
   const [isAdding, setIsAdding] = useState(false)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string; name: string; isDirectory: boolean } | null>(null)
+  const [contextMenu, setContextMenu] = useState<FileListContextMenuState | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isResettingToOnline, setIsResettingToOnline] = useState(false)
+  const [confirmState, setConfirmState] = useState<FileListConfirmState>({ open: false })
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Get all file paths from context
@@ -244,191 +259,49 @@ export default function FileListPanel({ selectedFile, onSelectFile, onDeleteFile
     setContextMenu({ x: e.clientX, y: e.clientY, path, name, isDirectory })
   }
 
-  const renderNode = (node: FileNode, level = 0): React.ReactNode => {
-    const isExpanded = expandedPaths.has(node.path)
-    const isEditing = editingPath === node.path
-    const isSelected = selectedFile === node.path
-    const Icon = node.isDirectory ? <VscFolder className={`w-4 h-4 ${isExpanded ? 'text-[#007acc]' : 'text-[#cccccc]'}`} /> : getFileIcon(node.name)
+  const getFileStatus = (path: string) => fileState.getFile(path)?.status
 
-    // Get file status for status indicator
-    const file = !node.isDirectory ? fileState.getFile(node.path) : undefined
-    const statusIndicator = file ? getFileStatusIndicator(file.status) : null
-
-    return (
-      <div key={node.path}>
-        <div
-          ref={isSelected ? selectedItemRef : null}
-          className={`
-            group flex items-center px-2 py-1.5 cursor-pointer select-none
-            transition-colors duration-150 outline-none focus:outline-none
-            ${isSelected ? 'bg-[#37373d] text-white' : 'text-[#cccccc] hover:bg-[#2a2d2e]'}
-          `}
-          style={{ paddingLeft: `${level * 16 + 8}px` }}
-          onClick={() => {
-            if (node.isDirectory) {
-              toggleExpand(node.path)
-            } else {
-              onSelectFile(node.path)
-            }
-          }}
-          onDoubleClick={() => {
-            if (!node.isDirectory) {
-              onSelectFile(node.path)
-            }
-          }}
-          onContextMenu={(e) => handleContextMenu(e, node.path, node.name, node.isDirectory)}
-          onKeyDown={(e) => {
-            if (isSelected) {
-              if ((isMacOS() && e.key === 'Enter') || (!isMacOS() && e.key === 'F2')) {
-                e.preventDefault()
-                e.stopPropagation()
-                if (!isEditing) {
-                  setEditingPath(node.path)
-                  setEditingValue(node.name)
-                }
-              }
-            }
-          }}
-          tabIndex={isSelected ? 0 : -1}
-        >
-          {/* Expand/Collapse icon or Status Dot */}
-          <div className="w-3 h-3 mr-1 flex items-center justify-center flex-shrink-0">
-            {node.isDirectory ? (
-              <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            ) : (
-              statusIndicator
-            )}
-          </div>
-
-          {/* File/Directory icon */}
-          <span className="mr-2 text-sm flex-shrink-0">{Icon}</span>
-
-          {/* File name / Input */}
-          {isEditing ? (
-            <div className="flex items-center flex-1 bg-[#3c3c3c]">
-              <input
-                autoFocus
-                className="bg-transparent text-white text-sm px-1 outline-none flex-1 min-w-0"
-                value={editingValue}
-                onChange={(e) => setEditingValue(e.target.value)}
-                onBlur={handleFinishRename}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleFinishRename()
-                  }
-                  if (e.key === 'Escape') {
-                    setEditingPath(null)
-                    setEditingValue('')
-                  }
-                }}
-              />
-            </div>
-          ) : (
-            <span className="text-sm flex-1 truncate">{node.name}</span>
-          )}
-
-          {/* Delete button */}
-          {onDeleteFile && !isEditing && (
-            <button
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-red-400 transition-all duration-150"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (window.confirm(`Are you sure you want to delete ${node.name}?${node.isDirectory ? ' All files in this folder will be deleted.' : ''}`)) {
-                  if (node.isDirectory) {
-                    // Delete all files in the directory
-                    const filesToDelete = filePaths.filter((filePath) => filePath.startsWith(node.path + '/'))
-                    filesToDelete.forEach((filePath) => {
-                      onDeleteFile(filePath)
-                    })
-                  } else {
-                    onDeleteFile(node.path)
-                  }
-                }
-              }}
-              title={`Delete ${node.isDirectory ? 'folder' : 'file'}`}
-            >
-              <FiTrash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Children */}
-        {node.isDirectory && isExpanded && (
-          <div>
-            {Array.from(node.children.values())
-              .sort((a, b) => {
-                if (a.isDirectory !== b.isDirectory) {
-                  return a.isDirectory ? -1 : 1
-                }
-                return a.name.localeCompare(b.name)
-              })
-              .map((child) => renderNode(child, level + 1))}
-          </div>
-        )}
-      </div>
-    )
+  const handleConfirmClose = (value: string | null) => {
+    if (value === 'confirm' && confirmState.open) {
+      if (confirmState.type === 'resetToOnline') {
+        setIsResettingToOnline(true)
+        Promise.resolve(onResetToOnline?.()).finally(() => setIsResettingToOnline(false))
+      }
+      if (confirmState.type === 'delete') {
+        if (confirmState.isDirectory) {
+          const filesToDelete = filePaths.filter((p) => p.startsWith(confirmState.path + '/'))
+          filesToDelete.forEach((p) => onDeleteFile?.(p))
+        } else {
+          onDeleteFile?.(confirmState.path)
+        }
+      }
+      if (confirmState.type === 'resetFile') {
+        fileState.resetFile(confirmState.path)
+      }
+    }
+    setConfirmState({ open: false })
+    setContextMenu(null)
   }
 
   return (
-    <div ref={fileTreePanelRef} className="w-full h-full bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col relative">
-      {/* Header */}
-      <div className="h-[33px] px-3 text-xs font-semibold text-[#cccccc] uppercase border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-0 z-10 flex items-center justify-between">
-        Files
-        <div className="flex items-center gap-1">
-          <button
-            className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsSearchOpen((prev) => !prev)
-              if (!isSearchOpen) {
-                setSearchQuery('')
-              }
-            }}
-            title="Search files (Cmd+F / Ctrl+F)"
-          >
-            <VscSearch className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleStartAdd()
-            }}
-            title="Add File"
-          >
-            <FiPlus className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Search Bar */}
-      {isSearchOpen && (
-        <div className="px-3 py-2 border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-[33px] z-10">
-          <div className="relative flex items-center">
-            <VscSearch className="absolute left-2 w-3.5 h-3.5 text-[#858585]" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search files..."
-              className="w-full pl-7 pr-7 py-1.5 text-sm bg-[#1e1e1e] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:border-[#007acc]"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 p-0.5 hover:bg-[#3e3e42] rounded text-[#858585] hover:text-white transition-colors"
-                title="Clear search"
-              >
-                <FiX className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+    <div
+      ref={fileTreePanelRef}
+      className="w-full h-full bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col relative"
+      style={{ fontSize: FILE_LIST_ROW.fontSize, lineHeight: FILE_LIST_ROW.lineHeight }}
+    >
+      <FileListPanelHeader
+        isSearchOpen={isSearchOpen}
+        setIsSearchOpen={setIsSearchOpen}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchInputRef={searchInputRef}
+        onResetToOnline={onResetToOnline}
+        setConfirmState={setConfirmState}
+        readOnly={readOnly}
+        isResettingToOnline={isResettingToOnline}
+        onStartAdd={handleStartAdd}
+        onAddFile={onAddFile}
+      />
 
       {/* File tree */}
       <div
@@ -452,12 +325,24 @@ export default function FileListPanel({ selectedFile, onSelectFile, onDeleteFile
         }}
       >
         {isAdding && (
-          <div className="flex items-center px-2 py-1.5" style={{ paddingLeft: '24px' }}>
+          <div
+            className="flex items-center px-2"
+            style={{
+              paddingLeft: '24px',
+              paddingRight: FILE_LIST_ROW.paddingRight,
+              paddingTop: FILE_LIST_ROW.paddingTop,
+              paddingBottom: FILE_LIST_ROW.paddingBottom,
+              minHeight: FILE_LIST_ROW.minHeight,
+              fontSize: FILE_LIST_ROW.fontSize,
+              lineHeight: FILE_LIST_ROW.lineHeight,
+            }}
+          >
             <VscFileCode className="w-4 h-4 mr-2 text-[#cccccc] flex-shrink-0" />
             <div className="flex items-center flex-1 bg-[#3c3c3c] rounded px-1">
               <input
                 autoFocus
-                className="bg-transparent text-white text-sm outline-none flex-1 min-w-0"
+                className="bg-transparent text-white outline-none flex-1 min-w-0"
+                style={{ fontSize: FILE_LIST_ROW.fontSize, lineHeight: FILE_LIST_ROW.lineHeight }}
                 placeholder="Filename"
                 value={editingValue}
                 onChange={(e) => setEditingValue(e.target.value)}
@@ -511,60 +396,41 @@ export default function FileListPanel({ selectedFile, onSelectFile, onDeleteFile
               }
               return a.name.localeCompare(b.name)
             })
-            .map((node) => renderNode(node))
+            .map((node) => (
+              <FileTreeNode
+                key={node.path}
+                node={node}
+                expandedPaths={expandedPaths}
+                selectedFile={selectedFile}
+                editingPath={editingPath}
+                editingValue={editingValue}
+                selectedItemRef={selectedItemRef}
+                getFileStatus={getFileStatus}
+                onSelectFile={onSelectFile}
+                toggleExpand={toggleExpand}
+                setEditingPath={setEditingPath}
+                setEditingValue={setEditingValue}
+                onContextMenu={handleContextMenu}
+                onFinishRename={handleFinishRename}
+                setConfirmState={setConfirmState}
+                onDeleteFile={onDeleteFile}
+              />
+            ))
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
-        <div ref={contextMenuRef} className="fixed bg-[#252526] shadow-xl border border-[#3a3a3a] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
-          {onRenameFile && (
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
-              onClick={() => handleStartRename(contextMenu.path, contextMenu.name)}
-            >
-              Rename
-            </button>
-          )}
-          {!contextMenu.isDirectory && fileState.hasUnsavedChanges(contextMenu.path) && (
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
-              onClick={() => {
-                if (window.confirm(`Are you sure you want to reset ${contextMenu.name} to its original content? All unsaved changes will be lost.`)) {
-                  fileState.resetFile(contextMenu.path)
-                }
-                setContextMenu(null)
-              }}
-            >
-              Reset
-            </button>
-          )}
-          {onDeleteFile && (
-            <button
-              className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#ce3c3c] hover:text-white transition-colors"
-              onClick={() => {
-                const confirmMessage = contextMenu.isDirectory
-                  ? `Are you sure you want to delete the folder "${contextMenu.name}"? All files in this folder will be deleted.`
-                  : `Are you sure you want to delete ${contextMenu.name}?`
-                if (window.confirm(confirmMessage)) {
-                  if (contextMenu.isDirectory) {
-                    // Delete all files in the directory
-                    const filesToDelete = filePaths.filter((filePath) => filePath.startsWith(contextMenu.path + '/'))
-                    filesToDelete.forEach((filePath) => {
-                      onDeleteFile(filePath)
-                    })
-                  } else {
-                    onDeleteFile(contextMenu.path)
-                  }
-                }
-                setContextMenu(null)
-              }}
-            >
-              Delete
-            </button>
-          )}
-        </div>
-      )}
+      <FileListContextMenu
+        contextMenu={contextMenu}
+        contextMenuRef={contextMenuRef}
+        onRenameFile={onRenameFile}
+        hasUnsavedChanges={(path) => fileState.hasUnsavedChanges(path)}
+        setConfirmState={setConfirmState}
+        setContextMenu={setContextMenu}
+        onStartRename={handleStartRename}
+        onDeleteFile={onDeleteFile}
+      />
+
+      <FileListConfirmDialogs confirmState={confirmState} onClose={handleConfirmClose} />
     </div>
   )
 }

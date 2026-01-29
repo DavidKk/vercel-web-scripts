@@ -14,6 +14,8 @@ function createNotificationProvider(maxNotifications = 10): NotificationContextV
       title?: string
       duration?: number
       createdAt: number
+      progress?: number
+      indeterminate?: boolean
     }>
   } = {
     notifications: [],
@@ -29,7 +31,7 @@ function createNotificationProvider(maxNotifications = 10): NotificationContextV
   /**
    * Add a new notification
    */
-  const addNotification = (notification: { type: NotificationType; message: string; title?: string; duration?: number }): string => {
+  const addNotification = (notification: { type: NotificationType; message: string; title?: string; duration?: number; progress?: number; indeterminate?: boolean }): string => {
     const id = generateNotificationId()
     const newNotification = {
       ...notification,
@@ -43,6 +45,16 @@ function createNotificationProvider(maxNotifications = 10): NotificationContextV
     state.notifications = updated.slice(-maxNotifications)
 
     return id
+  }
+
+  /**
+   * Update a notification by ID
+   */
+  const updateNotification = (id: string, updates: { message?: string; title?: string; progress?: number; indeterminate?: boolean }) => {
+    const idx = state.notifications.findIndex((n) => n.id === id)
+    if (idx >= 0) {
+      state.notifications[idx] = { ...state.notifications[idx], ...updates }
+    }
   }
 
   /**
@@ -64,6 +76,7 @@ function createNotificationProvider(maxNotifications = 10): NotificationContextV
       return state.notifications
     },
     addNotification,
+    updateNotification,
     removeNotification,
     clearAll,
   }
@@ -136,6 +149,46 @@ describe('NotificationContext', () => {
       expect(provider.notifications[0].type).toBe(NotificationType.Success)
       expect(provider.notifications[1].type).toBe(NotificationType.Warning)
       expect(provider.notifications[2].type).toBe(NotificationType.Error)
+    })
+  })
+
+  describe('updateNotification', () => {
+    it('should update notification progress for Loading type', () => {
+      const provider = createNotificationProvider()
+      const id = provider.addNotification({
+        type: NotificationType.Loading,
+        message: 'Loading...',
+        duration: 0,
+        indeterminate: true,
+      })
+
+      provider.updateNotification(id, { progress: 50, indeterminate: false })
+
+      expect(provider.notifications[0].progress).toBe(50)
+      expect(provider.notifications[0].indeterminate).toBe(false)
+    })
+
+    it('should update notification message and title', () => {
+      const provider = createNotificationProvider()
+      const id = provider.addNotification({
+        type: NotificationType.Success,
+        message: 'Original',
+        title: 'Original Title',
+      })
+
+      provider.updateNotification(id, { message: 'Updated', title: 'Updated Title' })
+
+      expect(provider.notifications[0].message).toBe('Updated')
+      expect(provider.notifications[0].title).toBe('Updated Title')
+    })
+
+    it('should do nothing if notification ID does not exist', () => {
+      const provider = createNotificationProvider()
+      provider.addNotification({ type: NotificationType.Success, message: 'Msg' })
+
+      provider.updateNotification('non-existent-id', { progress: 100 })
+
+      expect(provider.notifications[0].progress).toBeUndefined()
     })
   })
 

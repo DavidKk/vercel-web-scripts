@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { FiAlertCircle, FiCheckCircle, FiX, FiXCircle } from 'react-icons/fi'
 
+import { Spinner } from '@/components/Spinner'
+
 import { type Notification, NotificationType } from './context/NotificationContext'
 
 /**
@@ -26,6 +28,8 @@ function getNotificationIcon(type: NotificationType) {
       return <FiAlertCircle className="w-5 h-5 text-[#dcdcaa]" />
     case NotificationType.Error:
       return <FiXCircle className="w-5 h-5 text-[#f48771]" />
+    case NotificationType.Loading:
+      return <Spinner color="text-[#007acc]" />
     default:
       return null
   }
@@ -42,6 +46,8 @@ function getNotificationBorderColor(type: NotificationType): string {
       return 'border-l-[#dcdcaa]'
     case NotificationType.Error:
       return 'border-l-[#f48771]'
+    case NotificationType.Loading:
+      return 'border-l-[#007acc]'
     default:
       return 'border-l-[#858585]'
   }
@@ -76,6 +82,10 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
     }, 300) // Match animation duration
   }
 
+  const isLoading = notification.type === NotificationType.Loading
+  const showProgressBar = isLoading && (notification.indeterminate !== false || notification.progress != null)
+  const isIndeterminate = isLoading && (notification.indeterminate === true || notification.progress == null)
+
   return (
     <div
       className={`
@@ -96,16 +106,31 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
         <div className="flex-1 min-w-0">
           {notification.title && <div className="text-sm font-semibold text-[#cccccc] mb-1">{notification.title}</div>}
           <div className="text-sm text-[#cccccc] leading-relaxed break-words">{notification.message}</div>
+          {/* Linear progress bar for Loading */}
+          {showProgressBar && (
+            <div className="mt-2 h-1.5 w-full rounded-full bg-[#3e3e42] overflow-hidden">
+              {isIndeterminate ? (
+                <div className="h-full w-1/4 rounded-full bg-[#007acc]" style={{ animation: 'progress-indeterminate 1.2s ease-in-out infinite' }} />
+              ) : (
+                <div
+                  className="h-full rounded-full bg-[#007acc] transition-[width] duration-150 ease-out"
+                  style={{ width: `${Math.min(100, Math.max(0, notification.progress ?? 0))}%` }}
+                />
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Close button */}
-        <button
-          onClick={handleClose}
-          className="flex-shrink-0 p-1 text-[#858585] hover:text-[#cccccc] hover:bg-[#3e3e42] rounded transition-colors"
-          aria-label="Close notification"
-        >
-          <FiX className="w-4 h-4" />
-        </button>
+        {/* Close button (hidden for loading to avoid accidental close; can add if needed) */}
+        {!isLoading && (
+          <button
+            onClick={handleClose}
+            className="flex-shrink-0 p-1 text-[#858585] hover:text-[#cccccc] hover:bg-[#3e3e42] rounded transition-colors"
+            aria-label="Close notification"
+          >
+            <FiX className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   )

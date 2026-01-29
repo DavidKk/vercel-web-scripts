@@ -42,11 +42,29 @@ function createUseNotification(provider: ReturnType<typeof createNotificationPro
     })
   }
 
+  const loading = (message: string, options?: { title?: string; indeterminate?: boolean }) => {
+    const id = provider.addNotification({
+      type: NotificationType.Loading,
+      message,
+      title: options?.title,
+      duration: 0,
+      indeterminate: options?.indeterminate !== false,
+    })
+    return {
+      id,
+      updateProgress: (percent: number) => {
+        provider.updateNotification(id, { progress: percent, indeterminate: false })
+      },
+      close: () => provider.removeNotification(id),
+    }
+  }
+
   return {
     success,
     warning,
     error,
     notify,
+    loading,
     remove: provider.removeNotification,
     clearAll: provider.clearAll,
   }
@@ -176,6 +194,40 @@ describe('useNotification', () => {
       expect(provider.notifications).toHaveLength(3)
 
       notification.clearAll()
+
+      expect(provider.notifications).toHaveLength(0)
+    })
+  })
+
+  describe('loading', () => {
+    it('should add a Loading notification with duration 0 and return handle with id, updateProgress, close', () => {
+      const handle = notification.loading('Syncing...', { title: 'Sync' })
+
+      expect(handle.id).toBeDefined()
+      expect(typeof handle.updateProgress).toBe('function')
+      expect(typeof handle.close).toBe('function')
+      expect(provider.notifications).toHaveLength(1)
+      expect(provider.notifications[0]).toMatchObject({
+        type: NotificationType.Loading,
+        message: 'Syncing...',
+        title: 'Sync',
+        duration: 0,
+      })
+    })
+
+    it('should update notification progress when updateProgress is called', () => {
+      const handle = notification.loading('Progress...')
+      handle.updateProgress(50)
+
+      expect(provider.notifications[0].progress).toBe(50)
+      expect(provider.notifications[0].indeterminate).toBe(false)
+    })
+
+    it('should remove loading notification when close is called', () => {
+      const handle = notification.loading('Loading...')
+      expect(provider.notifications).toHaveLength(1)
+
+      handle.close()
 
       expect(provider.notifications).toHaveLength(0)
     })

@@ -167,6 +167,12 @@ export function EditorContent({ scriptKey, initialFiles, tampermonkeyTypings, ru
           hideHeader={true}
           hideFooter={true}
           extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
+          typingsForLocal={tampermonkeyTypings}
+          onLocalMapNotify={(type, message) => {
+            if (type === 'success') notification.success(message)
+            else if (type === 'error') notification.error(message)
+            else notification.warning(message)
+          }}
           renderRightPanel={(panelType) => {
             if (panelType === 'ai') {
               return <AIPanel onApplyDiff={() => {}} tampermonkeyTypings={tampermonkeyTypings} />

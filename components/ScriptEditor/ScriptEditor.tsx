@@ -34,6 +34,12 @@ export interface ScriptEditorProps {
   onReady?: () => void
   /** Render function for the right-side panel content */
   renderRightPanel?: (panelType: string) => React.ReactNode
+  /** When true, editor and file list are read-only (e.g. local map mode) */
+  readOnly?: boolean
+  /** Optional callback for local map notifications (success/error/warning) */
+  onLocalMapNotify?: (type: 'success' | 'error' | 'warning', message: string) => void
+  /** Optional typings (e.g. GME_*, GM_*) to write as gm-globals.d.ts when mapping to local */
+  typingsForLocal?: string
 }
 
 /**

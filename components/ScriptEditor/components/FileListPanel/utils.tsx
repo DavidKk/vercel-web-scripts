@@ -1,7 +1,7 @@
 import { TbBrandTypescript } from 'react-icons/tb'
 import { VscFile, VscFileCode, VscJson, VscMarkdown } from 'react-icons/vsc'
 
-import { FileStatus } from '../../types'
+import { FileStatus } from '@/components/ScriptEditor/types'
 
 /**
  * Get file icon based on extension

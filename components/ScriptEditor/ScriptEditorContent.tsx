@@ -1,21 +1,40 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import InternalCodeEditor, { type CodeEditorRef } from './components/Editor'
 import FileListPanel from './components/FileListPanel'
 import { Resizer } from './components/Resizer'
 import TabBar from './components/TabBar'
 import { useFileState } from './context/FileStateContext'
+import { LocalMapProvider, useLocalMap } from './context/LocalMapContext'
 import { useFileStorage } from './hooks/useFileStorage'
 import { useLayout } from './hooks/useLayout'
 import { useTabBar } from './hooks/useTabBar'
 import type { ScriptEditorProps } from './ScriptEditor'
+import { type FileMetadata, FileStatus } from './types'
 
 /**
- * Internal content component that uses LayoutContext, TabBarContext, and FileStateContext
+ * Inner content: uses LocalMap context for readOnly when in local map mode.
  */
-export function ScriptEditorContent({
+function ScriptEditorContentInner(props: ScriptEditorProps) {
+  const localMap = useLocalMap()
+  const readOnly = localMap?.isLocalMapMode ?? props.readOnly ?? false
+  return <ScriptEditorContentBody {...props} readOnly={readOnly} />
+}
+
+/**
+ * Internal content component that uses LayoutContext, TabBarContext, FileStateContext, and LocalMapContext
+ */
+export function ScriptEditorContent(outerProps: ScriptEditorProps) {
+  return (
+    <LocalMapProvider storageKey={outerProps.storageKey} onNotify={outerProps.onLocalMapNotify} typingsForLocal={outerProps.typingsForLocal}>
+      <ScriptEditorContentInner {...outerProps} />
+    </LocalMapProvider>
+  )
+}
+
+function ScriptEditorContentBody({
   storageKey,
   extraLibs = [],
   title = 'Script Editor',
@@ -29,7 +48,8 @@ export function ScriptEditorContent({
   renderRightPanel,
   onSave: onSaveProp,
   onDelete: onDeleteProp,
-}: ScriptEditorProps) {
+  readOnly = false,
+}: ScriptEditorProps & { readOnly: boolean }) {
   const fileState = useFileState()
   const fileStorage = useFileStorage(storageKey)
   const tabBar = useTabBar()
@@ -57,6 +77,35 @@ export function ScriptEditorContent({
     }
   }, [tabBar.activeTab, fileState])
 
+  // Sync editor content when current file content changes (e.g., after sync from local)
+  const selectedFileData = tabBar.activeTab ? fileState.getFile(tabBar.activeTab) : null
+  const currentFileContent = selectedFileData?.content.modifiedContent
+  const currentFileUpdatedAt = selectedFileData?.updatedAt
+  const localMap = useLocalMap()
+
+  useEffect(() => {
+    if (tabBar.activeTab && selectedFileData && codeEditorRef.current && codeEditorRef.current.isReady()) {
+      const currentContent = codeEditorRef.current.getContent()
+      if (currentContent !== currentFileContent) {
+        codeEditorRef.current.setContent(selectedFileData.content.modifiedContent || '', true)
+      }
+    }
+  }, [tabBar.activeTab, currentFileContent, currentFileUpdatedAt, selectedFileData])
+
+  // Force refresh editor when "Sync from local" completes (lastSyncedAt changes)
+  // Defer to next tick so fileState has committed; then read latest content and set in editor
+  useEffect(() => {
+    const activeTab = tabBar.activeTab
+    if (!localMap?.lastSyncedAt || !activeTab) return
+    const timer = setTimeout(() => {
+      const file = fileState.getFile(activeTab)
+      if (file && codeEditorRef.current?.isReady()) {
+        codeEditorRef.current.setContent(file.content.modifiedContent ?? '', true)
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [localMap?.lastSyncedAt, tabBar.activeTab, fileState])
+
   /**
    * Handle file selection
    */
@@ -83,6 +132,30 @@ export function ScriptEditorContent({
   }
 
   /**
+   * Clear local IndexedDB and reset file state to online (initialFiles)
+   */
+  const handleResetToOnline = useCallback(async () => {
+    await fileStorage.clearFiles()
+    tabBar.closeAllTabs()
+    const initial = fileState.initialFiles
+    if (Object.keys(initial).length > 0) {
+      const record: Record<string, FileMetadata> = {}
+      const now = Date.now()
+      for (const [path, content] of Object.entries(initial)) {
+        record[path] = {
+          path,
+          status: FileStatus.Unchanged,
+          content: { originalContent: content, modifiedContent: content },
+          updatedAt: now,
+        }
+      }
+      fileState.loadStoredFiles(record)
+    } else {
+      fileState.loadStoredFiles({})
+    }
+  }, [fileStorage, tabBar, fileState])
+
+  /**
    * Handle file rename
    */
   function handleRenameFile(oldPath: string, newPath: string) {
@@ -104,6 +177,19 @@ export function ScriptEditorContent({
       fileState.updateFile(tabBar.activeTab, content)
     }
   }
+
+  /**
+   * When editor becomes ready, sync current tab content (fixes race: tab restored before fileState, or editor mounted after fileState)
+   */
+  const handleEditorReady = useCallback(() => {
+    if (tabBar.activeTab && codeEditorRef.current?.isReady()) {
+      const file = fileState.getFile(tabBar.activeTab)
+      if (file) {
+        codeEditorRef.current.setContent(file.content.modifiedContent || '', true)
+      }
+    }
+    onReady?.()
+  }, [tabBar.activeTab, fileState, onReady])
 
   /**
    * Get current file language
@@ -135,7 +221,6 @@ export function ScriptEditorContent({
     }
   }
 
-  const selectedFileData = tabBar.activeTab ? fileState.getFile(tabBar.activeTab) : null
   const unsavedFiles = fileState.getUnsavedFiles()
 
   return (
@@ -163,10 +248,12 @@ export function ScriptEditorContent({
           <FileListPanel
             selectedFile={tabBar.activeTab}
             onSelectFile={handleSelectFile}
-            onDeleteFile={handleDeleteFile}
+            onDeleteFile={readOnly ? undefined : handleDeleteFile}
             onAddFile={handleAddFile}
-            onRenameFile={handleRenameFile}
+            onRenameFile={readOnly ? undefined : handleRenameFile}
             isLoading={!fileStorage.isInitialized}
+            onResetToOnline={handleResetToOnline}
+            readOnly={readOnly}
           />
         </div>
 
@@ -188,6 +275,7 @@ export function ScriptEditorContent({
               path={tabBar.activeTab || 'initialization.ts'}
               language={getFileLanguage(tabBar.activeTab)}
               onChange={handleContentChange}
+              readOnly={readOnly}
               onSave={async () => {
                 if (activeTabRef.current) {
                   await fileStorage.saveFile(activeTabRef.current)
@@ -208,7 +296,7 @@ export function ScriptEditorContent({
                   }
                 }
               }}
-              onReady={onReady}
+              onReady={handleEditorReady}
               extraLibs={extraLibs}
               editorRef={codeEditorRef}
             />

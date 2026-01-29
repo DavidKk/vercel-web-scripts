@@ -9,6 +9,8 @@ export enum NotificationType {
   Success = 'success',
   Warning = 'warning',
   Error = 'error',
+  /** Progress/loading notification with optional linear progress bar */
+  Loading = 'loading',
 }
 
 /**
@@ -27,6 +29,10 @@ export interface Notification {
   duration?: number
   /** Timestamp when notification was created */
   createdAt: number
+  /** Progress 0–100 for Loading type; undefined = indeterminate */
+  progress?: number
+  /** If true, show indeterminate progress bar (no percentage) */
+  indeterminate?: boolean
 }
 
 /**
@@ -37,6 +43,8 @@ export interface NotificationContextValue {
   notifications: Notification[]
   /** Add a new notification */
   addNotification: (notification: Omit<Notification, 'id' | 'createdAt'>) => string
+  /** Update an existing notification (e.g. progress) */
+  updateNotification: (id: string, updates: Partial<Pick<Notification, 'message' | 'title' | 'progress' | 'indeterminate'>>) => void
   /** Remove a notification by ID */
   removeNotification: (id: string) => void
   /** Clear all notifications */
@@ -101,6 +109,15 @@ export function NotificationProvider({ maxNotifications = 10, children }: Notifi
   )
 
   /**
+   * Update an existing notification (e.g. progress for Loading)
+   * @param id Notification ID
+   * @param updates Partial fields to merge
+   */
+  const updateNotification = useCallback((id: string, updates: Partial<Pick<Notification, 'message' | 'title' | 'progress' | 'indeterminate'>>) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, ...updates } : n)))
+  }, [])
+
+  /**
    * Remove a notification by ID
    * @param id Notification ID
    */
@@ -119,10 +136,11 @@ export function NotificationProvider({ maxNotifications = 10, children }: Notifi
     () => ({
       notifications,
       addNotification,
+      updateNotification,
       removeNotification,
       clearAll,
     }),
-    [notifications, addNotification, removeNotification, clearAll]
+    [notifications, addNotification, updateNotification, removeNotification, clearAll]
   )
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
