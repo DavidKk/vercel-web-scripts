@@ -174,6 +174,21 @@ const logViewer: UIModuleConfig = {
 }
 
 // ============================================================================
+// UI Modules - Spotlight (Command Palette)
+// ============================================================================
+import spotlightCss from './gm-templates/ui/spotlight/index.css?raw'
+import spotlightHtml from './gm-templates/ui/spotlight/index.html?raw'
+import spotlightTs from './gm-templates/ui/spotlight/index.ts?raw'
+
+const spotlight: UIModuleConfig = {
+  name: 'spotlight',
+  ts: spotlightTs,
+  css: spotlightCss,
+  html: spotlightHtml,
+  elementName: 'vercel-web-script-spotlight',
+}
+
+// ============================================================================
 // UI Modules Export
 // ============================================================================
 /**
@@ -181,5 +196,5 @@ const logViewer: UIModuleConfig = {
  * @returns Array of UI module configurations
  */
 export function getUIModules(): UIModuleConfig[] {
-  return [cornerWidget, notification, nodeSelector, logViewer]
+  return [cornerWidget, notification, nodeSelector, logViewer, spotlight]
 }

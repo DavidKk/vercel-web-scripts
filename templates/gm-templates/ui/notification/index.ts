@@ -1,43 +1,46 @@
-class NotificationUI extends HTMLElement {
-  /** Shadow DOM root */
-  #shadowRoot: ShadowRoot | null = null
+;((globalThis: any) => {
+  class NotificationUI extends HTMLElement {
+    /** Shadow DOM root */
+    #shadowRoot: ShadowRoot | null = null
 
-  connectedCallback() {
-    const template = this.querySelector('template')
-    const innerHTML = template ? template.innerHTML : ''
-    template?.remove()
+    connectedCallback() {
+      const template = this.querySelector('template')
+      const innerHTML = template ? template.innerHTML : ''
+      template?.remove()
 
-    this.#shadowRoot = this.attachShadow({ mode: 'open' })
-    this.#shadowRoot.innerHTML = innerHTML
-  }
-
-  show(message: string, type: 'success' | 'error' | 'info' | 'warn' = 'info', duration = 3000) {
-    const wrapper = this.#shadowRoot?.querySelector('.notifications')
-    if (!wrapper) {
-      throw new Error('Notifications wrapper not found')
+      this.#shadowRoot = this.attachShadow({ mode: 'open' })
+      this.#shadowRoot.innerHTML = innerHTML
     }
 
-    const node = document.createElement('div')
-    node.className = `notification ${type}`
-    node.textContent = message
-    wrapper.appendChild(node)
+    show(message: string, type: 'success' | 'error' | 'info' | 'warn' = 'info', duration = 3000) {
+      const wrapper = this.#shadowRoot?.querySelector('.notifications')
+      if (!wrapper) {
+        throw new Error('Notifications wrapper not found')
+      }
 
-    requestAnimationFrame(() => node.classList.add('show'))
-    setTimeout(() => this.#close(node), duration)
+      const node = document.createElement('div')
+      node.className = `notification ${type}`
+      node.textContent = message
+      wrapper.appendChild(node)
+
+      requestAnimationFrame(() => node.classList.add('show'))
+      setTimeout(() => this.#close(node), duration)
+    }
+
+    #close(node: HTMLElement) {
+      node.classList.remove('show')
+      node.addEventListener('transitionend', () => node.remove())
+    }
   }
 
-  #close(node: HTMLElement) {
-    node.classList.remove('show')
-    node.addEventListener('transitionend', () => node.remove())
+  if (!customElements.get('vercel-web-script-notification')) {
+    customElements.define('vercel-web-script-notification', NotificationUI)
   }
-}
 
-if (!customElements.get('vercel-web-script-notification')) {
-  customElements.define('vercel-web-script-notification', NotificationUI)
-}
+  function GME_notification(message: string, type: 'success' | 'error' | 'info' | 'warn' = 'info', duration = 3000) {
+    const notification = document.querySelector('vercel-web-script-notification') as NotificationUI | null
+    notification?.show(message, type, duration)
+  }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function GME_notification(message: string, type: 'success' | 'error' | 'info' | 'warn' = 'info', duration = 3000) {
-  const notification = document.querySelector('vercel-web-script-notification') as NotificationUI
-  notification.show(message, type, duration)
-}
+  globalThis.GME_notification = GME_notification
+})(typeof window !== 'undefined' ? window : ({} as any))
