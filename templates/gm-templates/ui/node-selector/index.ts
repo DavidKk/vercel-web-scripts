@@ -168,11 +168,10 @@ function GME_areMarksHidden(): boolean {
 }
 
 // ============================================================================
-// DEBUG/TEST CODE - 测试代码，生产环境可移除
+// DEBUG/TEST CODE - for development only, remove in production
 // ============================================================================
-// 以下代码用于在浏览器控制台测试 node-selector 功能
-// 通过 vws.nodeSelector.test.xxx() 方式调用
-// 使用 vws.nodeSelector.help() 或 vws.help() 查看帮助
+// Use in browser console: vws.nodeSelector.test.xxx()
+// Help: vws.nodeSelector.help() or vws.help()
 
 /**
  * Register node-selector CLI commands

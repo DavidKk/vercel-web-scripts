@@ -18,6 +18,7 @@ import cliServiceSource from './gm-templates/services/cli-service.ts?raw'
 import devModeSource from './gm-templates/services/dev-mode.ts?raw'
 import editorDevModeSource from './gm-templates/services/editor-dev-mode.ts?raw'
 import localDevModeSource from './gm-templates/services/local-dev-mode.ts?raw'
+import logStoreSource from './gm-templates/services/log-store.ts?raw'
 import menuSource from './gm-templates/services/menu.ts?raw'
 import scriptExecutionSource from './gm-templates/services/script-execution.ts?raw'
 import scriptUpdateSource from './gm-templates/services/script-update.ts?raw'
@@ -31,8 +32,9 @@ export function getCoreScriptsSource(): string[] {
   // Load order:
   // 1. helpers/http - HTTP/Network functions
   // 2. helpers/utils - Utility functions (GME_sleep, GME_debounce, etc.)
-  // 3. helpers/logger - Logging functions (GME_ok, GME_info, GME_debug, etc.)
-  // 4. helpers/dom - DOM query and wait functions
+  // 3. services/log-store - Log buffer + IndexedDB (must be before logger)
+  // 4. helpers/logger - Logging functions (GME_ok, GME_info, GME_debug, etc.)
+  // 5. helpers/dom - DOM query and wait functions
   // 5. tab-communication - provides cross-tab communication (required by script-update)
   // 6. script-update - depends on tab-communication
   // 7. cli-service - CLI service
@@ -46,6 +48,7 @@ export function getCoreScriptsSource(): string[] {
   return [
     helpersHttpSource,
     helpersUtilsSource,
+    logStoreSource,
     helpersLoggerSource,
     helpersDomSource,
     tabCommunicationSource,
@@ -156,6 +159,21 @@ const nodeSelector: UIModuleConfig = {
 }
 
 // ============================================================================
+// UI Modules - Log Viewer
+// ============================================================================
+import logViewerCss from './gm-templates/ui/log-viewer/index.css?raw'
+import logViewerHtml from './gm-templates/ui/log-viewer/index.html?raw'
+import logViewerTs from './gm-templates/ui/log-viewer/index.ts?raw'
+
+const logViewer: UIModuleConfig = {
+  name: 'log-viewer',
+  ts: logViewerTs,
+  css: logViewerCss,
+  html: logViewerHtml,
+  elementName: 'vercel-web-script-log-viewer',
+}
+
+// ============================================================================
 // UI Modules Export
 // ============================================================================
 /**
@@ -163,5 +181,5 @@ const nodeSelector: UIModuleConfig = {
  * @returns Array of UI module configurations
  */
 export function getUIModules(): UIModuleConfig[] {
-  return [cornerWidget, notification, nodeSelector]
+  return [cornerWidget, notification, nodeSelector, logViewer]
 }

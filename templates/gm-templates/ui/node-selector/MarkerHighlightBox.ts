@@ -221,8 +221,8 @@ class MarkerHighlightBox extends HTMLElement {
 
     const deleteBtn = document.createElement('button')
     deleteBtn.className = 'node-selector-marker__delete'
-    deleteBtn.setAttribute('title', '删除标记')
-    deleteBtn.setAttribute('aria-label', '删除标记')
+    deleteBtn.setAttribute('title', 'Remove mark')
+    deleteBtn.setAttribute('aria-label', 'Remove mark')
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation()
       if (this.#deleteCallback) {

@@ -78,6 +78,12 @@ function registerBasicMenus(webScriptId: string): void {
     }
   })
 
+  GM_registerMenuCommand('View Logs', () => {
+    if (typeof (window as any).GME_openLogViewer === 'function') {
+      ;(window as any).GME_openLogViewer()
+    }
+  })
+
   GM_registerMenuCommand('Rule manager', () => {
     const url = __RULE_MANAGER_URL__ + '?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
     url && window.open(url, '_blank')

@@ -2,6 +2,44 @@
 // Logging Functions
 // ============================================================================
 
+/** Injected by log-store.ts when scripts are concatenated */
+declare const logStore: { push(level: string, msg: string): void; getLogs(): unknown[]; clearLogs(): void; subscribe(cb: (entries: unknown[]) => void): () => void } | undefined
+
+/**
+ * Format log contents to a plain string for log store (strip %c, styles, HTML-like tags)
+ */
+function formatContentsForStore(...contents: any[]): string {
+  const parts: string[] = []
+  for (let i = 0; i < contents.length; i++) {
+    const c = contents[i]
+    if (typeof c === 'string') {
+      if (c.includes('color:') || c.includes('font-') || c.includes('background:')) continue
+      let s = c.replace(/%c/g, '').replace(/<(\w+)>([^<]*)<\/\1>/gi, '$2')
+      if (s.trim()) parts.push(s)
+    } else {
+      try {
+        parts.push(typeof c === 'object' && c !== null ? JSON.stringify(c) : String(c))
+      } catch {
+        parts.push(String(c))
+      }
+    }
+  }
+  return parts.join(' ').trim() || ''
+}
+
+/**
+ * Push to log store if available (log-store.ts must be loaded before logger)
+ */
+function pushToLogStore(level: 'ok' | 'info' | 'warn' | 'fail' | 'debug', ...contents: any[]): void {
+  try {
+    const store = typeof logStore !== 'undefined' && logStore ? logStore : null
+    if (store && typeof store.push === 'function') {
+      const msg = formatContentsForStore(...contents)
+      if (msg) store.push(level, msg)
+    }
+  } catch (_) {}
+}
+
 /**
  * Convert HTML-like tags to %c styling format
  * Supports common tags: <b>, <i>, <u>, <s>, and color tags like <red>, <green>, etc.
@@ -174,6 +212,7 @@ function createGMELogger(prefix?: string) {
       const args = processLogContents(`%c✔ [OK]${modulePrefix}`, 'color:#28a745;font-weight:700;', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
+      pushToLogStore('ok', ...contents)
     },
 
     /**
@@ -188,6 +227,7 @@ function createGMELogger(prefix?: string) {
       const args = processLogContents(`%cℹ [INFO]${modulePrefix}`, 'color:#17a2b8;font-weight:700;', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
+      pushToLogStore('info', ...contents)
     },
 
     /**
@@ -202,6 +242,7 @@ function createGMELogger(prefix?: string) {
       const args = processLogContents(`%c✘ [FAIL]${modulePrefix}`, 'color:#dc3545;font-weight:700;', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
+      pushToLogStore('fail', ...contents)
     },
 
     /**
@@ -216,6 +257,7 @@ function createGMELogger(prefix?: string) {
       const args = processLogContents(`%c⚠ [WARN]${modulePrefix}`, 'color:#ffc107;font-weight:700;', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
+      pushToLogStore('warn', ...contents)
     },
 
     /**
@@ -231,6 +273,7 @@ function createGMELogger(prefix?: string) {
       const args = processLogContents(`%c🔍 [DEBUG]${modulePrefix}`, 'color:#6c757d;font-weight:700;', ...contents)
       // eslint-disable-next-line no-console
       console.debug(...args)
+      pushToLogStore('debug', ...contents)
     },
   }
 }
@@ -249,6 +292,7 @@ function GME_ok(...contents: any[]) {
   const args = processLogContents('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
+  pushToLogStore('ok', ...contents)
 }
 
 /**
@@ -264,6 +308,7 @@ function GME_info(...contents: any[]) {
   const args = processLogContents('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
+  pushToLogStore('info', ...contents)
 }
 
 /**
@@ -279,6 +324,7 @@ function GME_fail(...contents: any[]) {
   const args = processLogContents('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
+  pushToLogStore('fail', ...contents)
 }
 
 /**
@@ -294,6 +340,7 @@ function GME_warn(...contents: any[]) {
   const args = processLogContents('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
+  pushToLogStore('warn', ...contents)
 }
 
 /**
@@ -310,6 +357,7 @@ function GME_debug(...contents: any[]) {
   const args = processLogContents('%c🔍 [DEBUG]', 'color:#6c757d;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.debug(...args)
+  pushToLogStore('debug', ...contents)
 }
 
 // ============================================================================

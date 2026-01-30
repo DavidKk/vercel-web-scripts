@@ -1,0 +1,21 @@
+<div class="log-viewer" part="viewer">
+  <div class="log-viewer__backdrop" part="backdrop"></div>
+  <div class="log-viewer__panel" part="panel">
+    <div class="log-viewer__header">
+      <h2 class="log-viewer__title">Log Viewer</h2>
+      <button type="button" class="log-viewer__close" part="close" aria-label="Close">×</button>
+    </div>
+    <div class="log-viewer__toolbar">
+      <div class="log-viewer__filters">
+        <label class="log-viewer__filter"><input type="checkbox" data-level="info" checked /> INFO</label>
+        <label class="log-viewer__filter"><input type="checkbox" data-level="ok" checked /> OK</label>
+        <label class="log-viewer__filter"><input type="checkbox" data-level="warn" checked /> WARN</label>
+        <label class="log-viewer__filter"><input type="checkbox" data-level="fail" checked /> FAIL</label>
+        <label class="log-viewer__filter"><input type="checkbox" data-level="debug" /> DEBUG</label>
+      </div>
+      <input type="text" class="log-viewer__search" part="search" placeholder="Search keyword..." />
+      <button type="button" class="log-viewer__clear" part="clear">Clear</button>
+    </div>
+    <div class="log-viewer__list" part="list"></div>
+  </div>
+</div>
