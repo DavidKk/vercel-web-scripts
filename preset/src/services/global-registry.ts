@@ -42,11 +42,11 @@ import { getScriptUpdate } from './script-update'
 import { getTabCommunication } from './tab-communication'
 
 /**
- * Register all preset APIs onto globalThis.
+ * Register all preset APIs onto globalThis (or __GLOBAL__ when run by launcher so preset and remote share the same sandbox).
  * Called once at preset load; main.ts and GIST scripts rely on these globals.
  */
 export function registerGlobals(): void {
-  const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
+  const g = typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
 
   Object.assign(g, {
     // Helpers (public API for GIST scripts)

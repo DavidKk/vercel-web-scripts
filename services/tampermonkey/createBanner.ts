@@ -81,6 +81,7 @@ ${grants
 // ==/UserScript==
 
 ${variableDeclarations}
+const __INLINE_GIST__ = true;
 ${presetWithGist}${inlineSourceMapComment}
 `
   }

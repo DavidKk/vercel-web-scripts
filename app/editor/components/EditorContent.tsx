@@ -140,6 +140,17 @@ export function EditorContent({ scriptKey, initialFiles, tampermonkeyTypings, ru
       router.refresh()
 
       notification.success('Published successfully!')
+
+      // Trigger script update push so Tampermonkey tabs reload the script
+      if (typeof window !== 'undefined') {
+        const triggerUrl = `${window.location.origin}/?vws_script_update=1`
+        const iframe = document.createElement('iframe')
+        iframe.setAttribute('aria-hidden', 'true')
+        iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+        iframe.src = triggerUrl
+        document.body.appendChild(iframe)
+        setTimeout(() => iframe.remove(), 5000)
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Publish failed:', error)

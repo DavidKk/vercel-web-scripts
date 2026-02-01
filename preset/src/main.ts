@@ -17,6 +17,9 @@ const IS_REMOTE_SCRIPT = typeof __IS_REMOTE_EXECUTE__ === 'boolean' && __IS_REMO
 // Use window.location.host instead of hostname to include port number
 const IS_DEVELOP_MODE = __IS_DEVELOP_MODE__ && __HOSTNAME_PORT__ === window.location.host
 
+/** GM_setValue key for preset update push (must match launcherScript.PRESET_UPDATE_CHANNEL_KEY) */
+const PRESET_UPDATE_CHANNEL_KEY = 'vws_preset_update'
+
 // Guard against multiple initializations
 if ((window as any).__WEB_SCRIPT_INITIALIZED__) {
   GME_info('[Main] Loader already running, skipping initialization')
@@ -92,10 +95,55 @@ async function tryExecuteEditorScript(): Promise<boolean> {
 }
 
 /**
+ * Subscribe to dev server SSE for preset rebuild; on preset-built event, push to Launcher so it clears cache and reloads.
+ * Used by both editor page and non-editor dev pages so preset update is received when only editor is open.
+ */
+function subscribePresetBuiltSSE(): void {
+  try {
+    const url = `${__BASE_URL__}/api/sse/preset-built`
+    const es = new EventSource(url)
+    es.onopen = () => {
+      GME_info('[preset-built] SSE connected: ' + url)
+    }
+    es.addEventListener('preset-built', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { builtAt?: number }
+        const builtAt = typeof data?.builtAt === 'number' ? data.builtAt : Date.now()
+        GME_info('[preset-built] event received builtAt=' + builtAt + ', pushing to Launcher')
+        GM_setValue(PRESET_UPDATE_CHANNEL_KEY, builtAt)
+        GME_info('[Dev] Preset rebuild pushed via SSE, Launcher will reload')
+      } catch {
+        // ignore parse error
+      }
+    })
+  } catch {
+    // Dev server may not be reachable (e.g. production build)
+  }
+}
+
+/**
  * Main function that orchestrates script execution
  */
 async function main(): Promise<void> {
   GME_info('[Main] Starting main function, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
+
+  // Trigger script update push when opened with ?vws_script_update=1 (e.g. after editor publish)
+  if (typeof window !== 'undefined' && window.location.search.includes('vws_script_update=1')) {
+    try {
+      const u = new URL(window.location.href)
+      u.searchParams.delete('vws_script_update')
+      history.replaceState(null, '', u.toString())
+    } catch {
+      // ignore
+    }
+    await getScriptUpdate().update()
+    return
+  }
+
+  // Expose matchRule on shared global early so remote/editor/local script can resolve it in all code paths
+  // (dev path calls executeRemoteScript without fetching rules; normal path sets it again after fetch)
+  const g = typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
+  ;(g as any).matchRule = matchRule
 
   // Set up GM_addValueChangeListener early so we can receive messages from Editor page (even if cross-domain)
   // This must be set up before checking editor dev mode, so we can receive messages immediately
@@ -196,8 +244,9 @@ async function main(): Promise<void> {
     // It only sends files to other pages via GM_setValue (triggered by postMessage from Editor.tsx)
     if (window.location.pathname.includes('/tampermonkey/editor')) {
       GME_info('[Dev Mode] Current page is editor page (HOST), skipping remote script execution')
-      // Initialize script-update service to listen for updates (but don't execute)
       getScriptUpdate()
+      // Subscribe to preset-built SSE so when only editor is open, we still receive and push to Launcher
+      subscribePresetBuiltSSE()
       return
     }
 
@@ -208,6 +257,8 @@ async function main(): Promise<void> {
     watchHMRUpdates({
       onUpdate: () => window.location.reload(),
     })
+
+    subscribePresetBuiltSSE()
 
     GME_info('Development mode')
     executeRemoteScript()
@@ -225,22 +276,23 @@ async function main(): Promise<void> {
   const rules = await fetchRulesFromCache()
   globalRules = rules
   GME_info('[Main] Rules fetched, count: ' + rules.length)
-
-  // Expose matchRule on global so GIST scripts can resolve it when run via with(global) (remote/editor/local dev)
-  const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
-  ;(g as any).matchRule = matchRule
+  // matchRule already on g from start of main(); globalRules now updated so matchRule() resolves correctly
 
   /**
    * Execute GIST compiled scripts
-   * This function body will be replaced with actual GIST scripts code at compile time
+   * This function body will be replaced with actual GIST scripts code at compile time (full bundle).
+   * When preset is loaded by launcher (__INLINE_GIST__ undefined), we fetch and run remote script from __SCRIPT_URL__ instead.
    */
   function executeGistScripts(): void {
     // @ts-expect-error - Placeholder will be replaced with actual GIST scripts code at runtime
     __GIST_SCRIPTS_PLACEHOLDER__
   }
 
-  // Execute GIST scripts at the correct position
-  executeGistScripts()
+  if (typeof __INLINE_GIST__ !== 'undefined' && __INLINE_GIST__) {
+    executeGistScripts()
+  } else {
+    executeRemoteScript()
+  }
 
   // Register basic menus
   registerBasicMenus(WEB_SCRIPT_ID)
@@ -260,5 +312,3 @@ async function main(): Promise<void> {
 }
 
 main()
-
-export {}

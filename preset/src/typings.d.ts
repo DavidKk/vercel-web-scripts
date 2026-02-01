@@ -8,6 +8,10 @@ declare const __IS_DEVELOP_MODE__: boolean
 declare const __HOSTNAME_PORT__: string
 declare const __GRANTS_STRING__: string
 declare const __IS_REMOTE_EXECUTE__: boolean
+/** Set to true when script is full bundle (preset + inline GIST); undefined when preset is loaded by launcher */
+declare const __INLINE_GIST__: boolean | undefined
+/** When preset is run by launcher, launcher injects __GLOBAL__ = g so preset and remote script share the same global object (sandbox) */
+declare const __GLOBAL__: typeof globalThis | undefined
 
 declare function GM_getValue<T = any>(key: string, defaultValue?: T): T
 declare function GM_setValue(key: string, value: any): void

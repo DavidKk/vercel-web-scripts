@@ -75,3 +75,31 @@ const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
 // - Remote run (executeScript(global)): global.__IS_REMOTE_EXECUTE__ = true → IS_REMOTE_SCRIPT = true
 `
 }
+
+/**
+ * Build global assignment statements for launcher: assign preset variables onto global object `g`.
+ * Used when launcher evals preset so that preset code sees __BASE_URL__, __SCRIPT_URL__, etc.
+ */
+export function buildPresetGlobalAssignments(variables: {
+  __BASE_URL__: string
+  __RULE_API_URL__: string
+  __RULE_MANAGER_URL__: string
+  __EDITOR_URL__: string
+  __HMK_URL__: string
+  __SCRIPT_URL__: string
+  __IS_DEVELOP_MODE__: boolean
+  __HOSTNAME_PORT__: string
+  __GRANTS_STRING__: string
+}): string {
+  return `
+g.__BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
+g.__RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
+g.__RULE_MANAGER_URL__ = ${JSON.stringify(variables.__RULE_MANAGER_URL__)};
+g.__EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)};
+g.__HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)};
+g.__SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)};
+g.__IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__};
+g.__HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)};
+g.__GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
+`.trim()
+}

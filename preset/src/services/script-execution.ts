@@ -14,7 +14,8 @@ import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMod
  */
 function executeScript(content: string): void {
   const execute = new Function('global', `with(global){${content}}`)
-  const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
+  // When run by launcher, use __GLOBAL__ (launcher's g) so remote script runs in the same sandbox as preset (matchRule, GM_*, etc.)
+  const g = typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
   const grants = eval(`({ ${__GRANTS_STRING__} })`) as Record<string, unknown>
   const prev = (g as any).__IS_REMOTE_EXECUTE__
   try {

@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
-import { IoSync } from 'react-icons/io5'
+import { FiDownload, FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload } from 'react-icons/md'
 
@@ -29,7 +28,7 @@ interface EditorHeaderProps {
 }
 
 /**
- * Editor header component with exit, update, and save buttons
+ * Editor header component with exit, dev mode, install, and publish buttons
  */
 export default function EditorHeader({
   scriptKey,
@@ -47,41 +46,27 @@ export default function EditorHeader({
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
 
-  /**
-   * Handle update button click - check script validity before opening
-   */
-  const handleUpdate = async () => {
-    if (isChecking || isSaving) {
-      return
-    }
-
+  /** Handle install: validate launcher script (HEAD), then open install URL in new tab if OK */
+  const handleInstall = async () => {
+    if (isChecking || isSaving) return
     setIsChecking(true)
-
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vercel-web-scripts.vercel.app'
+    const userUrl = `${baseUrl}/static/${scriptKey}/tampermonkey.user.js`
     try {
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vercel-web-scripts.vercel.app'
-      const userUrl = `${baseUrl}/static/${scriptKey}/tampermonkey.user.js`
-      const fallback = `${baseUrl}/static/${scriptKey}/tampermonkey.js`
-
-      // Check if tampermonkey.user.js exists
-      const response = await fetch(userUrl, { method: 'HEAD' })
-      const url = response.ok ? userUrl : fallback
-
-      window.open(url, '_blank', 'noopener')
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error checking script:', error)
-      // Fallback to opening the default URL even if check fails
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vercel-web-scripts.vercel.app'
-      const fallback = `${baseUrl}/static/${scriptKey}/tampermonkey.js`
-      window.open(fallback, '_blank', 'noopener')
+      const res = await fetch(userUrl, { method: 'HEAD' })
+      if (res.ok) {
+        window.open(userUrl, '_blank', 'noopener')
+      } else {
+        window.alert('Script is not ready. Please check compilation or try again later.')
+      }
+    } catch {
+      window.alert('Could not validate script. Check network and try again.')
     } finally {
       setIsChecking(false)
     }
   }
 
-  /**
-   * Handle logout - clear authentication and redirect to login
-   */
+  /** Handle logout - clear authentication and redirect to login */
   const handleLogout = async () => {
     if (isSaving) {
       return
@@ -167,12 +152,12 @@ export default function EditorHeader({
           )}
         </button>
 
-        {/* Update button */}
+        {/* Install button */}
         <button
-          onClick={handleUpdate}
+          onClick={handleInstall}
           disabled={isSaving || isChecking}
           className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-          title="Open script update link"
+          title="Validate and open script install link"
         >
           {isChecking ? (
             <>
@@ -183,8 +168,8 @@ export default function EditorHeader({
             </>
           ) : (
             <>
-              <IoSync className="w-4 h-4" />
-              <span className="text-sm">Update</span>
+              <FiDownload className="w-4 h-4" />
+              <span className="text-sm">Install</span>
             </>
           )}
         </button>

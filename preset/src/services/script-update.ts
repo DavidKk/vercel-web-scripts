@@ -199,7 +199,7 @@ class ScriptUpdate {
     try {
       GME_info('[Script Update] Validating script compilation...')
 
-      // Extract key from script URL (e.g., /static/{key}/tampermonkey.js)
+      // Extract key from script URL (e.g., /static/{key}/tampermonkey.user.js)
       const urlObj = new URL(scriptUrl, window.location.origin)
       const pathParts = urlObj.pathname.split('/')
       const keyIndex = pathParts.indexOf('static')
@@ -212,7 +212,6 @@ class ScriptUpdate {
       const key = pathParts[keyIndex + 1]
       const baseUrl = `${urlObj.protocol}//${urlObj.host}`
       const userUrl = `${baseUrl}/static/${key}/tampermonkey.user.js`
-      const fallback = `${baseUrl}/static/${key}/tampermonkey.js`
 
       // Check if tampermonkey.user.js exists (HEAD request)
       try {
@@ -222,22 +221,10 @@ class ScriptUpdate {
           return { isValid: true, url: userUrl }
         }
       } catch (error) {
-        // Continue to check fallback
+        // HEAD request failed
       }
 
-      // Check fallback tampermonkey.js
-      try {
-        const fallbackResponse = await GME_fetch(fallback, { method: 'HEAD' })
-        if (fallbackResponse.ok) {
-          GME_ok('[Script Update] Script validation passed (tampermonkey.js found)')
-          return { isValid: true, url: fallback }
-        }
-      } catch (error) {
-        // Both failed
-      }
-
-      // Both URLs failed - compilation may have failed
-      GME_fail('[Script Update] Script validation failed: Both tampermonkey.user.js and tampermonkey.js are not available')
+      GME_fail('[Script Update] Script validation failed: tampermonkey.user.js is not available')
       GME_fail('[Script Update] This usually means script compilation failed. Please check for errors.')
       GME_notification('Script compilation failed. Please check for errors in the editor.', 'error', 5000)
       return { isValid: false, url: null }

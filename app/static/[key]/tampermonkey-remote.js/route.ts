@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server'
 
 import { EXCLUDED_FILES } from '@/constants/file'
-import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
-import { createUserScript } from '@/services/tampermonkey/createUserScript.server'
+import { getRemoteScriptContent } from '@/services/tampermonkey/createUserScript.server'
 
 export interface Params {
   key: string
 }
 
-export const GET = plainText<Params>(async (req, context) => {
+/**
+ * GET /static/[key]/tampermonkey-remote.js
+ * Returns only the GIST-compiled script content (no banner, no preset).
+ * Used by launcher: preset fetches this URL via __SCRIPT_URL__ and runs it.
+ */
+export async function GET(req: Request, context: { params: Promise<Params> }) {
   const params = await context.params
   const key = getTampermonkeyScriptKey()
   if (params.key !== key) {
@@ -25,18 +29,19 @@ export const GET = plainText<Params>(async (req, context) => {
         if (!(file.endsWith('.js') || (file.endsWith('.ts') && !file.endsWith('.d.ts')))) {
           continue
         }
-
         if (EXCLUDED_FILES.includes(file)) {
           continue
         }
-
         yield [file, content]
       }
     })()
   )
 
-  const scriptUrl = req.url
-  const version = `0.${(new Date(gist.updated_at).getTime() / 1e3).toString()}`
-  const content = await createUserScript({ scriptUrl, version, files })
-  return content.replace(/\r\n/g, '\n')
-})
+  const content = await getRemoteScriptContent(files)
+  return new NextResponse(content.replace(/\r\n/g, '\n'), {
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+    },
+  })
+}

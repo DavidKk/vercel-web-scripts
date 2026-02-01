@@ -26,7 +26,7 @@ export function registerBasicMenus(webScriptId: string): void {
     try {
       GME_info('[Update Script] Checking script validity...')
 
-      // Extract key from script URL (e.g., /static/{key}/tampermonkey.js)
+      // Extract key from script URL (e.g., /static/{key}/tampermonkey.user.js)
       const urlObj = new URL(__SCRIPT_URL__, window.location.origin)
       const pathParts = urlObj.pathname.split('/')
       const keyIndex = pathParts.indexOf('static')
@@ -39,7 +39,6 @@ export function registerBasicMenus(webScriptId: string): void {
       const key = pathParts[keyIndex + 1]
       const baseUrl = `${urlObj.protocol}//${urlObj.host}`
       const userUrl = `${baseUrl}/static/${key}/tampermonkey.user.js`
-      const fallback = `${baseUrl}/static/${key}/tampermonkey.js`
 
       // Check if tampermonkey.user.js exists (HEAD request)
       let url: string | null = null
@@ -49,26 +48,15 @@ export function registerBasicMenus(webScriptId: string): void {
           url = userUrl
           GME_ok('[Update Script] Script validation passed (tampermonkey.user.js found)')
         } else {
-          // Check fallback tampermonkey.js
-          const fallbackResponse = await GME_fetch(fallback, { method: 'HEAD' })
-          if (fallbackResponse.ok) {
-            url = fallback
-            GME_ok('[Update Script] Script validation passed (tampermonkey.js found)')
-          } else {
-            // Both URLs failed - compilation may have failed
-            GME_fail('[Update Script] Script validation failed: Both tampermonkey.user.js and tampermonkey.js are not available')
-            GME_fail('[Update Script] This usually means script compilation failed. Please check for errors.')
-            GME_notification('Script compilation failed. Please check for errors in the editor.', 'error', 5000)
-            // Return early without opening any URL (consistent with script-update service behavior)
-            return
-          }
+          GME_fail('[Update Script] Script validation failed: tampermonkey.user.js is not available')
+          GME_notification('Script compilation failed. Please check for errors in the editor.', 'error', 5000)
+          return
         }
       } catch (error: any) {
-        // Network error - fallback to opening the default URL (same as editor behavior)
         const errorMessage = error instanceof Error ? error.message : String(error)
         GME_fail('[Update Script] Script validation failed: ' + errorMessage)
-        GME_info('[Update Script] Opening fallback URL due to network error')
-        url = fallback
+        GME_info('[Update Script] Opening launcher URL due to network error')
+        url = userUrl
       }
 
       // Only open URL if validation passed or network error occurred
