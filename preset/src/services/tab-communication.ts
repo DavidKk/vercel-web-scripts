@@ -4,7 +4,7 @@
  * Singleton pattern - automatically initializes on first use
  */
 
-import { GME_debug } from '../helpers/logger'
+import { GME_debug } from '@/helpers/logger'
 
 /**
  * Message types for cross-tab communication
@@ -14,7 +14,7 @@ type MessageType = 'broadcast' | 'send' | 'reply' | 'register' | 'unregister'
 /**
  * Message payload structure
  */
-interface TabMessage {
+export interface TabMessage {
   /** Message channel identifier (to distinguish from other GM_setValue calls) */
   _channel: string
   /** Message protocol version */
@@ -40,7 +40,7 @@ interface TabMessage {
 /**
  * Tab registration information
  */
-interface TabInfo {
+export interface TabInfo {
   /** Tab ID */
   id: string
   /** Tab URL */
@@ -108,7 +108,7 @@ interface PendingReply {
  * Cross-tab communication service
  * Singleton pattern - one instance per namespace
  */
-class TabCommunication {
+export class TabCommunication {
   private readonly namespace: string
   private readonly heartbeatInterval: number
   private readonly tabTimeout: number
@@ -173,11 +173,11 @@ class TabCommunication {
    */
   private async init(): Promise<void> {
     if (this.isInitialized) {
-      GME_info(`[TabCommunication:${this.namespace}] Already initialized, skipping`)
+      GME_debug(`[TabCommunication:${this.namespace}] Already initialized, skipping`)
       return
     }
 
-    GME_info(`[TabCommunication:${this.namespace}] Initializing, tabId: ${this.tabId}, location: ${window.location.href}`)
+    GME_debug(`[TabCommunication:${this.namespace}] Initializing, tabId: ${this.tabId}, location: ${window.location.href}`)
 
     // Register this tab
     await this.register()
@@ -195,7 +195,7 @@ class TabCommunication {
     this.setupUnloadHandler()
 
     this.isInitialized = true
-    GME_info(`[TabCommunication:${this.namespace}] Initialization complete`)
+    GME_debug(`[TabCommunication:${this.namespace}] Initialization complete`)
   }
 
   /**
@@ -265,7 +265,7 @@ class TabCommunication {
 
     registry[this.tabId] = tabInfo
     this.setRegistry(registry)
-    GME_info(`[TabCommunication:${this.namespace}] Tab registered, tabId: ${this.tabId}, url: ${tabInfo.url}, total tabs: ${Object.keys(registry).length + 1}`)
+    GME_debug(`[TabCommunication:${this.namespace}] Tab registered, tabId: ${this.tabId}, url: ${tabInfo.url}, total tabs: ${Object.keys(registry).length + 1}`)
 
     // Broadcast registration
     await this.broadcastInternal({
@@ -288,7 +288,7 @@ class TabCommunication {
     const tabInfo = registry[this.tabId]
     delete registry[this.tabId]
     this.setRegistry(registry)
-    GME_info(`[TabCommunication:${this.namespace}] Tab unregistered, tabId: ${this.tabId}`)
+    GME_debug(`[TabCommunication:${this.namespace}] Tab unregistered, tabId: ${this.tabId}`)
 
     // Broadcast unregistration
     this.broadcastInternal({
@@ -299,8 +299,8 @@ class TabCommunication {
       sender: tabInfo,
       data: { id: this.tabId },
       timestamp: Date.now(),
-    }).catch(() => {
-      // Ignore errors during unregister
+    }).catch((e) => {
+      GME_debug('[TabCommunication:' + this.namespace + '] unregister failed:', e instanceof Error ? e.message : String(e))
     })
   }
 
@@ -346,7 +346,7 @@ class TabCommunication {
    * Set up message listener using GM_addValueChangeListener
    */
   private setupMessageListener(): void {
-    GME_info(`[TabCommunication:${this.namespace}] Setting up message listener, MESSAGE_KEY: ${this.MESSAGE_KEY}`)
+    GME_debug(`[TabCommunication:${this.namespace}] Setting up message listener, MESSAGE_KEY: ${this.MESSAGE_KEY}`)
     this.valueChangeListenerId = GM_addValueChangeListener(this.MESSAGE_KEY, (name, oldValue, newValue) => {
       GME_debug(`[TabCommunication:${this.namespace}] GM_addValueChangeListener triggered, name: ${name}, hasNewValue: ${!!newValue}, location: ${window.location.href}`)
 
@@ -368,7 +368,7 @@ class TabCommunication {
         return
       }
 
-      GME_info(`[TabCommunication:${this.namespace}] Valid message received, type: ${newValue.type}, from: ${newValue.from}, to: ${newValue.to || 'all'}`)
+      GME_debug(`[TabCommunication:${this.namespace}] Valid message received, type: ${newValue.type}, from: ${newValue.from}, to: ${newValue.to || 'all'}`)
       this.handleMessage(newValue as TabMessage)
     })
     GME_debug(`[TabCommunication:${this.namespace}] Message listener set up, listenerId: ${this.valueChangeListenerId}`)
@@ -817,7 +817,7 @@ class TabCommunication {
  * @note This is a global factory function used by other modules, eslint-disable is needed
  */
 
-const getTabCommunication = (() => {
+export const getTabCommunication = (() => {
   // Use closure to keep instances private (not in global scope)
   const instances: Map<string, TabCommunication> = new Map()
 
@@ -831,6 +831,3 @@ const getTabCommunication = (() => {
     return instances.get(namespace)!
   }
 })()
-
-export { getTabCommunication, TabCommunication }
-export type { TabInfo, TabMessage }

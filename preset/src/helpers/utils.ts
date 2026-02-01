@@ -2,7 +2,7 @@
 // Utility Functions
 // ============================================================================
 
-function GME_sleep(ms: number) {
+export function GME_sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
@@ -13,8 +13,7 @@ function GME_sleep(ms: number) {
  * @param wait The number of milliseconds to delay
  * @returns A debounced version of the function
  */
-
-function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
+export function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
   return function debounced(...args: Parameters<T>) {
@@ -35,8 +34,7 @@ function GME_debounce<T extends (...args: any[]) => any>(fn: T, wait: number): (
  * @param wait The number of milliseconds to wait between invocations
  * @returns A throttled version of the function
  */
-
-function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
+export function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (...args: Parameters<T>) => void {
   let lastCallTime = 0
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
@@ -64,7 +62,7 @@ function GME_throttle<T extends (...args: any[]) => any>(fn: T, wait: number): (
 // Crypto / Hash Functions
 // ============================================================================
 
-async function GME_sha1(str: string) {
+export async function GME_sha1(str: string) {
   const encoder = new TextEncoder()
   const data = encoder.encode(str)
   const hashBuffer = await crypto.subtle.digest('SHA-1', data)
@@ -72,7 +70,7 @@ async function GME_sha1(str: string) {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-function GME_uuid() {
+export function GME_uuid() {
   if (typeof crypto?.randomUUID === 'function') {
     return crypto.randomUUID()
   }
@@ -83,5 +81,3 @@ function GME_uuid() {
     return v.toString(16)
   })
 }
-
-export { GME_debounce, GME_sha1, GME_sleep, GME_throttle, GME_uuid }

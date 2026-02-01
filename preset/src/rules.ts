@@ -1,9 +1,34 @@
 const RULE_CACHE_KEY = '#RuleCache@WebScripts'
 
-function matchUrl(pattern: string, url = window.location.href) {
+/** Global rules cache for matchRule; updated via setGlobalRules */
+let globalRules: Array<{ wildcard?: string; script?: string }> = []
+
+export function matchUrl(pattern: string, url = window.location.href) {
   const regexPattern = pattern.replace(/([\.\?])/g, '\\$1').replace(/\*/g, '.*')
   const regex = new RegExp(`^${regexPattern}$`)
   return regex.test(url)
+}
+
+/**
+ * Set global rules used by getMatchRule().
+ * @param rules - Rules array from fetchRulesFromCache
+ */
+export function setGlobalRules(rules: Array<{ wildcard?: string; script?: string }>): void {
+  globalRules = rules
+}
+
+/**
+ * Return matchRule function for GIST scripts (matches script name and URL wildcard).
+ * Must be assigned to (g as any).matchRule so dynamically compiled scripts can resolve it.
+ * @returns matchRule(name, url?) => boolean
+ */
+export function getMatchRule(): (name: string, url?: string) => boolean {
+  return function matchRule(name: string, url: string = window.location.href): boolean {
+    return globalRules.some(({ wildcard, script }) => {
+      if (script !== name) return false
+      return !!(wildcard && matchUrl(wildcard, url))
+    })
+  }
 }
 
 async function fetchRules() {
@@ -40,7 +65,7 @@ async function fetchRules() {
   })
 }
 
-async function fetchAndCacheRules() {
+export async function fetchAndCacheRules() {
   const rules = await fetchRules()
   try {
     GM_setValue(RULE_CACHE_KEY, JSON.stringify(rules))
@@ -52,7 +77,7 @@ async function fetchAndCacheRules() {
   return rules
 }
 
-async function fetchRulesFromCache(refetch = false) {
+export async function fetchRulesFromCache(refetch = false) {
   const cached = GM_getValue(RULE_CACHE_KEY)
   if (cached) {
     if (refetch) {
@@ -69,5 +94,3 @@ async function fetchRulesFromCache(refetch = false) {
 
   return fetchAndCacheRules()
 }
-
-export { fetchAndCacheRules, fetchRulesFromCache, matchUrl }

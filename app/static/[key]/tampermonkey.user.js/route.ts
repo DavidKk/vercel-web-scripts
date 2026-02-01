@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import packageJson from '@/package.json'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 import { createLauncherScript } from '@/services/tampermonkey/launcherScript'
 
@@ -23,13 +24,13 @@ export async function GET(req: Request, context: { params: Promise<Params> }) {
   const url = new URL(req.url)
   const baseUrl = `${url.protocol}//${url.host}`
   const scriptUrl = req.url
-  const version = '1.0.0'
+  const projectVersion = (packageJson as { version?: string }).version ?? '0.0.0'
 
   const content = createLauncherScript({
     baseUrl,
     key,
     launcherScriptUrl: scriptUrl,
-    version,
+    version: projectVersion,
   })
 
   return new NextResponse(content.replace(/\r\n/g, '\n'), {

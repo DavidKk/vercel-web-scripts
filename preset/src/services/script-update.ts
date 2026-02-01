@@ -1,10 +1,13 @@
 /**
  * Script update service using tab communication
- * HOST tab validates and broadcasts update, other tabs receive and execute remote script
+ * HOST tab validates and broadcasts update, other tabs receive and execute remote script.
+ * Editor page does not trigger GIST update (it is HOST for preset/Editor Dev Mode only).
  */
 
-import type { TabCommunication, TabInfo, TabMessage } from './tab-communication'
-import { getTabCommunication } from './tab-communication'
+import { GME_debug } from '@/helpers/logger'
+import { isEditorPage } from '@/services/dev-mode/constants'
+import type { TabCommunication, TabInfo, TabMessage } from '@/services/tab-communication'
+import { getTabCommunication } from '@/services/tab-communication'
 
 /**
  * Script update status enum
@@ -110,9 +113,9 @@ class ScriptUpdate {
       this.isHost = host === this.tabComm.getTabId()
 
       if (host && host !== this.tabComm.getTabId()) {
-        GME_info(`[Script Update] HOST changed to: ${host}`)
+        GME_debug(`[Script Update] HOST changed to: ${host}`)
       } else if (!host) {
-        GME_info('[Script Update] HOST cleared')
+        GME_debug('[Script Update] HOST cleared')
       }
     })
   }
@@ -136,7 +139,7 @@ class ScriptUpdate {
     GM_setValue(this.HOST_KEY, tabId)
     this.hostTabId = tabId
     this.isHost = true
-    GME_info(`[Script Update] This tab is now HOST (${tabId})`)
+    GME_debug(`[Script Update] This tab is now HOST (${tabId})`)
     return true
   }
 
@@ -149,7 +152,7 @@ class ScriptUpdate {
       GM_setValue(this.HOST_KEY, null)
       this.isHost = false
       this.hostTabId = null
-      GME_info('[Script Update] HOST cleared after update completion')
+      GME_debug('[Script Update] HOST cleared after update completion')
     }
   }
 
@@ -173,7 +176,7 @@ class ScriptUpdate {
 
     // Handle different update statuses
     if (update.status === ScriptUpdateStatus.VALIDATING) {
-      GME_info(`[Script Update] HOST (${sender.url}) is validating script update...`)
+      GME_debug(`[Script Update] HOST (${sender.url}) is validating script update...`)
       return
     }
 
@@ -186,7 +189,7 @@ class ScriptUpdate {
     }
 
     if (update.status === ScriptUpdateStatus.SUCCESS && update.validatedUrl) {
-      GME_info(`[Script Update] Received update from HOST (${sender.url}), executing remote script...`)
+      GME_debug(`[Script Update] Received update from HOST (${sender.url}), executing remote script...`)
       await this.executeRemoteScript(update.validatedUrl)
     }
   }
@@ -198,7 +201,7 @@ class ScriptUpdate {
    */
   private async validateScript(scriptUrl: string): Promise<{ isValid: boolean; url: string | null }> {
     try {
-      GME_info('[Script Update] Validating script compilation...')
+      GME_debug('[Script Update] Validating script compilation...')
 
       // Extract key from script URL (e.g., /static/{key}/tampermonkey.user.js)
       const urlObj = new URL(scriptUrl, window.location.origin)
@@ -222,7 +225,7 @@ class ScriptUpdate {
           return { isValid: true, url: userUrl }
         }
       } catch (error) {
-        // HEAD request failed
+        GME_debug('[Script Update] HEAD request failed:', error instanceof Error ? error.message : String(error))
       }
 
       GME_fail('[Script Update] Script validation failed: tampermonkey.user.js is not available')
@@ -273,11 +276,17 @@ class ScriptUpdate {
   }
 
   /**
-   * Update script - HOST validates and broadcasts, other tabs execute
+   * Update script - HOST validates and broadcasts, other tabs execute.
+   * Editor page must not trigger update (it is HOST for preset only); only other pages can become GIST update HOST.
    * @param scriptUrl Optional script URL (defaults to __SCRIPT_URL__)
    * @returns Promise that resolves when update is complete
    */
   async update(scriptUrl?: string): Promise<void> {
+    if (isEditorPage()) {
+      GME_debug('[Script Update] Editor page (HOST for preset) does not trigger GIST update; only other pages can.')
+      return
+    }
+
     const url = scriptUrl || this.defaultScriptUrl
     if (!url) {
       GME_fail('[Script Update] Script URL is not available')
@@ -290,7 +299,7 @@ class ScriptUpdate {
 
     // If this tab is not HOST, wait for HOST to send update
     if (!this.isHost) {
-      GME_info(`[Script Update] Waiting for HOST (${this.hostTabId}) to validate and send update...`)
+      GME_debug(`[Script Update] Waiting for HOST (${this.hostTabId}) to validate and send update...`)
       return
     }
 
@@ -335,7 +344,7 @@ class ScriptUpdate {
       })
 
       // HOST also executes the script
-      GME_info('[Script Update] HOST executing updated script...')
+      GME_debug('[Script Update] HOST executing updated script...')
       await this.executeRemoteScript(validation.url)
 
       // Clear HOST after successful update
@@ -409,7 +418,7 @@ class ScriptUpdate {
  * @note This is a global factory function used by other modules, eslint-disable is needed
  */
 
-const getScriptUpdate = (() => {
+export const getScriptUpdate = (() => {
   // Use closure to keep instances private (not in global scope)
   const instances: Map<string, ScriptUpdate> = new Map()
 
@@ -424,5 +433,3 @@ const getScriptUpdate = (() => {
     return instances.get(instanceKey)!
   }
 })()
-
-export { getScriptUpdate }

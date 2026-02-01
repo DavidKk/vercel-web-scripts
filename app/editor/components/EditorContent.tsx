@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { updateFiles } from '@/app/api/scripts/actions'
 import { useNotification } from '@/components/Notification'
@@ -54,7 +54,11 @@ export function EditorContent({
   const [isPublishing, setIsPublishing] = useState(false)
   const notification = useNotification()
 
-  // When dev mode is on, compile and send editor-files-updated to Tampermonkey preset (interval + once on enable)
+  // Only compile + push when file content changed (avoids POST and re-execution every 2s when user didn't change code)
+  const lastSentInputRef = useRef<string | null>(null)
+  const sendInProgressRef = useRef(false)
+
+  // When dev mode is on, compile and send editor-files-updated to Tampermonkey preset (only invoked on Cmd+S save; we skip fetch/postMessage if content unchanged)
   const sendEditorDevModeFiles = useCallback(async () => {
     if (!editorHostId || typeof window === 'undefined') return
     const filesToCompile: Record<string, string> = {}
@@ -66,9 +70,23 @@ export function EditorContent({
       filesToCompile[file.path] = file.content.modifiedContent
     })
     if (Object.keys(filesToCompile).length === 0) {
+      lastSentInputRef.current = null
       window.postMessage({ type: EDITOR_POST_MESSAGE_TYPE, message: { type: 'editor-no-files', message: 'No script files in editor' } }, window.location.origin)
       return
     }
+    // Normalize key order so same content always gives same string (Object iteration order can vary)
+    const sortedFiles: Record<string, string> = {}
+    for (const k of Object.keys(filesToCompile).sort()) {
+      sortedFiles[k] = filesToCompile[k]
+    }
+    const inputKey = JSON.stringify(sortedFiles)
+    if (inputKey === lastSentInputRef.current) {
+      return
+    }
+    if (sendInProgressRef.current) {
+      return
+    }
+    sendInProgressRef.current = true
     try {
       const res = await fetch('/tampermonkey/compile', {
         method: 'POST',
@@ -80,6 +98,7 @@ export function EditorContent({
         notification.error(text || 'Compile failed')
         return
       }
+      lastSentInputRef.current = inputKey
       const lastModified = Date.now()
       window.postMessage(
         {
@@ -94,29 +113,19 @@ export function EditorContent({
         },
         window.location.origin
       )
+      notification.success('Script updated and sent to tabs')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       notification.error('Editor Dev Mode compile failed: ' + msg)
+    } finally {
+      sendInProgressRef.current = false
     }
   }, [editorHostId, fileState.files, notification])
 
-  // Effect: when dev mode + host id, send files once and then every 2s
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  useEffect(() => {
-    if (!isEditorDevMode || !editorHostId) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      return
-    }
-    sendEditorDevModeFiles()
-    intervalRef.current = setInterval(sendEditorDevModeFiles, 2000)
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
+  /** Called when user saves (Cmd+S). In editor dev mode, push compiled script to preset only on save. */
+  const handleEditorSave = useCallback(() => {
+    if (isEditorDevMode && editorHostId) {
+      sendEditorDevModeFiles()
     }
   }, [isEditorDevMode, editorHostId, sendEditorDevModeFiles])
 
@@ -260,6 +269,10 @@ export function EditorContent({
           hideFooter={true}
           extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
           typingsForLocal={tampermonkeyTypings}
+          onSave={handleEditorSave}
+          onLocalFilesSynced={() => {
+            if (isEditorDevMode && editorHostId) sendEditorDevModeFiles()
+          }}
           onLocalMapNotify={(type, message) => {
             if (type === 'success') notification.success(message)
             else if (type === 'error') notification.error(message)

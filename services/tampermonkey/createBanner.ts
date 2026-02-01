@@ -3,7 +3,7 @@ import { createHash } from 'crypto'
 import { getGistInfo } from '@/services/gist'
 
 import { buildInlineSourceMapComment, buildPresetVariableDeclarations, getPresetBundle, getPresetBundleSourceMap } from './gmCore'
-import { DEFAULT_GRANTS, GRANTS } from './grant'
+import { GRANTS } from './grant'
 import { clearMeta } from './meta'
 
 export interface CreateBannerParams {
@@ -30,7 +30,7 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
   const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/editor`
-  const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS))).sort()
+  const grants = Array.from(new Set((grant || []).concat(GRANTS))).sort()
 
   const grantsString = GRANTS.map((g) => `...(typeof ${g} !== 'undefined' ? { ${g} } : {})`).join(',')
   const isDevelopMode = process.env.NODE_ENV === 'development'

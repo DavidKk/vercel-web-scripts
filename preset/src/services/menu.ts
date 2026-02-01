@@ -2,12 +2,12 @@
  * Menu registration functions
  */
 
-import { GME_fetch } from '../helpers/http'
-import { GME_fail, GME_info, GME_ok } from '../helpers/logger'
-import { fetchAndCacheRules } from '../rules'
-import { GME_openLogViewer } from '../ui/log-viewer/index'
-import { GME_notification } from '../ui/notification/index'
-import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, getLocalDevHost, isEditorDevMode, LOCAL_DEV_EVENT_KEY } from './dev-mode'
+import { GME_fetch } from '@/helpers/http'
+import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
+import { fetchAndCacheRules } from '@/rules'
+import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, getLocalDevHost, isEditorDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode'
+import { GME_openLogViewer } from '@/ui/log-viewer/index'
+import { GME_notification } from '@/ui/notification/index'
 
 /**
  * Register basic menu commands
@@ -24,7 +24,7 @@ export function registerBasicMenus(webScriptId: string): void {
    */
   GM_registerMenuCommand('Update Script', async () => {
     try {
-      GME_info('[Update Script] Checking script validity...')
+      GME_debug('[Update Script] Checking script validity...')
 
       // Extract key from script URL (e.g., /static/{key}/tampermonkey.user.js)
       const urlObj = new URL(__SCRIPT_URL__, window.location.origin)
@@ -55,7 +55,7 @@ export function registerBasicMenus(webScriptId: string): void {
       } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         GME_fail('[Update Script] Script validation failed: ' + errorMessage)
-        GME_info('[Update Script] Opening launcher URL due to network error')
+        GME_debug('[Update Script] Opening launcher URL due to network error')
         url = userUrl
       }
 
@@ -110,12 +110,12 @@ export function registerBasicMenus(webScriptId: string): void {
           GM_setValue(EDITOR_DEV_EVENT_KEY, null)
 
           GME_notification('Editor dev mode stopped. All tabs will return to normal mode.', 'success')
-          GME_info('Editor dev mode manually stopped by user, host: ' + host)
+          GME_debug('Editor dev mode manually stopped by user, host: ' + host)
         } else {
           // Clear anyway in case of inconsistent state
           GM_setValue(EDITOR_DEV_EVENT_KEY, null)
           GME_notification('Editor dev mode cleared.', 'success')
-          GME_info('Editor dev mode manually cleared by user')
+          GME_debug('Editor dev mode manually cleared by user')
         }
       } else if (activeDevMode === 'local') {
         // Stop local dev mode
@@ -123,11 +123,11 @@ export function registerBasicMenus(webScriptId: string): void {
         if (host === webScriptId) {
           GM_setValue(LOCAL_DEV_EVENT_KEY, null)
           GME_notification('Local file watch stopped. All tabs will return to normal mode.', 'success')
-          GME_info('Local file watch manually stopped by user')
+          GME_debug('Local file watch manually stopped by user')
         } else {
           GM_setValue(LOCAL_DEV_EVENT_KEY, null)
           GME_notification('Local file watch cleared.', 'success')
-          GME_info('Local file watch manually cleared by user')
+          GME_debug('Local file watch manually cleared by user')
         }
       }
     })

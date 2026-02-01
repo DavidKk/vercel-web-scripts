@@ -57,6 +57,8 @@ export interface LocalMapProviderProps {
   onNotify?: (type: LocalMapNotifyType, message: string) => void
   /** Optional typings (GME_*, GM_*) to write as gm-globals.d.ts when mapping to local */
   typingsForLocal?: string
+  /** Optional callback when local files were synced (content changed and saved). Use e.g. to push to editor dev mode. */
+  onLocalFilesSynced?: () => void
   children: React.ReactNode
 }
 
@@ -64,7 +66,7 @@ export interface LocalMapProviderProps {
  * Provider for local file map: maps editor content to a local folder,
  * syncs local → editor state → IndexedDB. When in local map mode, editor is read-only.
  */
-export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, children }: LocalMapProviderProps) {
+export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLocalFilesSynced, children }: LocalMapProviderProps) {
   const fileState = useFileState()
   const { persist } = useFileStorage(storageKey)
   const notification = useNotification()
@@ -83,6 +85,12 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, childr
   isLocalMapBusyRef.current = isLocalMapBusy
   const localDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null)
   localDirHandleRef.current = localDirHandle
+  const fileStateRef = useRef(fileState)
+  fileStateRef.current = fileState
+  const persistRef = useRef(persist)
+  persistRef.current = persist
+  const onLocalFilesSyncedRef = useRef(onLocalFilesSynced)
+  onLocalFilesSyncedRef.current = onLocalFilesSynced
 
   useEffect(() => {
     setIsLocalMapSupported(isLocalFileMapSupported())
@@ -242,7 +250,8 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, childr
 
       const progress = notificationRef.current.loading('Comparing with local files...', { title: 'Syncing' })
       try {
-        const { contents, hashes } = await readFilesFromDirectoryWithHashes(handle, '', (c, t) => progress.updateProgress(t ? Math.round((c / t) * 100) : 0))
+        // Do not pass onProgress to avoid setState on every file (causes "Maximum update depth exceeded")
+        const { contents, hashes } = await readFilesFromDirectoryWithHashes(handle, '')
         // Exclude typings file: only for local IDE; web editor does not read/write it
         delete contents[LOCAL_TYPINGS_FILE]
         delete hashes[LOCAL_TYPINGS_FILE]
@@ -266,27 +275,29 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, childr
         }
 
         if (hasChanges) {
+          const fs = fileStateRef.current
           for (const [path, content] of Object.entries(contents)) {
-            const existing = fileState.getFile(path)
+            const existing = fs.getFile(path)
             if (existing) {
-              fileState.updateFile(path, content)
+              fs.updateFile(path, content)
             } else {
-              fileState.createFile(path, content)
+              fs.createFile(path, content)
             }
           }
           const localPaths = new Set(Object.keys(contents))
-          Object.keys(fileState.files).forEach((path) => {
-            if (!localPaths.has(path) && fileState.getFile(path)?.status !== FileStatus.Deleted) {
-              fileState.deleteFile(path)
+          Object.keys(fs.files).forEach((path) => {
+            if (!localPaths.has(path) && fs.getFile(path)?.status !== FileStatus.Deleted) {
+              fs.deleteFile(path)
             }
           })
           // Synced from local = saved state; show "变动已保存" (ModifiedSaved) in UI
           for (const path of Object.keys(contents)) {
-            fileState.markFileAsSaved(path)
+            fs.markFileAsSaved(path)
           }
-          await persist()
+          await persistRef.current()
           lastFileHashesRef.current = hashes
           setLastSyncedAt(Date.now())
+          onLocalFilesSyncedRef.current?.()
         } else {
           lastFileHashesRef.current = hashes
         }
@@ -309,7 +320,7 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, childr
         pollTimeoutRef.current = null
       }
     }
-  }, [isLocalMapMode, localDirHandle, fileState, persist])
+  }, [isLocalMapMode, localDirHandle])
 
   const onCloseLocalMap = useCallback(() => {
     localDirHandleRef.current = null

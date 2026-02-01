@@ -16,7 +16,16 @@ const sseClients: Set<SSEClientRef> =
 
 const encoder = new TextEncoder()
 
+/** Debounce: don't broadcast too fast when Vite fires closeBundle multiple times in watch mode */
+const DEBOUNCE_MS = 500
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+let pendingBuiltAt: number | null = null
+
+/** Last broadcasted builtAt; exposed for polling (GM_xmlhttpRequest cannot stream SSE) */
+let lastBroadcastedBuiltAt: number | null = null
+
 function broadcastPresetBuilt(builtAt: number): void {
+  lastBroadcastedBuiltAt = builtAt
   const n = sseClients.size
   // eslint-disable-next-line no-console -- dev SSE push debug
   console.log(`[preset-built] broadcast preset-built builtAt=${builtAt} to ${n} client(s)`)
@@ -31,14 +40,35 @@ function broadcastPresetBuilt(builtAt: number): void {
   })
 }
 
+function scheduleBroadcast(builtAt: number): void {
+  pendingBuiltAt = builtAt
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer)
+  }
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null
+    const toSend = pendingBuiltAt
+    pendingBuiltAt = null
+    if (toSend !== null) broadcastPresetBuilt(toSend)
+  }, DEBOUNCE_MS)
+}
+
 /**
- * GET /api/sse/preset-built (SSE, dev only)
- * Accept: text/event-stream → SSE stream; preset (dev mode) subscribes and receives preset-built events.
+ * GET /api/sse/preset-built (dev only)
+ * - Accept: text/event-stream → SSE stream (same-origin only; EventSource works).
+ * - Accept: application/json → { lastBuiltAt } for polling (GM_xmlhttpRequest cannot stream SSE).
  * Otherwise → 404. In production this route returns 404.
  */
 export async function GET(req: Request) {
   if (!isDev) return new NextResponse(null, { status: 404 })
   const accept = req.headers.get('accept') || ''
+
+  if (accept.includes('application/json')) {
+    return NextResponse.json({
+      lastBuiltAt: lastBroadcastedBuiltAt ?? 0,
+    })
+  }
+
   if (!accept.includes('text/event-stream')) {
     return new NextResponse(null, { status: 404 })
   }
@@ -78,8 +108,8 @@ export async function POST(req: Request) {
     const body = await req.json()
     const builtAt = typeof body?.builtAt === 'number' ? body.builtAt : Date.now()
     // eslint-disable-next-line no-console -- dev SSE push debug
-    console.log(`[preset-built] POST received builtAt=${builtAt} clients=${sseClients.size}`)
-    broadcastPresetBuilt(builtAt)
+    console.log(`[preset-built] POST received builtAt=${builtAt} clients=${sseClients.size} (debounce ${DEBOUNCE_MS}ms)`)
+    scheduleBroadcast(builtAt)
     return NextResponse.json({ ok: true, builtAt })
   } catch {
     return new NextResponse(null, { status: 400 })

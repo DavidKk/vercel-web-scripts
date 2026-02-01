@@ -3,7 +3,8 @@
  * Main component for selecting, highlighting, and marking DOM nodes
  */
 
-import { GME_warn } from '../../helpers/logger'
+import { GME_warn } from '@/helpers/logger'
+
 import { MarkerHighlightBox } from './MarkerHighlightBox'
 import type { MarkedNodeInfo, NodeInfo, NodeSelectorOptions } from './types'
 

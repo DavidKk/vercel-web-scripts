@@ -28,15 +28,3 @@ export const GRANTS = [
   'GM_cookie',
   'unsafeWindow',
 ]
-
-export const DEFAULT_GRANTS = [
-  'GM_registerMenuCommand',
-  'GM_unregisterMenuCommand',
-  'GM_xmlhttpRequest',
-  'GM_notification',
-  'GM_getValue',
-  'GM_setValue',
-  'GM_addValueChangeListener',
-  'GM_removeValueChangeListener',
-  'GM_log',
-]

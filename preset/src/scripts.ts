@@ -4,7 +4,7 @@ interface LoadScriptOptions {
   headers?: Record<string, string>
 }
 
-async function loadScript(url: string, options?: LoadScriptOptions) {
+export async function loadScript(url: string, options?: LoadScriptOptions) {
   const { method = 'GET', body: data, headers } = options || {}
 
   return new Promise<string>((resolve, reject) => {
@@ -24,11 +24,11 @@ async function loadScript(url: string, options?: LoadScriptOptions) {
   })
 }
 
-async function fetchScript(scriptUrl: string) {
+export async function fetchScript(scriptUrl: string) {
   return loadScript(scriptUrl)
 }
 
-async function fetchCompileScript(host: string, files: Record<string, string>) {
+export async function fetchCompileScript(host: string, files: Record<string, string>) {
   return loadScript(`${host}/tampermonkey/compile`, {
     method: 'POST',
     body: JSON.stringify({ files }),
@@ -37,5 +37,3 @@ async function fetchCompileScript(host: string, files: Record<string, string>) {
     },
   })
 }
-
-export { fetchCompileScript, fetchScript, loadScript }

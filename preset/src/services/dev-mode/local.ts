@@ -2,9 +2,12 @@
  * Local dev mode handling
  */
 
-import { GME_notification } from '../ui/notification/index'
-import { getActiveDevMode, getLocalDevFiles, getLocalDevHost, isEditorPage, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './dev-mode'
-import { executeLocalScript as runLocalScript } from './script-execution'
+import { getWebScriptId } from '@/helpers/env'
+import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
+import { fetchCompileScript } from '@/scripts'
+import { getActiveDevMode, getLocalDevFiles, getLocalDevHost, isEditorPage, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
+import { executeLocalScript as runLocalScript } from '@/services/script-execution'
+import { GME_notification } from '@/ui/notification/index'
 
 /**
  * Track if local script has been executed
@@ -32,7 +35,7 @@ function setHasExecutedLocalScript(value: boolean): void {
  * @param isRemoteScript Whether this is a remote script execution
  * @returns True if script was executed
  */
-function tryExecuteLocalScript(isRemoteScript: boolean): boolean {
+export function tryExecuteLocalScript(isRemoteScript: boolean): boolean {
   if (hasExecutedLocalScript || isRemoteScript) {
     return false
   }
@@ -64,49 +67,12 @@ function tryExecuteLocalScript(isRemoteScript: boolean): boolean {
 }
 
 /**
- * Create a reload handler with waiting for tab to be active
- * @param modeName Name of the dev mode (for logging)
- * @param checkDevMode Function to check if dev mode is still active
- */
-function createReloadHandler(modeName: string, checkDevMode: () => boolean): void {
-  const reload = (): boolean => {
-    const isActive = !document.hidden && document.hasFocus()
-    if (!isActive) {
-      return false
-    }
-
-    GME_info(modeName + ' dev mode detected, reloading...')
-    window.location.reload()
-    return true
-  }
-
-  if (reload() === false) {
-    GME_info(modeName + ' dev mode detected, waiting for tab to be active...')
-
-    const onReload = (): void => {
-      if (!checkDevMode()) {
-        GME_info(modeName + ' dev mode stopped.')
-        document.removeEventListener('visibilitychange', onReload)
-        window.removeEventListener('focus', onReload)
-        return
-      }
-
-      reload()
-    }
-
-    document.addEventListener('visibilitychange', onReload)
-    window.addEventListener('focus', onReload)
-  }
-}
-
-/**
  * Handle local dev mode updates from GM_addValueChangeListener
  * @param oldValue Previous value
  * @param newValue New value
  * @param isDevMode Whether this tab is the dev mode host
  */
-
-function handleLocalDevModeUpdate(oldValue: any, newValue: any, isDevMode: boolean): void {
+export function handleLocalDevModeUpdate(oldValue: any, newValue: any, isDevMode: boolean): void {
   if (isDevMode) {
     return
   }
@@ -130,20 +96,43 @@ function handleLocalDevModeUpdate(oldValue: any, newValue: any, isDevMode: boole
     return
   }
 
-  // If already executed script, re-execute directly
-  if (hasExecutedLocalScript) {
-    GME_info('[Local Dev Mode] Local files updated, re-execute script...')
-    runLocalScript()
+  // Host tab (the one that started Watch Local Files) does not reload on update; only other tabs reload
+  if (getWebScriptId() === newValue.host || isDevMode) {
     return
   }
 
-  // If not executed yet, try to execute now
-  if (tryExecuteLocalScript(false)) {
+  // Do not re-execute script on update; only reload so script runs once on next page load (same as editor dev mode)
+  if (document.hidden) {
+    GME_debug('[Local Dev Mode] Local files updated, but tab is not active, will reload when tab becomes visible')
+    scheduleReloadWhenTabActiveLocal()
     return
   }
+  GME_debug('[Local Dev Mode] Local files updated, reloading page (active tab)...')
+  window.location.reload()
+}
 
-  // If can't execute (e.g., tab not ready), reload when active
-  createReloadHandler('Local', () => !!GM_getValue(LOCAL_DEV_EVENT_KEY))
+const PENDING_RELOAD_LOCAL_KEY = '__WEB_SCRIPT_PENDING_LOCAL_RELOAD__'
+
+/**
+ * When tab was hidden on local update, schedule a reload when tab becomes active.
+ */
+function scheduleReloadWhenTabActiveLocal(): void {
+  const win = typeof window !== 'undefined' ? (window as any) : undefined
+  if (!win) return
+  if (win[PENDING_RELOAD_LOCAL_KEY]) {
+    GME_debug('[Local Dev Mode] Already have pending reload on visibility')
+    return
+  }
+  win[PENDING_RELOAD_LOCAL_KEY] = true
+  const onVisible = (): void => {
+    if (document.hidden) return
+    document.removeEventListener('visibilitychange', onVisible)
+    win[PENDING_RELOAD_LOCAL_KEY] = undefined
+    if (!GM_getValue(LOCAL_DEV_EVENT_KEY)) return
+    GME_debug('[Local Dev Mode] Tab became active, reloading page (pending update)...')
+    window.location.reload()
+  }
+  document.addEventListener('visibilitychange', onVisible)
 }
 
 /**
@@ -151,8 +140,7 @@ function handleLocalDevModeUpdate(oldValue: any, newValue: any, isDevMode: boole
  * @param webScriptId Web script ID for local dev mode check
  * @returns Function to unregister the menu listener
  */
-
-function registerWatchLocalFilesMenu(webScriptId: string): () => void {
+export function registerWatchLocalFilesMenu(webScriptId: string): () => void {
   let pollInterval: number | null = null
   let watchLocalFilesMenuId: number | string | null = null
 
@@ -168,7 +156,7 @@ function registerWatchLocalFilesMenu(webScriptId: string): () => void {
       try {
         GM_unregisterMenuCommand(watchLocalFilesMenuId)
       } catch (e) {
-        // Ignore if menu doesn't exist
+        GME_debug('[Local Dev Mode] GM_unregisterMenuCommand failed:', e instanceof Error ? e.message : String(e))
       }
     }
 
@@ -183,13 +171,13 @@ function registerWatchLocalFilesMenu(webScriptId: string): () => void {
         if (host === webScriptId) {
           GM_setValue(LOCAL_DEV_EVENT_KEY, null)
           GME_notification('Local file watch stopped. All tabs will return to normal mode.', 'success')
-          GME_info('Local file watch manually stopped by user')
+          GME_debug('Local file watch manually stopped by user')
           // Update menu text
           registerWatchLocalFilesMenu()
         } else {
           GM_setValue(LOCAL_DEV_EVENT_KEY, null)
           GME_notification('Local file watch cleared.', 'success')
-          GME_info('Local file watch manually cleared by user')
+          GME_debug('Local file watch manually cleared by user')
           // Update menu text
           registerWatchLocalFilesMenu()
         }
@@ -272,7 +260,7 @@ function registerWatchLocalFilesMenu(webScriptId: string): () => void {
         let compiledContent: string | null = null
         if (hasModified && Object.keys(files).length > 0) {
           try {
-            GME_info('[Local Dev Mode] Compiling local files...')
+            GME_debug('[Local Dev Mode] Compiling local files...')
             compiledContent = await fetchCompileScript(__BASE_URL__, files)
             if (!compiledContent) {
               throw new Error('Compilation returned empty content')
@@ -294,7 +282,7 @@ function registerWatchLocalFilesMenu(webScriptId: string): () => void {
           GM_setValue(LOCAL_DEV_EVENT_KEY, state)
 
           if (hasModified) {
-            GME_info('[Local Dev Mode] Local files modified, GM_setValue triggered, all tabs will receive update via GM_addValueChangeListener...')
+            GME_debug('[Local Dev Mode] Local files modified, GM_setValue triggered, all tabs will receive update via GM_addValueChangeListener...')
           }
         }
       }
@@ -320,5 +308,3 @@ function registerWatchLocalFilesMenu(webScriptId: string): () => void {
     GM_removeValueChangeListener(listenerId)
   }
 }
-
-export { runLocalScript as executeLocalScript, handleLocalDevModeUpdate, registerWatchLocalFilesMenu, tryExecuteLocalScript }

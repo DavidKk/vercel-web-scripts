@@ -2,7 +2,7 @@
 // Logging Functions
 // ============================================================================
 
-import { logStore } from '../services/log-store'
+import { logStore } from '@/services/log-store'
 
 /**
  * Format log contents to a plain string for log store (strip %c, styles, HTML-like tags)
@@ -194,7 +194,7 @@ function processLogContents(prefixText: string, prefixStyle: string, ...contents
  * @returns Object containing logging functions with module prefix
  */
 
-function createGMELogger(prefix?: string) {
+export function createGMELogger(prefix?: string) {
   const modulePrefix = prefix && prefix.trim() ? `[${prefix.trim()}]` : ''
 
   return {
@@ -286,8 +286,7 @@ function createGMELogger(prefix?: string) {
  * GME_ok('User: <b>John</b>')
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
-
-function GME_ok(...contents: any[]) {
+export function GME_ok(...contents: any[]) {
   const args = processLogContents('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
@@ -302,8 +301,7 @@ function GME_ok(...contents: any[]) {
  * GME_info('Status: <green>Active</green>')
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
-
-function GME_info(...contents: any[]) {
+export function GME_info(...contents: any[]) {
   const args = processLogContents('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
@@ -318,8 +316,7 @@ function GME_info(...contents: any[]) {
  * GME_fail('Error: <red>Failed</red>')
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
-
-function GME_fail(...contents: any[]) {
+export function GME_fail(...contents: any[]) {
   const args = processLogContents('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
@@ -334,8 +331,7 @@ function GME_fail(...contents: any[]) {
  * GME_warn('Warning: <yellow>Deprecated</yellow>')
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
-
-function GME_warn(...contents: any[]) {
+export function GME_warn(...contents: any[]) {
   const args = processLogContents('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
@@ -351,8 +347,7 @@ function GME_warn(...contents: any[]) {
  * GME_debug('Debug: <gray>Value</gray>')
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
-
-function GME_debug(...contents: any[]) {
+export function GME_debug(...contents: any[]) {
   const args = processLogContents('%c🔍 [DEBUG]', 'color:#6c757d;font-weight:700;', ...contents)
   // eslint-disable-next-line no-console
   console.debug(...args)
@@ -520,10 +515,7 @@ class LogGroup implements GroupLogger {
  *   .ok('Step 2 completed')
  *   .end()
  */
-
-function GME_group(label: string): GroupLogger {
+export function GME_group(label: string): GroupLogger {
   const scriptName = typeof GM_info !== 'undefined' && GM_info?.script?.name ? GM_info.script.name : 'Unknown Script'
   return new LogGroup(label, scriptName)
 }
-
-export { createGMELogger, GME_debug, GME_fail, GME_group, GME_info, GME_ok, GME_warn }

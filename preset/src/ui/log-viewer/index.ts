@@ -3,9 +3,10 @@
  * DEBUG is off by default.
  */
 
-import { appendWhenBodyReady } from '../../helpers/dom'
-import type { LogLevel } from '../../services/log-store'
-import { logStore } from '../../services/log-store'
+import { appendWhenBodyReady } from '@/helpers/dom'
+import type { LogLevel } from '@/services/log-store'
+import { logStore } from '@/services/log-store'
+
 import logViewerCss from './index.css?raw'
 import logViewerHtml from './index.html?raw'
 

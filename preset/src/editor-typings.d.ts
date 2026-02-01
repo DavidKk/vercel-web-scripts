@@ -10,6 +10,13 @@ declare const __RULE_MANAGER_URL__: string
 /** URL for the editor interface */
 declare const __EDITOR_URL__: string
 
+/** Project version (from package.json), injected at preset build time */
+declare const __PROJECT_VERSION__: string
+/** Preset build timestamp (ms), replaced at preset build time */
+declare const __SCRIPT_UPDATED_AT__: string
+/** Preset bundle content hash (SHA-1 hex), replaced at build time by Vite plugin */
+declare const __PRESET_BUILD_HASH__: string
+
 /**
  * Response object from GM_xmlhttpRequest
  */

@@ -6,8 +6,9 @@
  * @module spotlight
  */
 
-import { appendWhenBodyReady } from '../../helpers/dom'
-import { GME_openLogViewer } from '../log-viewer/index'
+import { appendWhenBodyReady } from '@/helpers/dom'
+import { GME_openLogViewer } from '@/ui/log-viewer/index'
+
 import spotlightCss from './index.css?raw'
 import spotlightHtml from './index.html?raw'
 

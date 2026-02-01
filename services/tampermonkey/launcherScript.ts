@@ -6,12 +6,14 @@
  */
 
 import { buildPresetGlobalAssignments } from './gmCore'
-import { DEFAULT_GRANTS } from './grant'
+import { GRANTS } from './grant'
 
 /** GM_setValue key for cached preset script content */
 export const PRESET_CACHE_KEY = 'vws_preset_cache'
 /** GM_setValue key for preset update push: set to any value to trigger launcher reload (e.g. dev server or helper page) */
 export const PRESET_UPDATE_CHANNEL_KEY = 'vws_preset_update'
+/** GM_setValue key: set before reload so preset shows "Preset updated" notification after reload (must match preset main.ts) */
+export const PRESET_UPDATED_NOTIFY_KEY = 'vws_preset_updated_notify'
 
 export interface CreateLauncherScriptParams {
   /** Base URL (origin + path to app, e.g. https://example.com) */
@@ -20,7 +22,7 @@ export interface CreateLauncherScriptParams {
   key: string
   /** Launcher script download URL (for @downloadURL / @updateURL) */
   launcherScriptUrl: string
-  /** Version string for @version */
+  /** Project version for @version in launcher header only (e.g. from package.json); preset has its own build-time version. */
   version?: string
 }
 
@@ -77,7 +79,7 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
   const presetVarDecls = 'var __GLOBAL__ = g; ' + PRESET_VAR_NAMES.map((n) => `var ${n} = g.${n};`).join(' ')
   const presetVarDeclsEscaped = presetVarDecls.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')
 
-  const grants = DEFAULT_GRANTS.filter((g) => g !== 'none')
+  const grants = GRANTS.filter((g) => g !== 'none')
   const grantLines = grants.map((g) => `// @grant        ${g}`).join('\n')
 
   return `// ==UserScript==
@@ -106,10 +108,7 @@ ${grantLines}
       eval(ASSIGN_GLOBALS);
       eval(PRESET_VAR_DECLS + '\\n' + presetCode);
     } catch (e) {
-      if (typeof GM_notification === 'function') {
-        GM_notification('Launcher: preset run failed: ' + (e && e.message ? e.message : String(e)), 'error', 5000);
-      }
-      console.error('[Launcher] preset run failed', e);
+      console.error('[Launcher] preset run failed:', e && e.message ? e.message : String(e), e);
     }
   }
 
@@ -119,108 +118,73 @@ ${grantLines}
       runPreset(presetCode);
       return;
     }
-    if (typeof GM_xmlhttpRequest === 'function') {
-      GM_xmlhttpRequest({
-        method: 'GET',
-        url: PRESET_URL,
-        onload: function (res) {
-          if (res.status === 200 && res.responseText) {
-            if (typeof GM_setValue === 'function') {
-              GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, res.responseText);
-            }
-            runPreset(res.responseText);
-          } else {
-            if (typeof GM_notification === 'function') {
-              GM_notification('Launcher: failed to fetch preset (status ' + res.status + ')', 'error', 5000);
-            }
-          }
-        },
-        onerror: function () {
-          if (typeof GM_notification === 'function') {
-            GM_notification('Launcher: failed to fetch preset (network error)', 'error', 5000);
-          }
-        },
-      });
-    } else {
-      fetch(PRESET_URL)
-        .then(function (r) { return r.text(); })
-        .then(function (text) {
+
+    var presetUrlWithCacheBust = PRESET_URL + (PRESET_URL.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url: presetUrlWithCacheBust,
+      onload: function (res) {
+        if (res.status === 200 && res.responseText) {
           if (typeof GM_setValue === 'function') {
-            GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, text);
+            GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, res.responseText);
           }
-          runPreset(text);
-        })
-        .catch(function (e) {
-          if (typeof GM_notification === 'function') {
-            GM_notification('Launcher: failed to fetch preset', 'error', 5000);
-          }
-          console.error('[Launcher] fetch preset failed', e);
-        });
+
+          runPreset(res.responseText);
+        } else {
+          console.error('[Launcher] failed to fetch preset, status:', res.status);
+        }
+      },
+      onerror: function () {
+        console.error('[Launcher] failed to fetch preset (network error)');
+      },
+    });
+  }
+
+  GM_registerMenuCommand('Update preset', function () {
+    if (typeof GM_deleteValue === 'function') {
+      GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
+    } else if (typeof GM_setValue === 'function') {
+      GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
     }
-  }
+    console.log('[Launcher] Preset cache cleared. Reloading...');
+    setTimeout(function () { location.reload(); }, 500);
+  });
 
-  if (typeof GM_registerMenuCommand === 'function') {
-    GM_registerMenuCommand('Update preset', function () {
-      if (typeof GM_deleteValue === 'function') {
-        GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
-      } else if (typeof GM_setValue === 'function') {
-        GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
+  GM_addValueChangeListener(${JSON.stringify(PRESET_UPDATE_CHANNEL_KEY)}, function (name, oldVal, newVal) {
+    if (newVal == null) return;
+    if (typeof GM_deleteValue === 'function') {
+      GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
+    }
+    function isTabActive() {
+      if (typeof document === 'undefined') {
+        return false;
       }
-      if (typeof GM_notification === 'function') {
-        GM_notification('Preset cache cleared. Reloading...', 'info', 2000);
-      }
-      setTimeout(function () { location.reload(); }, 500);
-    });
-  }
 
-  if (typeof GM_addValueChangeListener === 'function') {
-    GM_addValueChangeListener(${JSON.stringify(PRESET_UPDATE_CHANNEL_KEY)}, function (name, oldVal, newVal) {
-      if (newVal != null) {
-        if (typeof GM_deleteValue === 'function') {
-          GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
-        }
-        if (typeof GM_notification === 'function') {
-          GM_notification('Preset update pushed. Reloading...', 'info', 2000);
-        }
-        setTimeout(function () { location.reload(); }, 300);
+      if (document.hidden !== false) {
+        return false;
       }
-    });
-  }
+
+      if (typeof document.visibilityState !== 'undefined' && document.visibilityState !== 'visible') {
+        return false;
+      }
+
+      return true;
+    }
+    if (isTabActive()) {
+      if (typeof GM_setValue === 'function') {
+        GM_setValue(${JSON.stringify(PRESET_UPDATED_NOTIFY_KEY)}, 1);
+      }
+      setTimeout(function () {
+        if (typeof document !== 'undefined' && !document.hidden && (typeof document.visibilityState === 'undefined' || document.visibilityState === 'visible')) {
+          location.reload();
+        }
+      }, 300);
+    }
+  });
 
   loadAndRun();
 })();
 `
 }
 
-// Same as in grant.ts for building runtime grants object
-const GRANTS = [
-  'GM_addElement',
-  'GM_addStyle',
-  'GM_download',
-  'GM_getResourceText',
-  'GM_getResourceURL',
-  'GM_info',
-  'GM_log',
-  'GM_notification',
-  'GM_openInTab',
-  'GM_registerMenuCommand',
-  'GM_unregisterMenuCommand',
-  'GM_setClipboard',
-  'GM_getTab',
-  'GM_saveTab',
-  'GM_tabs',
-  'GM_setValue',
-  'GM_getValue',
-  'GM_deleteValue',
-  'GM_listValues',
-  'GM_setValues',
-  'GM_getValues',
-  'GM_deleteValues',
-  'GM_addValueChangeListener',
-  'GM_removeValueChangeListener',
-  'GM_xmlhttpRequest',
-  'GM_webRequest',
-  'GM_cookie',
-  'unsafeWindow',
-]
 const GRANTS_STRING = GRANTS.map((g) => `...(typeof ${g} !== 'undefined' ? { ${g} } : {})`).join(', ')

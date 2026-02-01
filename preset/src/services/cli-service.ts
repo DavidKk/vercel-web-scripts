@@ -225,7 +225,7 @@ const cliService = (() => {
  * Register a module with CLI commands
  * @param module Module definition
  */
-function registerCLIModule(module: ModuleDefinition): void {
+export function registerCLIModule(module: ModuleDefinition): void {
   cliService.registerModule(module)
 }
 
@@ -233,7 +233,7 @@ function registerCLIModule(module: ModuleDefinition): void {
  * Get CLI service instance (for advanced usage)
  * @returns CLI service instance
  */
-function getCLIService(): CLIService {
+export function getCLIService(): CLIService {
   return cliService
 }
 
@@ -243,5 +243,3 @@ const win = getUnsafeWindow()
 win.registerCLIModule = registerCLIModule
 // @ts-ignore
 win.getCLIService = getCLIService
-
-export { getCLIService, registerCLIModule }

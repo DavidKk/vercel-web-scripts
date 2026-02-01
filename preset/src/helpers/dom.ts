@@ -136,7 +136,7 @@ const VISIBILITY_CACHE_TTL = 100 // 100ms cache TTL
  * @param element The element to check
  * @returns True if the element is visible, false otherwise
  */
-function GME_isVisible(element: Element | null | undefined): boolean {
+export function GME_isVisible(element: Element | null | undefined): boolean {
   if (!element || !(element instanceof HTMLElement || element instanceof SVGElement)) {
     return false
   }
@@ -224,7 +224,7 @@ function GME_isVisible(element: Element | null | undefined): boolean {
   return result
 }
 
-function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
+export function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
   const { timeout: openTimeout, container = document.body, observerOptions = { subtree: true, childList: true } } = options || {}
   return new Promise<Awaited<ReturnType<T>>>((resolve, reject) => {
     let timerId: ReturnType<typeof setTimeout> | null = null
@@ -307,7 +307,7 @@ function GME_waitFor<T extends AsyncQuery>(query: T, options?: WaitForOptions) {
  * @param options Optional configuration options
  * @returns Cleanup function to stop watching
  */
-function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
+export function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
   const { minInterval, container = document.body, observerOptions = { subtree: true, childList: true, characterData: true, attributes: true } } = options || {}
   let observer: MutationObserver | null = null
   let isActive = true
@@ -410,8 +410,7 @@ function GME_watchFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLEle
  * @param options Optional configuration options
  * @returns Cleanup function to stop watching
  */
-
-function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
+export function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: WatchForOptions) {
   // Wrap the callback to filter for visible elements
   const visibleCallback = (nodes: (HTMLElement | SVGElement)[]) => {
     const visibleElements = nodes.filter((element) => GME_isVisible(element))
@@ -434,8 +433,7 @@ function GME_watchForVisible<T extends AsyncQuery>(query: T, callback: (nodes: (
  * @param options Optional configuration options
  * @returns Cleanup function to stop polling
  */
-
-function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: PollForOptions) {
+export function GME_pollFor<T extends AsyncQuery>(query: T, callback: (nodes: (HTMLElement | SVGElement)[]) => void, options?: PollForOptions) {
   const { interval = 1000, useIdleCallback = false } = options || {}
   let intervalId: ReturnType<typeof setInterval> | null = null
   let idleCallbackId: number | null = null
@@ -535,5 +533,3 @@ export function appendWhenBodyReady(container: HTMLElement): void {
     observer.observe(document.documentElement, { childList: true, subtree: true })
   }
 }
-
-export { GME_isVisible, GME_pollFor, GME_waitFor, GME_watchFor, GME_watchForVisible }

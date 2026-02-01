@@ -2,9 +2,9 @@
  * Script execution functions
  */
 
-import { GME_debug, GME_fail, GME_info, GME_ok } from '../helpers/logger'
-import { fetchScript } from '../scripts'
-import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './dev-mode'
+import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
+import { fetchScript } from '@/scripts'
+import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
 
 /**
  * Execute script content using the real global (globalThis) so the script
@@ -12,7 +12,7 @@ import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMod
  * GM_* may be in script scope only; we merge them onto global so with(global) resolves them.
  * @param content Script content to execute
  */
-function executeScript(content: string): void {
+export function executeScript(content: string): void {
   const execute = new Function('global', `with(global){${content}}`)
   // When run by launcher, use __GLOBAL__ (launcher's g) so remote script runs in the same sandbox as preset (matchRule, GM_*, etc.)
   const g = typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
@@ -30,8 +30,7 @@ function executeScript(content: string): void {
  * Execute remote script from URL
  * @param url Script URL to fetch and execute
  */
-
-async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise<void> {
+export async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise<void> {
   const content = await fetchScript(url)
   if (!content) {
     return
@@ -44,8 +43,7 @@ async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise<void> 
 /**
  * Execute local dev mode script
  */
-
-async function executeLocalScript(): Promise<void> {
+export async function executeLocalScript(): Promise<void> {
   if (!isLocalDevMode()) {
     return
   }
@@ -79,8 +77,7 @@ async function executeLocalScript(): Promise<void> {
  * Execute editor dev mode script
  * @returns True if script was executed, false if waiting for files
  */
-
-async function executeEditorScript(): Promise<boolean> {
+export async function executeEditorScript(): Promise<boolean> {
   if (!isEditorDevMode()) {
     return false
   }
@@ -99,7 +96,7 @@ async function executeEditorScript(): Promise<boolean> {
 
   if (Object.keys(files).length === 0) {
     if (isEarlyInit) {
-      GME_info('[Editor Dev Mode] Early initialization detected, waiting for real files from editor...')
+      GME_debug('[Editor Dev Mode] Early initialization detected, waiting for real files from editor...')
       return true // Return true to keep DEV MODE active, files will come later
     }
     return false
@@ -109,10 +106,10 @@ async function executeEditorScript(): Promise<boolean> {
     // Compiled content is required - if not available, wait for editor to send it
     if (!compiledContent) {
       if (isEarlyInit) {
-        GME_info('[Editor Dev Mode] Early initialization - no compiled content yet. DEV MODE active, waiting for files...')
+        GME_debug('[Editor Dev Mode] Early initialization - no compiled content yet. DEV MODE active, waiting for files...')
         return true // Keep DEV MODE active
       }
-      GME_info('[Editor Dev Mode] No compiled content available yet. Waiting for editor to compile and send files...')
+      GME_debug('[Editor Dev Mode] No compiled content available yet. Waiting for editor to compile and send files...')
       return false
     }
 
@@ -143,8 +140,7 @@ async function executeEditorScript(): Promise<boolean> {
  * Watch HMR updates via WebSocket
  * @param callbacks Callback functions for different events
  */
-
-function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }: { onOpen?: () => void; onClose?: () => void; onError?: () => void; onUpdate?: () => void }): void {
+export function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }: { onOpen?: () => void; onClose?: () => void; onError?: () => void; onUpdate?: () => void }): void {
   const ws = new WebSocket(__HMK_URL__)
   ws.addEventListener('open', () => {
     GME_ok('Connected to HMR WebSocket')
@@ -153,7 +149,7 @@ function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }: { onOpen?: () =
   })
 
   ws.addEventListener('close', async () => {
-    GME_info('HMR WebSocket closed')
+    GME_debug('HMR WebSocket closed')
 
     onClose && onClose()
     setTimeout(() => watchHMRUpdates({ onOpen: onUpdate }), 3e3)
@@ -183,5 +179,3 @@ function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }: { onOpen?: () =
     }
   })
 }
-
-export { executeEditorScript, executeLocalScript, executeRemoteScript, executeScript, watchHMRUpdates }

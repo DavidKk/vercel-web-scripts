@@ -55,7 +55,10 @@ function persistToIDB(): void {
       const store = tx.objectStore(STORE_NAME)
       store.put(memoryBuffer.slice(-MAX_LOG_ENTRIES), STORAGE_KEY)
     })
-    .catch(() => {})
+    .catch((e) => {
+      // eslint-disable-next-line no-console -- log-store runs before GME logger; expose persistence failure
+      console.error('[log-store] persistToIDB failed:', e)
+    })
 }
 
 function schedulePersist(): void {
@@ -104,7 +107,10 @@ function clearLogs(): void {
       const store = tx.objectStore(STORE_NAME)
       store.delete(STORAGE_KEY)
     })
-    .catch(() => {})
+    .catch((e) => {
+      // eslint-disable-next-line no-console -- log-store runs before GME logger; expose clear failure
+      console.error('[log-store] clearLogs failed:', e)
+    })
 }
 
 /**
@@ -137,7 +143,10 @@ function loadFromIDB(): void {
         }
       }
     })
-    .catch(() => {})
+    .catch((e) => {
+      // eslint-disable-next-line no-console -- log-store runs before GME logger; expose load failure
+      console.error('[log-store] loadFromIDB failed:', e)
+    })
 }
 
 // Load persisted logs when script runs

@@ -8,14 +8,35 @@
  * Must be loaded after all helpers, services, and UI modules and before main.
  */
 
-import * as dom from '../helpers/dom'
-import * as http from '../helpers/http'
-import * as logger from '../helpers/logger'
-import * as utils from '../helpers/utils'
-import { fetchAndCacheRules, fetchRulesFromCache, matchUrl } from '../rules'
-import { fetchCompileScript, fetchScript, loadScript } from '../scripts'
-import { GME_registerMenuCommand, GME_updateMenuCommand } from '../ui/corner-widget/index'
-import { GME_openLogViewer } from '../ui/log-viewer/index'
+import * as dom from '@/helpers/dom'
+import * as http from '@/helpers/http'
+import * as logger from '@/helpers/logger'
+import * as utils from '@/helpers/utils'
+import { fetchAndCacheRules, fetchRulesFromCache, matchUrl } from '@/rules'
+import { fetchCompileScript, fetchScript, loadScript } from '@/scripts'
+import {
+  EDITOR_DEV_EVENT_KEY,
+  getActiveDevMode,
+  getEditorDevHost,
+  getHasExecutedEditorScript,
+  getLocalDevHost,
+  handleEditorDevModeUpdate,
+  handleLocalDevModeUpdate,
+  isEditorDevMode,
+  isLocalDevMode,
+  LOCAL_DEV_EVENT_KEY,
+  registerWatchLocalFilesMenu,
+  setHasExecutedEditorScript,
+  setupEditorPostMessageListener,
+  tryExecuteLocalScript,
+} from '@/services/dev-mode'
+import { logStore } from '@/services/log-store'
+import { registerBasicMenus } from '@/services/menu'
+import { executeEditorScript, executeLocalScript, executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
+import { getScriptUpdate } from '@/services/script-update'
+import { getTabCommunication } from '@/services/tab-communication'
+import { GME_registerMenuCommand, GME_updateMenuCommand } from '@/ui/corner-widget/index'
+import { GME_openLogViewer } from '@/ui/log-viewer/index'
 import {
   GME_areMarksHidden,
   GME_cleanupInvalidMarks,
@@ -29,17 +50,9 @@ import {
   GME_markNode,
   GME_showMarks,
   GME_unmarkNode,
-} from '../ui/node-selector/index'
-import { GME_notification as GME_notificationUI } from '../ui/notification/index'
-import { GME_openSpotlight, GME_registerSpotlightCommand } from '../ui/spotlight/index'
-import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './dev-mode'
-import { getHasExecutedEditorScript, handleEditorDevModeUpdate, setHasExecutedEditorScript, setupEditorPostMessageListener } from './editor-dev-mode'
-import { handleLocalDevModeUpdate, registerWatchLocalFilesMenu, tryExecuteLocalScript } from './local-dev-mode'
-import { logStore } from './log-store'
-import { registerBasicMenus } from './menu'
-import { executeEditorScript, executeLocalScript, executeRemoteScript, watchHMRUpdates } from './script-execution'
-import { getScriptUpdate } from './script-update'
-import { getTabCommunication } from './tab-communication'
+} from '@/ui/node-selector/index'
+import { GME_notification as GME_notificationUI } from '@/ui/notification/index'
+import { GME_openSpotlight, GME_registerSpotlightCommand } from '@/ui/spotlight/index'
 
 /**
  * Register all preset APIs onto globalThis (or __GLOBAL__ when run by launcher so preset and remote share the same sandbox).
@@ -56,7 +69,7 @@ export function registerGlobals(): void {
     ...dom,
     logStore,
 
-    // Script loading (used by script-execution, local-dev-mode, script-update)
+    // Script loading (used by script-execution, dev-mode/local, script-update)
     fetchScript,
     fetchCompileScript,
     loadScript,

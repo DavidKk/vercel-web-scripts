@@ -15,7 +15,8 @@
  * @module corner-widget
  */
 
-import { appendWhenBodyReady } from '../../helpers/dom'
+import { appendWhenBodyReady } from '@/helpers/dom'
+
 import cornerWidgetCss from './index.css?raw'
 import cornerWidgetHtml from './index.html?raw'
 

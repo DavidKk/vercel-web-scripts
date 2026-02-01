@@ -2,7 +2,8 @@
  * Notification UI - show toast messages
  */
 
-import { appendWhenBodyReady } from '../../helpers/dom'
+import { appendWhenBodyReady } from '@/helpers/dom'
+
 import notificationCss from './index.css?raw'
 import notificationHtml from './index.html?raw'
 

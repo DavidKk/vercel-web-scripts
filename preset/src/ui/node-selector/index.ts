@@ -16,10 +16,11 @@
  * @module node-selector
  */
 
-import { appendWhenBodyReady } from '../../helpers/dom'
-import { GME_info, GME_warn } from '../../helpers/logger'
-import { getUnsafeWindow } from '../../services/cli-service'
-import { GME_notification } from '../notification/index'
+import { appendWhenBodyReady } from '@/helpers/dom'
+import { GME_info, GME_warn } from '@/helpers/logger'
+import { getUnsafeWindow } from '@/services/cli-service'
+import { GME_notification } from '@/ui/notification/index'
+
 import nodeSelectorCss from './index.css?raw'
 import nodeSelectorHtml from './index.html?raw'
 import { NodeSelector } from './NodeSelector'
@@ -120,7 +121,8 @@ export function GME_getMarkedNodes(): MarkedNodeInfo[] {
     const storageKey = 'node-selector-marks'
     const marks = GM_getValue(storageKey, {}) as Record<string, MarkedNodeInfo>
     return Object.values(marks)
-  } catch {
+  } catch (e) {
+    GME_warn('[node-selector] GME_getMarkedNodes failed:', e instanceof Error ? e.message : String(e))
     return []
   }
 }
