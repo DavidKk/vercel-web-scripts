@@ -8,7 +8,7 @@ import tsConfig from './eslintrc/ts.mjs'
 
 export default [
   {
-    ignores: ['.next/**/*', '.husky/**/*', 'coverage/**/*', 'node_modules', 'test-results/**/*', 'playwright-report/**/*', 'blob-report/**/*'],
+    ignores: ['.next/**/*', '.husky/**/*', 'coverage/**/*', 'node_modules', 'preset/dist/**/*', 'test-results/**/*', 'playwright-report/**/*', 'blob-report/**/*'],
   },
   {
     languageOptions: {
@@ -55,6 +55,7 @@ export default [
             '**/playwright.config.ts',
             '**/playwright-tsconfig.json',
             '**/__webtests__/**/*.ts',
+            '**/vite.config.ts',
           ],
         },
       ],

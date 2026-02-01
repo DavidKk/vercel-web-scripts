@@ -1,5 +1,4 @@
 import type { NextConfig } from 'next'
-import path from 'path'
 
 const nextConfig: NextConfig = {
   webpack(config) {
@@ -24,13 +23,6 @@ const nextConfig: NextConfig = {
         rule.oneOf.unshift(rawRule)
       }
     }
-
-    // Add alias for templates directory
-    // Webpack resolves aliases before applying query parameters
-    if (!config.resolve.alias) {
-      config.resolve.alias = {}
-    }
-    config.resolve.alias['@templates'] = path.resolve(__dirname, 'templates')
 
     return config
   },
