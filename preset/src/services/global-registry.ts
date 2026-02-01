@@ -13,7 +13,7 @@ import * as http from '@/helpers/http'
 import * as logger from '@/helpers/logger'
 import * as utils from '@/helpers/utils'
 import { fetchAndCacheRules, fetchRulesFromCache, matchUrl } from '@/rules'
-import { fetchCompileScript, fetchScript, loadScript } from '@/scripts'
+import { fetchScript } from '@/scripts'
 import {
   EDITOR_DEV_EVENT_KEY,
   getActiveDevMode,
@@ -68,10 +68,8 @@ export function registerGlobals(): void {
     ...dom,
     logStore,
 
-    // Script loading (used by script-execution, dev-mode/local, script-update)
+    // Script loading (used by script-execution, dev-mode/local, script-update). fetchCompileScript/loadScript not exposed to avoid GIST calling compile on every page.
     fetchScript,
-    fetchCompileScript,
-    loadScript,
 
     // UI public API (GIST scripts)
     GME_openLogViewer,

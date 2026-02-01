@@ -265,7 +265,6 @@ declare function GM_cookie(details: any): void
 declare const unsafeWindow: Window
 
 declare function fetchScript(url: string): Promise<string>
-declare function fetchCompileScript(host: string, files: Record<string, string>): Promise<string>
 declare function fetchRulesFromCache(refetch?: boolean): Promise<any[]>
 declare function matchUrl(pattern: string, url?: string): boolean
 

@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit && pnpm run typecheck:preset",
     "typecheck:preset": "cd preset && tsc --noEmit",
     "dev": "pnpm run generate:editor-typings && concurrently -n next,preset \"next dev --webpack\" \"pnpm run build:preset:dev\"",
-    "build": "next build --webpack",
+    "build": "pnpm run build:preset && next build --webpack",
     "start": "next start",
     "test": "jest -c ./jest.config.ts --coverage --reporters=default --reporters=jest-junit --passWithNoTests",
     "test:watch": "jest --watch",
