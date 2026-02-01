@@ -40,6 +40,8 @@ export interface ScriptEditorProps {
   onLocalMapNotify?: (type: 'success' | 'error' | 'warning', message: string) => void
   /** Optional typings (e.g. GME_*, GM_*) to write as gm-globals.d.ts when mapping to local */
   typingsForLocal?: string
+  /** Optional callback when local files were synced (content changed and saved). E.g. trigger editor dev mode push. */
+  onLocalFilesSynced?: () => void
 }
 
 /**

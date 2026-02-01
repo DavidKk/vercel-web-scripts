@@ -28,7 +28,12 @@ function ScriptEditorContentInner(props: ScriptEditorProps) {
  */
 export function ScriptEditorContent(outerProps: ScriptEditorProps) {
   return (
-    <LocalMapProvider storageKey={outerProps.storageKey} onNotify={outerProps.onLocalMapNotify} typingsForLocal={outerProps.typingsForLocal}>
+    <LocalMapProvider
+      storageKey={outerProps.storageKey}
+      onNotify={outerProps.onLocalMapNotify}
+      typingsForLocal={outerProps.typingsForLocal}
+      onLocalFilesSynced={outerProps.onLocalFilesSynced}
+    >
       <ScriptEditorContentInner {...outerProps} />
     </LocalMapProvider>
   )
@@ -83,11 +88,14 @@ function ScriptEditorContentBody({
   const currentFileUpdatedAt = selectedFileData?.updatedAt
   const localMap = useLocalMap()
 
+  // Sync editor when file content changed externally (e.g. local sync). Use forceUpdate=false so we
+  // never move cursor to 1,1 when the change actually came from the user typing (race: effect runs
+  // before getContent() reflects the same content as fileState, so we must not force cursor reset).
   useEffect(() => {
     if (tabBar.activeTab && selectedFileData && codeEditorRef.current && codeEditorRef.current.isReady()) {
       const currentContent = codeEditorRef.current.getContent()
       if (currentContent !== currentFileContent) {
-        codeEditorRef.current.setContent(selectedFileData.content.modifiedContent || '', true)
+        codeEditorRef.current.setContent(selectedFileData.content.modifiedContent || '', false)
       }
     }
   }, [tabBar.activeTab, currentFileContent, currentFileUpdatedAt, selectedFileData])

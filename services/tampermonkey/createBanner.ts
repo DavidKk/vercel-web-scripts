@@ -2,8 +2,8 @@ import { createHash } from 'crypto'
 
 import { getGistInfo } from '@/services/gist'
 
-import { compileMainScript, compileScripts, getCoreScriptsSource, getMainScriptSource, loadCoreUIsInline } from './gmCore'
-import { DEFAULT_GRANTS, GRANTS } from './grant'
+import { buildInlineSourceMapComment, buildPresetVariableDeclarations, getPresetBundle, getPresetBundleSourceMap } from './gmCore'
+import { GRANTS } from './grant'
 import { clearMeta } from './meta'
 
 export interface CreateBannerParams {
@@ -14,9 +14,10 @@ export interface CreateBannerParams {
 }
 
 /**
- * Create banner for Tampermonkey script
- * Uses inline imports (?raw) to load static resources at build time
- * No runtime fetch needed, works in both Node.js and Edge Runtime
+ * Create banner for Tampermonkey script.
+ * Uses pre-built preset/dist/preset.js: preset runs first and registers GME_* etc. on globalThis,
+ * then executeGistScripts() runs with GIST code (external scripts can use GME_*).
+ * Requires preset to be built (pnpm build:preset) before generating the script.
  * @param params Banner creation parameters
  * @returns Function that generates the final script content
  */
@@ -27,24 +28,16 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
   const __BASE_URL__ = `${protocol}//${hostname}${port ? ':' + port : ''}`
   const __HMK_URL__ = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${hostname}${port ? ':' + port : ''}/_next/webpack-hmr`
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
-  const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/editor`
-  const grants = Array.from(new Set(grant.concat(DEFAULT_GRANTS))).sort()
+  const grants = Array.from(new Set((grant || []).concat(GRANTS))).sort()
 
-  // Load static resources using inline imports (no fetch needed)
-  const coreScriptsSource = getCoreScriptsSource()
-  const uiScriptContents = loadCoreUIsInline()
-  const coreScriptContents = compileScripts([...coreScriptsSource, ...uiScriptContents])
-
-  const grantsString = GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(',')
+  const grantsString = GRANTS.map((g) => `...(typeof ${g} !== 'undefined' ? { ${g} } : {})`).join(',')
   const isDevelopMode = process.env.NODE_ENV === 'development'
   const hostnamePort = `${hostname}${port ? ':' + port : ''}`
 
-  // Pre-compile main script with base variables (GIST scripts will be injected later)
-  const mainScriptContents = compileMainScript(getMainScriptSource(), {
+  const variableDeclarations = buildPresetVariableDeclarations({
     __BASE_URL__,
     __RULE_API_URL__,
-    __RULE_MANAGER_URL__,
     __EDITOR_URL__,
     __HMK_URL__,
     __SCRIPT_URL__: scriptUrl,
@@ -53,11 +46,13 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
     __GRANTS_STRING__: grantsString,
   })
 
+  const presetContent = getPresetBundle()
+  const presetSourceMap = getPresetBundleSourceMap()
+  const inlineSourceMapComment = buildInlineSourceMapComment(presetSourceMap)
+
   return (content: string) => {
     const clearMetaCode = clearMeta(content)
-    // Replace the placeholder in executeGistScripts function body with actual GIST scripts code
-    // The placeholder is inside the function body, so we replace it with the actual code
-    const finalMainScriptContents = mainScriptContents.replace('__GIST_SCRIPTS_PLACEHOLDER__', clearMetaCode)
+    const presetWithGist = presetContent.replace('__GIST_SCRIPTS_PLACEHOLDER__', clearMetaCode)
 
     return `
 // ==UserScript==
@@ -83,9 +78,9 @@ ${grants
   .join('\n')}
 // ==/UserScript==
 
-${coreScriptContents}
-
-${finalMainScriptContents}
+${variableDeclarations}
+const __INLINE_GIST__ = true;
+${presetWithGist}${inlineSourceMapComment}
 `
   }
 }

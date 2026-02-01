@@ -1,6 +1,7 @@
 # Dest resouces
 /libs
 /coverage
+preset/dist
 /junit.xml
 /gitlab-pages
 

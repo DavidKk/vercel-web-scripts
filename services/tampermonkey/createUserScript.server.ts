@@ -62,6 +62,16 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
   return prettier.format(script, PRETTIER_CONFIG)
 }
 
+/**
+ * Compile GIST files to script content only (no banner, no preset).
+ * Used by /static/[key]/tampermonkey-remote.js for launcher mode.
+ * Must be async when exported from a 'use server' file (Server Action).
+ */
+export async function getRemoteScriptContent(files: Record<string, string>): Promise<string> {
+  const { content } = compileScripts(files)
+  return content
+}
+
 function compileScripts(files: Record<string, string>) {
   const { compile, grants, connects } = createScriptCompiler()
 
