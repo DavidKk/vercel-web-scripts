@@ -1,0 +1,93 @@
+.hash-tool {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.hash-tool__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+
+.hash-tool__box {
+  position: relative;
+  margin: 10vh auto;
+  width: 92%;
+  max-width: 560px;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+
+.hash-tool__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.hash-tool__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.hash-tool__close {
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+}
+
+.hash-tool__close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.hash-tool__textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 14px;
+  font-family: monospace;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.hash-tool__result-wrap {
+  padding: 12px 16px;
+  flex: 1;
+  min-height: 60px;
+}
+
+.hash-tool__result-label {
+  font-size: 12px;
+  color: #86868b;
+  margin-bottom: 4px;
+}
+
+.hash-tool__result {
+  font-size: 14px;
+  font-family: monospace;
+  word-break: break-all;
+  color: #1d1d1f;
+}
+
+.hash-tool__result--empty {
+  color: #86868b;
+}

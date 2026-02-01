@@ -32,7 +32,7 @@ import '@/services/menu'
 import '@/rules'
 // 16. scripts
 import '@/scripts'
-// 17. UI modules (order: corner-widget, notification, node-selector deps then index, log-viewer, spotlight)
+// 17. UI modules (order: corner-widget, notification, node-selector deps then index, log-viewer, spotlight, hash-tool)
 import '@/ui/corner-widget/index'
 import '@/ui/notification/index'
 import '@/ui/node-selector/types'
@@ -41,6 +41,7 @@ import '@/ui/node-selector/NodeSelector'
 import '@/ui/node-selector/index'
 import '@/ui/log-viewer/index'
 import '@/ui/spotlight/index'
+import '@/ui/hash-tool/index'
 // 18. register globals for GIST / legacy
 import '@/register'
 // 19. main
