@@ -5,15 +5,14 @@
 import { GME_fetch } from '@/helpers/http'
 import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
 import { fetchAndCacheRules } from '@/rules'
-import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, getLocalDevHost, isEditorDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode'
+import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, isEditorDevMode } from '@/services/dev-mode'
 import { GME_openLogViewer } from '@/ui/log-viewer/index'
 import { GME_notification } from '@/ui/notification/index'
 
 /**
  * Register basic menu commands
- * @param webScriptId Web script ID for local dev mode check
  */
-export function registerBasicMenus(webScriptId: string): void {
+export function registerBasicMenus(): void {
   GM_registerMenuCommand('Edit Script', () => {
     window.open(__EDITOR_URL__, '_blank')
   })
@@ -72,63 +71,37 @@ export function registerBasicMenus(webScriptId: string): void {
     }
   })
 
+  GM_registerMenuCommand('Update Rules', async () => {
+    await fetchAndCacheRules()
+    GME_notification('Rules updated successfully', 'success')
+  })
+
   GM_registerMenuCommand('View Logs', () => {
     GME_openLogViewer()
   })
 
-  GM_registerMenuCommand('Rule manager', () => {
-    const url = __RULE_MANAGER_URL__ + '?url=' + encodeURIComponent(window.location.href) + '&t=' + Date.now()
-    url && window.open(url, '_blank')
-  })
-
-  GM_registerMenuCommand('Refresh Rules', async () => {
-    await fetchAndCacheRules()
-    GME_notification('Rules refreshed successfully', 'success')
-  })
-
   /**
-   * Register "Stop Dev Mode" menu only when dev mode is active (using cached script)
-   * Check if either local dev mode or editor dev mode is active by checking cached values
+   * Register "Stop Dev Mode" menu only when editor dev mode is active (using cached value)
    */
   const activeDevMode = getActiveDevMode()
 
-  if (activeDevMode) {
-    const menuText = activeDevMode === 'local' ? 'Stop Watching Local Files' : 'Stop Editor Dev Mode'
+  if (activeDevMode === 'editor') {
+    GM_registerMenuCommand('Stop Editor Dev Mode', () => {
+      const isEditorDevModeActive = isEditorDevMode()
+      if (!isEditorDevModeActive) {
+        GME_notification('Editor dev mode is not active.', 'info')
+        return
+      }
 
-    GM_registerMenuCommand(menuText, () => {
-      if (activeDevMode === 'editor') {
-        const isEditorDevModeActive = isEditorDevMode()
-        if (!isEditorDevModeActive) {
-          GME_notification('Editor dev mode is not active.', 'info')
-          return
-        }
-
-        const host = getEditorDevHost()
-        if (host) {
-          // Clear the editor dev mode key
-          // GM_setValue will automatically trigger GM_addValueChangeListener in all tabs
-          GM_setValue(EDITOR_DEV_EVENT_KEY, null)
-
-          GME_notification('Editor dev mode stopped. All tabs will return to normal mode.', 'success')
-          GME_debug('Editor dev mode manually stopped by user, host: ' + host)
-        } else {
-          // Clear anyway in case of inconsistent state
-          GM_setValue(EDITOR_DEV_EVENT_KEY, null)
-          GME_notification('Editor dev mode cleared.', 'success')
-          GME_debug('Editor dev mode manually cleared by user')
-        }
-      } else if (activeDevMode === 'local') {
-        // Stop local dev mode
-        const host = getLocalDevHost()
-        if (host === webScriptId) {
-          GM_setValue(LOCAL_DEV_EVENT_KEY, null)
-          GME_notification('Local file watch stopped. All tabs will return to normal mode.', 'success')
-          GME_debug('Local file watch manually stopped by user')
-        } else {
-          GM_setValue(LOCAL_DEV_EVENT_KEY, null)
-          GME_notification('Local file watch cleared.', 'success')
-          GME_debug('Local file watch manually cleared by user')
-        }
+      const host = getEditorDevHost()
+      if (host) {
+        GM_setValue(EDITOR_DEV_EVENT_KEY, null)
+        GME_notification('Editor dev mode stopped. All tabs will return to normal mode.', 'success')
+        GME_debug('Editor dev mode manually stopped by user, host: ' + host)
+      } else {
+        GM_setValue(EDITOR_DEV_EVENT_KEY, null)
+        GME_notification('Editor dev mode cleared.', 'success')
+        GME_debug('Editor dev mode manually cleared by user')
       }
     })
   }

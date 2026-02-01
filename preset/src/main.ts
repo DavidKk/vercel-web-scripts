@@ -17,7 +17,6 @@ import {
   isEditorPage,
   isLocalDevMode,
   LOCAL_DEV_EVENT_KEY,
-  registerWatchLocalFilesMenu,
   setupEditorPostMessageListener,
   tryExecuteEditorScript,
   tryExecuteLocalScript,
@@ -175,8 +174,7 @@ async function main(): Promise<void> {
     executeRemoteScript()
   }
 
-  registerBasicMenus(WEB_SCRIPT_ID)
-  registerWatchLocalFilesMenu(WEB_SCRIPT_ID)
+  registerBasicMenus()
   GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
     handleLocalDevModeUpdate(oldValue, newValue, false)
   })

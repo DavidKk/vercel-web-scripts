@@ -42,7 +42,6 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
   const __BASE_URL__ = `${protocol}//${hostname}${port ? ':' + port : ''}`
   const __HMK_URL__ = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${hostname}${port ? ':' + port : ''}/_next/webpack-hmr`
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
-  const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/editor`
   const isDevelopMode = process.env.NODE_ENV === 'development'
   const hostnamePort = `${hostname}${port ? ':' + port : ''}`
@@ -50,7 +49,6 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
   const globalAssignments = buildPresetGlobalAssignments({
     __BASE_URL__,
     __RULE_API_URL__,
-    __RULE_MANAGER_URL__,
     __EDITOR_URL__,
     __HMK_URL__,
     __SCRIPT_URL__: remoteScriptUrl,
@@ -64,17 +62,7 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
 
   // Preset expects __BASE_URL__, __IS_DEVELOP_MODE__, etc. as bare identifiers. Run preset in runPreset scope
   // and declare these from g so preset sees them; GM_* come from launcher closure.
-  const PRESET_VAR_NAMES = [
-    '__BASE_URL__',
-    '__RULE_API_URL__',
-    '__RULE_MANAGER_URL__',
-    '__EDITOR_URL__',
-    '__HMK_URL__',
-    '__SCRIPT_URL__',
-    '__IS_DEVELOP_MODE__',
-    '__HOSTNAME_PORT__',
-    '__GRANTS_STRING__',
-  ]
+  const PRESET_VAR_NAMES = ['__BASE_URL__', '__RULE_API_URL__', '__EDITOR_URL__', '__HMK_URL__', '__SCRIPT_URL__', '__IS_DEVELOP_MODE__', '__HOSTNAME_PORT__', '__GRANTS_STRING__']
   // Inject __GLOBAL__ = g so preset and remote script use the same global (launcher's g / sandbox), not a different globalThis
   const presetVarDecls = 'var __GLOBAL__ = g; ' + PRESET_VAR_NAMES.map((n) => `var ${n} = g.${n};`).join(' ')
   const presetVarDeclsEscaped = presetVarDecls.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')

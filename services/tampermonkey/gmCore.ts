@@ -52,7 +52,6 @@ export function buildInlineSourceMapComment(mapContent: string | null): string {
 export function buildPresetVariableDeclarations(variables: {
   __BASE_URL__: string
   __RULE_API_URL__: string
-  __RULE_MANAGER_URL__: string
   __EDITOR_URL__: string
   __HMK_URL__: string
   __SCRIPT_URL__: string
@@ -63,7 +62,6 @@ export function buildPresetVariableDeclarations(variables: {
   return `
 const __BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
 const __RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
-const __RULE_MANAGER_URL__ = ${JSON.stringify(variables.__RULE_MANAGER_URL__)};
 const __EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)};
 const __HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)};
 const __SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)};
@@ -83,7 +81,6 @@ const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
 export function buildPresetGlobalAssignments(variables: {
   __BASE_URL__: string
   __RULE_API_URL__: string
-  __RULE_MANAGER_URL__: string
   __EDITOR_URL__: string
   __HMK_URL__: string
   __SCRIPT_URL__: string
@@ -94,7 +91,6 @@ export function buildPresetGlobalAssignments(variables: {
   return `
 g.__BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
 g.__RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
-g.__RULE_MANAGER_URL__ = ${JSON.stringify(variables.__RULE_MANAGER_URL__)};
 g.__EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)};
 g.__HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)};
 g.__SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)};

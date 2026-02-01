@@ -28,7 +28,6 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
   const __BASE_URL__ = `${protocol}//${hostname}${port ? ':' + port : ''}`
   const __HMK_URL__ = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${hostname}${port ? ':' + port : ''}/_next/webpack-hmr`
   const __RULE_API_URL__ = `${__BASE_URL__}/api/tampermonkey/${key}/rule`
-  const __RULE_MANAGER_URL__ = `${__BASE_URL__}/tampermonkey/rule`
   const __EDITOR_URL__ = `${__BASE_URL__}/editor`
   const grants = Array.from(new Set((grant || []).concat(GRANTS))).sort()
 
@@ -39,7 +38,6 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
   const variableDeclarations = buildPresetVariableDeclarations({
     __BASE_URL__,
     __RULE_API_URL__,
-    __RULE_MANAGER_URL__,
     __EDITOR_URL__,
     __HMK_URL__,
     __SCRIPT_URL__: scriptUrl,

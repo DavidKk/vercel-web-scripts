@@ -1,6 +1,5 @@
 declare const __BASE_URL__: string
 declare const __RULE_API_URL__: string
-declare const __RULE_MANAGER_URL__: string
 declare const __EDITOR_URL__: string
 declare const __HMK_URL__: string
 declare const __SCRIPT_URL__: string

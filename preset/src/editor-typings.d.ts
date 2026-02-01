@@ -4,9 +4,6 @@ declare const __BASE_URL__: string
 /** API URL for rule management */
 declare const __RULE_API_URL__: string
 
-/** URL for the rule manager interface */
-declare const __RULE_MANAGER_URL__: string
-
 /** URL for the editor interface */
 declare const __EDITOR_URL__: string
 

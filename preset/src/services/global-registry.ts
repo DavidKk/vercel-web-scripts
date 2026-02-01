@@ -25,7 +25,6 @@ import {
   isEditorDevMode,
   isLocalDevMode,
   LOCAL_DEV_EVENT_KEY,
-  registerWatchLocalFilesMenu,
   setHasExecutedEditorScript,
   setupEditorPostMessageListener,
   tryExecuteLocalScript,
@@ -112,7 +111,6 @@ export function registerGlobals(): void {
     executeLocalScript,
     tryExecuteLocalScript,
     handleLocalDevModeUpdate,
-    registerWatchLocalFilesMenu,
 
     // Dev mode flags (main.ts)
     isEditorDevMode,
