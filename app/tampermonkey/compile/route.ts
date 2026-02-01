@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server'
+
 import { EXCLUDED_FILES } from '@/constants/file'
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
@@ -12,8 +14,13 @@ export const POST = plainText(async (req) => {
 
   const scriptUrl = req.url
   const version = `0.${(new Date().getTime() / 1e3).toString()}`
-  const content = await createUserScript({ scriptUrl, version, files })
-  return content.replace(/\r\n/g, '\n')
+  try {
+    const content = await createUserScript({ scriptUrl, version, files })
+    return content.replace(/\r\n/g, '\n')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return new NextResponse(message, { status: 400 })
+  }
 })
 
 export const GET = plainText(async (req) => {

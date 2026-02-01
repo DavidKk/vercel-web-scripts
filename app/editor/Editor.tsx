@@ -1,7 +1,7 @@
 'use client'
 
 import { useRequest } from 'ahooks'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { NotificationProvider, NotificationStack } from '@/components/Notification'
 import { FileStateProvider } from '@/components/ScriptEditor/context/FileStateContext'
@@ -11,6 +11,9 @@ import { ENTRY_SCRIPT_RULES_FILE } from '@/constants/file'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 
 import { EditorContent } from './components/EditorContent'
+
+/** PostMessage type that Tampermonkey preset listens for (must match preset dev-mode.ts) */
+const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
 
 export interface EditorProps {
   files: Record<
@@ -32,6 +35,9 @@ export default function Editor(props: EditorProps) {
   // Rules state
   const [rules, setRules] = useState<RuleConfig[]>(initialRules)
   const [isEditorDevMode, setIsEditorDevMode] = useState(false)
+  /** Host id for editor dev mode; sent to preset so it can identify this tab */
+  const [editorHostId, setEditorHostId] = useState<string | null>(null)
+  const editorHostIdRef = useRef<string | null>(null)
 
   // Format initial files for ScriptEditor
   const initialFiles = useMemo(() => {
@@ -60,8 +66,21 @@ export default function Editor(props: EditorProps) {
   }, [])
 
   const handleToggleEditorDevMode = useCallback(() => {
-    setIsEditorDevMode((prev) => !prev)
-    // TODO: Implement dev mode logic
+    setIsEditorDevMode((prev) => {
+      const next = !prev
+      if (next) {
+        const hostId = `editor-${Date.now()}`
+        editorHostIdRef.current = hostId
+        setEditorHostId(hostId)
+        window.postMessage({ type: EDITOR_POST_MESSAGE_TYPE, message: { type: 'editor-dev-mode-started', host: hostId } }, window.location.origin)
+      } else {
+        const host = editorHostIdRef.current
+        editorHostIdRef.current = null
+        setEditorHostId(null)
+        window.postMessage({ type: EDITOR_POST_MESSAGE_TYPE, message: { type: 'editor-dev-mode-stopped', host } }, window.location.origin)
+      }
+      return next
+    })
   }, [])
 
   return (
@@ -77,6 +96,7 @@ export default function Editor(props: EditorProps) {
               onRulesChange={handleRulesChange}
               isSaving={isSaving}
               isEditorDevMode={isEditorDevMode}
+              editorHostId={editorHostId}
               onToggleEditorDevMode={handleToggleEditorDevMode}
             />
             <NotificationStack />

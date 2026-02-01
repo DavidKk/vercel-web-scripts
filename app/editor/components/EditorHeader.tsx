@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { FiDownload, FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
+import { FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
+import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload } from 'react-icons/md'
 
@@ -168,7 +169,7 @@ export default function EditorHeader({
             </>
           ) : (
             <>
-              <FiDownload className="w-4 h-4" />
+              <IoExtensionPuzzleOutline className="w-4 h-4" />
               <span className="text-sm">Install</span>
             </>
           )}

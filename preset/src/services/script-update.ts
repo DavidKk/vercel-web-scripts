@@ -155,6 +155,7 @@ class ScriptUpdate {
 
   /**
    * Handle update message from HOST
+   * Editor page also applies update (executeRemoteScript only evals, no page refresh).
    */
   private async handleUpdateMessage(update: UpdateMessage, sender: TabInfo): Promise<void> {
     // Ignore if this tab is the HOST

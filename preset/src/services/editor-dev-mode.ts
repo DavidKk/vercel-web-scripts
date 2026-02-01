@@ -4,7 +4,7 @@
 
 import { GME_debug, GME_fail, GME_info } from '../helpers/logger'
 import { GME_notification } from '../ui/notification/index'
-import { EDITOR_DEV_EVENT_KEY, EDITOR_POST_MESSAGE_TYPE, getActiveDevMode, getEditorDevHost } from './dev-mode'
+import { EDITOR_DEV_EVENT_KEY, EDITOR_POST_MESSAGE_TYPE, getActiveDevMode, getEditorDevHost, isEditorPage } from './dev-mode'
 import { executeEditorScript } from './script-execution'
 
 /**
@@ -58,7 +58,7 @@ function handleEditorDevModeUpdate(oldValue: any, newValue: any): void {
   }
 
   // Skip if current page is the editor page
-  if (window.location.pathname.includes('/tampermonkey/editor')) {
+  if (isEditorPage()) {
     return
   }
 
@@ -201,8 +201,7 @@ function handleEditorDevModeUpdate(oldValue: any, newValue: any): void {
  */
 
 function setupEditorPostMessageListener(): void {
-  const isEditorPage = window.location.pathname.includes('/tampermonkey/editor')
-  if (!isEditorPage) {
+  if (!isEditorPage()) {
     return
   }
 

@@ -3,7 +3,7 @@
  */
 
 import { GME_notification } from '../ui/notification/index'
-import { getActiveDevMode, getLocalDevFiles, getLocalDevHost, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './dev-mode'
+import { getActiveDevMode, getLocalDevFiles, getLocalDevHost, isEditorPage, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './dev-mode'
 import { executeLocalScript as runLocalScript } from './script-execution'
 
 /**
@@ -38,7 +38,7 @@ function tryExecuteLocalScript(isRemoteScript: boolean): boolean {
   }
 
   // Editor page (HOST) should not execute scripts, it only sends files to other pages
-  if (window.location.pathname.includes('/tampermonkey/editor')) {
+  if (isEditorPage()) {
     return false
   }
 

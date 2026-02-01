@@ -5,7 +5,7 @@
 import { GME_info } from './helpers/logger'
 import { GME_uuid } from './helpers/utils'
 import { fetchRulesFromCache, matchUrl } from './rules'
-import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './services/dev-mode'
+import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isEditorPage, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from './services/dev-mode'
 import { getHasExecutedEditorScript, handleEditorDevModeUpdate, setHasExecutedEditorScript, setupEditorPostMessageListener } from './services/editor-dev-mode'
 import { handleLocalDevModeUpdate, registerWatchLocalFilesMenu, tryExecuteLocalScript } from './services/local-dev-mode'
 import { registerBasicMenus } from './services/menu'
@@ -62,7 +62,7 @@ async function tryExecuteEditorScript(): Promise<boolean> {
   }
 
   // Editor page (HOST) should not execute scripts, it only sends files to other pages
-  if (window.location.pathname.includes('/tampermonkey/editor')) {
+  if (isEditorPage()) {
     return false
   }
 
@@ -242,7 +242,7 @@ async function main(): Promise<void> {
     GME_info('[Main] Entering dev mode path')
     // Editor page (HOST) should not execute remote scripts in dev mode
     // It only sends files to other pages via GM_setValue (triggered by postMessage from Editor.tsx)
-    if (window.location.pathname.includes('/tampermonkey/editor')) {
+    if (isEditorPage()) {
       GME_info('[Dev Mode] Current page is editor page (HOST), skipping remote script execution')
       getScriptUpdate()
       // Subscribe to preset-built SSE so when only editor is open, we still receive and push to Launcher

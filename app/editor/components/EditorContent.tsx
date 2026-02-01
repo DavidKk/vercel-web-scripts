@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { updateFiles } from '@/app/api/scripts/actions'
 import { useNotification } from '@/components/Notification'
@@ -18,6 +18,9 @@ import { RulePanel } from './RulePanel'
 /**
  * EditorContent component props
  */
+/** PostMessage type that Tampermonkey preset listens for (must match preset dev-mode.ts) */
+const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
+
 export interface EditorContentProps {
   scriptKey: string
   initialFiles: Record<string, string>
@@ -26,6 +29,8 @@ export interface EditorContentProps {
   onRulesChange: (rules: RuleConfig[]) => void
   isSaving: boolean
   isEditorDevMode: boolean
+  /** Host id when dev mode is on; used to send editor-files-updated to preset */
+  editorHostId: string | null
   onToggleEditorDevMode: () => void
 }
 
@@ -33,11 +38,87 @@ export interface EditorContentProps {
  * Internal component that has access to FileStateContext
  * Handles publish functionality
  */
-export function EditorContent({ scriptKey, initialFiles, tampermonkeyTypings, rules, onRulesChange, isSaving, isEditorDevMode, onToggleEditorDevMode }: EditorContentProps) {
+export function EditorContent({
+  scriptKey,
+  initialFiles,
+  tampermonkeyTypings,
+  rules,
+  onRulesChange,
+  isSaving,
+  isEditorDevMode,
+  editorHostId,
+  onToggleEditorDevMode,
+}: EditorContentProps) {
   const fileState = useFileState()
   const router = useRouter()
   const [isPublishing, setIsPublishing] = useState(false)
   const notification = useNotification()
+
+  // When dev mode is on, compile and send editor-files-updated to Tampermonkey preset (interval + once on enable)
+  const sendEditorDevModeFiles = useCallback(async () => {
+    if (!editorHostId || typeof window === 'undefined') return
+    const filesToCompile: Record<string, string> = {}
+    Object.values(fileState.files).forEach((file) => {
+      if (file.status === FileStatus.Deleted) return
+      if (EXCLUDED_FILES.includes(file.path)) return
+      const isScriptFile = SCRIPTS_FILE_EXTENSION.some((ext) => file.path.endsWith(ext))
+      if (!isScriptFile) return
+      filesToCompile[file.path] = file.content.modifiedContent
+    })
+    if (Object.keys(filesToCompile).length === 0) {
+      window.postMessage({ type: EDITOR_POST_MESSAGE_TYPE, message: { type: 'editor-no-files', message: 'No script files in editor' } }, window.location.origin)
+      return
+    }
+    try {
+      const res = await fetch('/tampermonkey/compile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: filesToCompile }),
+      })
+      const text = await res.text()
+      if (!res.ok) {
+        notification.error(text || 'Compile failed')
+        return
+      }
+      const lastModified = Date.now()
+      window.postMessage(
+        {
+          type: EDITOR_POST_MESSAGE_TYPE,
+          message: {
+            type: 'editor-files-updated',
+            host: editorHostId,
+            lastModified,
+            files: filesToCompile,
+            compiledContent: text,
+          },
+        },
+        window.location.origin
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      notification.error('Editor Dev Mode compile failed: ' + msg)
+    }
+  }, [editorHostId, fileState.files, notification])
+
+  // Effect: when dev mode + host id, send files once and then every 2s
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    if (!isEditorDevMode || !editorHostId) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      return
+    }
+    sendEditorDevModeFiles()
+    intervalRef.current = setInterval(sendEditorDevModeFiles, 2000)
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [isEditorDevMode, editorHostId, sendEditorDevModeFiles])
 
   /**
    * Handle publish - save all files to Gist and compile
