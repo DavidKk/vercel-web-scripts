@@ -670,6 +670,13 @@ declare function GME_sleep(ms: number): Promise<unknown>
 declare function GME_sha1(str: string): Promise<string>
 
 /**
+ * Calculate MD5 hash of a string (hex). Synchronous, for non-crypto use (e.g. checksums).
+ * @param str String to hash (UTF-8)
+ * @returns 32-char hex string
+ */
+declare function GME_md5(str: string): string
+
+/**
  * Create a debounced version of a function
  * @param fn Function to debounce
  * @param wait Wait time in milliseconds
