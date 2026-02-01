@@ -29,8 +29,8 @@ export interface CreateLauncherScriptParams {
 /**
  * Create the launcher userscript content.
  * Launcher: fetches preset from PRESET_URL, caches with GM_setValue,
- * injects variable declarations (with __SCRIPT_URL__ = remote URL), evals preset.
- * Provides "Update preset" menu and listens for preset update channel (dev push).
+ * injects variable declarations (with __SCRIPT_URL__ = remote URL), runs preset via new Function + with(g).
+ * Provides "Update Script" menu (force update preset and remote script) and listens for preset update channel (dev push).
  */
 export function createLauncherScript(params: CreateLauncherScriptParams): string {
   const { baseUrl, key, launcherScriptUrl, version = '1.0.0' } = params
@@ -81,6 +81,8 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
 
   const grants = GRANTS.filter((g) => g !== 'none')
   const grantLines = grants.map((g) => `// @grant        ${g}`).join('\n')
+  const grantParamList = ['g', ...grants].map((n) => JSON.stringify(n)).join(', ')
+  const grantArgList = ['g', ...grants.map((n) => `g[${JSON.stringify(n)}]`)].join(', ')
 
   return `// ==UserScript==
 // @name         Web Script${isDevelopMode ? ' (dev)' : ''}
@@ -100,20 +102,34 @@ ${grantLines}
   const ASSIGN_GLOBALS = \`${globalAssignmentsEscaped}\`;
   const PRESET_VAR_DECLS = \`${presetVarDeclsEscaped}\`;
 
+  function isTabActive() {
+    if (typeof document === 'undefined') {
+      return false;
+    }
+
+    if (document.hidden !== false) {
+      return false;
+    }
+
+    if (typeof document.visibilityState !== 'undefined' && document.visibilityState !== 'visible') {
+      return false;
+    }
+
+    return true;
+  }
+
   function runPreset(presetCode) {
     const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {};
-    const grantNames = ${JSON.stringify(grants)};
-    grantNames.forEach(function (n) { try { var v = eval(n); if (v !== undefined) g[n] = v; } catch (e) {} });
     try {
-      eval(ASSIGN_GLOBALS);
-      eval(PRESET_VAR_DECLS + '\\n' + presetCode);
+      var body = ASSIGN_GLOBALS + '\\nwith(g) {\\n' + PRESET_VAR_DECLS + '\\n' + presetCode + '\\n}';
+      new Function(${grantParamList}, body)(${grantArgList});
     } catch (e) {
       console.error('[Launcher] preset run failed:', e && e.message ? e.message : String(e), e);
     }
   }
 
   function loadAndRun() {
-    let presetCode = typeof GM_getValue === 'function' ? GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '') : '';
+    let presetCode = GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
     if (presetCode) {
       runPreset(presetCode);
       return;
@@ -125,10 +141,7 @@ ${grantLines}
       url: presetUrlWithCacheBust,
       onload: function (res) {
         if (res.status === 200 && res.responseText) {
-          if (typeof GM_setValue === 'function') {
-            GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, res.responseText);
-          }
-
+          GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, res.responseText);
           runPreset(res.responseText);
         } else {
           console.error('[Launcher] failed to fetch preset, status:', res.status);
@@ -140,46 +153,28 @@ ${grantLines}
     });
   }
 
-  GM_registerMenuCommand('Update preset', function () {
-    if (typeof GM_deleteValue === 'function') {
-      GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
-    } else if (typeof GM_setValue === 'function') {
-      GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
-    }
-    console.log('[Launcher] Preset cache cleared. Reloading...');
-    setTimeout(function () { location.reload(); }, 500);
+  GM_registerMenuCommand('Update Script', function () {
+    GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
+    console.log('[Launcher] Force update: preset cache cleared. Reloading...');
+    setTimeout(function () {
+      location.reload();
+    }, 500);
   });
 
   GM_addValueChangeListener(${JSON.stringify(PRESET_UPDATE_CHANNEL_KEY)}, function (name, oldVal, newVal) {
-    if (newVal == null) return;
-    if (typeof GM_deleteValue === 'function') {
-      GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
+    if (newVal == null) {
+      return;
     }
-    function isTabActive() {
-      if (typeof document === 'undefined') {
-        return false;
-      }
-
-      if (document.hidden !== false) {
-        return false;
-      }
-
-      if (typeof document.visibilityState !== 'undefined' && document.visibilityState !== 'visible') {
-        return false;
-      }
-
-      return true;
+    GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
+    if (!isTabActive()) {
+      return;
     }
-    if (isTabActive()) {
-      if (typeof GM_setValue === 'function') {
-        GM_setValue(${JSON.stringify(PRESET_UPDATED_NOTIFY_KEY)}, 1);
+    GM_setValue(${JSON.stringify(PRESET_UPDATED_NOTIFY_KEY)}, 1);
+    setTimeout(function () {
+      if (isTabActive()) {
+        location.reload();
       }
-      setTimeout(function () {
-        if (typeof document !== 'undefined' && !document.hidden && (typeof document.visibilityState === 'undefined' || document.visibilityState === 'visible')) {
-          location.reload();
-        }
-      }, 300);
-    }
+    }, 300);
   });
 
   loadAndRun();

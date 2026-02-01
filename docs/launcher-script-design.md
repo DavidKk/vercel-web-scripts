@@ -97,7 +97,7 @@
 ### 4.4 更新逻辑
 
 - **更新 Preset**
-  - 手动：Launcher 菜单「Update preset」→ 清 preset 缓存，重新拉 preset URL，再 eval。
+  - 手动：Launcher 菜单「Update Script」→ 清 preset 缓存，重新拉 preset URL，再 eval（全部强制更新 preset 与远程脚本）。
   - Dev 推送：Vite preset 构建完成时 POST `/api/sse/preset-built`；Dev Server 通过 SSE 向所有订阅的 preset 客户端推送 `preset-built` 事件；preset（dev 模式）订阅 GET `/api/sse/preset-built`（Accept: text/event-stream），收到事件后 `GM_setValue(vws_preset_update, builtAt)`，Launcher 的 `GM_addValueChangeListener` 收到后清缓存并刷新页面。
 - **更新 Remote**
   - 手动：Launcher 或 Preset 菜单「更新远程脚本」→ 清 remote 缓存（若有），Preset 重新执行 `executeRemoteScript(__SCRIPT_URL__)`（或刷新页面由 Launcher 再跑一遍）。
@@ -181,7 +181,7 @@
 | **入口**   | **tampermonkey.user.js**：`GET /static/[key]/tampermonkey.user.js` 返回启动脚本，用户只安装此 URL；负责加载/缓存 preset 与 remote。 |
 | **Preset** | `GET /static/preset.js`：由入口脚本拉取并执行；main 在「无内联 GIST」时执行 `executeRemoteScript(__SCRIPT_URL__)`。                 |
 | **Remote** | `GET /static/[key]/tampermonkey-remote.js`：仅返回 GIST 编译结果；由 Preset 拉取并执行。                                            |
-| **更新**   | Preset：菜单「Update preset」+ channel 推送；Remote：手动 + 编辑器推送。                                                            |
+| **更新**   | Preset：菜单「Update Script」+ channel 推送；Remote：手动 + 编辑器推送。                                                            |
 
 以 **tampermonkey.user.js** 为唯一入口，实现「加载预设脚本与远程脚本」的启动脚本，并支持动态更新而无需用户重新安装。原「整包」路由 `/static/[key]/tampermonkey.js` 已移除。
 
