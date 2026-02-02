@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import Icons from 'unplugin-icons/vite'
 import { defineConfig } from 'vite'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -97,7 +98,7 @@ export default defineConfig({
     __PROJECT_VERSION__: JSON.stringify(PROJECT_VERSION_PLACEHOLDER),
     __SCRIPT_UPDATED_AT__: JSON.stringify(PRESET_UPDATED_AT_PLACEHOLDER),
   },
-  plugins: [presetBuildHashPlugin(), presetBuiltNotifyPlugin()],
+  plugins: [Icons({ compiler: 'raw', autoInstall: true }), presetBuildHashPlugin(), presetBuiltNotifyPlugin()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

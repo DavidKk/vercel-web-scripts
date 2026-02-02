@@ -118,6 +118,13 @@
   background: rgba(0, 0, 0, 0.06);
   border-radius: 6px;
   font-size: 14px;
+  color: #666;
+}
+
+.command-palette__item-icon svg {
+  width: 1em;
+  height: 1em;
+  font-size: 1.25em;
 }
 
 .command-palette__item-content {

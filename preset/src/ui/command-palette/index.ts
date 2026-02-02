@@ -17,7 +17,10 @@ export interface CommandPaletteCommand {
   id: string
   keywords: string[]
   title: string
+  /** Plain text or emoji; escaped when rendered. */
   icon?: string
+  /** Raw HTML (e.g. inline SVG from unplugin-icons ?raw). Used when set, else icon. */
+  iconHtml?: string
   hint?: string
   action: () => void
 }
@@ -85,10 +88,10 @@ export class CommandPaletteUI extends HTMLElement {
       const li = document.createElement('li')
       li.className = 'command-palette__item' + (i === this.#selectedIndex ? ' command-palette__item--selected' : '')
       li.dataset.index = String(i)
-      const icon = cmd.icon ?? '◆'
+      const iconContent = cmd.iconHtml !== undefined ? cmd.iconHtml : escapeHtml(cmd.icon ?? '◆')
       const hintHtml = cmd.hint ? `<div class="command-palette__item-hint">${escapeHtml(cmd.hint)}</div>` : ''
       li.innerHTML = `
-          <span class="command-palette__item-icon">${escapeHtml(icon)}</span>
+          <span class="command-palette__item-icon">${iconContent}</span>
           <div class="command-palette__item-content">
             <div class="command-palette__item-title">${escapeHtml(cmd.title)}</div>
             ${hintHtml}

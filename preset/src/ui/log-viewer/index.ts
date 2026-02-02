@@ -7,6 +7,7 @@ import { appendWhenBodyReady } from '@/helpers/dom'
 import type { LogLevel } from '@/services/log-store'
 import { logStore } from '@/services/log-store'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
+import iconLogViewer from '~icons/mdi/clipboard-text?raw'
 
 import logViewerCss from './index.css?raw'
 import logViewerHtml from './index.html?raw'
@@ -162,7 +163,7 @@ GME_registerCommandPaletteCommand({
   id: 'log',
   keywords: ['log', 'logs', '日志', 'viewer'],
   title: 'Open Log Viewer',
-  icon: '📋',
+  iconHtml: iconLogViewer,
   hint: 'View script logs',
   action: () => GME_openLogViewer(),
 })
