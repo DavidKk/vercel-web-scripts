@@ -11,7 +11,7 @@ preset/
 │   ├── entry.ts        # 构建入口，按依赖顺序 import
 │   ├── helpers/        # utils, logger, http, dom
 │   ├── services/       # log-store, tab-communication, script-update, ...
-│   ├── ui/             # corner-widget, notification, log-viewer, node-selector, spotlight
+│   ├── ui/             # corner-widget, notification, log-viewer, node-selector, command-palette
 │   ├── rules.ts
 │   ├── scripts.ts
 │   └── main.ts

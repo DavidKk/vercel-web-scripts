@@ -1,10 +1,10 @@
 /**
  * Hash Tool UI - Overlay to compute MD5, SHA-1, SHA-256, SHA-384, SHA-512 from pasted content.
- * Registers hash commands with Spotlight; opened via Spotlight (Cmd+Shift+P).
+ * Registers hash commands with command palette; opened via Cmd+Shift+P.
  */
 
 import { GME_debounce, GME_md5, GME_sha1, GME_sha256, GME_sha384, GME_sha512 } from '@/helpers/utils'
-import { GME_registerSpotlightCommand } from '@/ui/spotlight/index'
+import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 
 import hashToolCss from './index.css?raw'
 import hashToolHtml from './index.html?raw'
@@ -86,7 +86,7 @@ const HASH_COMMANDS: { id: HashToolAlgorithm; title: string; keywords: string[];
 ]
 
 HASH_COMMANDS.forEach(({ id, title, keywords, hint }) => {
-  GME_registerSpotlightCommand({
+  GME_registerCommandPaletteCommand({
     id,
     keywords,
     title,

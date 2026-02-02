@@ -6,7 +6,7 @@
 import { appendWhenBodyReady } from '@/helpers/dom'
 import type { LogLevel } from '@/services/log-store'
 import { logStore } from '@/services/log-store'
-import { GME_registerSpotlightCommand } from '@/ui/spotlight/index'
+import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 
 import logViewerCss from './index.css?raw'
 import logViewerHtml from './index.html?raw'
@@ -158,7 +158,7 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   requestAnimationFrame(() => appendWhenBodyReady(container))
 }
 
-GME_registerSpotlightCommand({
+GME_registerCommandPaletteCommand({
   id: 'log',
   keywords: ['log', 'logs', '日志', 'viewer'],
   title: 'Open Log Viewer',

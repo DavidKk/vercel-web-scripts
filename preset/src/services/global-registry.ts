@@ -34,6 +34,7 @@ import { registerBasicMenus } from '@/services/menu'
 import { executeEditorScript, executeLocalScript, executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
 import { getScriptUpdate } from '@/services/script-update'
 import { getTabCommunication } from '@/services/tab-communication'
+import { GME_openCommandPalette, GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_registerMenuCommand, GME_updateMenuCommand } from '@/ui/corner-widget/index'
 import { GME_openLogViewer } from '@/ui/log-viewer/index'
 import {
@@ -51,7 +52,6 @@ import {
   GME_unmarkNode,
 } from '@/ui/node-selector/index'
 import { GME_notification as GME_notificationUI } from '@/ui/notification/index'
-import { GME_openSpotlight, GME_registerSpotlightCommand } from '@/ui/spotlight/index'
 
 /**
  * Register all preset APIs onto globalThis (or __GLOBAL__ when run by launcher so preset and remote share the same sandbox).
@@ -74,8 +74,8 @@ export function registerGlobals(): void {
     // UI public API (GIST scripts)
     GME_openLogViewer,
     GME_notification: GME_notificationUI,
-    GME_openSpotlight,
-    GME_registerSpotlightCommand,
+    GME_openCommandPalette,
+    GME_registerCommandPaletteCommand,
     GME_registerMenuCommand,
     GME_updateMenuCommand,
     GME_enableNodeSelector,

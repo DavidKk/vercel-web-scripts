@@ -502,9 +502,9 @@ declare function GME_registerMenuCommand(item: MenuItem): any
 declare function GME_updateMenuCommand(id: string, updates: Partial<Omit<MenuItem, 'id'>>): boolean
 
 /**
- * Spotlight (command palette) command definition
+ * Command palette command definition
  */
-declare interface SpotlightCommand {
+declare interface CommandPaletteCommand {
   id: string
   keywords: string[]
   title: string
@@ -514,15 +514,15 @@ declare interface SpotlightCommand {
 }
 
 /**
- * Register a command in the Spotlight palette.
+ * Register a command in the command palette.
  * @param command Command definition (id, keywords, title, icon?, hint?, action)
  */
-declare function GME_registerSpotlightCommand(command: SpotlightCommand): void
+declare function GME_registerCommandPaletteCommand(command: CommandPaletteCommand): void
 
 /**
- * Open the Spotlight command palette programmatically
+ * Open the command palette programmatically
  */
-declare function GME_openSpotlight(): void
+declare function GME_openCommandPalette(): void
 
 /**
  * Options for waiting for DOM elements

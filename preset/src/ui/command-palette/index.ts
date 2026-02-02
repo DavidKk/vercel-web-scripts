@@ -1,19 +1,19 @@
 /**
- * Spotlight UI - macOS-style command palette.
+ * Command palette UI - quick command launcher (Cmd+Shift+P style).
  * Shortcut: Cmd+Shift+P / Ctrl+Shift+P, or double-tap backtick (` `). Type e.g. "log" to open Log Viewer.
- * Scripts can register more commands via GME_registerSpotlightCommand().
+ * Scripts can register more commands via GME_registerCommandPaletteCommand().
  *
- * @module spotlight
+ * @module command-palette
  */
 
 import { appendWhenBodyReady } from '@/helpers/dom'
 
-import spotlightCss from './index.css?raw'
-import spotlightHtml from './index.html?raw'
+import paletteCss from './index.css?raw'
+import paletteHtml from './index.html?raw'
 
-const TAG = 'vercel-web-script-spotlight'
+const TAG = 'vercel-web-script-command-palette'
 
-export interface SpotlightCommand {
+export interface CommandPaletteCommand {
   id: string
   keywords: string[]
   title: string
@@ -22,16 +22,16 @@ export interface SpotlightCommand {
   action: () => void
 }
 
-const PRE_COMMANDS: SpotlightCommand[] = []
+const PRE_COMMANDS: CommandPaletteCommand[] = []
 
-export function GME_registerSpotlightCommand(command: SpotlightCommand): void {
+export function GME_registerCommandPaletteCommand(command: CommandPaletteCommand): void {
   const existing = PRE_COMMANDS.find((c) => c.id === command.id)
   if (existing) {
     PRE_COMMANDS[PRE_COMMANDS.indexOf(existing)] = command
   } else {
     PRE_COMMANDS.push(command)
   }
-  const el = document.querySelector(TAG) as SpotlightUI | null
+  const el = document.querySelector(TAG) as CommandPaletteUI | null
   if (el?.registerCommand) el.registerCommand(command)
 }
 
@@ -41,17 +41,17 @@ function escapeHtml(s: string): string {
   return div.innerHTML
 }
 
-export class SpotlightUI extends HTMLElement {
+export class CommandPaletteUI extends HTMLElement {
   static TAG_NAME = TAG
-  static OPEN_CLASS = 'spotlight--open'
+  static OPEN_CLASS = 'command-palette--open'
   #shadowRoot: ShadowRoot | null = null
-  #commands: SpotlightCommand[] = []
+  #commands: CommandPaletteCommand[] = []
   #selectedIndex = 0
-  #filteredCommands: SpotlightCommand[] = []
+  #filteredCommands: CommandPaletteCommand[] = []
   #lastBacktickTime = 0
   static BACKTICK_DOUBLE_MS = 500
 
-  #filterCommands(query: string): SpotlightCommand[] {
+  #filterCommands(query: string): CommandPaletteCommand[] {
     const q = query.trim().toLowerCase()
     if (!q) return [...this.#commands]
     return this.#commands.filter((cmd) => {
@@ -62,20 +62,20 @@ export class SpotlightUI extends HTMLElement {
   }
 
   #getInputValue(): string {
-    const input = this.#shadowRoot?.querySelector('.spotlight__input') as HTMLInputElement | null
+    const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
     return (input?.value ?? '').trim()
   }
 
   #render(): void {
     if (!this.#shadowRoot) return
-    const listEl = this.#shadowRoot.querySelector('.spotlight__list') as HTMLElement | null
+    const listEl = this.#shadowRoot.querySelector('.command-palette__list') as HTMLElement | null
     if (!listEl) return
 
     const query = this.#getInputValue()
     this.#filteredCommands = this.#filterCommands(query)
 
     if (this.#filteredCommands.length === 0) {
-      listEl.innerHTML = '<li class="spotlight__empty">No matching commands</li>'
+      listEl.innerHTML = '<li class="command-palette__empty">No matching commands</li>'
       return
     }
 
@@ -83,14 +83,14 @@ export class SpotlightUI extends HTMLElement {
     listEl.innerHTML = ''
     this.#filteredCommands.forEach((cmd, i) => {
       const li = document.createElement('li')
-      li.className = 'spotlight__item' + (i === this.#selectedIndex ? ' spotlight__item--selected' : '')
+      li.className = 'command-palette__item' + (i === this.#selectedIndex ? ' command-palette__item--selected' : '')
       li.dataset.index = String(i)
       const icon = cmd.icon ?? '◆'
-      const hintHtml = cmd.hint ? `<div class="spotlight__item-hint">${escapeHtml(cmd.hint)}</div>` : ''
+      const hintHtml = cmd.hint ? `<div class="command-palette__item-hint">${escapeHtml(cmd.hint)}</div>` : ''
       li.innerHTML = `
-          <span class="spotlight__item-icon">${escapeHtml(icon)}</span>
-          <div class="spotlight__item-content">
-            <div class="spotlight__item-title">${escapeHtml(cmd.title)}</div>
+          <span class="command-palette__item-icon">${escapeHtml(icon)}</span>
+          <div class="command-palette__item-content">
+            <div class="command-palette__item-title">${escapeHtml(cmd.title)}</div>
             ${hintHtml}
           </div>
         `
@@ -107,7 +107,7 @@ export class SpotlightUI extends HTMLElement {
   }
 
   #keydownHandler = (e: KeyboardEvent): void => {
-    if (!this.classList.contains(SpotlightUI.OPEN_CLASS)) return
+    if (!this.classList.contains(CommandPaletteUI.OPEN_CLASS)) return
     if (e.key === 'Escape') {
       e.preventDefault()
       this.close()
@@ -145,7 +145,7 @@ export class SpotlightUI extends HTMLElement {
       const inEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target.isContentEditable && target.getAttribute('contenteditable') === 'true')
       if (inEditable) return
       const now = Date.now()
-      if (now - this.#lastBacktickTime < SpotlightUI.BACKTICK_DOUBLE_MS) {
+      if (now - this.#lastBacktickTime < CommandPaletteUI.BACKTICK_DOUBLE_MS) {
         e.preventDefault()
         this.#lastBacktickTime = 0
         this.open()
@@ -161,7 +161,7 @@ export class SpotlightUI extends HTMLElement {
   }
 
   #listClickHandler = (e: Event): void => {
-    const target = (e.target as HTMLElement).closest('.spotlight__item')
+    const target = (e.target as HTMLElement).closest('.command-palette__item')
     if (!target) return
     const idx = parseInt(target.getAttribute('data-index') ?? '-1', 10)
     if (idx >= 0 && idx < this.#filteredCommands.length) {
@@ -178,9 +178,9 @@ export class SpotlightUI extends HTMLElement {
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
     this.#shadowRoot.innerHTML = innerHTML
 
-    const input = this.#shadowRoot?.querySelector('.spotlight__input') as HTMLInputElement | null
-    const backdrop = this.#shadowRoot?.querySelector('.spotlight__backdrop')
-    const list = this.#shadowRoot?.querySelector('.spotlight__list')
+    const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
+    const backdrop = this.#shadowRoot?.querySelector('.command-palette__backdrop')
+    const list = this.#shadowRoot?.querySelector('.command-palette__list')
 
     input?.addEventListener('input', this.#inputHandler)
     input?.addEventListener('keydown', this.#keydownHandler)
@@ -200,44 +200,44 @@ export class SpotlightUI extends HTMLElement {
     document.removeEventListener('keydown', this.#globalKeydownHandler)
   }
 
-  registerCommand(command: SpotlightCommand): void {
+  registerCommand(command: CommandPaletteCommand): void {
     const idx = this.#commands.findIndex((c) => c.id === command.id)
     if (idx >= 0) this.#commands[idx] = command
     else this.#commands.push(command)
-    if (this.classList.contains(SpotlightUI.OPEN_CLASS)) this.#render()
+    if (this.classList.contains(CommandPaletteUI.OPEN_CLASS)) this.#render()
   }
 
   open(): void {
-    this.classList.add(SpotlightUI.OPEN_CLASS)
+    this.classList.add(CommandPaletteUI.OPEN_CLASS)
     this.#selectedIndex = 0
     this.#filteredCommands = this.#filterCommands(this.#getInputValue())
     this.#render()
     requestAnimationFrame(() => {
-      const input = this.#shadowRoot?.querySelector('.spotlight__input') as HTMLInputElement | null
+      const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
       input?.focus()
       input?.select()
     })
   }
 
   close(): void {
-    this.classList.remove(SpotlightUI.OPEN_CLASS)
-    const input = this.#shadowRoot?.querySelector('.spotlight__input') as HTMLInputElement | null
+    this.classList.remove(CommandPaletteUI.OPEN_CLASS)
+    const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
     input?.blur()
     if (input) input.value = ''
   }
 }
 
 if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
-  customElements.define(TAG, SpotlightUI)
+  customElements.define(TAG, CommandPaletteUI)
 }
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${spotlightCss}</style>${spotlightHtml}</template>`
+  container.innerHTML = `<template><style>${paletteCss}</style>${paletteHtml}</template>`
   requestAnimationFrame(() => appendWhenBodyReady(container))
 }
 
-export function GME_openSpotlight(): void {
-  const el = document.querySelector(TAG) as SpotlightUI | null
+export function GME_openCommandPalette(): void {
+  const el = document.querySelector(TAG) as CommandPaletteUI | null
   if (el?.open) el.open()
 }
