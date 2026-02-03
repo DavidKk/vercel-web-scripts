@@ -118,20 +118,28 @@ export class CommandPaletteUI extends HTMLElement {
   }
 
   /**
-   * Capture-phase keydown on document. When palette is open, consume all keydown
+   * Capture-phase keydown on document. When palette is open, consume keydown
    * so page shortcuts (e.g. 语雀) never run; apply keys to our input ourselves.
+   * Cmd/Ctrl+A/C/V/X are not consumed so the input keeps native select-all/copy/paste/cut.
    */
   #captureKeydownHandler = (event: KeyboardEvent): void => {
     if (!this.classList.contains(CommandPaletteUI.OPEN_CLASS)) {
       return
     }
-    event.stopPropagation()
-    event.preventDefault()
 
     const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
     if (!input) {
       return
     }
+
+    const mod = event.metaKey || event.ctrlKey
+    const inputNativeKeys = mod && (event.key === 'a' || event.key === 'c' || event.key === 'v' || event.key === 'x')
+    if (inputNativeKeys) {
+      return
+    }
+
+    event.stopPropagation()
+    event.preventDefault()
 
     if (event.key === 'Escape') {
       this.close()
