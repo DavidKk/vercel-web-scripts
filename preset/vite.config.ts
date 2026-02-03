@@ -56,7 +56,7 @@ function presetBuildHashPlugin() {
         if (!content.includes(PRESET_UPDATED_AT_PLACEHOLDER)) {
           throw new Error(`[preset-build-hash] Placeholder (13 zeros) not found in ${outPath}`)
         }
-        content = content.replace(PRESET_UPDATED_AT_PLACEHOLDER, buildTime)
+        content = content.replaceAll(PRESET_UPDATED_AT_PLACEHOLDER, buildTime)
         if (!content.includes(PROJECT_VERSION_PLACEHOLDER)) {
           throw new Error(`[preset-build-hash] Placeholder ${PROJECT_VERSION_PLACEHOLDER} not found in ${outPath}`)
         }

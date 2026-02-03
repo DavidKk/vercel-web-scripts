@@ -3,11 +3,22 @@
  */
 
 import { appendWhenBodyReady } from '@/helpers/dom'
+import iconWarn from '~icons/mdi/alert?raw'
+import iconSuccess from '~icons/mdi/check-circle?raw'
+import iconError from '~icons/mdi/close-circle?raw'
+import iconInfo from '~icons/mdi/information?raw'
 
 import notificationCss from './index.css?raw'
 import notificationHtml from './index.html?raw'
 
 const TAG = 'vercel-web-script-notification'
+
+const TYPE_ICONS: Record<'success' | 'error' | 'info' | 'warn', string> = {
+  success: iconSuccess,
+  error: iconError,
+  info: iconInfo,
+  warn: iconWarn,
+}
 
 export class NotificationUI extends HTMLElement {
   #shadowRoot: ShadowRoot | null = null
@@ -29,7 +40,17 @@ export class NotificationUI extends HTMLElement {
 
     const node = document.createElement('div')
     node.className = `notification ${type}`
-    node.textContent = message
+
+    const iconSpan = document.createElement('span')
+    iconSpan.className = 'notification__icon'
+    iconSpan.innerHTML = TYPE_ICONS[type]
+
+    const messageSpan = document.createElement('span')
+    messageSpan.className = 'notification__message'
+    messageSpan.textContent = message
+
+    node.appendChild(iconSpan)
+    node.appendChild(messageSpan)
     wrapper.appendChild(node)
 
     requestAnimationFrame(() => node.classList.add('show'))

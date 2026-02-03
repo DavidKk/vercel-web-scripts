@@ -57,8 +57,10 @@ async function main(): Promise<void> {
 
   const projectVersion = typeof __PROJECT_VERSION__ !== 'undefined' && __PROJECT_VERSION__ ? __PROJECT_VERSION__ : 'unknown'
   const updateTimeStamp = typeof __SCRIPT_UPDATED_AT__ !== 'undefined' && __SCRIPT_UPDATED_AT__ ? __SCRIPT_UPDATED_AT__ : ''
-  const updateTime = updateTimeStamp ? new Date(Number(updateTimeStamp)).toLocaleString() : 'unknown'
-  GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + ', preset build: ' + __PRESET_BUILD_HASH__)
+  const updateTimeMs = updateTimeStamp ? Number(updateTimeStamp) : 0
+  const updateTime = updateTimeMs > 0 && Number.isFinite(updateTimeMs) ? new Date(updateTimeMs).toLocaleString() : 'unknown'
+  const updateTimeHint = updateTime === 'unknown' ? ' (preset may be cached; add ?vws_script_update=1 and reload to refresh)' : ''
+  GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
   GME_debug('[Main] Starting main, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
 
   subscribePresetBuiltSSE(__BASE_URL__)

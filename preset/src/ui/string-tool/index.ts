@@ -34,6 +34,9 @@ interface StringToolRefs {
 /**
  * If clipboard contains valid JSON, pastes it into the editor via setValue.
  * No-op on permission error or non-JSON content; does not show UI feedback.
+ * Uses navigator.clipboard.readText() because Tampermonkey only provides GM_setClipboard (write);
+ * there is no GM_getClipboard or other GM_* API for reading clipboard.
+ *
  * @param setValue Callback to set editor content (e.g. el.setValue or refs.setResult)
  */
 function tryPasteClipboardJson(setValue: (text: string) => void): void {

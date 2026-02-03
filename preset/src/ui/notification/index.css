@@ -15,8 +15,11 @@
 
 .notification {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   color: #fff;
-  padding: 12px 16px 12px 52px;
+  padding: 12px 16px;
   margin-bottom: 10px;
   border-radius: 5px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -32,28 +35,33 @@
   transform: translateY(0);
 }
 
-.notification::before {
-  position: absolute;
-  left: 12px;
-  top: 50%;
+.notification__icon {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  font-size: 18px;
-  font-weight: bold;
   background: #fff;
-  transform: translateY(-50%);
+}
+
+.notification__icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.notification__message {
+  flex: 1;
+  min-width: 0;
 }
 
 .notification.success {
   background-color: var(--color-success);
 }
 
-.notification.success::before {
-  content: '✔';
+.notification.success .notification__icon {
   color: var(--color-success);
 }
 
@@ -61,8 +69,7 @@
   background-color: var(--color-error);
 }
 
-.notification.error::before {
-  content: '✘';
+.notification.error .notification__icon {
   color: var(--color-error);
 }
 
@@ -70,8 +77,7 @@
   background-color: var(--color-info);
 }
 
-.notification.info::before {
-  content: 'ℹ';
+.notification.info .notification__icon {
   color: var(--color-info);
 }
 
@@ -79,7 +85,6 @@
   background-color: var(--color-warning);
 }
 
-.notification.warn::before {
-  content: '⚠';
+.notification.warn .notification__icon {
   color: var(--color-warning);
 }

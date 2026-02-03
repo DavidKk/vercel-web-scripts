@@ -35,7 +35,9 @@ export function GME_registerCommandPaletteCommand(command: CommandPaletteCommand
     PRE_COMMANDS.push(command)
   }
   const el = document.querySelector(TAG) as CommandPaletteUI | null
-  if (el?.registerCommand) el.registerCommand(command)
+  if (el?.registerCommand) {
+    el.registerCommand(command)
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -56,7 +58,9 @@ export class CommandPaletteUI extends HTMLElement {
 
   #filterCommands(query: string): CommandPaletteCommand[] {
     const q = query.trim().toLowerCase()
-    if (!q) return [...this.#commands]
+    if (!q) {
+      return [...this.#commands]
+    }
     return this.#commands.filter((cmd) => {
       const titleMatch = cmd.title.toLowerCase().includes(q)
       const keywordMatch = cmd.keywords.some((k) => k.toLowerCase().includes(q) || k.toLowerCase() === q)
@@ -70,9 +74,13 @@ export class CommandPaletteUI extends HTMLElement {
   }
 
   #render(): void {
-    if (!this.#shadowRoot) return
+    if (!this.#shadowRoot) {
+      return
+    }
     const listEl = this.#shadowRoot.querySelector('.command-palette__list') as HTMLElement | null
-    if (!listEl) return
+    if (!listEl) {
+      return
+    }
 
     const query = this.#getInputValue()
     this.#filteredCommands = this.#filterCommands(query)
@@ -109,47 +117,93 @@ export class CommandPaletteUI extends HTMLElement {
     }
   }
 
-  #keydownHandler = (e: KeyboardEvent): void => {
-    if (!this.classList.contains(CommandPaletteUI.OPEN_CLASS)) return
-    if (e.key === 'Escape') {
-      e.preventDefault()
+  /**
+   * Capture-phase keydown on document. When palette is open, consume all keydown
+   * so page shortcuts (e.g. 语雀) never run; apply keys to our input ourselves.
+   */
+  #captureKeydownHandler = (event: KeyboardEvent): void => {
+    if (!this.classList.contains(CommandPaletteUI.OPEN_CLASS)) {
+      return
+    }
+    event.stopPropagation()
+    event.preventDefault()
+
+    const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
+    if (!input) {
+      return
+    }
+
+    if (event.key === 'Escape') {
       this.close()
       return
     }
-    if (e.key === 'Enter') {
-      e.preventDefault()
+    if (event.key === 'Enter') {
       this.#executeSelected()
       return
     }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
+    if (event.key === 'ArrowDown') {
       this.#selectedIndex = (this.#selectedIndex + 1) % Math.max(1, this.#filteredCommands.length)
       this.#render()
       return
     }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault()
+    if (event.key === 'ArrowUp') {
       this.#selectedIndex = (this.#selectedIndex - 1 + this.#filteredCommands.length) % Math.max(1, this.#filteredCommands.length)
       this.#render()
       return
     }
+
+    this.#applyKeyToInput(event, input)
   }
 
-  #globalKeydownHandler = (e: KeyboardEvent): void => {
-    const isP = e.key === 'p' || e.key === 'P'
-    if ((e.metaKey && e.shiftKey && isP) || (e.ctrlKey && e.shiftKey && isP)) {
-      e.preventDefault()
+  #applyKeyToInput(event: KeyboardEvent, input: HTMLInputElement): void {
+    const value = input.value
+    const start = input.selectionStart ?? value.length
+    const end = input.selectionEnd ?? value.length
+
+    if (event.key === 'Backspace') {
+      if (start === end && start > 0) {
+        input.value = value.slice(0, start - 1) + value.slice(end)
+        input.setSelectionRange(start - 1, start - 1)
+      } else if (start !== end) {
+        input.value = value.slice(0, start) + value.slice(end)
+        input.setSelectionRange(start, start)
+      }
+    } else if (event.key === 'Delete') {
+      if (start === end && end < value.length) {
+        input.value = value.slice(0, start) + value.slice(end + 1)
+        input.setSelectionRange(start, start)
+      } else if (start !== end) {
+        input.value = value.slice(0, start) + value.slice(end)
+        input.setSelectionRange(start, start)
+      }
+    } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      input.value = value.slice(0, start) + event.key + value.slice(end)
+      const newPos = start + event.key.length
+      input.setSelectionRange(newPos, newPos)
+    }
+
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    this.#selectedIndex = 0
+    this.#render()
+  }
+
+  #globalKeydownHandler = (event: KeyboardEvent): void => {
+    const isP = event.key === 'p' || event.key === 'P'
+    if ((event.metaKey && event.shiftKey && isP) || (event.ctrlKey && event.shiftKey && isP)) {
+      event.preventDefault()
       this.open()
       return
     }
 
-    if (e.key === '`') {
-      const target = e.target as HTMLElement
+    if (event.key === '`') {
+      const target = event.target as HTMLElement
       const inEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target.isContentEditable && target.getAttribute('contenteditable') === 'true')
-      if (inEditable) return
+      if (inEditable) {
+        return
+      }
       const now = Date.now()
       if (now - this.#lastBacktickTime < CommandPaletteUI.BACKTICK_DOUBLE_MS) {
-        e.preventDefault()
+        event.preventDefault()
         this.#lastBacktickTime = 0
         this.open()
       } else {
@@ -163,9 +217,11 @@ export class CommandPaletteUI extends HTMLElement {
     this.#render()
   }
 
-  #listClickHandler = (e: Event): void => {
-    const target = (e.target as HTMLElement).closest('.command-palette__item')
-    if (!target) return
+  #listClickHandler = (event: Event): void => {
+    const target = (event.target as HTMLElement).closest('.command-palette__item')
+    if (!target) {
+      return
+    }
     const idx = parseInt(target.getAttribute('data-index') ?? '-1', 10)
     if (idx >= 0 && idx < this.#filteredCommands.length) {
       this.#selectedIndex = idx
@@ -186,11 +242,11 @@ export class CommandPaletteUI extends HTMLElement {
     const list = this.#shadowRoot?.querySelector('.command-palette__list')
 
     input?.addEventListener('input', this.#inputHandler)
-    input?.addEventListener('keydown', this.#keydownHandler)
     backdrop?.addEventListener('click', () => this.close())
     list?.addEventListener('click', this.#listClickHandler)
 
     document.addEventListener('keydown', this.#globalKeydownHandler)
+    document.addEventListener('keydown', this.#captureKeydownHandler, true)
 
     this.#commands = [...PRE_COMMANDS]
     PRE_COMMANDS.length = 0
@@ -201,13 +257,19 @@ export class CommandPaletteUI extends HTMLElement {
 
   disconnectedCallback(): void {
     document.removeEventListener('keydown', this.#globalKeydownHandler)
+    document.removeEventListener('keydown', this.#captureKeydownHandler, true)
   }
 
   registerCommand(command: CommandPaletteCommand): void {
     const idx = this.#commands.findIndex((c) => c.id === command.id)
-    if (idx >= 0) this.#commands[idx] = command
-    else this.#commands.push(command)
-    if (this.classList.contains(CommandPaletteUI.OPEN_CLASS)) this.#render()
+    if (idx >= 0) {
+      this.#commands[idx] = command
+    } else {
+      this.#commands.push(command)
+    }
+    if (this.classList.contains(CommandPaletteUI.OPEN_CLASS)) {
+      this.#render()
+    }
   }
 
   open(): void {
@@ -215,6 +277,7 @@ export class CommandPaletteUI extends HTMLElement {
     this.#selectedIndex = 0
     this.#filteredCommands = this.#filterCommands(this.#getInputValue())
     this.#render()
+
     requestAnimationFrame(() => {
       const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
       input?.focus()
@@ -226,7 +289,9 @@ export class CommandPaletteUI extends HTMLElement {
     this.classList.remove(CommandPaletteUI.OPEN_CLASS)
     const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
     input?.blur()
-    if (input) input.value = ''
+    if (input) {
+      input.value = ''
+    }
   }
 }
 
@@ -242,5 +307,7 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
 
 export function GME_openCommandPalette(): void {
   const el = document.querySelector(TAG) as CommandPaletteUI | null
-  if (el?.open) el.open()
+  if (el?.open) {
+    el.open()
+  }
 }
