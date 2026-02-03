@@ -1,55 +1,20 @@
-import fs from 'fs'
-import path from 'path'
+import { readFile, stat } from 'fs/promises'
+import { join } from 'path'
 
-const PRESET_BUNDLE_PATH = path.join(process.cwd(), 'preset/dist/preset.js')
-const PRESET_MAP_PATH = path.join(process.cwd(), 'preset/dist/preset.js.map')
+/** Preset variable names passed into preset at runtime (single source of truth for launcher and createBanner). */
+export const PRESET_VAR_NAMES = [
+  '__BASE_URL__',
+  '__RULE_API_URL__',
+  '__EDITOR_URL__',
+  '__HMK_URL__',
+  '__SCRIPT_URL__',
+  '__IS_DEVELOP_MODE__',
+  '__HOSTNAME_PORT__',
+  '__GRANTS_STRING__',
+] as const
 
-/**
- * Read pre-built preset bundle (preset/dist/preset.js).
- * Preset registers GME_* and other APIs on globalThis, then runs main();
- * GIST scripts are injected by replacing __GIST_SCRIPTS_PLACEHOLDER__ in the bundle.
- * @returns Preset bundle content as string
- * @throws If preset has not been built (run pnpm build:preset)
- */
-export function getPresetBundle(): string {
-  try {
-    return fs.readFileSync(PRESET_BUNDLE_PATH, 'utf8')
-  } catch (e) {
-    throw new Error('Preset bundle not found. Run "pnpm build:preset" to build preset/dist/preset.js before generating the script.')
-  }
-}
-
-/**
- * Read preset source map if present; used to inline into final userscript for debugging in Tampermonkey.
- * @returns preset.js.map content or null if not found
- */
-export function getPresetBundleSourceMap(): string | null {
-  try {
-    if (fs.existsSync(PRESET_MAP_PATH)) {
-      return fs.readFileSync(PRESET_MAP_PATH, 'utf8')
-    }
-  } catch {
-    // ignore
-  }
-  return null
-}
-
-/**
- * Build sourceMappingURL comment with inline base64 map for appending to script.
- * @param mapContent preset.js.map content
- * @returns Comment line to append, or empty string if no map
- */
-export function buildInlineSourceMapComment(mapContent: string | null): string {
-  if (!mapContent) return ''
-  const base64 = Buffer.from(mapContent, 'utf8').toString('base64')
-  return `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${base64}`
-}
-
-/**
- * Build variable declarations string to prepend before preset bundle.
- * Preset expects these globals to be in scope when it runs.
- */
-export function buildPresetVariableDeclarations(variables: {
+/** Preset runtime variables (URLs, flags, grants string). */
+export interface PresetVariables {
   __BASE_URL__: string
   __RULE_API_URL__: string
   __EDITOR_URL__: string
@@ -58,7 +23,59 @@ export function buildPresetVariableDeclarations(variables: {
   __IS_DEVELOP_MODE__: boolean
   __HOSTNAME_PORT__: string
   __GRANTS_STRING__: string
-}): string {
+}
+
+const PRESET_BUNDLE_PATH = join(process.cwd(), 'preset/dist/preset.js')
+const PRESET_MANIFEST_PATH = join(process.cwd(), 'preset/dist/manifest.json')
+let presetBundleCache: { mtimeMs: number; content: string } | null = null
+
+/** Manifest shape written by preset/vite build (content hash for ETag / If-None-Match). */
+export interface PresetManifest {
+  file: string
+  hash: string
+}
+
+/**
+ * Read preset manifest (content hash). Returns null if not built.
+ * @returns Promise of manifest or null
+ */
+export async function getPresetManifest(): Promise<PresetManifest | null> {
+  try {
+    const raw = await readFile(PRESET_MANIFEST_PATH, 'utf-8')
+    return JSON.parse(raw) as PresetManifest
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Load preset bundle by reading file at request time (no compile-time import).
+ * Uses in-process cache invalidated by preset file mtime so rebuilds are picked up without restart.
+ * Preset registers GME_* and other APIs on globalThis, then runs main();
+ * GIST scripts are injected by replacing __GIST_SCRIPTS_PLACEHOLDER__ in the bundle.
+ * File may not exist until after pnpm build:preset.
+ * @returns Promise of preset bundle content as string
+ */
+export async function getPresetBundle(): Promise<string> {
+  try {
+    const st = await stat(PRESET_BUNDLE_PATH)
+    if (presetBundleCache && presetBundleCache.mtimeMs === st.mtimeMs) {
+      return presetBundleCache.content
+    }
+    const content = await readFile(PRESET_BUNDLE_PATH, 'utf-8')
+    presetBundleCache = { mtimeMs: st.mtimeMs, content }
+    return content
+  } catch (e) {
+    presetBundleCache = null
+    throw e
+  }
+}
+
+/**
+ * Build variable declarations string to prepend before preset bundle.
+ * Preset expects these globals to be in scope when it runs.
+ */
+export function buildPresetVariableDeclarations(variables: PresetVariables): string {
   return `
 const __BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
 const __RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
@@ -78,16 +95,7 @@ const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
  * Build global assignment statements for launcher: assign preset variables onto global object `g`.
  * Used when launcher evals preset so that preset code sees __BASE_URL__, __SCRIPT_URL__, etc.
  */
-export function buildPresetGlobalAssignments(variables: {
-  __BASE_URL__: string
-  __RULE_API_URL__: string
-  __EDITOR_URL__: string
-  __HMK_URL__: string
-  __SCRIPT_URL__: string
-  __IS_DEVELOP_MODE__: boolean
-  __HOSTNAME_PORT__: string
-  __GRANTS_STRING__: string
-}): string {
+export function buildPresetGlobalAssignments(variables: PresetVariables): string {
   return `
 g.__BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
 g.__RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};

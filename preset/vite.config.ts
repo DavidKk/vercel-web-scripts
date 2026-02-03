@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { createReadStream, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import Icons from 'unplugin-icons/vite'
 import { defineConfig } from 'vite'
+
+import pkg from '../package.json'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -17,11 +19,28 @@ const PRESET_UPDATED_AT_PLACEHOLDER = '0'.repeat(13)
 /** Placeholder for project version; replaced in writeBundle (avoids define not applied in lib output). */
 const PROJECT_VERSION_PLACEHOLDER = '__VWS_PROJECT_VERSION_PLACEHOLDER__'
 
-const pkg = JSON.parse(readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8')) as { version?: string }
-const projectVersion = pkg.version ?? '0.0.0'
+const projectVersion = (pkg as { version?: string }).version ?? '0.0.0'
+
+/** Manifest shape: content hash for conditional GET (If-None-Match → 304). */
+const MANIFEST_FILE = 'manifest.json'
 
 /**
- * Vite plugin: after bundle is written (writeBundle), replace placeholders with hash, build time, and project version.
+ * Hash file by streaming (avoids loading full content into memory for hash step).
+ * @returns Promise of SHA-1 hex digest
+ */
+function hashFileStream(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha1')
+    const stream = createReadStream(filePath)
+    stream.on('data', (chunk: Buffer | string) => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', reject)
+  })
+}
+
+/**
+ * Vite plugin: after bundle is written (writeBundle), replace placeholders with hash, build time, and project version;
+ * write manifest.json with content hash (streaming) for ETag / If-None-Match.
  */
 function presetBuildHashPlugin() {
   return {
@@ -33,11 +52,7 @@ function presetBuildHashPlugin() {
       for (const key of jsKeys) {
         const outPath = path.resolve(outDir, key)
         let content = readFileSync(outPath, 'utf-8')
-        const hash = createHash('sha1').update(content, 'utf8').digest('hex')
-        if (!content.includes(PRESET_BUILD_HASH_PLACEHOLDER)) {
-          throw new Error(`[preset-build-hash] Placeholder (40 zeros) not found in ${outPath}`)
-        }
-        content = content.replace(PRESET_BUILD_HASH_PLACEHOLDER, hash)
+        if (!content.includes(PRESET_BUILD_HASH_PLACEHOLDER)) continue
         if (!content.includes(PRESET_UPDATED_AT_PLACEHOLDER)) {
           throw new Error(`[preset-build-hash] Placeholder (13 zeros) not found in ${outPath}`)
         }
@@ -46,9 +61,14 @@ function presetBuildHashPlugin() {
           throw new Error(`[preset-build-hash] Placeholder ${PROJECT_VERSION_PLACEHOLDER} not found in ${outPath}`)
         }
         content = content.replaceAll(PROJECT_VERSION_PLACEHOLDER, projectVersion)
+        const inlineHash = createHash('sha1').update(content, 'utf8').digest('hex')
+        content = content.replace(PRESET_BUILD_HASH_PLACEHOLDER, inlineHash)
         writeFileSync(outPath, content, 'utf-8')
-        // eslint-disable-next-line no-console -- build hash debug
-        console.log(`[preset-build-hash] ${key} → ${hash}`)
+        return hashFileStream(outPath).then((contentHash) => {
+          writeFileSync(path.resolve(outDir, MANIFEST_FILE), JSON.stringify({ file: key, hash: contentHash }, null, 0), 'utf-8')
+          // eslint-disable-next-line no-console -- build hash debug
+          console.log(`[preset-build-hash] ${key} → ${contentHash}`)
+        })
       }
     },
   }
@@ -57,7 +77,6 @@ function presetBuildHashPlugin() {
 /**
  * Vite plugin: when preset build completes (watch or single), POST to Next.js dev API
  * so preset (running in browser) receives SSE and pushes update to Launcher.
- * Note: Vite build runs with NODE_ENV=production, so we always POST; API returns 404 in production.
  */
 function presetBuiltNotifyPlugin() {
   return {
@@ -73,25 +92,18 @@ function presetBuiltNotifyPlugin() {
         })
         // eslint-disable-next-line no-console -- dev SSE push debug
         console.log(`[preset-built-notify] POST ${url} → ${res.status}${res.ok ? ` (builtAt=${builtAt})` : ''}`)
-        if (!res.ok) {
-          // 404 in production or when Next dev not running
-        }
       } catch (err) {
         // eslint-disable-next-line no-console -- dev SSE push debug
         console.log('[preset-built-notify] POST failed:', (err as Error).message)
-        // Next.js dev server may not be running (e.g. build:preset only)
       }
     },
   }
 }
 
 /**
- * Vite config for preset (gm-templates migrated as ES modules).
- * Entry: preset/src/entry.ts
- * Output: preset/dist/ipreset.js
- * Target: Chrome, ESNext.
+ * Preset build: entry → preset/dist/preset.js (IIFE). Clears dist.
  */
-export default defineConfig({
+const presetConfig = defineConfig({
   root: __dirname,
   define: {
     __PRESET_BUILD_HASH__: JSON.stringify(PRESET_BUILD_HASH_PLACEHOLDER),
@@ -116,7 +128,6 @@ export default defineConfig({
     },
     target: 'esnext',
     minify: false,
-    /** Inline source map so Tampermonkey/userscript gets a single file; external .map would 404 when script loads from different origin. */
     sourcemap: 'inline',
   },
   resolve: {
@@ -125,3 +136,5 @@ export default defineConfig({
     },
   },
 })
+
+export default presetConfig

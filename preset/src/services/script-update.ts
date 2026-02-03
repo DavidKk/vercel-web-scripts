@@ -225,7 +225,7 @@ class ScriptUpdate {
           return { isValid: true, url: userUrl }
         }
       } catch (error) {
-        GME_debug('[Script Update] HEAD request failed:', error instanceof Error ? error.message : String(error))
+        GME_fail('[Script Update] HEAD request failed:', error instanceof Error ? error.message : String(error))
       }
 
       GME_fail('[Script Update] Script validation failed: tampermonkey.user.js is not available')

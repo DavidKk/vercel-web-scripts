@@ -56,8 +56,7 @@ export interface CreateScriptParams {
 
 export async function createUserScript({ scriptUrl, version, files }: CreateScriptParams) {
   const { content, grant, connect } = compileScripts(files)
-  // createBanner is now synchronous (uses inline imports, no fetch needed)
-  const withBanner = createBanner({ grant, connect, scriptUrl, version })
+  const withBanner = await createBanner({ grant, connect, scriptUrl, version })
   const script = withBanner(content).trim()
   return prettier.format(script, PRETTIER_CONFIG)
 }

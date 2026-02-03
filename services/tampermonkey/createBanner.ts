@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 
 import { getGistInfo } from '@/services/gist'
 
-import { buildInlineSourceMapComment, buildPresetVariableDeclarations, getPresetBundle, getPresetBundleSourceMap } from './gmCore'
+import { buildPresetVariableDeclarations, getPresetBundle } from './gmCore'
 import { GRANTS } from './grant'
 import { clearMeta } from './meta'
 
@@ -14,14 +14,14 @@ export interface CreateBannerParams {
 }
 
 /**
- * Create banner for Tampermonkey script.
+ * Create banner for Tampermonkey script (inline-GIST path only; Launcher path does not use this).
  * Uses pre-built preset/dist/preset.js: preset runs first and registers GME_* etc. on globalThis,
- * then executeGistScripts() runs with GIST code (external scripts can use GME_*).
- * Requires preset to be built (pnpm build:preset) before generating the script.
+ * then executeGistScripts() runs with GIST code. Preset content is read via getPresetBundle() (fs at request time).
  * @param params Banner creation parameters
- * @returns Function that generates the final script content
+ * @returns Promise of function that generates the final script content (banner + variables + presetWithGist)
+ * @see docs/script-generation-flow.md
  */
-export function createBanner({ grant, connect, scriptUrl, version }: CreateBannerParams) {
+export async function createBanner({ grant, connect, scriptUrl, version }: CreateBannerParams) {
   const key = getTampermonkeyScriptKey()
   const uri = new URL(scriptUrl)
   const { protocol, hostname, port } = uri
@@ -46,9 +46,15 @@ export function createBanner({ grant, connect, scriptUrl, version }: CreateBanne
     __GRANTS_STRING__: grantsString,
   })
 
-  const presetContent = getPresetBundle()
-  const presetSourceMap = getPresetBundleSourceMap()
-  const inlineSourceMapComment = buildInlineSourceMapComment(presetSourceMap)
+  let presetContent: string
+  try {
+    presetContent = await getPresetBundle()
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      throw new Error('Preset 未构建，请先执行 pnpm run build:preset')
+    }
+    throw e
+  }
 
   return (content: string) => {
     const clearMetaCode = clearMeta(content)
@@ -80,7 +86,7 @@ ${grants
 
 ${variableDeclarations}
 const __INLINE_GIST__ = true;
-${presetWithGist}${inlineSourceMapComment}
+${presetWithGist}
 `
   }
 }

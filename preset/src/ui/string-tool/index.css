@@ -1,8 +1,33 @@
+/* String Tool: 统一变量，参考 Log Viewer 风格，与 command-palette 一致 */
 .string-tool {
+  --st-radius: 8px;
+  --st-radius-sm: 4px;
+  --st-pad: 12px 16px;
+  --st-pad-sm: 6px 12px;
+  --st-pad-btn: 8px 14px;
+  --st-gap: 8px;
+  --st-gap-md: 12px;
+  --st-color-text: #1d1d1f;
+  --st-color-muted: #86868b;
+  --st-color-border: rgba(0, 0, 0, 0.08);
+  --st-bg-box: rgba(255, 255, 255, 0.96);
+  --st-bg-btn: rgba(0, 0, 0, 0.08);
+  --st-bg-btn-hover: rgba(0, 0, 0, 0.12);
+  --st-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --st-input-height: 120px;
+  --st-result-min-height: 60px;
+  --st-font-size: 14px;
+  --st-font-size-sm: 13px;
+  --st-font-size-label: 12px;
+  --st-title-size: 16px;
+
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .string-tool__backdrop {
@@ -14,103 +39,292 @@
   cursor: pointer;
 }
 
+/* 紧凑型单一样式 */
 .string-tool__box {
   position: relative;
   margin: 10vh auto;
   width: 92%;
   max-width: 560px;
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  background: var(--st-bg-box);
+  border-radius: var(--st-radius);
+  box-shadow: var(--st-shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   max-height: 80vh;
+  --st-pad: 10px 12px;
+  --st-pad-btn: 6px 10px;
+  --st-input-height: 100px;
+  --st-result-min-height: 48px;
+  --st-title-size: 14px;
 }
 
 .string-tool__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: var(--st-pad);
+  border-bottom: 1px solid var(--st-color-border);
+  gap: var(--st-gap-md);
 }
 
 .string-tool__title {
-  font-size: 18px;
+  font-size: var(--st-title-size);
   font-weight: 600;
-  color: #1d1d1f;
+  color: var(--st-color-text);
 }
 
-.string-tool__close {
+/* 统一样式：所有按钮复用（关闭按钮单独样式，参考 Log Viewer） */
+.string-tool__btn,
+.string-tool__uuid-regenerate,
+.string-tool__copy-btn {
   border: none;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
+  border-radius: var(--st-radius-sm);
+  padding: var(--st-pad-btn);
+  font-size: var(--st-font-size-sm);
   cursor: pointer;
-  color: #666;
+  color: var(--st-color-text);
+  background: var(--st-bg-btn);
+  white-space: nowrap;
+}
+
+.string-tool__btn:hover,
+.string-tool__uuid-regenerate:hover,
+.string-tool__copy-btn:hover {
+  background: var(--st-bg-btn-hover);
+}
+
+/* 关闭按钮：X 图标，参考 Log Viewer */
+.string-tool__close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--st-color-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--st-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .string-tool__close:hover {
-  background: rgba(0, 0, 0, 0.1);
+  color: var(--st-color-text);
+  background: var(--st-bg-btn);
 }
 
-.string-tool__action-wrap {
-  padding: 0 16px 8px;
+/* 输入槽：根据布局显示/隐藏或缩小 */
+.string-tool__input-slot {
+  min-height: var(--st-input-height);
+  border-bottom: 1px solid var(--st-color-border);
+  box-sizing: border-box;
+  padding: var(--st-pad);
+  font-size: var(--st-font-size);
+  color: var(--st-color-muted);
+}
+
+.string-tool__input-slot:has(> .string-tool__input-editor),
+.string-tool__input-slot:has(> .string-tool__textarea) {
+  padding: 0;
+}
+
+.string-tool__input-slot:has(> .string-tool__uuid-controls) {
   min-height: 0;
 }
 
-.string-tool__action-wrap:empty {
+.string-tool__input-slot:has(> .string-tool__json-editor-wrap) {
+  min-height: var(--st-input-height);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 布局 json-editor：隐藏结果区，输入槽占满剩余高度并限制最大高度避免破板 */
+.string-tool__box[data-layout='json-editor'] .string-tool__result-wrap {
   display: none;
 }
 
-.string-tool__action-btn {
-  border: none;
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
-  cursor: pointer;
-  color: #1d1d1f;
+.string-tool__box[data-layout='json-editor'] .string-tool__input-slot {
+  flex: 1;
+  min-height: 200px;
+  max-height: 60vh;
+  overflow: hidden;
 }
 
-.string-tool__action-btn:hover {
-  background: rgba(0, 0, 0, 0.12);
+.string-tool__uuid-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--st-gap-md);
+  flex-wrap: wrap;
+}
+
+.string-tool__uuid-controls label {
+  font-size: var(--st-font-size);
+  color: var(--st-color-text);
+  display: flex;
+  align-items: center;
+  gap: var(--st-gap);
+}
+
+.string-tool__uuid-controls input[type='number'] {
+  width: 64px;
+  padding: var(--st-pad-sm);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-sm);
+  font-size: var(--st-font-size);
+  box-sizing: border-box;
+}
+
+.string-tool__uuid-controls input[type='number']:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+.string-tool__uuid-regenerate {
+  /* 统一样式已在上方与 .string-tool__btn 一起定义 */
+}
+
+/* JSON 单编辑器：wrap 填满 input-slot，内部可滚动 */
+.string-tool__json-editor-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.string-tool__json-editor-area {
+  flex: 1;
+  min-height: 0;
+  border-bottom: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.string-tool__json-editor-area .string-tool__input-editor,
+.string-tool__json-editor-area .string-tool__textarea {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  border-bottom: none;
+  overflow: hidden;
+}
+
+.string-tool__result-wrap {
+  padding: var(--st-pad);
+  flex: 1;
+  min-height: var(--st-result-min-height);
+}
+
+.string-tool__result-label {
+  font-size: var(--st-font-size-label);
+  color: var(--st-color-muted);
+  margin-bottom: 4px;
+}
+
+.string-tool__result-slot {
+  min-height: var(--st-result-min-height);
+  font-size: var(--st-font-size);
+  font-family: monospace;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: var(--st-color-text);
 }
 
 .string-tool__textarea {
   width: 100%;
-  min-height: 120px;
-  padding: 12px 16px;
+  min-height: var(--st-input-height);
+  padding: var(--st-pad);
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  font-size: 14px;
+  border-bottom: 1px solid var(--st-color-border);
+  font-size: var(--st-font-size);
   font-family: monospace;
   resize: vertical;
   box-sizing: border-box;
   outline: none;
 }
 
-.string-tool__result-wrap {
-  padding: 12px 16px;
-  flex: 1;
-  min-height: 60px;
-}
-
-.string-tool__result-label {
-  font-size: 12px;
-  color: #86868b;
-  margin-bottom: 4px;
-}
-
 .string-tool__result {
-  font-size: 14px;
+  font-size: var(--st-font-size);
   font-family: monospace;
   word-break: break-all;
-  color: #1d1d1f;
+  white-space: pre-wrap;
+  color: var(--st-color-text);
 }
 
 .string-tool__result--empty {
-  color: #86868b;
+  color: var(--st-color-muted);
+}
+
+.string-tool__input-editor {
+  width: 100%;
+  height: var(--st-input-height);
+  min-height: var(--st-input-height);
+  border-bottom: 1px solid var(--st-color-border);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.string-tool__input-editor .cm-editor {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  /* 不设 flex-direction，保持默认 row：gutters 在左、scroller 在右，行号才能显示 */
+  outline: none;
+  background: transparent;
+}
+
+.string-tool__input-editor .cm-scroller {
+  flex: 1;
+  min-height: 0;
+  padding: var(--st-pad);
+  overflow: auto;
+  font-size: var(--st-font-size);
+  font-family: monospace;
+  line-height: 1.5;
+}
+
+/* content 至少填满 scroller 可视高度，配合 EditorView.theme 使用 */
+.string-tool__input-editor .cm-content {
+  min-height: 100%;
+}
+
+/* 行号 gutter：保持横向在左，与 string-tool 风格一致 */
+.string-tool__input-editor .cm-gutters {
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.04);
+  border-right: 1px solid var(--st-color-border);
+}
+
+.string-tool__input-editor .cm-lineNumbers .cm-gutterElement {
+  font-size: var(--st-font-size);
+  color: var(--st-color-muted);
+  padding-inline: 4px;
+  min-width: 2em;
+  text-align: right;
+}
+
+.string-tool__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--st-pad);
+  border-top: 1px solid var(--st-color-border);
+  gap: var(--st-gap);
+}
+
+.string-tool__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--st-gap);
+}
+
+.string-tool__copy-btn {
+  /* 统一样式已在上方定义 */
 }

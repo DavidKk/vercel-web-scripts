@@ -36,7 +36,10 @@ function pushToLogStore(level: 'ok' | 'info' | 'warn' | 'fail' | 'debug', ...con
       const msg = formatContentsForStore(...contents)
       if (msg) store.push(level, msg)
     }
-  } catch (_) {}
+  } catch (e) {
+    // eslint-disable-next-line no-console -- log store write failure must be visible (logger must not throw)
+    console.error('[logger] writeToStore failed:', e)
+  }
 }
 
 /**

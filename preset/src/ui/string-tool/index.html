@@ -3,13 +3,15 @@
   <div class="string-tool__box" part="box">
     <div class="string-tool__header" part="header">
       <span class="string-tool__title" part="title"></span>
-      <button type="button" class="string-tool__close" part="close">Close</button>
+      <button type="button" class="string-tool__close" part="close" aria-label="Close">×</button>
     </div>
-    <div class="string-tool__action-wrap" part="action-wrap"></div>
-    <textarea class="string-tool__textarea" part="textarea" placeholder="Paste or type content here..." autofocus></textarea>
+    <div class="string-tool__input-slot" part="input-slot"></div>
     <div class="string-tool__result-wrap" part="result-wrap">
       <div class="string-tool__result-label" part="result-label">Result</div>
-      <div class="string-tool__result string-tool__result--empty" part="result">—</div>
+      <div class="string-tool__result-slot" part="result-slot"></div>
+    </div>
+    <div class="string-tool__footer" part="footer">
+      <button type="button" class="string-tool__copy-btn" part="copy-btn">Copy</button>
     </div>
   </div>
 </div>

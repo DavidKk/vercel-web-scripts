@@ -1,9 +1,13 @@
+/* 与 string-tool、log-viewer 统一：8px 圆角、12px 16px 内边距、同一字体 */
 :host {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 2147483646;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 :host(.command-palette--open) {
@@ -35,11 +39,9 @@
   position: relative;
   width: 92%;
   max-width: 560px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 12px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -49,29 +51,30 @@
 .command-palette__input-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .command-palette__icon {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.06);
-  border-radius: 6px;
-  font-size: 12px;
-  color: #666;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #86868b;
 }
 
 .command-palette__input {
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 500;
   color: #1d1d1f;
   outline: none;
 }
@@ -83,7 +86,7 @@
 .command-palette__list {
   list-style: none;
   margin: 0;
-  padding: 6px 0;
+  padding: 4px 0;
   overflow-x: hidden;
   overflow-y: auto;
   max-height: 320px;
@@ -92,8 +95,8 @@
 .command-palette__item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 8px 14px;
   cursor: pointer;
   font-size: 14px;
   color: #1d1d1f;
@@ -110,15 +113,15 @@
 
 .command-palette__item-icon {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.06);
-  border-radius: 6px;
-  font-size: 14px;
-  color: #666;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #86868b;
 }
 
 .command-palette__item-icon svg {
@@ -141,24 +144,24 @@
 }
 
 .command-palette__item-hint {
-  font-size: 12px;
+  font-size: 11px;
   color: #86868b;
-  margin-top: 2px;
+  margin-top: 1px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .command-palette__empty {
-  padding: 24px 16px;
+  padding: 20px 14px;
   text-align: center;
   color: #86868b;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .command-palette__hint {
-  padding: 8px 16px;
+  padding: 6px 14px;
   font-size: 11px;
   color: #86868b;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }

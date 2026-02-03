@@ -5,11 +5,13 @@
  * updated without reinstalling the launcher.
  */
 
-import { buildPresetGlobalAssignments } from './gmCore'
+import { buildPresetGlobalAssignments, PRESET_VAR_NAMES } from './gmCore'
 import { GRANTS } from './grant'
 
 /** GM_setValue key for cached preset script content */
 export const PRESET_CACHE_KEY = 'vws_preset_cache'
+/** GM_setValue key for preset response ETag (content hash); used for If-None-Match → 304. */
+export const PRESET_ETAG_KEY = 'vws_preset_etag'
 /** GM_setValue key for preset update push: set to any value to trigger launcher reload (e.g. dev server or helper page) */
 export const PRESET_UPDATE_CHANNEL_KEY = 'vws_preset_update'
 /** GM_setValue key: set before reload so preset shows "Preset updated" notification after reload (must match preset main.ts) */
@@ -30,7 +32,7 @@ export interface CreateLauncherScriptParams {
  * Create the launcher userscript content.
  * Launcher: fetches preset from PRESET_URL, caches with GM_setValue,
  * injects variable declarations (with __SCRIPT_URL__ = remote URL), runs preset via new Function + with(g).
- * Provides "Update Script" menu (force update preset and remote script) and listens for preset update channel (dev push).
+ * Preset provides "Update Script" menu (in-place fetch and execute). Launcher listens for preset update channel (dev push).
  */
 export function createLauncherScript(params: CreateLauncherScriptParams): string {
   const { baseUrl, key, launcherScriptUrl, version = '1.0.0' } = params
@@ -62,7 +64,6 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
 
   // Preset expects __BASE_URL__, __IS_DEVELOP_MODE__, etc. as bare identifiers. Run preset in runPreset scope
   // and declare these from g so preset sees them; GM_* come from launcher closure.
-  const PRESET_VAR_NAMES = ['__BASE_URL__', '__RULE_API_URL__', '__EDITOR_URL__', '__HMK_URL__', '__SCRIPT_URL__', '__IS_DEVELOP_MODE__', '__HOSTNAME_PORT__', '__GRANTS_STRING__']
   // Inject __GLOBAL__ = g so preset and remote script use the same global (launcher's g / sandbox), not a different globalThis
   const presetVarDecls = 'var __GLOBAL__ = g; ' + PRESET_VAR_NAMES.map((n) => `var ${n} = g.${n};`).join(' ')
   const presetVarDeclsEscaped = presetVarDecls.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')
@@ -116,20 +117,38 @@ ${grantLines}
     }
   }
 
-  function loadAndRun() {
-    let presetCode = GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
-    if (presetCode) {
-      runPreset(presetCode);
-      return;
+  function getResponseHeader(res, name) {
+    var h = res.responseHeaders || '';
+    var lines = h.split(/\\r?\\n/);
+    var n = name.toLowerCase();
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.toLowerCase().indexOf(n + ':') === 0) return line.slice(line.indexOf(':') + 1).trim();
     }
+    return null;
+  }
 
+  function loadAndRun() {
+    var presetCode = GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
+    var presetEtag = GM_getValue(${JSON.stringify(PRESET_ETAG_KEY)}, '');
     var presetUrlWithCacheBust = PRESET_URL + (PRESET_URL.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    var headers = {};
+    if (presetEtag) headers['If-None-Match'] = presetEtag;
+
     GM_xmlhttpRequest({
       method: 'GET',
       url: presetUrlWithCacheBust,
+      headers: headers,
       onload: function (res) {
+        if (res.status === 304) {
+          if (presetCode) runPreset(presetCode);
+          else console.error('[Launcher] 304 but no cached preset');
+          return;
+        }
         if (res.status === 200 && res.responseText) {
           GM_setValue(${JSON.stringify(PRESET_CACHE_KEY)}, res.responseText);
+          var etag = getResponseHeader(res, 'etag');
+          if (etag) GM_setValue(${JSON.stringify(PRESET_ETAG_KEY)}, etag);
           runPreset(res.responseText);
         } else {
           console.error('[Launcher] failed to fetch preset, status:', res.status);
@@ -140,14 +159,6 @@ ${grantLines}
       },
     });
   }
-
-  GM_registerMenuCommand('Update Script', function () {
-    GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
-    console.log('[Launcher] Force update: preset cache cleared. Reloading...');
-    setTimeout(function () {
-      location.reload();
-    }, 500);
-  });
 
   GM_addValueChangeListener(${JSON.stringify(PRESET_UPDATE_CHANNEL_KEY)}, function (name, oldVal, newVal) {
     if (newVal == null) {
