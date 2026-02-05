@@ -28,6 +28,10 @@ export interface MarkedNodeInfo {
   signature: string
   /** CSS selector for finding the node */
   selector: string
+  /** XPath for finding the node (optional, generated when marking) - deprecated, use xpaths instead */
+  xpath?: string
+  /** XPath array for finding the node (all possible XPaths recorded over time) */
+  xpaths: string[]
   /** Label text for the marker (auto-generated hash if not provided) */
   label: string
   /** Timestamp when marked */

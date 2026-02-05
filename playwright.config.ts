@@ -5,22 +5,20 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './__webtests__',
-  /* TypeScript Configuration */
-  // Use dedicated TypeScript configuration file
-  // @ts-ignore
-  // Playwright automatically looks for tsconfig.json, but we can specify via env var
+  /* Fail if a single test runs longer than this (avoids hanging forever) */
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   /* Maximum number of tests to run in parallel */
   fullyParallel: true,
   /* Retry in CI if test fails */
   retries: process.env.CI ? 2 : 0,
-  /* Disable parallel execution in CI */
-  workers: process.env.CI ? 1 : undefined,
+  /* CI: 1 worker. Local: 2 workers to avoid preset load timeouts under high concurrency */
+  workers: process.env.CI ? 1 : 2,
   /* Test reporter configuration */
-  // Use list reporter for detailed console output, suitable for CI/CD
-  // Use dot reporter (concise) in CI, list reporter (detailed) locally
   reporter: process.env.CI ? [['list'], ['json', { outputFile: 'test-results/results.json' }]] : [['list'], ['html', { open: 'never' }]],
   /* Shared test configuration */
   use: {
+    headless: true,
     /* Collect trace when retrying the failed test */
     trace: 'on-first-retry',
     /* Screenshot configuration */
@@ -31,31 +29,18 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000',
   },
 
-  /* Configure test projects */
+  /* Only run Chromium by default (you only need `pnpm test:e2e:install`). Use PLAYWRIGHT_TEST_ALL_BROWSERS=true to run firefox + webkit. */
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Use headless mode in CI environment
-        headless: true,
-      },
+      use: { ...devices['Desktop Chrome'], headless: true },
     },
-
-    // Test against other browsers during local development
-    // Only test chromium in CI to save time
-    ...(process.env.CI
-      ? []
-      : [
-          {
-            name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
-          },
-          {
-            name: 'webkit',
-            use: { ...devices['Desktop Safari'] },
-          },
-        ]),
+    ...(process.env.PLAYWRIGHT_TEST_ALL_BROWSERS === 'true' && !process.env.CI
+      ? [
+          { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+          { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+        ]
+      : []),
   ],
 
   /* Run local development server - E2E Demo */
@@ -63,7 +48,7 @@ export default defineConfig({
     command: 'pnpm dev:e2e',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: 90_000,
     stdout: 'ignore',
     stderr: 'pipe',
   },

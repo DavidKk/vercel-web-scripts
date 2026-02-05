@@ -10,8 +10,10 @@
 
 import * as dom from '@/helpers/dom'
 import * as http from '@/helpers/http'
+import * as locator from '@/helpers/locator'
 import * as logger from '@/helpers/logger'
 import * as utils from '@/helpers/utils'
+import { findElementByXPath, generateXPath } from '@/helpers/xpath'
 import { fetchAndCacheRules, fetchRulesFromCache, matchUrl } from '@/rules'
 import { fetchScript } from '@/scripts'
 import {
@@ -66,6 +68,9 @@ export function registerGlobals(): void {
     ...http,
     ...logger,
     ...dom,
+    ...locator,
+    generateXPath,
+    findElementByXPath,
     logStore,
 
     // Script loading (used by script-execution, dev-mode/local, script-update). fetchCompileScript/loadScript not exposed to avoid GIST calling compile on every page.

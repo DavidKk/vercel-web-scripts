@@ -19,7 +19,9 @@
 import { appendWhenBodyReady } from '@/helpers/dom'
 import { GME_info, GME_warn } from '@/helpers/logger'
 import { getUnsafeWindow } from '@/services/cli-service'
+import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
+import iconNodeSelector from '~icons/mdi/gesture-tap?raw'
 
 import nodeSelectorCss from './index.css?raw'
 import nodeSelectorHtml from './index.html?raw'
@@ -178,11 +180,46 @@ export function GME_areMarksHidden(): boolean {
   return selector ? selector.areMarksHidden() : false
 }
 
+/**
+ * Check if node selector is currently enabled
+ * @returns Whether the node selector is enabled
+ */
+export function GME_isNodeSelectorEnabled(): boolean {
+  const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
+  return selector ? selector.isEnabled() : false
+}
+
 if (typeof document !== 'undefined' && !document.querySelector(NodeSelector.TAG_NAME)) {
   const container = document.createElement(NodeSelector.TAG_NAME)
   container.innerHTML = `<template><style>${nodeSelectorCss}</style>${nodeSelectorHtml}</template>`
   requestAnimationFrame(() => appendWhenBodyReady(container))
 }
+
+GME_registerCommandPaletteCommand({
+  id: 'node-selector-toggle',
+  keywords: ['node', 'selector', 'toggle', '节点', '选择器', '开关'],
+  title: 'Toggle Node Selector',
+  iconHtml: iconNodeSelector,
+  hint: 'Enable/disable node selection mode',
+  action: () => {
+    if (GME_isNodeSelectorEnabled()) {
+      GME_disableNodeSelector()
+    } else {
+      GME_enableNodeSelector({
+        enableClickSelection: true,
+        onSelect: (node: HTMLElement) => {
+          const markId = GME_markNode(node, `Mark ${Date.now()}`)
+          if (markId) GME_notification('Node marked', 'success')
+        },
+        getNodeInfo: (node: HTMLElement) => ({
+          title: node.tagName.toLowerCase(),
+          subtitle: node.className || node.id || '',
+          details: [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`],
+        }),
+      })
+    }
+  },
+})
 
 // ============================================================================
 // DEBUG/TEST CODE - for development only, remove in production

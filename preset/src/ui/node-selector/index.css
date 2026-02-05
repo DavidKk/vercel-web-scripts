@@ -93,6 +93,17 @@
   margin-top: 2px;
 }
 
+.node-selector-tooltip__xpath {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 10px;
+  color: rgba(139, 92, 246, 0.9);
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  max-width: 400px;
+}
+
 /* Markers container */
 .node-selector-markers {
   display: contents; /* Container doesn't take up space, children handle their own positioning */
@@ -133,11 +144,20 @@ vercel-web-script-marker-highlight-box:has(.node-selector-marker:hover) {
   background: color-mix(in srgb, var(--marker-color) 20%, transparent) !important; /* More visible background on hover */
 }
 
+/* On hover marker label, make marker highlight box more visible */
+vercel-web-script-marker-highlight-box:has(.node-selector-marker:hover),
+vercel-web-script-marker-highlight-box:has(vercel-web-script-marker-label:hover) {
+  border-color: color-mix(in srgb, var(--marker-color) 70%, transparent) !important; /* More visible border on hover */
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--marker-color) 30%, transparent) !important;
+  background: color-mix(in srgb, var(--marker-color) 20%, transparent) !important; /* More visible background on hover */
+}
+
 vercel-web-script-marker-highlight-box.node-selector-marker-highlight--hidden {
   opacity: 0;
 }
 
-/* Marker element (now inside highlight box) */
+/* Marker label web component (uses .node-selector-marker styles) */
+vercel-web-script-marker-highlight-box vercel-web-script-marker-label,
 vercel-web-script-marker-highlight-box .node-selector-marker {
   position: absolute;
   pointer-events: auto;
@@ -154,20 +174,23 @@ vercel-web-script-marker-highlight-box .node-selector-marker {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   border: 1px solid color-mix(in srgb, var(--marker-color) 35%, transparent);
   backdrop-filter: blur(4px);
-  z-index: 2147483645; /* Higher z-index to ensure visibility */
-  top: -4px;
-  left: -4px;
   transform: translateY(-100%);
   transition:
     opacity 0.2s ease,
     transform 0.2s ease,
     background 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    top 0.1s ease,
+    left 0.1s ease;
   opacity: 0.85; /* More transparent by default */
+  top: -4px; /* Default position, will be adjusted by JS */
+  left: -4px; /* Default position, will be adjusted by JS */
+  z-index: 2147483645;
 }
 
 /* On hover, make marker label more visible */
-vercel-web-script-marker-highlight-box .node-selector-marker:hover {
+vercel-web-script-marker-highlight-box .node-selector-marker:hover,
+vercel-web-script-marker-highlight-box vercel-web-script-marker-label:hover {
   background: color-mix(in srgb, var(--marker-color) 95%, transparent) !important; /* More visible on hover */
   border-color: color-mix(in srgb, var(--marker-color) 50%, transparent) !important;
   opacity: 1 !important;
@@ -240,4 +263,182 @@ vercel-web-script-marker-highlight-box .node-selector-marker:hover {
 
 .node-selector-marker__delete:active {
   opacity: 0.8;
+}
+
+/* XPath panel web component (dropdown when hovering marker label) */
+vercel-web-script-marker-highlight-box vercel-web-script-marker-xpath-panel,
+vercel-web-script-marker-highlight-box .node-selector-xpath-panel {
+  position: absolute; /* Relative to highlight box */
+  background: rgba(30, 32, 36, 0.98);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0;
+  font-size: 11px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  z-index: 2147483646; /* Above marker */
+  max-width: 500px;
+  min-width: 250px;
+  pointer-events: auto;
+  top: 0; /* Right below marker (marker bottom is at -4px after translateY(-100%), so panel at 0) */
+  left: -4px; /* Aligned with marker */
+  margin-top: 4px; /* Spacing from marker */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+  transition:
+    top 0.1s ease,
+    left 0.1s ease;
+}
+
+/* XPath panel footer with buttons */
+.node-selector-xpath-panel__footer {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  margin-top: auto;
+}
+
+/* XPath panel buttons */
+.node-selector-xpath-panel__btn {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+}
+
+.node-selector-xpath-panel__btn:hover {
+  background: rgba(139, 92, 246, 0.35);
+  border-color: rgba(139, 92, 246, 0.5);
+  color: #fff;
+}
+
+.node-selector-xpath-panel__btn:active {
+  background: rgba(139, 92, 246, 0.45);
+  border-color: rgba(139, 92, 246, 0.6);
+}
+
+.node-selector-xpath-panel__btn--copy-js {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.node-selector-xpath-panel__btn--copy-js:hover {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.node-selector-xpath-panel__btn--copy-js:active {
+  background: rgba(59, 130, 246, 0.45);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+/* XPath panel text content */
+.node-selector-xpath-panel__container {
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.node-selector-xpath-panel__item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s ease;
+}
+
+.node-selector-xpath-panel__item:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.node-selector-xpath-panel__item--selected {
+  background: rgba(139, 92, 246, 0.2);
+  border-left: 2px solid rgba(139, 92, 246, 0.8);
+}
+
+.node-selector-xpath-panel__item--selected:hover {
+  background: rgba(139, 92, 246, 0.25);
+}
+
+.node-selector-xpath-panel__text {
+  padding: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: rgba(139, 92, 246, 0.95);
+  word-break: break-all;
+  line-height: 1.5;
+  user-select: text;
+}
+
+/* XPath panel no-data state */
+.node-selector-xpath-panel__no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.node-selector-xpath-panel__no-data-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Create a document/page icon using CSS */
+.node-selector-xpath-panel__no-data-icon::before {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 30px;
+  border: 2px solid rgba(139, 92, 246, 0.5);
+  border-radius: 2px;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.node-selector-xpath-panel__no-data-icon::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 2px;
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 1px;
+}
+
+.node-selector-xpath-panel__no-data-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 4px;
+}
+
+.node-selector-xpath-panel__no-data-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
 }

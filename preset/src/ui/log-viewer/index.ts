@@ -31,6 +31,8 @@ export class LogViewerUI extends HTMLElement {
   #shadowRoot: ShadowRoot | null = null
   #unsubscribe: (() => void) | null = null
   #store: typeof logStore | null = null
+  /** When false, only logs from current page session are shown; when true, include persisted history */
+  #includePrevious = false
 
   connectedCallback() {
     const template = this.querySelector('template')
@@ -45,12 +47,14 @@ export class LogViewerUI extends HTMLElement {
     const backdrop = this.#shadowRoot.querySelector('.log-viewer__backdrop')
     const closeBtn = this.#shadowRoot.querySelector('.log-viewer__close')
     const clearBtn = this.#shadowRoot.querySelector('.log-viewer__clear')
+    const includePreviousBtn = this.#shadowRoot.querySelector('.log-viewer__include-previous')
     const searchInput = this.#shadowRoot.querySelector('.log-viewer__search')
     const filterInputs = this.#shadowRoot.querySelectorAll('.log-viewer__filter input')
 
     backdrop?.addEventListener('click', () => this.close())
     closeBtn?.addEventListener('click', () => this.close())
     clearBtn?.addEventListener('click', () => this.#onClear())
+    includePreviousBtn?.addEventListener('click', () => this.#onToggleIncludePrevious())
     searchInput?.addEventListener('input', () => this.#render())
     filterInputs?.forEach((input) => input.addEventListener('change', () => this.#render()))
   }
@@ -62,6 +66,8 @@ export class LogViewerUI extends HTMLElement {
 
   open() {
     this.classList.add('log-viewer--open')
+    this.#includePrevious = false
+    this.#updateIncludePreviousButton()
     this.#unsubscribe?.()
     if (this.#store?.subscribe) {
       this.#unsubscribe = this.#store.subscribe(() => this.#render())
@@ -78,6 +84,21 @@ export class LogViewerUI extends HTMLElement {
   #onClear() {
     this.#store?.clearLogs()
     this.#render()
+  }
+
+  #onToggleIncludePrevious() {
+    this.#includePrevious = !this.#includePrevious
+    this.#updateIncludePreviousButton()
+    this.#render()
+  }
+
+  #updateIncludePreviousButton() {
+    const btn = this.#shadowRoot?.querySelector('.log-viewer__include-previous') as HTMLButtonElement
+    if (btn) {
+      btn.textContent = this.#includePrevious ? 'Current only' : 'Include previous'
+      btn.title = this.#includePrevious ? 'Show only logs from this page session' : 'Include logs from previous page sessions'
+      btn.classList.toggle('log-viewer__include-previous--active', this.#includePrevious)
+    }
   }
 
   #getSelectedLevels(): Set<LogLevel> {
@@ -109,7 +130,17 @@ export class LogViewerUI extends HTMLElement {
     const levels = this.#getSelectedLevels()
     const keyword = this.#getSearchKeyword()
 
-    const entries: LogEntry[] = this.#store?.getLogs() ?? []
+    if (!this.#store) {
+      listEl.innerHTML = ''
+      const empty = document.createElement('div')
+      empty.className = 'log-viewer__empty'
+      empty.textContent = 'Log store not available (logger may not be loaded)'
+      listEl.appendChild(empty)
+      return
+    }
+
+    const scope = this.#includePrevious ? 'all' : 'current'
+    const entries: LogEntry[] = this.#store.getLogs(scope)
     const filtered = entries.filter((e) => {
       if (!levels.has(e.level)) return false
       if (keyword && !e.message.toLowerCase().includes(keyword)) return false
@@ -121,7 +152,11 @@ export class LogViewerUI extends HTMLElement {
     if (filtered.length === 0) {
       const empty = document.createElement('div')
       empty.className = 'log-viewer__empty'
-      empty.textContent = entries.length === 0 ? 'No logs yet' : 'No matching logs'
+      if (entries.length === 0) {
+        empty.textContent = this.#includePrevious ? 'No logs yet' : 'No logs this session'
+      } else {
+        empty.textContent = 'No matching logs'
+      }
       listEl.appendChild(empty)
       return
     }

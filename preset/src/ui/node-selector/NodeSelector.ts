@@ -4,9 +4,13 @@
  */
 
 import { GME_warn } from '@/helpers/logger'
+import { findElementByXPath, generateXPath } from '@/helpers/xpath'
 
 import { MarkerHighlightBox } from './MarkerHighlightBox'
 import type { MarkedNodeInfo, NodeInfo, NodeSelectorOptions } from './types'
+
+/** Marker color when mark is invalid (node not found) so failure is visible at a glance */
+const MARKER_COLOR_FAILED = '#ef4444'
 
 export class NodeSelector extends HTMLElement {
   /** Custom element tag name */
@@ -62,6 +66,39 @@ export class NodeSelector extends HTMLElement {
   #marksHidden = false
   /** Instance-level marker color (all marks created by this instance use this color) */
   #markColor = '#8b5cf6' // Default purple
+  /** Cached scrollbar width (lazy initialized) */
+  #scrollbarWidth: number | null = null
+
+  /**
+   * Get scrollbar width (cached to avoid repeated calculations)
+   */
+  #getScrollbarWidth(): number {
+    // Create a temporary div to measure scrollbar width
+    const outer = document.createElement('div')
+    outer.style.visibility = 'hidden'
+    outer.style.overflow = 'scroll'
+    // @ts-ignore - msOverflowStyle is IE-specific
+    outer.style.msOverflowStyle = 'scrollbar'
+    document.body.appendChild(outer)
+
+    const inner = document.createElement('div')
+    outer.appendChild(inner)
+
+    const scrollbarWidth = outer.offsetWidth - inner.offsetWidth
+
+    outer.parentNode?.removeChild(outer)
+    return scrollbarWidth
+  }
+
+  /**
+   * Get scrollbar width (with caching)
+   */
+  #getCachedScrollbarWidth(): number {
+    if (this.#scrollbarWidth === null) {
+      this.#scrollbarWidth = this.#getScrollbarWidth()
+    }
+    return this.#scrollbarWidth
+  }
 
   /**
    * Check if a node is a plugin element
@@ -225,6 +262,7 @@ export class NodeSelector extends HTMLElement {
    * Dynamically uses fixed or absolute positioning based on target element's position
    * - If target or any ancestor has position: fixed or sticky, use fixed positioning
    * - Otherwise, use absolute positioning relative to document
+   * Ensures top-right and bottom-right corners stay within viewport (accounting for scrollbar width)
    */
   #updateHighlightBox() {
     if (!this.#highlightBox || !this.#currentHighlightTarget) {
@@ -236,26 +274,53 @@ export class NodeSelector extends HTMLElement {
 
     const rect = this.#currentHighlightTarget.getBoundingClientRect()
     const isFixedOrSticky = this.#hasFixedOrStickyPosition(this.#currentHighlightTarget)
+    const scrollbarWidth = this.#getCachedScrollbarWidth()
+
+    // Viewport dimensions accounting for scrollbar
+    const viewportWidth = window.innerWidth - scrollbarWidth
+    const viewportHeight = window.innerHeight
+
+    let top = rect.top
+    let left = rect.left
+    let width = rect.width
+    let height = rect.height
+
+    // Calculate right edge positions (top-right and bottom-right corners)
+    const rightEdge = left + width
+    const bottomRightY = top + height
+
+    // Constrain: top-right and bottom-right corners must not exceed viewport right edge
+    if (rightEdge > viewportWidth) {
+      // Adjust width to keep right edge within viewport
+      width = Math.max(0, viewportWidth - left)
+    }
+
+    // Also ensure bottom-right corner's Y doesn't exceed viewport bottom
+    // (though this is less common, we check it for completeness)
+    if (bottomRightY > viewportHeight) {
+      // Adjust height to keep bottom-right corner within viewport
+      height = Math.max(0, viewportHeight - top)
+    }
 
     if (isFixedOrSticky) {
       // For fixed or sticky elements, use fixed positioning (relative to viewport)
       // Sticky elements behave like fixed when they're "stuck", so use fixed positioning
       // No need to add scroll offsets
       this.#highlightBox.style.position = 'fixed'
-      this.#highlightBox.style.top = `${rect.top}px`
-      this.#highlightBox.style.left = `${rect.left}px`
+      this.#highlightBox.style.top = `${top}px`
+      this.#highlightBox.style.left = `${left}px`
     } else {
       // For non-fixed/sticky elements, use absolute positioning (relative to document)
       // Add window scroll to get document-relative position
       const scrollX = window.scrollX || document.documentElement.scrollLeft || 0
       const scrollY = window.scrollY || document.documentElement.scrollTop || 0
       this.#highlightBox.style.position = 'absolute'
-      this.#highlightBox.style.top = `${rect.top + scrollY}px`
-      this.#highlightBox.style.left = `${rect.left + scrollX}px`
+      this.#highlightBox.style.top = `${top + scrollY}px`
+      this.#highlightBox.style.left = `${left + scrollX}px`
     }
 
-    this.#highlightBox.style.width = `${rect.width}px`
-    this.#highlightBox.style.height = `${rect.height}px`
+    this.#highlightBox.style.width = `${width}px`
+    this.#highlightBox.style.height = `${height}px`
     this.#highlightBox.classList.add('node-selector-highlight--visible')
   }
 
@@ -268,31 +333,52 @@ export class NodeSelector extends HTMLElement {
   #updateTooltip(node: HTMLElement, x: number, y: number) {
     if (!this.#tooltip) return
 
+    // Generate XPath for the node (always show)
+    const xpath = generateXPath(node)
+    const xpathEl = this.#tooltip.querySelector('.node-selector-tooltip__xpath')
+    if (xpathEl) {
+      xpathEl.textContent = xpath ? `XPath: ${xpath}` : 'XPath: 无法生成有效的 XPath'
+    }
+
     if (!this.#getNodeInfoCallback) {
-      this.#tooltip.classList.remove('node-selector-tooltip--visible')
-      return
-    }
+      // Show default info with XPath even if no callback
+      const titleEl = this.#tooltip.querySelector('.node-selector-tooltip__title')
+      const subtitleEl = this.#tooltip.querySelector('.node-selector-tooltip__subtitle')
+      const detailsEl = this.#tooltip.querySelector('.node-selector-tooltip__details')
 
-    const info = this.#getNodeInfoCallback(node)
-    if (!info) {
-      this.#tooltip.classList.remove('node-selector-tooltip--visible')
-      return
-    }
-
-    const titleEl = this.#tooltip.querySelector('.node-selector-tooltip__title')
-    const subtitleEl = this.#tooltip.querySelector('.node-selector-tooltip__subtitle')
-    const detailsEl = this.#tooltip.querySelector('.node-selector-tooltip__details')
-
-    if (titleEl) titleEl.textContent = info.title
-    if (subtitleEl) subtitleEl.textContent = info.subtitle || ''
-    if (detailsEl) {
-      detailsEl.innerHTML = ''
-      if (info.details) {
-        info.details.forEach((detail: string) => {
+      if (titleEl) titleEl.textContent = node.tagName.toLowerCase()
+      if (subtitleEl) subtitleEl.textContent = node.className || node.id || ''
+      if (detailsEl) {
+        detailsEl.innerHTML = ''
+        const details = [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`]
+        details.forEach((detail: string) => {
           const div = document.createElement('div')
           div.textContent = detail
           detailsEl.appendChild(div)
         })
+      }
+    } else {
+      const info = this.#getNodeInfoCallback(node)
+      if (!info) {
+        this.#tooltip.classList.remove('node-selector-tooltip--visible')
+        return
+      }
+
+      const titleEl = this.#tooltip.querySelector('.node-selector-tooltip__title')
+      const subtitleEl = this.#tooltip.querySelector('.node-selector-tooltip__subtitle')
+      const detailsEl = this.#tooltip.querySelector('.node-selector-tooltip__details')
+
+      if (titleEl) titleEl.textContent = info.title
+      if (subtitleEl) subtitleEl.textContent = info.subtitle || ''
+      if (detailsEl) {
+        detailsEl.innerHTML = ''
+        if (info.details) {
+          info.details.forEach((detail: string) => {
+            const div = document.createElement('div')
+            div.textContent = detail
+            detailsEl.appendChild(div)
+          })
+        }
       }
     }
 
@@ -434,6 +520,18 @@ export class NodeSelector extends HTMLElement {
   }
 
   /**
+   * Handle keydown event (ESC to disable node selector)
+   * @param event Keyboard event
+   */
+  #handleKeyDown = (event: KeyboardEvent) => {
+    if (!this.#isEnabled) return
+    if (event.key === 'Escape' || event.keyCode === 27) {
+      event.stopPropagation()
+      this.disable()
+    }
+  }
+
+  /**
    * Handle click event
    * @param event Mouse event
    */
@@ -463,7 +561,7 @@ export class NodeSelector extends HTMLElement {
   }
 
   /**
-   * Get markers container
+   * Get markers container (internal)
    * @returns Markers container element
    */
   #getMarkersContainer(): HTMLElement | null {
@@ -471,6 +569,24 @@ export class NodeSelector extends HTMLElement {
       this.#markersContainer = this.#shadowRoot.querySelector('.node-selector-markers') as HTMLElement
     }
     return this.#markersContainer
+  }
+
+  /**
+   * Get markers container (public method for child components)
+   * Allows child components like MarkerHighlightBox to access the shadow DOM markers container
+   * @returns Markers container element or null if not available
+   */
+  getMarkersContainer(): HTMLElement | null {
+    return this.#getMarkersContainer()
+  }
+
+  /**
+   * Get shadow root (public method for child components)
+   * Allows child components to access the shadow DOM
+   * @returns Shadow root or null if not available
+   */
+  getShadowRoot(): ShadowRoot | null {
+    return this.#shadowRoot
   }
 
   /**
@@ -486,23 +602,40 @@ export class NodeSelector extends HTMLElement {
         const markId = this.#markerNodeToMarkId.get(node)
         if (!markId) return
 
-        const selector = this.#markedNodes[markId]?.selector
-        if (!selector) return
+        const markInfo = this.#markedNodes[markId]
+        if (!markInfo) return
 
-        const targetNode = document.querySelector(selector) as HTMLElement
+        // Use XPath to find node (more reliable than CSS selector)
+        // Try all xpaths in order
+        let targetNode: HTMLElement | null = null
+        if (markInfo.xpaths && markInfo.xpaths.length > 0) {
+          for (const xpath of markInfo.xpaths) {
+            targetNode = findElementByXPath(xpath)
+            if (targetNode) break
+          }
+        }
+        // Fallback to old xpath field
+        if (!targetNode && markInfo.xpath) {
+          targetNode = findElementByXPath(markInfo.xpath)
+        }
+        // Fallback to selector
+        if (!targetNode && markInfo.selector) {
+          targetNode = document.querySelector(markInfo.selector) as HTMLElement
+        }
         if (targetNode) {
-          // Update highlight box target if node changed
+          // Trigger position update for the highlight box (it has its own ResizeObserver)
           const box = this.#markerHighlightBoxes.get(markId)
-          if (box && box.getAttribute('data-target-selector') === selector) {
-            // Box will update itself, but ensure it's tracking the right node
-            box.initialize(targetNode)
+          if (box) {
+            // Just trigger update, don't reinitialize (avoids duplicate observers and jitter)
+            box.updatePosition()
           }
         } else {
-          // Node removed, mark as invalid
-          const markInfo = this.#markedNodes[markId]
-          if (markInfo) {
-            markInfo.isValid = false
-            this.#saveMarks()
+          // Node removed, mark as invalid and show red so failure is visible at a glance
+          markInfo.isValid = false
+          this.#saveMarks()
+          const box = this.#markerHighlightBoxes.get(markId)
+          if (box) {
+            box.setMarkerColor(MARKER_COLOR_FAILED)
           }
         }
       })
@@ -521,16 +654,173 @@ export class NodeSelector extends HTMLElement {
   }
 
   /**
+   * Initialize MutationObserver to track XPath changes for marked nodes
+   * Uses the same observer pattern as position tracking (single observer for all marks)
+   * Only runs when marks are visible (not hidden) to save resources
+   */
+  #initXPathMutationObserver() {
+    // Don't initialize if marks are hidden
+    if (this.#marksHidden) return
+
+    if (this.#mutationObserver) return
+
+    // Use debounce to avoid too frequent checks
+    let checkTimer: ReturnType<typeof setTimeout> | null = null
+
+    this.#mutationObserver = new MutationObserver(() => {
+      // Debounce: wait 500ms after last mutation before checking XPaths
+      if (checkTimer) {
+        clearTimeout(checkTimer)
+      }
+      checkTimer = setTimeout(() => {
+        this.#checkAndUpdateXPaths()
+      }, 500)
+    })
+
+    // Observe body for DOM changes (same as position tracking)
+    if (document.body) {
+      this.#mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'id', 'data-testid', 'data-id'],
+      })
+    }
+  }
+
+  /**
+   * Check all marked nodes and update XPaths if they changed
+   * Only runs when marks are visible (not hidden)
+   */
+  #checkAndUpdateXPaths() {
+    // Skip check if marks are hidden (no need to track changes when hidden)
+    if (this.#marksHidden) return
+
+    Object.values(this.#markedNodes).forEach((markInfo) => {
+      // Try to find the node using existing XPaths
+      let node: HTMLElement | null = null
+      if (markInfo.xpaths && markInfo.xpaths.length > 0) {
+        for (const xpath of markInfo.xpaths) {
+          node = findElementByXPath(xpath)
+          if (node) break
+        }
+      }
+      // Fallback to old xpath field
+      if (!node && markInfo.xpath) {
+        node = findElementByXPath(markInfo.xpath)
+      }
+      // Fallback to selector
+      if (!node && markInfo.selector) {
+        node = document.querySelector(markInfo.selector) as HTMLElement
+      }
+
+      if (node) {
+        const existingHighlight = this.#markerHighlightBoxes.get(markInfo.markId)
+
+        // CSR: node appeared later (was not in DOM at first restore) — create highlight box now
+        if (!existingHighlight) {
+          const container = this.#getMarkersContainer()
+          if (container) {
+            const restoreColor = markInfo.color || this.#markColor
+            markInfo.color = restoreColor
+            const identifier = markInfo.xpaths && markInfo.xpaths.length > 0 ? markInfo.xpaths[0] : markInfo.xpath || markInfo.selector
+            const highlightBox = this.#createMarkerHighlightBox(
+              markInfo.markId,
+              node,
+              identifier,
+              markInfo.label,
+              () => this.unmarkNode(markInfo.markId),
+              restoreColor,
+              markInfo.xpaths
+            )
+            this.#markerHighlightBoxes.set(markInfo.markId, highlightBox)
+            this.#initSharedMarkerResizeObserver()
+            if (this.#sharedMarkerResizeObserver) {
+              this.#sharedMarkerResizeObserver.observe(node)
+              this.#markerNodeToMarkId.set(node, markInfo.markId)
+            }
+            markInfo.isValid = true
+            this.#saveMarks()
+          }
+        } else {
+          // Restore normal color when node is found again after being invalid
+          if (markInfo.isValid === false) {
+            markInfo.isValid = true
+            this.#saveMarks()
+            existingHighlight.setMarkerColor(markInfo.color || this.#markColor)
+          }
+        }
+
+        // Generate current XPath (only if it can be validated)
+        const currentXPath = generateXPath(node)
+
+        // Only record XPath if it was successfully generated and validated
+        if (currentXPath) {
+          // Check if XPath has changed
+          if (markInfo.xpaths && markInfo.xpaths.length > 0) {
+            const lastXPath = markInfo.xpaths[markInfo.xpaths.length - 1]
+            if (currentXPath !== lastXPath) {
+              // XPath changed, add new one to array
+              if (!markInfo.xpaths.includes(currentXPath)) {
+                markInfo.xpaths.push(currentXPath)
+                this.#saveMarks()
+
+                // Update the highlight box's XPath panel
+                const highlightBox = this.#markerHighlightBoxes.get(markInfo.markId)
+                if (highlightBox) {
+                  highlightBox.updateXPaths(markInfo.xpaths)
+                }
+              }
+            }
+          } else {
+            // No xpaths yet, initialize with current XPath
+            markInfo.xpaths = [currentXPath]
+            this.#saveMarks()
+
+            // Update the highlight box's XPath panel
+            const highlightBox = this.#markerHighlightBoxes.get(markInfo.markId)
+            if (highlightBox) {
+              highlightBox.updateXPaths(markInfo.xpaths)
+            }
+          }
+        }
+        // If currentXPath is null, don't record it (XPath generation/validation failed)
+      } else {
+        // Node not found - mark as invalid and show red so failure is visible at a glance
+        if (markInfo.isValid !== false) {
+          markInfo.isValid = false
+          this.#saveMarks()
+          const highlightBox = this.#markerHighlightBoxes.get(markInfo.markId)
+          if (highlightBox) {
+            highlightBox.setMarkerColor(MARKER_COLOR_FAILED)
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Clean up XPath MutationObserver
+   */
+  #cleanupXPathMutationObserver() {
+    if (this.#mutationObserver) {
+      this.#mutationObserver.disconnect()
+      this.#mutationObserver = null
+    }
+  }
+
+  /**
    * Create marker highlight box as Web Component
    * @param markId Mark ID
    * @param node Target node
-   * @param selector CSS selector for the target node
+   * @param selector CSS selector or XPath for the target node
    * @param label Label text for the marker
    * @param onDelete Callback when delete button is clicked
    * @param color Marker color (hex format)
+   * @param xpath Optional XPath for the marked node
    * @returns Highlight box element (MarkerHighlightBox instance)
    */
-  #createMarkerHighlightBox(markId: string, node: HTMLElement, selector: string, label: string, onDelete: () => void, color: string): MarkerHighlightBox {
+  #createMarkerHighlightBox(markId: string, node: HTMLElement, selector: string, label: string, onDelete: () => void, color: string, xpaths: string[]): MarkerHighlightBox {
     const highlightBox = document.createElement(MarkerHighlightBox.TAG_NAME) as MarkerHighlightBox
     highlightBox.setAttribute('data-mark-id', markId)
     highlightBox.setAttribute('data-node-selector-marker-highlight', '')
@@ -547,9 +837,9 @@ export class NodeSelector extends HTMLElement {
     // Initialize tracking first (this sets up observers and position tracking)
     highlightBox.initialize(node)
 
-    // Set marker label after initialization
+    // Set marker label after initialization with XPaths array
     // initialize() now uses #cleanupObservers() which preserves the label
-    highlightBox.setMarkerLabel(label, onDelete)
+    highlightBox.setMarkerLabel(label, onDelete, xpaths)
 
     return highlightBox
   }
@@ -642,9 +932,18 @@ export class NodeSelector extends HTMLElement {
     document.addEventListener('mousemove', this.#handleMouseMove)
     document.addEventListener('mousedown', this.#handleMouseDown, true) // Use capture phase
     document.addEventListener('click', this.#handleClick, true) // Use capture phase to intercept early
+    document.addEventListener('keydown', this.#handleKeyDown, true) // Use capture phase to intercept early
 
     // Show component
     this.classList.remove('node-selector--hidden')
+  }
+
+  /**
+   * Check if node selector is enabled
+   * @returns Whether the selector is currently enabled
+   */
+  isEnabled(): boolean {
+    return this.#isEnabled
   }
 
   /**
@@ -659,6 +958,7 @@ export class NodeSelector extends HTMLElement {
     document.removeEventListener('mousemove', this.#handleMouseMove)
     document.removeEventListener('mousedown', this.#handleMouseDown, true)
     document.removeEventListener('click', this.#handleClick, true)
+    document.removeEventListener('keydown', this.#handleKeyDown, true)
 
     // Clear highlight
     this.#clearHighlight()
@@ -678,10 +978,8 @@ export class NodeSelector extends HTMLElement {
       this.#resizeObserver.disconnect()
       this.#resizeObserver = null
     }
-    if (this.#mutationObserver) {
-      this.#mutationObserver.disconnect()
-      this.#mutationObserver = null
-    }
+    // Clean up XPath MutationObserver
+    this.#cleanupXPathMutationObserver()
 
     // Clean up shared marker ResizeObserver
     this.#cleanupSharedMarkerResizeObserver()
@@ -722,7 +1020,14 @@ export class NodeSelector extends HTMLElement {
     // Generate signature
     const signature = this.#generateNodeSignature ? this.#generateNodeSignature(node) : this.#generateStableSelector(node)
 
-    // Generate selector
+    // Generate XPath (primary method for locating nodes)
+    // Only record mark when XPath can be generated and validated; otherwise do not store
+    const xpath = generateXPath(node)
+    if (!xpath) {
+      return null
+    }
+
+    // Generate selector (fallback for backward compatibility)
     const selector = this.#generateStableSelector(node)
 
     // Generate label
@@ -732,12 +1037,15 @@ export class NodeSelector extends HTMLElement {
     // If color is provided in markNode call, it overrides the instance color (for backward compatibility)
     const markColor = color || this.#markColor
 
-    // Create mark info
+    // Create mark info (use xpaths array to track all possible XPaths)
+    // Only include XPath if it was successfully generated and validated
     const markId = `mark-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
     const markInfo: MarkedNodeInfo = {
       markId,
       signature,
-      selector,
+      selector, // Keep for backward compatibility
+      xpath: xpath || undefined, // Keep for backward compatibility (deprecated)
+      xpaths: xpath ? [xpath] : [], // Primary method: track all possible XPaths over time (only if valid)
       label: finalLabel,
       timestamp: Date.now(),
       isValid: true,
@@ -752,15 +1060,18 @@ export class NodeSelector extends HTMLElement {
     if (!this.#marksHidden) {
       const container = this.#getMarkersContainer()
       if (container) {
+        // Use XPath as primary identifier for the highlight box (more reliable than selector)
+        const identifier = xpath || selector
         const highlightBox = this.#createMarkerHighlightBox(
           markId,
           node,
-          selector,
+          identifier,
           finalLabel,
           () => {
             this.unmarkNode(markId)
           },
-          markColor
+          markColor,
+          markInfo.xpaths
         )
         this.#markerHighlightBoxes.set(markId, highlightBox)
 
@@ -773,6 +1084,11 @@ export class NodeSelector extends HTMLElement {
 
         // Intersection observer is handled by MarkerHighlightBox itself
         // No need for separate observer for marker badge since it's inside the highlight box
+
+        // Initialize MutationObserver to track XPath changes (only when marks are visible)
+        if (!this.#marksHidden) {
+          this.#initXPathMutationObserver()
+        }
       }
     }
 
@@ -798,7 +1114,24 @@ export class NodeSelector extends HTMLElement {
 
     // Remove from shared ResizeObserver
     if (markInfo) {
-      const node = document.querySelector(markInfo.selector) as HTMLElement
+      // Use XPath to find node (more reliable than CSS selector)
+      // Try all xpaths in order
+      let node: HTMLElement | null = null
+      if (markInfo.xpaths && markInfo.xpaths.length > 0) {
+        for (const xpath of markInfo.xpaths) {
+          node = findElementByXPath(xpath)
+          if (node) break
+        }
+      }
+      // Fallback to old xpath field
+      if (!node && markInfo.xpath) {
+        node = findElementByXPath(markInfo.xpath)
+      }
+      // Fallback to selector
+      if (!node && markInfo.selector) {
+        node = document.querySelector(markInfo.selector) as HTMLElement
+      }
+
       if (node && this.#sharedMarkerResizeObserver) {
         this.#sharedMarkerResizeObserver.unobserve(node)
         this.#markerNodeToMarkId.delete(node)
@@ -825,6 +1158,23 @@ export class NodeSelector extends HTMLElement {
    */
   restoreMarks() {
     const marks = this.#loadMarks()
+
+    // Migrate old marks to new format (backward compatibility)
+    Object.values(marks).forEach((markInfo) => {
+      // If xpaths doesn't exist but xpath does, migrate it
+      if (!markInfo.xpaths && markInfo.xpath) {
+        markInfo.xpaths = [markInfo.xpath]
+      }
+      // If xpaths is empty but xpath exists, use xpath
+      else if ((!markInfo.xpaths || markInfo.xpaths.length === 0) && markInfo.xpath) {
+        markInfo.xpaths = [markInfo.xpath]
+      }
+      // If both are missing, create empty array
+      else if (!markInfo.xpaths) {
+        markInfo.xpaths = []
+      }
+    })
+
     this.#markedNodes = marks
 
     // Only restore marker highlight boxes if marks are not hidden
@@ -840,24 +1190,44 @@ export class NodeSelector extends HTMLElement {
     }
 
     Object.values(marks).forEach((markInfo) => {
-      // Try to find node
-      const node = document.querySelector(markInfo.selector) as HTMLElement
+      // Try to find node using XPath (more reliable) or fallback to selector
+      // Try all xpaths in order
+      let node: HTMLElement | null = null
+      if (markInfo.xpaths && markInfo.xpaths.length > 0) {
+        for (const xpath of markInfo.xpaths) {
+          node = findElementByXPath(xpath)
+          if (node) break
+        }
+      }
+      // Fallback to old xpath field
+      if (!node && markInfo.xpath) {
+        node = findElementByXPath(markInfo.xpath)
+      }
+      // Fallback to selector
+      if (!node && markInfo.selector) {
+        node = document.querySelector(markInfo.selector) as HTMLElement
+      }
+
       if (node) {
         // Use instance-level color for restored marks (or keep existing color if it was explicitly set)
         // For backward compatibility, if markInfo has a color, use it; otherwise use instance color
         const restoreColor = markInfo.color || this.#markColor
         markInfo.color = restoreColor
 
+        // Use XPath as primary identifier for the highlight box (more reliable than selector)
+        const identifier = markInfo.xpaths && markInfo.xpaths.length > 0 ? markInfo.xpaths[0] : markInfo.xpath || markInfo.selector
+
         // Restore marker highlight box with integrated label (as Web Component, it will track the node automatically)
         const highlightBox = this.#createMarkerHighlightBox(
           markInfo.markId,
           node,
-          markInfo.selector,
+          identifier,
           markInfo.label,
           () => {
             this.unmarkNode(markInfo.markId)
           },
-          restoreColor
+          restoreColor,
+          markInfo.xpaths
         )
         this.#markerHighlightBoxes.set(markInfo.markId, highlightBox)
 
@@ -876,11 +1246,19 @@ export class NodeSelector extends HTMLElement {
       }
     })
 
+    // Save updated marks (including isValid flags and migrated xpaths)
     this.#saveMarks()
+
+    // Initialize MutationObserver to track XPath changes only when marks are visible
+    // When marks are hidden, MutationObserver is stopped to save resources
+    if (!this.#marksHidden) {
+      this.#initXPathMutationObserver()
+    }
   }
 
   /**
    * Hide all marks (remove Web Components and stop observers to save resources)
+   * Stops XPath MutationObserver when marks are hidden
    */
   hideMarks() {
     if (this.#marksHidden) return
@@ -896,6 +1274,9 @@ export class NodeSelector extends HTMLElement {
 
     // Clean up shared ResizeObserver
     this.#cleanupSharedMarkerResizeObserver()
+
+    // Stop XPath MutationObserver when marks are hidden (no need to track changes)
+    this.#cleanupXPathMutationObserver()
   }
 
   /**

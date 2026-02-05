@@ -6,7 +6,7 @@
 export type { LogStoreConfig } from './config'
 export { defaultLogStoreConfig } from './config'
 export { LogStore } from './LogStore'
-export type { LogEntry, LogLevel, LogStoreListener } from './types'
+export type { LogEntry, LogLevel, LogScope, LogStoreListener } from './types'
 
 import { defaultLogStoreConfig } from './config'
 import { LogStore } from './LogStore'

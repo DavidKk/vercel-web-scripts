@@ -4,6 +4,8 @@
  * Build: pnpm build:preset → preset/dist/preset.js
  */
 
+// 0. GM storage polyfill when not in Tampermonkey (e.g. E2E)
+import '@/services/gm-storage-polyfill'
 // 1. helpers/http
 import '@/helpers/http'
 // 2. helpers/utils

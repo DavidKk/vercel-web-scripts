@@ -11,3 +11,6 @@ export interface LogEntry {
 }
 
 export type LogStoreListener = (entries: LogEntry[]) => void
+
+/** Scope for getLogs: current session only (this page open) or all persisted logs */
+export type LogScope = 'current' | 'all'
