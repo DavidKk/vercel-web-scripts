@@ -266,6 +266,7 @@ vercel-web-script-marker-highlight-box vercel-web-script-marker-label:hover {
 }
 
 /* XPath panel web component (dropdown when hovering marker label) */
+/* Hidden by default; CSS controls display via class (no inline style.display) */
 vercel-web-script-marker-highlight-box vercel-web-script-marker-xpath-panel,
 vercel-web-script-marker-highlight-box .node-selector-xpath-panel {
   position: absolute; /* Relative to highlight box */
@@ -285,15 +286,21 @@ vercel-web-script-marker-highlight-box .node-selector-xpath-panel {
   left: -4px; /* Aligned with marker */
   margin-top: 4px; /* Spacing from marker */
   overflow: hidden;
-  display: flex;
+  display: none;
   flex-direction: column;
-  max-height: 300px;
+  max-height: min(320px, 60vh); /* Leave room for footer; cap for small targets */
   transition:
     top 0.1s ease,
     left 0.1s ease;
 }
 
-/* XPath panel footer with buttons */
+/* Visible state: flex layout so footer (Copy buttons) stays visible; only XPath list scrolls */
+vercel-web-script-marker-highlight-box vercel-web-script-marker-xpath-panel.node-selector-xpath-panel--visible,
+vercel-web-script-marker-highlight-box .node-selector-xpath-panel.node-selector-xpath-panel--visible {
+  display: flex;
+}
+
+/* XPath panel footer with buttons (always visible; do not shrink) */
 .node-selector-xpath-panel__footer {
   display: flex;
   gap: 4px;
@@ -301,6 +308,7 @@ vercel-web-script-marker-highlight-box .node-selector-xpath-panel {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.2);
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 /* XPath panel buttons */
@@ -347,11 +355,12 @@ vercel-web-script-marker-highlight-box .node-selector-xpath-panel {
   border-color: rgba(59, 130, 246, 0.6);
 }
 
-/* XPath panel text content */
+/* XPath panel text content (scrolls; footer stays visible) */
 .node-selector-xpath-panel__container {
   display: flex;
   flex-direction: column;
-  max-height: 300px;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
 }
 

@@ -25,12 +25,15 @@ export class MarkerXPathPanel extends HTMLElement {
     return ['visible']
   }
 
+  /** CSS class for visible state (display controlled by CSS, not inline style) */
+  static VISIBLE_CLASS = 'node-selector-xpath-panel--visible'
+
   /**
    * Attribute changed callback
    */
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
     if (name === 'visible') {
-      this.style.display = newValue === 'true' ? 'block' : 'none'
+      this.classList.toggle(MarkerXPathPanel.VISIBLE_CLASS, newValue === 'true')
     }
   }
 
@@ -249,8 +252,8 @@ export class MarkerXPathPanel extends HTMLElement {
     // Update display
     this.#updateXPathDisplay()
 
-    // Set initial state (hidden)
-    this.style.display = 'none'
+    // Set initial state (hidden); CSS class controls display
+    this.classList.remove(MarkerXPathPanel.VISIBLE_CLASS)
     this.setAttribute('visible', 'false')
   }
 
@@ -273,7 +276,7 @@ export class MarkerXPathPanel extends HTMLElement {
    * Show panel
    */
   show() {
-    this.style.display = 'block'
+    this.classList.add(MarkerXPathPanel.VISIBLE_CLASS)
     this.setAttribute('visible', 'true')
   }
 
@@ -281,7 +284,7 @@ export class MarkerXPathPanel extends HTMLElement {
    * Hide panel
    */
   hide() {
-    this.style.display = 'none'
+    this.classList.remove(MarkerXPathPanel.VISIBLE_CLASS)
     this.setAttribute('visible', 'false')
   }
 
@@ -289,7 +292,7 @@ export class MarkerXPathPanel extends HTMLElement {
    * Check if panel is visible
    */
   isVisible(): boolean {
-    return this.style.display !== 'none' && this.getAttribute('visible') === 'true'
+    return this.classList.contains(MarkerXPathPanel.VISIBLE_CLASS) && this.getAttribute('visible') === 'true'
   }
 
   /**
