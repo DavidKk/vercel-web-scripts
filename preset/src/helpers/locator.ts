@@ -59,22 +59,6 @@ interface MatchScore {
 }
 
 /**
- * 稳定属性优先级配置（供 extractStableAttributes 等按优先级排序时使用，当前实现按固定顺序）
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for attribute ordering
-const STABLE_ATTRIBUTE_PRIORITY: Record<string, number> = {
-  'data-testid': 100, // 极高
-  'data-id': 90,
-  'data-component-id': 90,
-  name: 80, // 高
-  type: 60, // 中
-  placeholder: 60,
-  title: 60,
-  href: 60,
-  src: 30, // 低
-}
-
-/**
  * 评分权重配置
  */
 const SCORE_WEIGHTS = {

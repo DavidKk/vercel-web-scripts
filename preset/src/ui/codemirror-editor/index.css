@@ -1,5 +1,26 @@
 /* Flex chain for height (CodeMirror recommended) so scroller is bounded and scrollbars appear */
 :host {
+  /* 隔离页面可继承样式，避免 body 影响 Shadow DOM */
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: medium;
+  font-weight: normal;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: start;
+  text-indent: 0;
+  text-transform: none;
+  white-space: normal;
+
   display: flex;
   flex-direction: column;
   height: 100%;

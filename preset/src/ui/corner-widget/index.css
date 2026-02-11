@@ -49,6 +49,8 @@
   bottom: 10%;
   left: var(--cw-right-hidden);
   z-index: 2147483647;
+
+  /* 隔离页面可继承样式，避免 body 影响 Shadow DOM */
   font-family:
     ui-sans-serif,
     system-ui,
@@ -59,6 +61,17 @@
     Arial,
     'Apple Color Emoji',
     'Segoe UI Emoji';
+  font-size: medium;
+  font-weight: normal;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: start;
+  text-indent: 0;
+  text-transform: none;
+  white-space: normal;
+
   transition:
     left var(--cw-duration) var(--cw-easing),
     opacity var(--cw-duration) var(--cw-easing);

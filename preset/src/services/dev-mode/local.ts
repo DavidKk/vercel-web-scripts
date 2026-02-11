@@ -13,22 +13,6 @@ import { executeLocalScript as runLocalScript } from '@/services/script-executio
 let hasExecutedLocalScript = false
 
 /**
- * Get whether local script has been executed
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getHasExecutedLocalScript(): boolean {
-  return hasExecutedLocalScript
-}
-
-/**
- * Set whether local script has been executed
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function setHasExecutedLocalScript(value: boolean): void {
-  hasExecutedLocalScript = value
-}
-
-/**
  * Try to execute local script if conditions are met
  * @param isRemoteScript Whether this is a remote script execution
  * @returns True if script was executed

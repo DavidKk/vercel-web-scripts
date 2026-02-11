@@ -128,12 +128,12 @@ ${grantLines}
     return null;
   }
 
-  function loadAndRun() {
+  function loadAndRun(skipConditionalRequest) {
     var presetCode = GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
     var presetEtag = GM_getValue(${JSON.stringify(PRESET_ETAG_KEY)}, '');
     var presetUrlWithCacheBust = PRESET_URL + (PRESET_URL.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
     var headers = {};
-    if (presetEtag) headers['If-None-Match'] = presetEtag;
+    if (!skipConditionalRequest && presetEtag) headers['If-None-Match'] = presetEtag;
 
     GM_xmlhttpRequest({
       method: 'GET',
@@ -141,8 +141,11 @@ ${grantLines}
       headers: headers,
       onload: function (res) {
         if (res.status === 304) {
-          if (presetCode) runPreset(presetCode);
-          else console.error('[Launcher] 304 but no cached preset');
+          if (presetCode) {
+            runPreset(presetCode);
+          } else {
+            loadAndRun(true);
+          }
           return;
         }
         if (res.status === 200 && res.responseText) {

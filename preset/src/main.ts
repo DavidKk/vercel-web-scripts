@@ -128,6 +128,7 @@ async function main(): Promise<void> {
 
   if (IS_DEVELOP_MODE && tryExecuteLocalScript(IS_REMOTE_SCRIPT)) {
     GME_debug('[Main] Local dev mode active, executing local script once (updates will reload only)')
+    registerBasicMenus()
     GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
       handleLocalDevModeUpdate(oldValue, newValue, false)
     })
@@ -136,12 +137,14 @@ async function main(): Promise<void> {
 
   const editorScriptResult = await tryExecuteEditorScript()
   if (editorScriptResult) {
+    registerBasicMenus()
     return
   }
 
   GME_debug('[Main] After editor script check, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
   if (IS_DEVELOP_MODE && !IS_REMOTE_SCRIPT) {
     GME_debug('[Main] Entering dev mode path')
+    registerBasicMenus()
     if (isEditorPage()) {
       GME_debug('[Dev Mode] Current page is editor page (HOST), skipping remote script execution')
       getScriptUpdate()

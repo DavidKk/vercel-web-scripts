@@ -7,7 +7,12 @@ import { appendWhenBodyReady } from '@/helpers/dom'
 import type { LogLevel } from '@/services/log-store'
 import { logStore } from '@/services/log-store'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
+import iconWarn from '~icons/mdi/alert?raw'
+import iconDebug from '~icons/mdi/bug?raw'
+import iconOk from '~icons/mdi/check-circle?raw'
 import iconLogViewer from '~icons/mdi/clipboard-text?raw'
+import iconFail from '~icons/mdi/close-circle?raw'
+import iconInfo from '~icons/mdi/information?raw'
 
 import logViewerCss from './index.css?raw'
 import logViewerHtml from './index.html?raw'
@@ -162,11 +167,11 @@ export class LogViewerUI extends HTMLElement {
     }
 
     const icons: Record<LogLevel, string> = {
-      info: 'ℹ',
-      ok: '✔',
-      warn: '⚠',
-      fail: '✘',
-      debug: '🔍',
+      info: iconInfo,
+      ok: iconOk,
+      warn: iconWarn,
+      fail: iconFail,
+      debug: iconDebug,
     }
 
     filtered.forEach((e) => {

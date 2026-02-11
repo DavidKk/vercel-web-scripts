@@ -1,8 +1,30 @@
 :host {
+  /* 隔离页面可继承样式，避免 body 影响 Shadow DOM */
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: medium;
+  font-weight: normal;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: start;
+  text-indent: 0;
+  text-transform: none;
+  white-space: normal;
+
   --color-success: #28a745;
   --color-error: #dc3545;
   --color-info: #17a2b8;
   --color-warning: #ffc107;
+  --color-loading: #17a2b8;
 
   display: block;
   position: fixed;
@@ -10,7 +32,6 @@
   right: 20px;
   width: 300px;
   z-index: 9999;
-  font-family: Arial, sans-serif;
 }
 
 .notification {
@@ -52,9 +73,45 @@
   fill: currentColor;
 }
 
-.notification__message {
+.notification__content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notification__message {
+  min-width: 0;
+}
+
+.notification__progress {
+  height: 6px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+
+.notification__progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  transition: width 0.15s ease-out;
+}
+
+.notification__progress-bar.indeterminate {
+  width: 25%;
+  animation: notification-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes notification-progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
 }
 
 .notification.success {
@@ -87,4 +144,36 @@
 
 .notification.warn .notification__icon {
   color: var(--color-warning);
+}
+
+.notification.loading {
+  background-color: var(--color-loading);
+}
+
+.notification.loading .notification__icon {
+  color: var(--color-loading);
+}
+
+.notification__icon--spinner {
+  animation: notification-spin 1s linear infinite;
+}
+
+.notification__icon--spinner::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+@keyframes notification-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

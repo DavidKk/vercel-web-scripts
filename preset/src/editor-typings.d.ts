@@ -786,13 +786,54 @@ declare function GME_group(label: string): GroupLogger
 declare function GME_uuid(): string
 
 /**
- * Show a notification
- * @param message Notification message
- * @param type Notification type
- * @param duration Duration in milliseconds
- * @returns Notification instance
+ * Notification display type (use 'loading' for progress bar)
  */
-declare function GME_notification(message: string, type?: 'success' | 'error' | 'info' | 'warn', duration?: number): any
+type GME_NotificationType = 'success' | 'error' | 'info' | 'warn' | 'loading'
+
+/**
+ * Options for loading notifications (progress bar)
+ */
+interface GME_NotificationLoadingOptions {
+  /** Progress 0–100; omit for indeterminate bar */
+  progress?: number
+  /** Show indeterminate progress bar */
+  indeterminate?: boolean
+  /** Auto-close duration in ms; 0 = no auto-close */
+  duration?: number
+}
+
+/**
+ * Updates for an existing notification (e.g. loading → success)
+ */
+interface GME_NotificationUpdate {
+  message?: string
+  type?: GME_NotificationType
+  progress?: number
+  indeterminate?: boolean
+}
+
+/**
+ * Show a notification.
+ * @param message Message text
+ * @param type Notification type; use 'loading' for progress bar
+ * @param duration Auto-close duration in ms (0 = no auto-close)
+ * @param options For type 'loading': progress, indeterminate, duration
+ * @returns Notification id for update/close, or undefined if container not ready
+ */
+declare function GME_notification(message: string, type?: GME_NotificationType, duration?: number, options?: GME_NotificationLoadingOptions): string | undefined
+
+/**
+ * Update an existing notification (e.g. loading → success).
+ * @param id Notification id from GME_notification
+ * @param updates Message, type, progress, or indeterminate
+ */
+declare function GME_notification_update(id: string, updates: GME_NotificationUpdate): void
+
+/**
+ * Close a notification by id.
+ * @param id Notification id from GME_notification
+ */
+declare function GME_notification_close(id: string): void
 
 /**
  * Browser File System Access API type definitions

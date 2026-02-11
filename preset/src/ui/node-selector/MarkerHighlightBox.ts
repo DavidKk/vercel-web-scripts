@@ -45,6 +45,8 @@ export class MarkerHighlightBox extends HTMLElement {
   #markerRafId: number | null = null
   /** Pending marker position update flag */
   #pendingMarkerUpdate = false
+  /** Whether highlight box has been positioned at least once (to avoid 0,0 flash on init) */
+  #hasPositionedOnce = false
 
   /**
    * Get scrollbar width (cached to avoid repeated calculations)
@@ -170,7 +172,12 @@ export class MarkerHighlightBox extends HTMLElement {
 
     this.style.width = `${width}px`
     this.style.height = `${height}px`
-    this.classList.remove('node-selector-marker-highlight--hidden')
+    // On first successful positioning after (re)initialize, reveal the box.
+    // This avoids showing it at the default (0,0) before we know the correct position.
+    if (!this.#hasPositionedOnce) {
+      this.classList.remove('node-selector-marker-highlight--hidden')
+      this.#hasPositionedOnce = true
+    }
     this.#pendingUpdate = false
 
     // Update marker label and panel position if they exist
@@ -244,8 +251,14 @@ export class MarkerHighlightBox extends HTMLElement {
 
     if (!this.#targetNode) {
       this.classList.add('node-selector-marker-highlight--hidden')
+      this.#hasPositionedOnce = false
       return
     }
+
+    // For initialization, keep highlight box hidden until the first position
+    // calculation has run, so we don't briefly show it at (0,0).
+    this.#hasPositionedOnce = false
+    this.classList.add('node-selector-marker-highlight--hidden')
 
     // Initial position update
     this.#updatePosition()

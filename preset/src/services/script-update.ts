@@ -4,10 +4,12 @@
  * Editor page does not trigger GIST update (it is HOST for preset/Editor Dev Mode only).
  */
 
-import { GME_debug } from '@/helpers/logger'
+import { GME_debug, GME_fail, GME_info, GME_ok } from '@/helpers/logger'
+import { fetchScript } from '@/scripts'
 import { isEditorPage } from '@/services/dev-mode/constants'
 import type { TabCommunication, TabInfo, TabMessage } from '@/services/tab-communication'
 import { getTabCommunication } from '@/services/tab-communication'
+import { GME_notification, GME_notification_close } from '@/ui/notification/index'
 
 /**
  * Script update status enum
@@ -241,7 +243,25 @@ class ScriptUpdate {
   }
 
   /**
-   * Execute remote script from URL
+   * Execute script content (no fetch). Keeps original script running until this runs.
+   * @param content Script source code to execute
+   */
+  private executeScriptContent(content: string): void {
+    const execute = new Function('global', `with(global){${content}}`)
+    const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
+    const grants = eval(`({ ${__GRANTS_STRING__} })`) as Record<string, unknown>
+    const prev = (g as any).__IS_REMOTE_EXECUTE__
+    try {
+      Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
+      execute(g)
+    } finally {
+      ;(g as any).__IS_REMOTE_EXECUTE__ = prev
+    }
+  }
+
+  /**
+   * Execute remote script from URL (fetch then execute). Other tabs use this on SUCCESS.
+   * HOST uses pre-fetched content via executeScriptContent so original script stays usable until download is done.
    * @param url Script URL to fetch and execute
    */
   private async executeRemoteScript(url: string): Promise<void> {
@@ -253,25 +273,13 @@ class ScriptUpdate {
       }
 
       GME_ok('[Script Update] Remote script fetched successfully, executing...')
-
-      // Execute with real global; merge GM_* from script scope onto it so content sees them
-      const execute = new Function('global', `with(global){${content}}`)
-      const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
-      const grants = eval(`({ ${__GRANTS_STRING__} })`) as Record<string, unknown>
-      const prev = (g as any).__IS_REMOTE_EXECUTE__
-      try {
-        Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
-        execute(g)
-      } finally {
-        ;(g as any).__IS_REMOTE_EXECUTE__ = prev
-      }
-
+      this.executeScriptContent(content)
       GME_ok('[Script Update] Script updated and executed successfully')
       GME_notification('Script updated successfully', 'success', 3000)
     } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      GME_fail(`[Script Update] Failed to execute remote script: ${errorMessage}`)
-      GME_notification(`Script update execution failed: ${errorMessage}`, 'error', 5000)
+      GME_fail('[Script Update] Failed to execute remote script: ' + errorMessage)
+      GME_notification('Script update execution failed: ' + errorMessage, 'error', 5000)
     }
   }
 
@@ -306,6 +314,7 @@ class ScriptUpdate {
     // This tab is HOST - validate and broadcast
     GME_info(`[Script Update] HOST validating script: ${url}`)
 
+    let loadingId: string | undefined
     try {
       // Broadcast validating status
       await this.broadcastUpdate({
@@ -329,12 +338,47 @@ class ScriptUpdate {
           status: ScriptUpdateStatus.FAILED,
           error: 'Script validation failed',
         })
-        // Clear HOST after failure
         this.clearHost()
         return
       }
 
-      // Broadcast success with validated URL
+      // HOST: download first so original script stays usable until new content is ready (avoids mid-update refresh leaving page broken)
+      GME_debug('[Script Update] HOST downloading new script content...')
+      loadingId = GME_notification('Downloading script...', 'loading', 0, { indeterminate: true })
+      const loadStartAt = Date.now()
+      const LOADING_MIN_MS = 500
+
+      let content: string | null = null
+      try {
+        content = await fetchScript(validation.url)
+      } finally {
+        if (loadingId) {
+          const elapsed = Date.now() - loadStartAt
+          const delay = Math.max(0, LOADING_MIN_MS - elapsed)
+          if (delay > 0) {
+            setTimeout(() => GME_notification_close(loadingId!), delay)
+          } else {
+            GME_notification_close(loadingId)
+          }
+        }
+      }
+
+      if (!content) {
+        GME_fail('[Script Update] Failed to fetch script content')
+        GME_notification('Failed to fetch script content', 'error', 5000)
+        await this.broadcastUpdate({
+          scriptUrl: url,
+          validatedUrl: null,
+          timestamp: Date.now(),
+          host: this.tabComm.getTabId(),
+          status: ScriptUpdateStatus.FAILED,
+          error: 'Failed to fetch script content',
+        })
+        this.clearHost()
+        return
+      }
+
+      // Broadcast success only after download completes; other tabs will fetch from URL
       await this.broadcastUpdate({
         scriptUrl: url,
         validatedUrl: validation.url,
@@ -343,15 +387,24 @@ class ScriptUpdate {
         status: ScriptUpdateStatus.SUCCESS,
       })
 
-      // HOST also executes the script
-      GME_debug('[Script Update] HOST executing updated script...')
-      await this.executeRemoteScript(validation.url)
+      // HOST executes already-fetched content (no second fetch)
+      GME_ok('[Script Update] HOST executing updated script...')
+      try {
+        this.executeScriptContent(content)
+        GME_ok('[Script Update] Script updated and executed successfully')
+        GME_notification('Script updated successfully', 'success', 3000)
+      } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        GME_fail('[Script Update] Failed to execute script: ' + errorMessage)
+        GME_notification('Script update execution failed: ' + errorMessage, 'error', 5000)
+      }
 
-      // Clear HOST after successful update
       this.clearHost()
     } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       GME_fail(`[Script Update] Update failed: ${errorMessage}`)
+      if (loadingId) GME_notification_close(loadingId)
+      GME_notification('Script update failed: ' + errorMessage, 'error', 5000)
 
       // Broadcast failure
       await this.broadcastUpdate({

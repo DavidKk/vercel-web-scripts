@@ -53,7 +53,7 @@ import {
   GME_showMarks,
   GME_unmarkNode,
 } from '@/ui/node-selector/index'
-import { GME_notification as GME_notificationUI } from '@/ui/notification/index'
+import { GME_notification as GME_notificationUI, GME_notification_close, GME_notification_update } from '@/ui/notification/index'
 
 /**
  * Register all preset APIs onto globalThis (or __GLOBAL__ when run by launcher so preset and remote share the same sandbox).
@@ -79,6 +79,8 @@ export function registerGlobals(): void {
     // UI public API (GIST scripts)
     GME_openLogViewer,
     GME_notification: GME_notificationUI,
+    GME_notification_update,
+    GME_notification_close,
     GME_openCommandPalette,
     GME_registerCommandPaletteCommand,
     GME_registerMenuCommand,
