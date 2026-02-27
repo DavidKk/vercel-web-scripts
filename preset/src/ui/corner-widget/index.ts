@@ -15,10 +15,15 @@
  * @module corner-widget
  */
 
-import { appendWhenBodyReady } from '@/helpers/dom'
+import { appendToDocumentElement } from '@/helpers/dom'
+import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
+import { GME_notification } from '@/ui/notification/index'
 
 import cornerWidgetCss from './index.css?raw'
 import cornerWidgetHtml from './index.html?raw'
+
+/** Menu item ids used by DEBUG demo; remove before re-adding so demo is idempotent */
+const DEBUG_DEMO_IDS = ['debug-demo-1', 'debug-demo-2', 'debug-demo-3'] as const
 
 /**
  * Menu item configuration interface
@@ -48,6 +53,8 @@ export class CornerWidget extends HTMLElement {
   static DRAG_SELECTOR = '.corner-widget__drag'
   /** Toggle button selector */
   static TOGGLE_SELECTOR = '.corner-widget__header'
+  /** Hide button selector */
+  static HIDE_SELECTOR = '.corner-widget__hide'
   /** Menu panel selector */
   static PANEL_SELECTOR = '.corner-widget__panel'
   /** Menu list container selector */
@@ -60,6 +67,10 @@ export class CornerWidget extends HTMLElement {
   static ITEM_CLASS = 'corner-widget__item'
   /** CSS class for hidden widget state */
   static HIDDEN_CLASS = 'corner-widget--hidden'
+  /** CSS class when mouse has left the window (fully hide until mouse re-enters) */
+  static WINDOW_OUT_CLASS = 'corner-widget--window-out'
+  /** CSS class when page/element is in fullscreen (e.g. video playback) */
+  static FULLSCREEN_CLASS = 'corner-widget--fullscreen'
   /** Menu item element selector */
   static MENU_ITEM_SELECTOR = '.corner-widget__item'
   /** Pre-stored menu items before component is ready */
@@ -203,6 +214,7 @@ export class CornerWidget extends HTMLElement {
 
     document.addEventListener('mousemove', this.#mouseMoveDragHandler)
     document.addEventListener('mouseup', this.#mouseUpDragHandler)
+    document.addEventListener('mouseleave', this.#mouseUpDragHandler)
   }
 
   /**
@@ -241,6 +253,63 @@ export class CornerWidget extends HTMLElement {
 
     document.removeEventListener('mousemove', this.#mouseMoveDragHandler)
     document.removeEventListener('mouseup', this.#mouseUpDragHandler)
+    document.removeEventListener('mouseleave', this.#mouseUpDragHandler)
+  }
+
+  /** Handle click on hide button: hide widget (visible again after page refresh) */
+  #hideButtonHandler = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    this.hide()
+  }
+
+  /** Mouse left the document (e.g. to browser chrome or another window): fully hide widget */
+  #windowMouseLeaveHandler = () => {
+    this.classList.add(CornerWidget.WINDOW_OUT_CLASS)
+  }
+
+  /** Mouse re-entered the document: show widget again (unless user had hidden it) */
+  #windowMouseEnterHandler = () => {
+    this.classList.remove(CornerWidget.WINDOW_OUT_CLASS)
+  }
+
+  /** Fullscreen changed (e.g. video fullscreen): hide widget while fullscreen */
+  #fullscreenChangeHandler = () => {
+    const doc = document as Document & { webkitFullscreenElement?: Element }
+    const isFullscreen = !!(document.fullscreenElement ?? doc.webkitFullscreenElement)
+    if (isFullscreen) {
+      this.classList.add(CornerWidget.FULLSCREEN_CLASS)
+    } else {
+      this.classList.remove(CornerWidget.FULLSCREEN_CLASS)
+    }
+  }
+
+  /** Click outside widget: close menu and stop listening */
+  #documentClickCloseMenu = (event: MouseEvent) => {
+    if (!this.#isMenuOpen) {
+      return
+    }
+    const path = event.composedPath()
+    if (path.includes(this)) {
+      return
+    }
+    this.closeMenu()
+    document.removeEventListener('click', this.#documentClickCloseMenu)
+    document.removeEventListener('keydown', this.#escapeCloseMenu)
+  }
+
+  /** Escape key: close menu and stop listening */
+  #escapeCloseMenu = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') {
+      return
+    }
+    if (!this.#isMenuOpen) {
+      return
+    }
+    event.preventDefault()
+    this.closeMenu()
+    document.removeEventListener('click', this.#documentClickCloseMenu)
+    document.removeEventListener('keydown', this.#escapeCloseMenu)
   }
 
   /**
@@ -254,6 +323,10 @@ export class CornerWidget extends HTMLElement {
     }
 
     if (this.#isMatchingTarget(targets, CornerWidget.DRAG_SELECTOR)) {
+      return
+    }
+
+    if (this.#isMatchingTarget(targets, CornerWidget.HIDE_SELECTOR)) {
       return
     }
 
@@ -290,6 +363,7 @@ export class CornerWidget extends HTMLElement {
 
     if (typeof item.action === 'function') {
       item.action()
+      this.closeMenu()
     }
   }
 
@@ -309,6 +383,16 @@ export class CornerWidget extends HTMLElement {
     this.addEventListener('click', this.#toggleMenuHandler)
     this.addEventListener('click', this.#menuItemClickHandler)
 
+    const hideBtn = this.#shadowRoot.querySelector(CornerWidget.HIDE_SELECTOR) as HTMLElement | null
+    hideBtn?.addEventListener('click', this.#hideButtonHandler)
+
+    document.addEventListener('mouseleave', this.#windowMouseLeaveHandler)
+    document.addEventListener('mouseenter', this.#windowMouseEnterHandler)
+    document.addEventListener('fullscreenchange', this.#fullscreenChangeHandler)
+    document.addEventListener('webkitfullscreenchange', this.#fullscreenChangeHandler)
+
+    this.#fullscreenChangeHandler()
+
     // Read pre-stored menu and merge into current menu
     const pre = CornerWidget.PRE_MENU as MenuItem[]
     if (pre && pre.length) {
@@ -325,6 +409,17 @@ export class CornerWidget extends HTMLElement {
    */
   disconnectedCallback() {
     this.#isDragging = false
+    this.#isMenuOpen = false
+    document.removeEventListener('click', this.#documentClickCloseMenu)
+    document.removeEventListener('keydown', this.#escapeCloseMenu)
+
+    document.removeEventListener('mouseleave', this.#windowMouseLeaveHandler)
+    document.removeEventListener('mouseenter', this.#windowMouseEnterHandler)
+    document.removeEventListener('fullscreenchange', this.#fullscreenChangeHandler)
+    document.removeEventListener('webkitfullscreenchange', this.#fullscreenChangeHandler)
+
+    const hideBtn = this.#shadowRoot?.querySelector(CornerWidget.HIDE_SELECTOR) as HTMLElement | null
+    hideBtn?.removeEventListener('click', this.#hideButtonHandler)
 
     this.removeEventListener('mousedown', this.#mouseDownDragHandler)
     this.removeEventListener('click', this.#toggleMenuHandler)
@@ -414,10 +509,16 @@ export class CornerWidget extends HTMLElement {
 
     if (open) {
       panel.classList.add(CornerWidget.PANEL_OPEN_CLASS)
+      setTimeout(() => {
+        document.addEventListener('click', this.#documentClickCloseMenu)
+        document.addEventListener('keydown', this.#escapeCloseMenu)
+      }, 0)
       return
     }
 
     panel.classList.remove(CornerWidget.PANEL_OPEN_CLASS)
+    document.removeEventListener('click', this.#documentClickCloseMenu)
+    document.removeEventListener('keydown', this.#escapeCloseMenu)
   }
 
   /**
@@ -472,7 +573,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(CornerWidget.TA
 if (typeof document !== 'undefined' && !document.querySelector(CornerWidget.TAG_NAME)) {
   const container = document.createElement(CornerWidget.TAG_NAME)
   container.innerHTML = `<template><style>${cornerWidgetCss}</style>${cornerWidgetHtml}</template>`
-  requestAnimationFrame(() => appendWhenBodyReady(container))
+  appendToDocumentElement(container)
 }
 
 /**
@@ -527,4 +628,51 @@ export function GME_updateMenuCommand(id: string, updates: Partial<Omit<MenuItem
   }
 
   return widget.updateMenuItem(id, updates)
+}
+
+/**
+ * Register DEBUG command in command-palette to open a Corner Widget DEMO (development only).
+ * Shows the widget with temporary demo menu items and opens the menu so you can see the effect.
+ */
+/* 仅开发环境注册：正式环境 (__IS_DEVELOP_MODE__ === false) 下 command-palette 不出现此项 */
+if (typeof __IS_DEVELOP_MODE__ !== 'undefined' && __IS_DEVELOP_MODE__) {
+  GME_registerCommandPaletteCommand({
+    id: 'corner-widget-demo',
+    keywords: ['corner', 'widget', 'demo', 'debug', 'DEBUG'],
+    title: 'Corner Widget DEMO (DEBUG)',
+    icon: '◇',
+    hint: 'Show corner widget with demo menu items',
+    action: () => {
+      const widget = document.querySelector(CornerWidget.TAG_NAME) as CornerWidget | null
+      if (!widget) {
+        return
+      }
+      DEBUG_DEMO_IDS.forEach((id) => {
+        try {
+          widget.removeMenuItem(id)
+        } catch {
+          /* ignore if not present */
+        }
+      })
+      widget.addMenuItem({
+        id: DEBUG_DEMO_IDS[0],
+        text: 'Demo Item 1',
+        hint: 'Click me',
+        action: () => GME_notification('Demo 1 clicked', 'info', 1500),
+      })
+      widget.addMenuItem({
+        id: DEBUG_DEMO_IDS[1],
+        text: 'Demo Item 2',
+        hint: 'Hint',
+        action: () => GME_notification('Demo 2 clicked', 'success', 1500),
+      })
+      widget.addMenuItem({
+        id: DEBUG_DEMO_IDS[2],
+        text: 'Demo Item 3',
+        action: () => GME_notification('Demo 3 clicked', 'info', 1500),
+      })
+      widget.show()
+      widget.openMenu()
+    },
+  })
 }

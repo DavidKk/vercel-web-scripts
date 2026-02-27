@@ -49,9 +49,25 @@ function exposeMatchRule(): void {
 }
 
 /**
+ * Skip preset when the document is not HTML (e.g. JSON, XML, plain text). Tampermonkey match-all runs on all URLs;
+ * we only want to inject and run on real HTML pages.
+ * @returns true if we should skip (non-HTML or no document)
+ */
+function shouldSkipNonHtmlDocument(): boolean {
+  if (typeof document === 'undefined') return false
+  const ct = document.contentType
+  if (!ct) return false
+  return !/^text\/html\b/i.test(ct)
+}
+
+/**
  * Main: orchestrate script execution (local dev → editor dev → dev mode remote → fetch rules → GIST/remote).
  */
 async function main(): Promise<void> {
+  if (shouldSkipNonHtmlDocument()) {
+    GME_debug('[Main] Non-HTML document (contentType: ' + (typeof document !== 'undefined' ? document.contentType : 'n/a') + '), skipping preset')
+    return
+  }
   const IS_DEVELOP_MODE = isDevelopMode()
   const IS_REMOTE_SCRIPT = isRemoteScript()
 

@@ -6,7 +6,7 @@
  * @module command-palette
  */
 
-import { appendWhenBodyReady } from '@/helpers/dom'
+import { appendToDocumentElement } from '@/helpers/dom'
 
 import paletteCss from './index.css?raw'
 import paletteHtml from './index.html?raw'
@@ -310,7 +310,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
   container.innerHTML = `<template><style>${paletteCss}</style>${paletteHtml}</template>`
-  requestAnimationFrame(() => appendWhenBodyReady(container))
+  appendToDocumentElement(container)
 }
 
 export function GME_openCommandPalette(): void {

@@ -7,6 +7,8 @@
 export const PRESET_CACHE_KEY = 'vws_preset_cache'
 /** GM_setValue key: set before reload so we show "Preset updated" after reload (must match launcherScript.PRESET_UPDATED_NOTIFY_KEY) */
 export const PRESET_UPDATED_NOTIFY_KEY = 'vws_preset_updated_notify'
+/** GM_setValue key: set to trigger launcher reload in all tabs (must match launcherScript.PRESET_UPDATE_CHANNEL_KEY) */
+export const PRESET_UPDATE_CHANNEL_KEY = 'vws_preset_update'
 /** GM_setValue key: last SSE preset-built message hash, only update when hash changes */
 export const PRESET_BUILT_HASH_KEY = 'vws_preset_built_hash'
 

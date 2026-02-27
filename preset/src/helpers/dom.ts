@@ -533,3 +533,15 @@ export function appendWhenBodyReady(container: HTMLElement): void {
     observer.observe(document.documentElement, { childList: true, subtree: true })
   }
 }
+
+/**
+ * Append container to document.documentElement (HTML first level) immediately.
+ * Used to insert UI elements as early as possible to avoid interference from other scripts.
+ * @param container Element to append
+ */
+export function appendToDocumentElement(container: HTMLElement): void {
+  if (typeof document === 'undefined') return
+  if (document.documentElement) {
+    document.documentElement.appendChild(container)
+  }
+}

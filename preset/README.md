@@ -60,7 +60,30 @@ export { css, html }
 pnpm build:preset
 ```
 
-产物：`preset/dist/ipreset.js`（及 sourcemap）。
+产物：`preset/dist/preset.js`（及 sourcemap）。
+
+## 开发流程（推荐）
+
+开发 preset 时不必每次改完都手动刷新浏览器，可按下面方式实现「改代码 → 自动构建 → 所有标签页自动刷新」：
+
+1. **在仓库根目录执行**
+
+   ```bash
+   pnpm dev
+   ```
+
+   会同时启动 Next 开发服务器和 Vite 的 preset 监听（`build:preset:dev`），preset 源码变更会自动重新构建。
+
+2. **保持至少一个「同源」标签页打开**  
+   例如打开本地的编辑器页：`http://localhost:3000/editor`（或任意 `http://localhost:3000/...` 的页面）。  
+   该页面会通过 SSE 接收「preset 已重新构建」事件；收到后会自动清除预设缓存并刷新当前页，同时通过 GM 存储通知**所有其他标签页**（包括其他站点上的脚本页）刷新，从而加载最新 preset。
+
+3. **日常操作**
+   - 改 `preset/src` 下任意文件并保存。
+   - 等待终端里 Vite 输出构建完成。
+   - 几秒内所有已安装 launcher 的标签页会自动刷新并加载新 preset，无需手动刷新。
+
+若只跑 `pnpm build:preset` 而不跑 `pnpm dev`，则没有 SSE 推送，需要手动刷新浏览器才能看到最新 preset。
 
 ## 迁移状态
 

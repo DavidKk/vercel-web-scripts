@@ -16,7 +16,7 @@
  * @module node-selector
  */
 
-import { appendWhenBodyReady } from '@/helpers/dom'
+import { appendToDocumentElement } from '@/helpers/dom'
 import { GME_info, GME_warn } from '@/helpers/logger'
 import { getUnsafeWindow } from '@/services/cli-service'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
@@ -192,7 +192,7 @@ export function GME_isNodeSelectorEnabled(): boolean {
 if (typeof document !== 'undefined' && !document.querySelector(NodeSelector.TAG_NAME)) {
   const container = document.createElement(NodeSelector.TAG_NAME)
   container.innerHTML = `<template><style>${nodeSelectorCss}</style>${nodeSelectorHtml}</template>`
-  requestAnimationFrame(() => appendWhenBodyReady(container))
+  appendToDocumentElement(container)
 }
 
 GME_registerCommandPaletteCommand({

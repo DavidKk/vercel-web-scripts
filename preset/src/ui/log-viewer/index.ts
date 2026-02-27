@@ -3,7 +3,7 @@
  * DEBUG is off by default.
  */
 
-import { appendWhenBodyReady } from '@/helpers/dom'
+import { appendToDocumentElement } from '@/helpers/dom'
 import type { LogLevel } from '@/services/log-store'
 import { logStore } from '@/services/log-store'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
@@ -196,7 +196,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
   container.innerHTML = `<template><style>${logViewerCss}</style>${logViewerHtml}</template>`
-  requestAnimationFrame(() => appendWhenBodyReady(container))
+  appendToDocumentElement(container)
 }
 
 GME_registerCommandPaletteCommand({

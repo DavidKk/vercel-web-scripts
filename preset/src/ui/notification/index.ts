@@ -2,7 +2,7 @@
  * Notification UI - show toast messages with optional progress bar
  */
 
-import { appendWhenBodyReady } from '@/helpers/dom'
+import { appendToDocumentElement } from '@/helpers/dom'
 import { registerCLIModule } from '@/services/cli-service'
 import iconWarn from '~icons/mdi/alert?raw'
 import iconSuccess from '~icons/mdi/check-circle?raw'
@@ -235,7 +235,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
   container.innerHTML = `<template><style>${notificationCss}</style>${notificationHtml}</template>`
-  requestAnimationFrame(() => appendWhenBodyReady(container))
+  appendToDocumentElement(container)
 }
 
 /**

@@ -3,7 +3,7 @@
  * Cross-origin pages do not subscribe (no CORS, no polling).
  */
 
-import { PRESET_BUILT_HASH_KEY, PRESET_CACHE_KEY, PRESET_UPDATED_NOTIFY_KEY } from '@/constants'
+import { PRESET_BUILT_HASH_KEY, PRESET_CACHE_KEY, PRESET_UPDATE_CHANNEL_KEY, PRESET_UPDATED_NOTIFY_KEY } from '@/constants'
 import { GME_debug, GME_fail, GME_info } from '@/helpers/logger'
 import { GME_sha1 } from '@/helpers/utils'
 import { GME_notification } from '@/ui/notification/index'
@@ -35,6 +35,9 @@ async function handlePresetBuiltEvent(raw: string): Promise<void> {
     GM_setValue(PRESET_BUILT_HASH_KEY, hash)
     GME_debug('[preset-built] event applied hash=' + hash.slice(0, 8) + '...')
     GM_deleteValue(PRESET_CACHE_KEY)
+
+    // Notify all tabs (including cross-origin): launcher listens to PRESET_UPDATE_CHANNEL_KEY and reloads
+    GM_setValue(PRESET_UPDATE_CHANNEL_KEY, builtAt != null ? builtAt : Date.now())
 
     // Same-origin only (dev server); notify user then reload so launcher loads fresh preset (no active-tab check)
     GM_setValue(PRESET_UPDATED_NOTIFY_KEY, 1)

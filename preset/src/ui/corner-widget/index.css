@@ -16,9 +16,10 @@
   --cw-dock-width: calc(var(--cw-spacing) * 0.67);
   --cw-dock-height: calc(var(--cw-size) * 0.2);
 
-  /* Position variables */
-  --cw-right-hidden: calc(100% - var(--cw-spacing) - 52px);
-  --cw-right-visible: calc(100% - var(--cw-width) - var(--cw-spacing));
+  /* Position variables (collapsed: smaller peek; expanded: full card). Right gap: distance from viewport right edge */
+  --cw-right-gap: 2px;
+  --cw-right-hidden: calc(100% - var(--cw-right-gap) - 30px);
+  --cw-right-visible: calc(100% - var(--cw-width) - var(--cw-right-gap));
 
   /* Spacing variables (based on base variables) */
   --cw-padding: var(--cw-spacing) var(--cw-spacing) var(--cw-spacing) 2px;
@@ -71,27 +72,38 @@
   text-indent: 0;
   text-transform: none;
   white-space: normal;
-
   transition:
     left var(--cw-duration) var(--cw-easing),
-    opacity var(--cw-duration) var(--cw-easing);
+    opacity var(--cw-duration) var(--cw-easing),
+    transform var(--cw-duration) var(--cw-easing),
+    visibility 0s linear 0s;
   opacity: 0.4; /* Default opacity 40% */
+  visibility: visible;
 }
 
 :host(:hover) {
   left: var(--cw-right-visible);
   opacity: 1; /* 100% opacity on hover */
+  transform: scale(1);
 }
 
 /* Keep expanded while dragging */
 :host(.corner-widget--dragging) {
   left: var(--cw-right-visible);
   opacity: 1; /* 100% opacity while dragging */
+  transform: scale(1);
 }
 
-/* Hidden state */
-:host(.corner-widget--hidden) {
-  display: none;
+/* Hidden states: fade out then hide (visibility delayed so fade completes first) */
+:host(.corner-widget--hidden),
+:host(.corner-widget--window-out),
+:host(.corner-widget--fullscreen) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--cw-duration) var(--cw-easing),
+    visibility 0s linear var(--cw-duration);
 }
 
 .corner-widget {
@@ -119,20 +131,37 @@
   user-select: none;
 }
 
+/* Drag handle: hidden when collapsed, only visible on hover (or while dragging) */
 .corner-widget__drag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--cw-button-size);
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
   height: var(--cw-button-size);
   font-size: var(--cw-drag-size);
   color: #8b8b8b;
-  opacity: 0.7;
   cursor: grab;
   user-select: none;
   letter-spacing: -2px;
   line-height: 1;
-  transition: all var(--cw-duration) ease;
+  transition:
+    width var(--cw-duration) var(--cw-easing),
+    min-width var(--cw-duration) var(--cw-easing),
+    opacity var(--cw-duration) ease,
+    color var(--cw-duration) ease,
+    transform var(--cw-duration) ease;
+}
+
+:host(:hover) .corner-widget__drag,
+:host(.corner-widget--dragging) .corner-widget__drag {
+  width: var(--cw-button-size);
+  min-width: var(--cw-button-size);
+  opacity: 0.7;
+  pointer-events: auto;
 }
 
 .corner-widget__drag:hover {
@@ -165,6 +194,7 @@
   font-weight: 600;
 }
 
+.corner-widget__hide,
 .corner-widget__toggle {
   display: flex;
   align-items: center;
@@ -178,15 +208,25 @@
   color: #fff;
   cursor: pointer;
   transition: all var(--cw-duration) ease;
+  outline: none;
 }
 
+.corner-widget__hide:hover,
 .corner-widget__toggle:hover {
   background: #39404a;
   transform: scale(1.05);
 }
 
+.corner-widget__hide:active,
 .corner-widget__toggle:active {
   transform: scale(0.95);
+}
+
+.corner-widget__hide:focus,
+.corner-widget__hide:focus-visible,
+.corner-widget__toggle:focus,
+.corner-widget__toggle:focus-visible {
+  outline: none;
 }
 
 .corner-widget__panel {
