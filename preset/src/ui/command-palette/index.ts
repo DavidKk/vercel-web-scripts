@@ -56,16 +56,34 @@ export class CommandPaletteUI extends HTMLElement {
   #lastBacktickTime = 0
   static BACKTICK_DOUBLE_MS = 500
 
+  /** True if command is a DEBUG entry (title starts with "DEBUG"); these are shown at the bottom */
+  #isDebugCommand(cmd: CommandPaletteCommand): boolean {
+    return cmd.title.trim().toUpperCase().startsWith('DEBUG')
+  }
+
+  /** Sort commands so DEBUG commands (title starts with "DEBUG") are at the bottom; stable order otherwise */
+  #sortCommandsWithDebugLast(commands: CommandPaletteCommand[]): CommandPaletteCommand[] {
+    return [...commands].sort((a, b) => {
+      const aDebug = this.#isDebugCommand(a)
+      const bDebug = this.#isDebugCommand(b)
+      if (aDebug === bDebug) return 0
+      return aDebug ? 1 : -1
+    })
+  }
+
   #filterCommands(query: string): CommandPaletteCommand[] {
     const q = query.trim().toLowerCase()
+    let list: CommandPaletteCommand[]
     if (!q) {
-      return [...this.#commands]
+      list = [...this.#commands]
+    } else {
+      list = this.#commands.filter((cmd) => {
+        const titleMatch = cmd.title.toLowerCase().includes(q)
+        const keywordMatch = cmd.keywords.some((k) => k.toLowerCase().includes(q) || k.toLowerCase() === q)
+        return titleMatch || keywordMatch
+      })
     }
-    return this.#commands.filter((cmd) => {
-      const titleMatch = cmd.title.toLowerCase().includes(q)
-      const keywordMatch = cmd.keywords.some((k) => k.toLowerCase().includes(q) || k.toLowerCase() === q)
-      return titleMatch || keywordMatch
-    })
+    return this.#sortCommandsWithDebugLast(list)
   }
 
   #getInputValue(): string {

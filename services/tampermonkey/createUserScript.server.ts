@@ -72,7 +72,8 @@ export async function getRemoteScriptContent(files: Record<string, string>): Pro
 }
 
 function compileScripts(files: Record<string, string>) {
-  const { compile, grants, connects } = createScriptCompiler()
+  const scriptBuiltAt = Date.now()
+  const { compile, grants, connects } = createScriptCompiler(scriptBuiltAt)
 
   const parts: string[] = []
   for (const name of Object.keys(files).sort()) {
@@ -91,7 +92,7 @@ function compileScripts(files: Record<string, string>) {
   return { content, grant, connect }
 }
 
-function createScriptCompiler() {
+function createScriptCompiler(scriptBuiltAt: number) {
   const matches = new Set<string>()
   const grants = new Set<string>()
   const connects = new Set<string>()
@@ -157,7 +158,7 @@ function createScriptCompiler() {
       return
     }
 
-    const executionWrapper = getExecutionWrapper(runAt, moduleName, match, file, compiledContent)
+    const executionWrapper = getExecutionWrapper(runAt, moduleName, match, file, compiledContent, scriptBuiltAt)
 
     return `
       // ${file}
@@ -175,14 +176,16 @@ function createScriptCompiler() {
  * @param match Match patterns for URL matching
  * @param file File name
  * @param compiledContent Compiled script content
+ * @param scriptBuiltAt Build timestamp for "Executing script" log
  * @returns Execution wrapper code
  */
-function getExecutionWrapper(runAt: string, moduleName: string, match: string[], file: string, compiledContent: string): string {
+function getExecutionWrapper(runAt: string, moduleName: string, match: string[], file: string, compiledContent: string, scriptBuiltAt: number): string {
+  const builtAtDisplay = scriptBuiltAt > 0 && Number.isFinite(scriptBuiltAt) ? new Date(scriptBuiltAt).toLocaleString() : 'unknown'
   const scriptContent = `
         const { GME_ok, GME_info, GME_fail, GME_warn } = createGMELogger(${JSON.stringify(moduleName)})
         try {
           if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
-            GME_ok('Executing script \`${file}\`');\n
+            GME_ok('Executing script \`${file}\` (built ${builtAtDisplay})');
             ${compiledContent}
           }
         } catch (error) {

@@ -1,0 +1,87 @@
+/* Node toolbar: tooltip-like bar at bottom of target node, clamped to viewport */
+
+.nt-host {
+  all: initial;
+  contain: content;
+  position: fixed;
+  z-index: 2147483646;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 12px;
+  box-sizing: border-box;
+  transition:
+    opacity 0.12s ease,
+    visibility 0s linear 0.12s;
+}
+
+/* Only show when hover on target node (or toolbar); 非 hover 不展示 */
+.nt-host.nt-host--visible {
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 0.12s ease,
+    visibility 0s;
+}
+
+.nt-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(30, 32, 36, 0.95);
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.nt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  box-sizing: border-box;
+}
+
+.nt-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.nt-btn:active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.nt-btn__icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.nt-btn__text {
+  line-height: 1.2;
+}

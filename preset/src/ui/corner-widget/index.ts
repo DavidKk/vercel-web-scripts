@@ -639,7 +639,7 @@ if (typeof __IS_DEVELOP_MODE__ !== 'undefined' && __IS_DEVELOP_MODE__) {
   GME_registerCommandPaletteCommand({
     id: 'corner-widget-demo',
     keywords: ['corner', 'widget', 'demo', 'debug', 'DEBUG'],
-    title: 'Corner Widget DEMO (DEBUG)',
+    title: 'DEBUG Corner Widget Demo',
     icon: '◇',
     hint: 'Show corner widget with demo menu items',
     action: () => {

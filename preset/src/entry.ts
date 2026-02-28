@@ -34,9 +34,10 @@ import '@/services/menu'
 import '@/rules'
 // 16. scripts
 import '@/scripts'
-// 17. UI modules (order: corner-widget, notification, node-selector deps then index, log-viewer, command-palette, string-tool)
+// 17. UI modules (order: corner-widget, notification, node-toolbar, node-selector deps then index, log-viewer, command-palette, string-tool)
 import '@/ui/corner-widget/index'
 import '@/ui/notification/index'
+import '@/ui/node-toolbar/index'
 import '@/ui/node-selector/types'
 import '@/ui/node-selector/MarkerHighlightBox'
 import '@/ui/node-selector/NodeSelector'

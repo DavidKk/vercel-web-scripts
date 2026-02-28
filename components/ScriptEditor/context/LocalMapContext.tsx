@@ -16,6 +16,23 @@ import { stripFileSystemAccessGlobalBlock } from '../utils/typingsForLocal'
 /** File name for GM/GME typings written only to local; excluded from web editor and sync */
 const LOCAL_TYPINGS_FILE = 'gm-globals.d.ts'
 
+/** File name for tsconfig written only to local so IDE picks up gm-globals.d.ts; excluded from sync */
+const LOCAL_TSCONFIG_FILE = 'tsconfig.json'
+
+/** Default tsconfig for mapped local project: include all .ts and .d.ts so gm-globals.d.ts is used */
+const LOCAL_TSCONFIG_JSON = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts", "**/*.d.ts"]
+}
+`
+
 /** One conflicting file: path, editor content, and local file content */
 export interface LocalMapConflictItem {
   path: string
@@ -139,6 +156,8 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
         return
       }
       const filesToWriteToDisk: Record<string, string> = { ...filesToWrite }
+      // 强制注入最新的 tsconfig.json 与 gm-globals.d.ts，覆盖本地已有文件，便于本地 IDE 使用最新类型
+      filesToWriteToDisk[LOCAL_TSCONFIG_FILE] = LOCAL_TSCONFIG_JSON
       if (typingsForLocal && typingsForLocal.trim() !== '') {
         filesToWriteToDisk[LOCAL_TYPINGS_FILE] = stripFileSystemAccessGlobalBlock(typingsForLocal)
       }
@@ -252,9 +271,11 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
       try {
         // Do not pass onProgress to avoid setState on every file (causes "Maximum update depth exceeded")
         const { contents, hashes } = await readFilesFromDirectoryWithHashes(handle, '')
-        // Exclude typings file: only for local IDE; web editor does not read/write it
+        // Exclude typings and tsconfig: only for local IDE; web editor does not read/write them
         delete contents[LOCAL_TYPINGS_FILE]
         delete hashes[LOCAL_TYPINGS_FILE]
+        delete contents[LOCAL_TSCONFIG_FILE]
+        delete hashes[LOCAL_TSCONFIG_FILE]
 
         const lastHashes = lastFileHashesRef.current
 

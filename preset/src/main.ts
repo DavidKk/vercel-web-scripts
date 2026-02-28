@@ -4,6 +4,7 @@
  */
 
 import { PRESET_CACHE_KEY } from '@/constants'
+import { shouldSkipNonHtmlDocument } from '@/helpers/dom'
 import { ensureWebScriptInitialized, getWebScriptId, isDevelopMode, isRemoteScript } from '@/helpers/env'
 import { GME_debug, GME_fail, GME_info } from '@/helpers/logger'
 import { fetchRulesFromCache, getMatchRule, setGlobalRules } from '@/rules'
@@ -46,18 +47,6 @@ function getPresetGlobal(): typeof globalThis & { matchRule?: (name: string, url
 function exposeMatchRule(): void {
   const g = getPresetGlobal()
   ;(g as any).matchRule = getMatchRule()
-}
-
-/**
- * Skip preset when the document is not HTML (e.g. JSON, XML, plain text). Tampermonkey match-all runs on all URLs;
- * we only want to inject and run on real HTML pages.
- * @returns true if we should skip (non-HTML or no document)
- */
-function shouldSkipNonHtmlDocument(): boolean {
-  if (typeof document === 'undefined') return false
-  const ct = document.contentType
-  if (!ct) return false
-  return !/^text\/html\b/i.test(ct)
 }
 
 /**

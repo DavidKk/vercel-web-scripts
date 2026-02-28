@@ -535,12 +535,27 @@ export function appendWhenBodyReady(container: HTMLElement): void {
 }
 
 /**
+ * Skip injecting UI when the document is not HTML (e.g. JSON, XML, plain text).
+ * Tampermonkey can run on any URL; we only inject UI on real HTML pages to avoid
+ * injecting notification/command-palette etc. into JSON/XML responses (e.g. CDN raw files).
+ * @returns true if we should skip (non-HTML or no document)
+ */
+export function shouldSkipNonHtmlDocument(): boolean {
+  if (typeof document === 'undefined') return false
+  const ct = document.contentType
+  if (!ct) return false
+  return !/^text\/html\b/i.test(ct)
+}
+
+/**
  * Append container to document.documentElement (HTML first level) immediately.
  * Used to insert UI elements as early as possible to avoid interference from other scripts.
+ * Does nothing when the document is not HTML (e.g. JSON/XML) so UI is not injected on CDN/data URLs.
  * @param container Element to append
  */
 export function appendToDocumentElement(container: HTMLElement): void {
   if (typeof document === 'undefined') return
+  if (shouldSkipNonHtmlDocument()) return
   if (document.documentElement) {
     document.documentElement.appendChild(container)
   }

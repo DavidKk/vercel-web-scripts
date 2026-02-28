@@ -53,6 +53,7 @@ import {
   GME_showMarks,
   GME_unmarkNode,
 } from '@/ui/node-selector/index'
+import { GME_registerNodeToolbar, GME_registerNodeToolbarQuery, GME_unregisterNodeToolbar } from '@/ui/node-toolbar/index'
 import { GME_notification as GME_notificationUI, GME_notification_close, GME_notification_update } from '@/ui/notification/index'
 
 /**
@@ -85,6 +86,9 @@ export function registerGlobals(): void {
     GME_registerCommandPaletteCommand,
     GME_registerMenuCommand,
     GME_updateMenuCommand,
+    GME_registerNodeToolbar,
+    GME_registerNodeToolbarQuery,
+    GME_unregisterNodeToolbar,
     GME_enableNodeSelector,
     GME_disableNodeSelector,
     GME_getSelectedNode,

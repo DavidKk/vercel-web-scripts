@@ -525,6 +525,65 @@ declare function GME_registerCommandPaletteCommand(command: CommandPaletteComman
 declare function GME_openCommandPalette(): void
 
 /**
+ * Button definition for the node toolbar (per-node tools bar, tooltip-like)
+ */
+declare interface NodeToolbarButton {
+  /** Unique id for this button within the toolbar */
+  id: string
+  /** Label text */
+  text: string
+  /** Optional icon (emoji or character) */
+  icon?: string
+  /** Called when the button is clicked; may receive the current node (e.g. to open link in new tab) */
+  action: (() => void) | ((element: HTMLElement | SVGElement) => void)
+}
+
+/**
+ * Options when registering a node toolbar
+ */
+declare interface NodeToolbarOptions {
+  /** Buttons to show in the toolbar */
+  buttons: NodeToolbarButton[]
+  /** Show outline on the target node (default true). Independent from node-selector; clearAllMarks does not affect this. */
+  outline?: boolean
+  /** Outline color (default: blue). Ignored if outline is false. */
+  outlineColor?: string
+  /** Optional short label shown on the node (e.g. badge). */
+  label?: string
+}
+
+/**
+ * Callback that returns current elements that should have the toolbar (for dynamic content)
+ */
+declare type NodeToolbarQuery = () => (HTMLElement | SVGElement)[]
+
+/**
+ * Register a toolbar for a single node. Toolbar appears on hover below the node, clamped to viewport.
+ * For dynamic nodes use GME_registerNodeToolbarQuery.
+ *
+ * @param element Target node (e.g. a link or button)
+ * @param options Toolbar options (buttons with id, text, optional icon, action)
+ * @returns Unregister function to remove the toolbar from this node
+ */
+declare function GME_registerNodeToolbar(element: HTMLElement | SVGElement, options: NodeToolbarOptions): () => void
+
+/**
+ * Register toolbar by query: getElements() returns current nodes; on DOM change we sync (bind new, unbind removed).
+ * Use for dynamic content (e.g. () => document.querySelectorAll('.my-link')).
+ *
+ * @param getElements Callback that returns current elements
+ * @param options Toolbar options (buttons)
+ * @returns Unregister function to stop watching and unbind all
+ */
+declare function GME_registerNodeToolbarQuery(getElements: NodeToolbarQuery, options: NodeToolbarOptions): () => void
+
+/**
+ * Unregister the toolbar for a node
+ * @param element The node that was previously registered
+ */
+declare function GME_unregisterNodeToolbar(element: HTMLElement | SVGElement): void
+
+/**
  * Options for waiting for DOM elements
  */
 declare interface WaitForOptions {
