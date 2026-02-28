@@ -135,24 +135,18 @@ if command -v npm >/dev/null 2>&1; then
   fi
 fi`
 
-  // 定义 hooks 配置
+  // 定义 hooks 配置（Husky v9+ 不再需要 shebang 和 _/husky.sh，由 .husky/_/h 通过 sh -e 执行本文件）
   const hooks = [
     {
       name: 'pre-commit',
-      content: `#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-${pathSetup}
+      content: `${pathSetup}
 
 pnpm lint-staged
 `,
     },
     {
       name: 'commit-msg',
-      content: `#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-${pathSetup}
+      content: `${pathSetup}
 
 pnpm commitlint --edit "$1"
 `,
