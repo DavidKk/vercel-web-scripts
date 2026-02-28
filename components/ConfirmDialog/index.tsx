@@ -29,18 +29,25 @@ export interface ConfirmDialogProps {
   buttons: ConfirmDialogButton[]
   /** Optional class name for the modal panel */
   className?: string
+  /** Button size: 'sm' for compact (e.g. when many buttons), 'md' default */
+  buttonSize?: 'sm' | 'md'
 }
 
 /**
  * Modal confirmation dialog with multiple buttons.
  * Styled with dark theme (#1e1e1e, #2d2d2d, #3e3e42, #007acc).
  */
-export function ConfirmDialog({ open, onClose, title, message, buttons, className = '' }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, onClose, title, message, buttons, className = '', buttonSize = 'md' }: ConfirmDialogProps) {
   if (!open) return null
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose(null)
   }
+
+  const isSm = buttonSize === 'sm'
+  const btnBase = isSm ? 'px-2 py-1 rounded text-xs' : 'px-3 py-1.5 rounded text-sm'
+  const btnPrimary = btnBase + ' bg-[#007acc] text-white hover:bg-[#1a8ad4] transition-colors'
+  const btnDefault = btnBase + ' bg-[#3e3e42] text-[#cccccc] hover:bg-[#4e4e52] transition-colors'
 
   return (
     <div
@@ -57,18 +64,9 @@ export function ConfirmDialog({ open, onClose, title, message, buttons, classNam
           </div>
         )}
         <div className="px-4 py-4 text-sm text-[#cccccc]">{message}</div>
-        <div className="px-4 py-3 border-t border-[#2d2d2d] flex flex-wrap items-center justify-end gap-2">
+        <div className={`px-4 py-3 border-t border-[#2d2d2d] flex flex-wrap items-center justify-end ${isSm ? 'gap-1.5' : 'gap-2'}`}>
           {buttons.map((btn) => (
-            <button
-              key={btn.value}
-              type="button"
-              onClick={() => onClose(btn.value)}
-              className={
-                btn.variant === 'primary'
-                  ? 'px-3 py-1.5 rounded bg-[#007acc] text-white hover:bg-[#1a8ad4] transition-colors'
-                  : 'px-3 py-1.5 rounded bg-[#3e3e42] text-[#cccccc] hover:bg-[#4e4e52] transition-colors'
-              }
-            >
+            <button key={btn.value} type="button" onClick={() => onClose(btn.value)} className={btn.variant === 'primary' ? btnPrimary : btnDefault}>
               {btn.label}
             </button>
           ))}

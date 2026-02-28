@@ -34,7 +34,7 @@ import '@/services/menu'
 import '@/rules'
 // 16. scripts
 import '@/scripts'
-// 17. UI modules (order: corner-widget, notification, node-toolbar, node-selector deps then index, log-viewer, command-palette, string-tool)
+// 17. UI modules (order: corner-widget, notification, node-toolbar, node-selector deps then index, log-viewer, command-palette, string-tool, compiled-code-viewer)
 import '@/ui/corner-widget/index'
 import '@/ui/notification/index'
 import '@/ui/node-toolbar/index'
@@ -45,6 +45,7 @@ import '@/ui/node-selector/index'
 import '@/ui/log-viewer/index'
 import '@/ui/command-palette/index'
 import '@/ui/string-tool/index'
+import '@/ui/compiled-code-viewer/index'
 // 18. register globals for GIST / legacy
 import '@/register'
 // 19. main

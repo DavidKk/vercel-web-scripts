@@ -8,7 +8,7 @@ export const FILE_LIST_ROW = {
   paddingBottom: 6,
   paddingRight: 8,
   fontSize: '14px',
-  lineHeight: '20px',
+  lineHeight: '22px',
   /** Content-area min height (fits delete icon 22px); total row = 6 + 22 + 6 = 34px with or without icon. */
   minHeight: 22,
 } as const

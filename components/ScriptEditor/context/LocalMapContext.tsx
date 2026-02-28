@@ -124,9 +124,8 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
       const hashEntries = await Promise.all(Object.entries(filesToWrite).map(async ([path, content]) => [path, await hashString(content)] as const))
       const initialHashes: Record<string, string> = Object.fromEntries(hashEntries)
       lastFileHashesRef.current = initialHashes
-      onNotify?.('success', 'Mapped to local. Web editor is now read-only; changes will auto-sync from your local folder.')
     },
-    [onNotify]
+    []
   )
 
   const onMapToLocal = useCallback(async () => {
@@ -138,9 +137,8 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
         onNotify?.('warning', 'No folder selected or permission denied')
         return
       }
-      // As soon as user confirms directory, disable editor (no edit/delete) and treat local as source of truth
-      setLocalDirHandle(handle)
-      setIsLocalMapMode(true)
+      // Do not enter local map mode yet; wait until all files are written (and conflict resolved if any).
+      // Otherwise auto-sync would run before user chooses use-current vs use-local and overwrite editor.
 
       const WRITEABLE_STATUSES = [FileStatus.Unchanged, FileStatus.ModifiedUnsaved, FileStatus.ModifiedSaved]
       const filesToWrite: Record<string, string> = {}
@@ -184,6 +182,9 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
           return
         }
         await finishMapToLocal(handle, filesToWrite, filesToWriteToDisk, (c, t) => progress.updateProgress(t ? Math.round((c / t) * 100) : 0))
+        setLocalDirHandle(handle)
+        setIsLocalMapMode(true)
+        onNotify?.('success', 'Mapped to local. Web editor is now read-only; changes will auto-sync from your local folder.')
       } catch (err) {
         progress.close()
         onNotify?.('error', `Map to local failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -226,11 +227,29 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
           }
           filesToWrite = nextWrite
           filesToWriteToDisk = nextDisk
+        } else if (result === 'useLocal') {
+          const nextWrite = { ...pending.filesToWrite }
+          const nextDisk = { ...pending.filesToWriteToDisk }
+          for (const item of conflictList) {
+            delete nextWrite[item.path]
+            delete nextDisk[item.path]
+          }
+          filesToWrite = nextWrite
+          filesToWriteToDisk = nextDisk
         }
+        // useCurrent: keep filesToWrite/filesToWriteToDisk as-is (editor wins)
         const progress = notificationRef.current.loading('Writing files to local folder...', { title: 'Map to local' })
         try {
           await finishMapToLocal(pending.handle, filesToWrite, filesToWriteToDisk, (c, t) => progress.updateProgress(t ? Math.round((c / t) * 100) : 0))
-          onNotify?.('success', result === 'resolve' ? 'Mapped with conflict markers; resolve in local editor and sync.' : 'Mapped to local.')
+          setLocalDirHandle(pending.handle)
+          setIsLocalMapMode(true)
+          const successMsg =
+            result === 'resolve'
+              ? 'Mapped with conflict markers; resolve in local editor and sync.'
+              : result === 'useLocal'
+                ? 'Mapped to local; conflicting file(s) left unchanged.'
+                : 'Mapped to local.'
+          onNotify?.('success', successMsg)
         } finally {
           progress.close()
         }
@@ -373,10 +392,11 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
       <ConfirmDialog
         open={conflictDialogOpen}
         onClose={handleConflictClose}
-        title="本地文件与编辑器内容不一致"
+        title="Local file differs from editor content"
+        buttonSize="sm"
         message={
           <span>
-            以下文件在本地已存在且内容不同，请选择处理方式：
+            The following file(s) already exist locally with different content. Choose an action:
             <ul className="mt-2 list-disc list-inside text-[#858585] space-y-0.5">
               {conflictList.map((c) => (
                 <li key={c.path}>{c.path}</li>
@@ -385,9 +405,10 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
           </span>
         }
         buttons={[
-          { label: '覆盖', value: 'overwrite', variant: 'primary' },
-          { label: '解决冲突', value: 'resolve' },
-          { label: '取消', value: 'cancel' },
+          { label: 'Use current', value: 'useCurrent', variant: 'primary' },
+          { label: 'Use local', value: 'useLocal' },
+          { label: 'Resolve conflict', value: 'resolve' },
+          { label: 'Cancel', value: 'cancel' },
         ]}
       />
     </LocalMapContext.Provider>

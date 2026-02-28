@@ -70,7 +70,9 @@ function ScriptEditorContentBody({
     if (tabBar.activeTab && tabBar.activeTab !== lastActiveTabRef.current) {
       const file = fileState.getFile(tabBar.activeTab)
       if (file && codeEditorRef.current) {
-        codeEditorRef.current.setContent(file.content.modifiedContent, true)
+        // Only force cursor to 1,1 when switching between two tabs; not on initial load (lastActiveTab was null)
+        const isTabSwitch = lastActiveTabRef.current != null
+        codeEditorRef.current.setContent(file.content.modifiedContent, isTabSwitch)
         lastActiveTabRef.current = tabBar.activeTab
       }
     } else if (!tabBar.activeTab && lastActiveTabRef.current) {
@@ -187,13 +189,14 @@ function ScriptEditorContentBody({
   }
 
   /**
-   * When editor becomes ready, sync current tab content (fixes race: tab restored before fileState, or editor mounted after fileState)
+   * When editor becomes ready, sync current tab content (fixes race: tab restored before fileState, or editor mounted after fileState).
+   * Use forceUpdate=false so we do not move cursor to 1,1 on init (avoids "first keystroke jumps cursor to 0,0").
    */
   const handleEditorReady = useCallback(() => {
     if (tabBar.activeTab && codeEditorRef.current?.isReady()) {
       const file = fileState.getFile(tabBar.activeTab)
       if (file) {
-        codeEditorRef.current.setContent(file.content.modifiedContent || '', true)
+        codeEditorRef.current.setContent(file.content.modifiedContent || '', false)
       }
     }
     onReady?.()
