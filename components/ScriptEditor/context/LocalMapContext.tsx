@@ -262,7 +262,7 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
     [conflictList, finishMapToLocal, onNotify, pendingMapToLocal]
   )
 
-  // Auto-sync: poll only when window is visible; run one after another (no setInterval)
+  // Auto-sync: poll continuously regardless of window visibility; run one after another (no setInterval)
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -274,10 +274,6 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
 
     const runPoll = async () => {
       if (!localDirHandleRef.current) return
-      if (document.hidden) {
-        if (localDirHandleRef.current) pollTimeoutRef.current = setTimeout(runPoll, POLL_INTERVAL_MS)
-        return
-      }
       if (isLocalMapBusyRef.current) {
         if (localDirHandleRef.current) pollTimeoutRef.current = setTimeout(runPoll, POLL_INTERVAL_MS)
         return
