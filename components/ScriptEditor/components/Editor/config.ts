@@ -16,6 +16,7 @@ export const DEFAULT_EDITOR_OPTIONS = {
   padding: { top: 16, bottom: 16 },
   formatOnPaste: true,
   formatOnType: true,
+  folding: true,
 }
 
 export const DIFF_EDITOR_OPTIONS = {

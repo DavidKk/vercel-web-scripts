@@ -5,9 +5,11 @@ import { useState } from 'react'
 import { FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
-import { MdOutlineCloudUpload } from 'react-icons/md'
+import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
 
 import { Spinner } from '@/components/Spinner'
+
+import { ShortcutsHelpModal } from './ShortcutsHelpModal'
 
 interface EditorHeaderProps {
   scriptKey: string
@@ -46,6 +48,7 @@ export default function EditorHeader({
 }: EditorHeaderProps) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
 
   /** Handle install: validate launcher script (HEAD), then open install URL in new tab if OK */
   const handleInstall = async () => {
@@ -99,6 +102,17 @@ export default function EditorHeader({
 
       {/* Right: Action buttons */}
       <div className="flex items-center gap-2">
+        {/* Keyboard shortcuts help */}
+        <button
+          type="button"
+          onClick={() => setShortcutsHelpOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors"
+          title="Keyboard shortcuts"
+        >
+          <MdOutlineKeyboard className="w-4 h-4" />
+          <span className="text-sm">Shortcuts</span>
+        </button>
+
         {/* Rules button */}
         {onToggleRules && (
           <button
@@ -197,6 +211,8 @@ export default function EditorHeader({
           )}
         </button>
       </div>
+
+      <ShortcutsHelpModal open={shortcutsHelpOpen} onClose={() => setShortcutsHelpOpen(false)} />
     </header>
   )
 }

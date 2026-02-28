@@ -363,7 +363,6 @@ export class CornerWidget extends HTMLElement {
 
     if (typeof item.action === 'function') {
       item.action()
-      this.closeMenu()
     }
   }
 
