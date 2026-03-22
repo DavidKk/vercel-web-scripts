@@ -16,6 +16,10 @@ export const PRESET_ETAG_KEY = 'vws_preset_etag'
 export const PRESET_UPDATE_CHANNEL_KEY = 'vws_preset_update'
 /** GM_setValue key: set before reload so preset shows "Preset updated" notification after reload (must match preset main.ts) */
 export const PRESET_UPDATED_NOTIFY_KEY = 'vws_preset_updated_notify'
+/** When not strictly true, launcher skips network for preset (must match preset SHELL_NETWORK_ENABLED_KEY) */
+export const SHELL_NETWORK_ENABLED_KEY = 'vws_shell_network_enabled'
+/** Legacy key from older "auto-update" toggle; if shell key unset, true here still allows network */
+export const LEGACY_AUTO_UPDATE_SCRIPT_KEY = 'vws_auto_update_script'
 
 export interface CreateLauncherScriptParams {
   /** Base URL (origin + path to app, e.g. https://example.com) */
@@ -128,7 +132,28 @@ ${grantLines}
     return null;
   }
 
+  function shellNetworkOn() {
+    var s = GM_getValue(${JSON.stringify(SHELL_NETWORK_ENABLED_KEY)});
+    if (s === true) {
+      return true;
+    }
+    if (s === false) {
+      return false;
+    }
+    return GM_getValue(${JSON.stringify(LEGACY_AUTO_UPDATE_SCRIPT_KEY)}) === true;
+  }
+
   function loadAndRun(skipConditionalRequest) {
+    if (!shellNetworkOn()) {
+      var cachedOnly = GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
+      if (cachedOnly) {
+        runPreset(cachedOnly);
+      } else {
+        console.warn('[Launcher] Shell network is off and preset cache is empty. Enable "Shell network" in the script menu while online once.');
+      }
+      return;
+    }
+
     var presetCode = GM_getValue(${JSON.stringify(PRESET_CACHE_KEY)}, '');
     var presetEtag = GM_getValue(${JSON.stringify(PRESET_ETAG_KEY)}, '');
     var presetUrlWithCacheBust = PRESET_URL + (PRESET_URL.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
@@ -165,6 +190,9 @@ ${grantLines}
 
   GM_addValueChangeListener(${JSON.stringify(PRESET_UPDATE_CHANNEL_KEY)}, function (name, oldVal, newVal) {
     if (newVal == null) {
+      return;
+    }
+    if (!shellNetworkOn()) {
       return;
     }
     GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});

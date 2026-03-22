@@ -7,6 +7,7 @@
 import { GME_debug, GME_fail, GME_info, GME_ok } from '@/helpers/logger'
 import { fetchScript } from '@/scripts'
 import { isEditorPage } from '@/services/dev-mode/constants'
+import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 import type { TabCommunication, TabInfo, TabMessage } from '@/services/tab-communication'
 import { getTabCommunication } from '@/services/tab-communication'
 import { GME_notification, GME_notification_close } from '@/ui/notification/index'
@@ -191,6 +192,10 @@ class ScriptUpdate {
     }
 
     if (update.status === ScriptUpdateStatus.SUCCESS && update.validatedUrl) {
+      if (!isShellNetworkEnabled()) {
+        GME_debug(`[Script Update] Shell network off, ignoring SUCCESS from HOST (${sender.url})`)
+        return
+      }
       GME_debug(`[Script Update] Received update from HOST (${sender.url}), executing remote script...`)
       await this.executeRemoteScript(update.validatedUrl)
     }

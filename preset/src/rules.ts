@@ -1,3 +1,5 @@
+import { isShellNetworkEffectivelyEnabled } from '@/services/shell-network-settings'
+
 const RULE_CACHE_KEY = '#RuleCache@WebScripts'
 
 /** Global rules cache for matchRule; updated via setGlobalRules */
@@ -78,9 +80,10 @@ export async function fetchAndCacheRules() {
 }
 
 export async function fetchRulesFromCache(refetch = false) {
+  const allowNetwork = isShellNetworkEffectivelyEnabled()
   const cached = GM_getValue(RULE_CACHE_KEY)
   if (cached) {
-    if (refetch) {
+    if (refetch && allowNetwork) {
       fetchAndCacheRules()
     }
 
@@ -90,6 +93,10 @@ export async function fetchRulesFromCache(refetch = false) {
       const finalError = error instanceof Error ? error : typeof error === 'string' ? new Error(error) : new Error('Unknown error')
       GME_fail('Parsing cached rules:', finalError.message)
     }
+  }
+
+  if (!allowNetwork) {
+    return []
   }
 
   return fetchAndCacheRules()

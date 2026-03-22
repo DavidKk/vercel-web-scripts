@@ -1,13 +1,12 @@
 import { serialize } from 'cookie'
-import jwt from 'jsonwebtoken'
 
-import { generateToken } from '@/utils/jwt'
+import { generateToken, type JWTPayload, verifyJwtWithSecret } from '@/utils/jwt'
 
 import { AUTH_TOKEN_NAME } from './constants'
 
 const COOKIE_MAX_AGE = 24 * 60 * 60
 
-interface ThirdPartyPayload extends jwt.JwtPayload {
+interface ThirdPartyPayload extends JWTPayload {
   username?: string
   authenticated?: boolean
   [key: string]: unknown
@@ -18,7 +17,7 @@ export async function exchangeOAuthSession(token: string) {
     throw new Error('token is required')
   }
 
-  const payload = verifyThirdPartyToken(token)
+  const payload = await verifyThirdPartyToken(token)
   const allowedUsername = getAllowedUsername()
 
   if (!payload.username || payload.username !== allowedUsername) {
@@ -31,7 +30,7 @@ export async function exchangeOAuthSession(token: string) {
 
   const username = payload.username
 
-  const sessionToken = generateToken({
+  const sessionToken = await generateToken({
     authenticated: true,
     provider: 'oauth',
     username,
@@ -53,10 +52,14 @@ export async function exchangeOAuthSession(token: string) {
   }
 }
 
-function verifyThirdPartyToken(token: string): ThirdPartyPayload {
+async function verifyThirdPartyToken(token: string): Promise<ThirdPartyPayload> {
   const secret = getOAuthSecret()
   try {
-    return jwt.verify(token, secret) as ThirdPartyPayload
+    const payload = await verifyJwtWithSecret(token, secret)
+    if (!payload) {
+      throw new Error('Invalid oauth token')
+    }
+    return payload as ThirdPartyPayload
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : 'Invalid oauth token')
   }

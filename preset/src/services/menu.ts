@@ -7,8 +7,34 @@ import { GME_debug, GME_fail } from '@/helpers/logger'
 import { fetchAndCacheRules } from '@/rules'
 import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, isEditorDevMode } from '@/services/dev-mode'
 import { getScriptUpdate } from '@/services/script-update'
+import { isShellNetworkEnabled, runWithShellNetworkAsync, setShellNetworkEnabled } from '@/services/shell-network-settings'
 import { GME_openLogViewer } from '@/ui/log-viewer/index'
 import { GME_notification } from '@/ui/notification/index'
+
+/** Tampermonkey menu command id for shell network toggle (re-registered when state changes) */
+let shellNetworkMenuCmdId: string | number | undefined
+
+/**
+ * Register or refresh shell network menu label to match GM storage.
+ */
+function registerShellNetworkMenuItem(): void {
+  if (shellNetworkMenuCmdId !== undefined) {
+    GM_unregisterMenuCommand(shellNetworkMenuCmdId)
+    shellNetworkMenuCmdId = undefined
+  }
+  const enabled = isShellNetworkEnabled()
+  const label = `Shell network: ${enabled ? 'On' : 'Off'}`
+  shellNetworkMenuCmdId = GM_registerMenuCommand(label, () => {
+    const next = !isShellNetworkEnabled()
+    setShellNetworkEnabled(next)
+    GME_notification(
+      next ? 'Shell network on (preset/rules/remote can load from server)' : 'Shell network off (cached preset & remote only; GIST scripts may still request)',
+      next ? 'success' : 'info',
+      3000
+    )
+    registerShellNetworkMenuItem()
+  })
+}
 
 /**
  * Register basic menu commands
@@ -25,8 +51,10 @@ export function registerBasicMenus(): void {
   GM_registerMenuCommand('Update Script', async () => {
     try {
       GME_debug('[Update Script] Starting in-place update...')
-      GM_deleteValue(PRESET_CACHE_KEY)
-      await getScriptUpdate().update(__SCRIPT_URL__)
+      await runWithShellNetworkAsync(async () => {
+        GM_deleteValue(PRESET_CACHE_KEY)
+        await getScriptUpdate().update(__SCRIPT_URL__)
+      })
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       GME_fail('[Update Script] Update failed: ' + errorMessage)
@@ -34,8 +62,12 @@ export function registerBasicMenus(): void {
     }
   })
 
+  registerShellNetworkMenuItem()
+
   GM_registerMenuCommand('Update Rules', async () => {
-    await fetchAndCacheRules()
+    await runWithShellNetworkAsync(async () => {
+      await fetchAndCacheRules()
+    })
     GME_notification('Rules updated successfully', 'success')
   })
 

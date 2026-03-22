@@ -6,6 +6,7 @@
 import { PRESET_BUILT_HASH_KEY, PRESET_CACHE_KEY, PRESET_UPDATE_CHANNEL_KEY, PRESET_UPDATED_NOTIFY_KEY } from '@/constants'
 import { GME_debug, GME_fail, GME_info } from '@/helpers/logger'
 import { GME_sha1 } from '@/helpers/utils'
+import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 import { GME_notification } from '@/ui/notification/index'
 
 /**
@@ -55,6 +56,10 @@ async function handlePresetBuiltEvent(raw: string): Promise<void> {
  * @param baseUrl - Base URL for the preset (e.g. __BASE_URL__)
  */
 export function subscribePresetBuiltSSE(baseUrl: string): void {
+  if (!isShellNetworkEnabled()) {
+    GME_debug('[preset-built] Shell network off, skip SSE')
+    return
+  }
   try {
     const baseOrigin = new URL(baseUrl).origin
     if (typeof window === 'undefined' || window.location.origin !== baseOrigin) {

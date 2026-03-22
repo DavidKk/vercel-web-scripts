@@ -2,9 +2,11 @@
  * Script execution functions
  */
 
+import { REMOTE_SCRIPT_CACHE_KEY } from '@/constants'
 import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
 import { fetchScript } from '@/scripts'
 import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
+import { isShellNetworkEffectivelyEnabled } from '@/services/shell-network-settings'
 
 /**
  * Execute script content using the real global (globalThis) so the script
@@ -31,12 +33,32 @@ export function executeScript(content: string): void {
  * @param url Script URL to fetch and execute
  */
 export async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise<void> {
-  const content = await fetchScript(url)
+  let content: string | null = null
+  if (!isShellNetworkEffectivelyEnabled()) {
+    const cached = GM_getValue(REMOTE_SCRIPT_CACHE_KEY) as string | undefined
+    if (cached) {
+      content = cached
+      GME_debug('[Remote script] Shell network off, using cached remote script')
+    } else {
+      GME_fail('[Remote script] Shell network off and no cached remote script; enable Shell network or use Update Script once while online.')
+      return
+    }
+  } else {
+    content = await fetchScript(url)
+    if (content) {
+      try {
+        GM_setValue(REMOTE_SCRIPT_CACHE_KEY, content)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   if (!content) {
     return
   }
 
-  GME_ok('Remote script fetched successfully.')
+  GME_ok('Remote script ready.')
   executeScript(content)
 }
 
@@ -152,7 +174,7 @@ export function watchHMRUpdates({ onOpen, onClose, onError, onUpdate }: { onOpen
     GME_debug('HMR WebSocket closed')
 
     onClose && onClose()
-    setTimeout(() => watchHMRUpdates({ onOpen: onUpdate }), 3e3)
+    setTimeout(() => watchHMRUpdates({ onOpen, onClose, onError, onUpdate }), 3e3)
   })
 
   ws.addEventListener('error', () => {

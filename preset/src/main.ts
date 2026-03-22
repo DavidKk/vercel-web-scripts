@@ -26,6 +26,7 @@ import { registerBasicMenus } from '@/services/menu'
 import { logAndClearPresetUpdatedNotify, subscribePresetBuiltSSE } from '@/services/preset-built-sse'
 import { executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
 import { getScriptUpdate } from '@/services/script-update'
+import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 
 const WEB_SCRIPT_ID = getWebScriptId()
 ensureWebScriptInitialized(WEB_SCRIPT_ID)
@@ -68,7 +69,9 @@ async function main(): Promise<void> {
   GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
   GME_debug('[Main] Starting main, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
 
-  subscribePresetBuiltSSE(__BASE_URL__)
+  if (isShellNetworkEnabled()) {
+    subscribePresetBuiltSSE(__BASE_URL__)
+  }
   logAndClearPresetUpdatedNotify()
 
   // vws_script_update=1: clear preset cache and reload so launcher fetches fresh preset (e.g. after editor publish)
@@ -157,7 +160,9 @@ async function main(): Promise<void> {
     }
     GME_debug('[Main] Non-editor page in dev mode, initializing services and executing remote script')
     getScriptUpdate()
-    watchHMRUpdates({ onUpdate: () => window.location.reload() })
+    if (isShellNetworkEnabled()) {
+      watchHMRUpdates({ onUpdate: () => window.location.reload() })
+    }
     GME_info('Development mode')
     executeRemoteScript()
     return
