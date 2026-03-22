@@ -6,6 +6,9 @@ import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 import Editor from './Editor'
 import { loadTampermonkeyTypings } from './typings'
 
+/** Auth reads cookies; cannot be statically generated at build time. */
+export const dynamic = 'force-dynamic'
+
 export default async function Home() {
   try {
     await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
