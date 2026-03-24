@@ -5,7 +5,12 @@ import { jsonUnauthorized } from '@/initializer/response'
 import { authorizeScriptIntegration } from '@/services/auth/integrationAuth'
 import { buildScriptMcpToolsMap } from '@/services/scripts/scriptMcpTools'
 
-const { manifest } = createMCPHttpServer('vercel-web-scripts-scripts', '1.0.0', 'Git-backed Tampermonkey script file tools (list, get, upsert, delete).', buildScriptMcpToolsMap())
+const { manifest } = createMCPHttpServer(
+  'magickmonkey-scripts',
+  '1.0.0',
+  'MagickMonkey Git-backed Tampermonkey script file tools (list, get, upsert, delete).',
+  buildScriptMcpToolsMap()
+)
 
 /**
  * GET /api/mcp/scripts/manifest — MCP tool manifest (same auth as /api/v1/scripts).

@@ -99,8 +99,8 @@ export default function EditorHeader({
   return (
     <header className="h-11 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center gap-2 px-3 sticky top-0 z-50">
       <div className="flex items-center gap-2 min-w-0 shrink-0">
-        <Image src="/logo.png" alt="Web Scripts logo" width={24} height={24} className="rounded-sm shrink-0" priority />
-        <span className="text-sm text-[#e0e0e0] font-medium truncate hidden sm:inline">Web Scripts</span>
+        <Image src="/logo.png" alt="MagickMonkey logo" width={24} height={24} className="rounded-sm shrink-0" priority />
+        <span className="text-sm text-[#e0e0e0] font-medium truncate hidden sm:inline">MagickMonkey</span>
       </div>
 
       <div className="flex-1 min-w-2" />

@@ -1,11 +1,11 @@
 ---
 name: scripts-api-mcp
-description: Use when integrating AI or automation with Vercel Web Scripts (Gist script CRUD via REST v1, MCP, or chat function calling). Read for auth headers, routes, and tool names.
+description: Use when integrating AI or automation with MagickMonkey (Gist script CRUD via REST v1, MCP, or chat function calling). Read for auth headers, routes, and tool names.
 ---
 
 # Scripts API / MCP / function calling
 
-Project: **vercel-web-scripts**. Scripts live in a private **GitHub Gist**; integration APIs mirror editor-safe files only (`.ts`/`.js`, excluding generated entry and rules).
+Project: **MagickMonkey**. Scripts live in a private **GitHub Gist**; integration APIs mirror editor-safe files only (`.ts`/`.js`, excluding generated entry and rules).
 
 ## Auth
 

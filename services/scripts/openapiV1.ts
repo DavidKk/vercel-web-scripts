@@ -5,7 +5,7 @@
 export const SCRIPTS_OPENAPI_V1 = {
   openapi: '3.1.0',
   info: {
-    title: 'Vercel Web Scripts — Script files API',
+    title: 'MagickMonkey — Script files API',
     version: '1.0.0',
     description:
       'CRUD for user script files stored in the configured GitHub Gist. Only .ts/.js files outside generated entry/rules are writable. Authenticate with session cookie or SCRIPTS_API_KEY (Bearer or x-api-key).',

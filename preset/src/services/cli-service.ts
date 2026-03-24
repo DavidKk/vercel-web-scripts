@@ -175,11 +175,11 @@ class CLIService {
   getGlobalHelp(): void {
     if (this.modules.size === 0) {
       // eslint-disable-next-line no-console
-      console.log(`%cVercel Web Scripts%c - CLI Service\n\n%cNo modules registered.`, 'color: #3b82f6; font-weight: bold; font-size: 16px', 'color: #6b7280', 'color: #6b7280')
+      console.log(`%cMagickMonkey%c - CLI Service\n\n%cNo modules registered.`, 'color: #3b82f6; font-weight: bold; font-size: 16px', 'color: #6b7280', 'color: #6b7280')
       return
     }
 
-    let helpText = `%cVercel Web Scripts%c - CLI Service\n\n%cAvailable Modules:\n\n`
+    let helpText = `%cMagickMonkey%c - CLI Service\n\n%cAvailable Modules:\n\n`
     const styles: string[] = ['color: #3b82f6; font-weight: bold; font-size: 16px', 'color: #6b7280', 'color: #10b981; font-weight: bold']
 
     this.modules.forEach((module) => {

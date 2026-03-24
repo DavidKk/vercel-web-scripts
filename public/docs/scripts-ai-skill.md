@@ -1,4 +1,4 @@
-# Vercel Web Scripts — AI / integration skill
+# MagickMonkey — AI / integration skill
 
 Use this when you should **read or change user script files** stored in the project’s GitHub Gist **without opening the web editor**.
 
