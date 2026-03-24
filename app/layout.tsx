@@ -18,6 +18,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Web Scripts',
   description: 'Web Scripts is a collection of useful scripts for web.',
+  icons: {
+    icon: [{ url: '/android-icon-192x192.png?v=2', type: 'image/png', sizes: '192x192' }],
+    shortcut: ['/android-icon-192x192.png?v=2'],
+    apple: [{ url: '/apple-icon-180x180.png?v=2', type: 'image/png', sizes: '180x180' }],
+  },
 }
 
 interface RootLayoutProps {
