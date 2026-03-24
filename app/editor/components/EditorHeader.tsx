@@ -8,6 +8,7 @@ import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
 
 import { Spinner } from '@/components/Spinner'
+import { Tooltip } from '@/components/Tooltip'
 
 import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
@@ -108,97 +109,106 @@ export default function EditorHeader({
       <EditorIntegrationModals />
 
       <div className="flex items-center gap-0.5 shrink-0">
-        <button type="button" onClick={() => setShortcutsHelpOpen(true)} className={iconBtn} title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
-          <MdOutlineKeyboard className="w-4 h-4" />
-        </button>
+        <Tooltip content="Keyboard shortcuts" placement="bottom">
+          <button type="button" onClick={() => setShortcutsHelpOpen(true)} className={iconBtn} aria-label="Keyboard shortcuts">
+            <MdOutlineKeyboard className="w-4 h-4" />
+          </button>
+        </Tooltip>
 
         {onToggleRules && (
-          <button
-            type="button"
-            onClick={onToggleRules}
-            disabled={isSaving}
-            className={`${iconBtn} ${isRulesOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
-            title={isRulesOpen ? 'Close URL rules' : 'URL rules'}
-            aria-label="URL rules"
-          >
-            <LuAsterisk className="w-4 h-4" />
-          </button>
+          <Tooltip content={isRulesOpen ? 'Close URL rules' : 'URL rules'} placement="bottom">
+            <button
+              type="button"
+              onClick={onToggleRules}
+              disabled={isSaving}
+              className={`${iconBtn} ${isRulesOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
+              aria-label="URL rules"
+            >
+              <LuAsterisk className="w-4 h-4" />
+            </button>
+          </Tooltip>
         )}
 
         {onToggleAI && (
-          <button
-            type="button"
-            onClick={onToggleAI}
-            disabled={isSaving || isAIDisabled}
-            className={`${iconBtn} ${isAIOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
-            title={isAIOpen ? 'Close AI panel' : 'AI rewrite'}
-            aria-label="AI rewrite"
-          >
-            <FiZap className="w-4 h-4" />
-          </button>
+          <Tooltip content={isAIOpen ? 'Close AI panel' : 'AI rewrite'} placement="bottom">
+            <button
+              type="button"
+              onClick={onToggleAI}
+              disabled={isSaving || isAIDisabled}
+              className={`${iconBtn} ${isAIOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
+              aria-label="AI rewrite"
+            >
+              <FiZap className="w-4 h-4" />
+            </button>
+          </Tooltip>
         )}
 
-        <button
-          type="button"
-          onClick={onToggleEditorDevMode}
-          disabled={isCompiling}
-          className={`${iconBtn} ${isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : ''}`}
-          title={isCompiling ? 'Compiling' : isEditorDevMode ? 'Disable dev mode' : 'Editor dev mode'}
-          aria-label="Editor dev mode"
-        >
-          {isCompiling ? (
-            <span className="w-4 h-4 flex items-center justify-center">
-              <Spinner />
-            </span>
-          ) : isEditorDevMode ? (
-            <FiPlay className="w-4 h-4" />
-          ) : (
-            <FiPlayCircle className="w-4 h-4" />
-          )}
-        </button>
+        <Tooltip content={isCompiling ? 'Compiling' : isEditorDevMode ? 'Disable dev mode' : 'Editor dev mode'} placement="bottom">
+          <button
+            type="button"
+            onClick={onToggleEditorDevMode}
+            disabled={isCompiling}
+            className={`${iconBtn} ${isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : ''}`}
+            aria-label="Editor dev mode"
+          >
+            {isCompiling ? (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+            ) : isEditorDevMode ? (
+              <FiPlay className="w-4 h-4" />
+            ) : (
+              <FiPlayCircle className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
 
-        <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} title="Install userscript" aria-label="Install userscript">
-          {isChecking ? (
-            <span className="w-4 h-4 flex items-center justify-center">
-              <Spinner />
-            </span>
-          ) : (
-            <IoExtensionPuzzleOutline className="w-4 h-4" />
-          )}
-        </button>
+        <Tooltip content="Install userscript" placement="bottom">
+          <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} aria-label="Install userscript">
+            {isChecking ? (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+            ) : (
+              <IoExtensionPuzzleOutline className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
 
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving}
-          className={`${iconBtn} bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50`}
-          title="Publish to Gist"
-          aria-label="Publish to Gist"
-        >
-          {isSaving ? (
-            <span className="w-4 h-4 flex items-center justify-center">
-              <Spinner />
-            </span>
-          ) : (
-            <MdOutlineCloudUpload className="w-4 h-4" />
-          )}
-        </button>
+        <Tooltip content="Publish to Gist" placement="bottom">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            className={`${iconBtn} bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50`}
+            aria-label="Publish to Gist"
+          >
+            {isSaving ? (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+            ) : (
+              <MdOutlineCloudUpload className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
       </div>
 
       <div className="relative shrink-0 pl-2 border-l border-[#2d2d2d] ml-1" ref={userMenuRef}>
-        <button
-          type="button"
-          onClick={() => setUserMenuOpen((o) => !o)}
-          disabled={isSaving}
-          className="flex items-center gap-1 px-2 py-1.5 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50"
-          title="Account"
-          aria-label="Account"
-          aria-expanded={userMenuOpen}
-          aria-haspopup="menu"
-        >
-          <FiUser className="w-4 h-4 shrink-0" />
-          <FiChevronDown className={`w-3 h-3 shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
-        </button>
+        <Tooltip content="Account" placement="bottom">
+          <button
+            type="button"
+            onClick={() => setUserMenuOpen((o) => !o)}
+            disabled={isSaving}
+            className="flex items-center gap-1 px-2 py-1.5 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50"
+            aria-label="Account"
+            aria-expanded={userMenuOpen}
+            aria-haspopup="menu"
+          >
+            <FiUser className="w-4 h-4 shrink-0" />
+            <FiChevronDown className={`w-3 h-3 shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </Tooltip>
         {userMenuOpen ? (
           <div className="absolute right-0 top-full mt-1 py-1 bg-[#252526] border border-[#3c3c3c] rounded-md shadow-lg min-w-[180px] z-[70]" role="menu">
             <div className="px-3 py-2 text-xs text-[#a0a0a0] border-b border-[#3c3c3c] truncate" title={displayUsername}>

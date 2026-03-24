@@ -5,6 +5,7 @@ import { FiChevronDown, FiCopy, FiDownload, FiExternalLink, FiX } from 'react-ic
 import { TbApi, TbCode, TbFileText, TbRobot } from 'react-icons/tb'
 
 import { useNotification } from '@/components/Notification'
+import { Tooltip } from '@/components/Tooltip'
 
 type ModalId = 'mcp' | 'api' | 'skill' | 'tools' | null
 
@@ -78,9 +79,11 @@ export function EditorIntegrationModals() {
           <input className={inputClass} value={value} readOnly />
           <div className="flex items-center gap-1 self-center">
             {actions.map((action) => (
-              <button key={action.id} type="button" className={rowIconBtnClass} title={action.title} aria-label={action.title} onClick={action.onClick}>
-                {action.icon}
-              </button>
+              <Tooltip key={action.id} content={action.title} placement="top">
+                <button type="button" className={rowIconBtnClass} aria-label={action.title} onClick={action.onClick}>
+                  {action.icon}
+                </button>
+              </Tooltip>
             ))}
           </div>
         </div>
@@ -95,18 +98,26 @@ export function EditorIntegrationModals() {
   return (
     <>
       <div className="flex items-center gap-0.5 border-r border-[#2d2d2d] pr-2 mr-1">
-        <button type="button" className={btnClass} title="API" aria-label="API" onClick={() => setOpen('api')}>
-          <TbApi className="w-4 h-4" />
-        </button>
-        <button type="button" className={btnClass} title="MCP" aria-label="MCP" onClick={() => setOpen('mcp')}>
-          <TbRobot className="w-4 h-4" />
-        </button>
-        <button type="button" className={btnClass} title="Function Calling" aria-label="Function Calling" onClick={() => setOpen('tools')}>
-          <TbCode className="w-4 h-4" />
-        </button>
-        <button type="button" className={btnClass} title="Skill" aria-label="Skill" onClick={() => setOpen('skill')}>
-          <TbFileText className="w-4 h-4" />
-        </button>
+        <Tooltip content="API" placement="bottom">
+          <button type="button" className={btnClass} aria-label="API" onClick={() => setOpen('api')}>
+            <TbApi className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        <Tooltip content="MCP" placement="bottom">
+          <button type="button" className={btnClass} aria-label="MCP" onClick={() => setOpen('mcp')}>
+            <TbRobot className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Function Calling" placement="bottom">
+          <button type="button" className={btnClass} aria-label="Function Calling" onClick={() => setOpen('tools')}>
+            <TbCode className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Skill" placement="bottom">
+          <button type="button" className={btnClass} aria-label="Skill" onClick={() => setOpen('skill')}>
+            <TbFileText className="w-4 h-4" />
+          </button>
+        </Tooltip>
       </div>
 
       {open === 'mcp' &&

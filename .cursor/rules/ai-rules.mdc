@@ -1,0 +1,20 @@
+---
+description: All project rules live in .ai/rules; read global.md first (minimal), then others as needed
+globs:
+---
+
+# Rules: .ai/rules (single source of truth)
+
+Always read:
+
+- `.ai/rules/global.md`
+
+When the task is substantial (new feature, architecture split, loading strategy changes), follow:
+
+- `.ai/workflow/requirements-audit.md`
+- `.ai/workflow/module-development.md`
+
+Use:
+
+- `.ai/INDEX.md` for task -> file routing
+- `.ai/specs/modules-registry.yaml` for canonical module list

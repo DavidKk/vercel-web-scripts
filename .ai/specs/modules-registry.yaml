@@ -1,0 +1,29 @@
+# Runtime modules registry - single source of truth
+# Keep modules sorted by id.
+
+version: 1
+
+modules:
+  - id: launcher
+    title: Launcher
+    purpose: Install script and bootstrap runtime loading
+    load: sync
+    optional: false
+
+  - id: preset-core
+    title: Preset Core
+    purpose: Always-on runtime capabilities and module communication contracts
+    load: sync
+    optional: false
+
+  - id: preset-ui
+    title: Preset UI
+    purpose: Optional UI and debug tooling loaded on demand
+    load: async
+    optional: true
+
+  - id: script-bundle
+    title: Script Bundle
+    purpose: Business/user scripts; moving toward match-based modular loading
+    load: async
+    optional: true
