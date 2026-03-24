@@ -1,6 +1,5 @@
-/* 与 string-tool、command-palette 统一字体与结构（标题 16px、关闭 X、header 12px 16px） */
+/* Log viewer: compact toolbar, icon actions, VS Code–like dark panel */
 :host {
-  /* 隔离页面可继承样式，避免 body 影响 Shadow DOM */
   font-family:
     system-ui,
     -apple-system,
@@ -10,17 +9,10 @@
     Helvetica,
     Arial,
     sans-serif;
-  font-size: medium;
+  font-size: 13px;
   font-weight: normal;
-  font-style: normal;
-  line-height: normal;
-  letter-spacing: normal;
-  word-spacing: normal;
+  line-height: 1.35;
   text-align: start;
-  text-indent: 0;
-  text-transform: none;
-  white-space: normal;
-
   display: none;
   position: fixed;
   inset: 0;
@@ -39,7 +31,7 @@
 .log-viewer__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   cursor: pointer;
 }
 
@@ -48,12 +40,12 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 90%;
-  max-width: 720px;
-  max-height: 80vh;
-  background: #1e1e1e;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  width: min(92vw, 640px);
+  max-height: 78vh;
+  background: #1a1a1c;
+  border-radius: 6px;
+  border: 1px solid #2a2a2e;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -63,127 +55,159 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #333;
+  padding: 8px 10px 8px 12px;
+  border-bottom: 1px solid #2a2a2e;
   flex-shrink: 0;
+  min-height: 40px;
+  box-sizing: border-box;
 }
 
 .log-viewer__title {
   margin: 0;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
-  color: #e0e0e0;
-}
-
-.log-viewer__close {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: #999;
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 0;
-}
-
-.log-viewer__close:hover {
-  color: #fff;
-  background: #333;
+  letter-spacing: 0.02em;
+  color: #e8e8ea;
 }
 
 .log-viewer__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-bottom: 1px solid #333;
+  gap: 6px 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #2a2a2e;
   flex-shrink: 0;
 }
 
 .log-viewer__filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 6px;
   align-items: center;
 }
 
 .log-viewer__filter {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #b0b0b0;
-  font-size: 13px;
+  gap: 3px;
+  color: #9b9ba3;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   user-select: none;
+  margin: 0;
+}
+
+.log-viewer__filter-key {
+  min-width: 1em;
+  text-align: center;
+  color: #c4c4cc;
+}
+
+.log-viewer__filter:has(input:checked) .log-viewer__filter-key {
+  color: #e8e8ea;
 }
 
 .log-viewer__filter input {
   cursor: pointer;
+  margin: 0;
+  width: 13px;
+  height: 13px;
+  accent-color: #0e639c;
 }
 
 .log-viewer__search {
   flex: 1;
-  min-width: 120px;
-  padding: 6px 10px;
-  border: 1px solid #444;
+  min-width: 0;
+  width: 8em;
+  padding: 4px 8px;
+  border: 1px solid #3c3c42;
   border-radius: 4px;
-  background: #2d2d2d;
-  color: #e0e0e0;
-  font-size: 13px;
+  background: #252528;
+  color: #e0e0e4;
+  font-size: 12px;
 }
 
 .log-viewer__search::placeholder {
-  color: #666;
+  color: #6e6e78;
 }
 
 .log-viewer__search:focus {
   outline: none;
-  border-color: #007acc;
+  border-color: #0e639c;
 }
 
-.log-viewer__clear {
-  padding: 6px 12px;
-  border: 1px solid #444;
+.log-viewer__actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.log-viewer__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
   border-radius: 4px;
-  background: #2d2d2d;
-  color: #b0b0b0;
-  font-size: 13px;
+  background: transparent;
+  color: #a8a8b0;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-.log-viewer__clear:hover {
-  background: #3d3d3d;
-  color: #e0e0e0;
+.log-viewer__icon-btn:hover {
+  background: #2e2e32;
+  color: #e8e8ea;
 }
 
-.log-viewer__include-previous {
-  padding: 6px 12px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #2d2d2d;
-  color: #b0b0b0;
-  font-size: 13px;
-  cursor: pointer;
+.log-viewer__icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
-.log-viewer__include-previous:hover {
-  background: #3d3d3d;
-  color: #e0e0e0;
+.log-viewer__icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  display: block;
 }
 
-.log-viewer__include-previous--active {
-  border-color: #007acc;
-  color: #007acc;
+.log-viewer__icon-btn--close {
+  width: 30px;
+  height: 30px;
+}
+
+.log-viewer__icon-btn--close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.log-viewer__icon-btn--active {
+  background: #1e3a5f;
+  color: #6cb6ff;
+}
+
+.log-viewer__icon-btn--active:hover {
+  background: #254a73;
+  color: #8fc8ff;
+}
+
+.log-viewer__icon-btn--copied {
+  color: #89d185;
 }
 
 .log-viewer__list {
   flex: 1;
   overflow: auto;
-  padding: 8px;
-  min-height: 200px;
+  padding: 4px 6px 8px;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
 }
@@ -191,23 +215,24 @@
 .log-viewer__entry {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 6px 8px;
-  font-size: 12px;
-  line-height: 1.4;
-  border-radius: 4px;
-  margin-bottom: 2px;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  border-radius: 3px;
+  margin-bottom: 1px;
   word-break: break-word;
 }
 
 .log-viewer__entry:hover {
-  background: #2d2d2d;
+  background: #252528;
 }
 
 .log-viewer__entry-time {
   flex-shrink: 0;
-  color: #666;
-  font-size: 11px;
+  color: #6e6e78;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .log-viewer__entry-icon {
@@ -215,33 +240,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin-top: 1px;
 }
 
 .log-viewer__entry-icon svg {
-  width: 1em;
-  height: 1em;
+  width: 0.95em;
+  height: 0.95em;
   fill: currentColor;
 }
 
 .log-viewer__entry-msg {
   flex: 1;
-  color: #d4d4d4;
+  color: #d0d0d6;
+  min-width: 0;
 }
 
 .log-viewer__entry--info .log-viewer__entry-icon {
-  color: #17a2b8;
+  color: #4fc3f7;
 }
 .log-viewer__entry--ok .log-viewer__entry-icon {
-  color: #28a745;
+  color: #89d185;
 }
 .log-viewer__entry--warn .log-viewer__entry-icon {
-  color: #ffc107;
+  color: #cca700;
 }
 .log-viewer__entry--fail .log-viewer__entry-icon {
-  color: #dc3545;
+  color: #f48771;
 }
 .log-viewer__entry--debug .log-viewer__entry-icon {
-  color: #6c757d;
+  color: #858585;
 }
 
 .log-viewer__empty {
@@ -249,9 +276,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  color: #666;
+  color: #6e6e78;
   text-align: left;
-  padding: 24px;
-  font-size: 13px;
-  min-height: 120px;
+  padding: 16px 12px;
+  font-size: 12px;
+  min-height: 100px;
 }

@@ -3,7 +3,6 @@
  * Orchestrates services only; logic lives in helpers and services.
  */
 
-import { PRESET_CACHE_KEY } from '@/constants'
 import { shouldSkipNonHtmlDocument } from '@/helpers/dom'
 import { ensureWebScriptInitialized, getWebScriptId, isDevelopMode, isRemoteScript } from '@/helpers/env'
 import { GME_debug, GME_fail, GME_info } from '@/helpers/logger'
@@ -22,6 +21,7 @@ import {
   tryExecuteEditorScript,
   tryExecuteLocalScript,
 } from '@/services/dev-mode'
+import { deleteLauncherBootstrapStorage } from '@/services/launcher-bootstrap-storage'
 import { registerBasicMenus } from '@/services/menu'
 import { logAndClearPresetUpdatedNotify, subscribePresetBuiltSSE } from '@/services/preset-built-sse'
 import { executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
@@ -67,9 +67,10 @@ async function main(): Promise<void> {
   const updateTime = updateTimeMs > 0 && Number.isFinite(updateTimeMs) ? new Date(updateTimeMs).toLocaleString() : 'unknown'
   const updateTimeHint = updateTime === 'unknown' ? ' (preset may be cached; add ?vws_script_update=1 and reload to refresh)' : ''
   GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
+  GME_debug('[Main] Logger online — earlier [VWS][Launcher] lines were captured as [boot] in the log viewer (same timeline timestamps as console)')
   GME_debug('[Main] Starting main, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
 
-  if (isShellNetworkEnabled()) {
+  if (IS_DEVELOP_MODE && isShellNetworkEnabled()) {
     subscribePresetBuiltSSE(__BASE_URL__)
   }
   logAndClearPresetUpdatedNotify()
@@ -83,7 +84,7 @@ async function main(): Promise<void> {
     } catch (e) {
       GME_fail('[Main] replaceState failed:', e instanceof Error ? e.message : String(e))
     }
-    GM_deleteValue(PRESET_CACHE_KEY)
+    deleteLauncherBootstrapStorage()
     window.location.reload()
     return
   }

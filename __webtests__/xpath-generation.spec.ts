@@ -3,13 +3,25 @@
  * 仅测试 generateXPath / findElementByXPath，不依赖 node-selector UI 与 GM 存储
  */
 
+import { createHash } from 'node:crypto'
+
 import { expect, test } from '@playwright/test'
 
-const TEST_HTML = `
+/** Same key as `getTampermonkeyScriptKey()` (SHA-256 hex of GIST_ID). */
+function e2eTampermonkeyScriptKey(): string {
+  const gistId = process.env.GIST_ID
+  if (!gistId) {
+    throw new Error('GIST_ID must be set for E2E (matches dev server /static/{key}/pending/preset.js)')
+  }
+  return createHash('sha256').update(gistId).digest('hex')
+}
+
+function buildTestHtml(scriptKey: string): string {
+  return `
   <!DOCTYPE html>
   <html>
-    <head><title>XPath Generation Test</title></head>
-    <body>
+  <head><title>XPath Generation Test</title></head>
+  <body>
       <div id="container" class="main-container">
         <header class="header-section" data-testid="header">
           <h1 id="title" class="title-text">Test Page</h1>
@@ -43,16 +55,17 @@ const TEST_HTML = `
         </main>
         <footer class="footer-section"><p class="footer-text">Footer</p></footer>
       </div>
-      <script src="/static/preset.js"></script>
+      <script src="/static/${scriptKey}/pending/preset.js"></script>
     </body>
   </html>
 `
+}
 
 test.describe('XPath Generation', () => {
   test.setTimeout(90_000) // beforeEach may take up to ~45s when waiting for preset under load
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await page.setContent(TEST_HTML)
+    await page.setContent(buildTestHtml(e2eTampermonkeyScriptKey()))
     // Longer timeout when running in parallel (multiple workers loading preset.js)
     await page.waitForFunction(() => typeof (window as any).generateXPath === 'function', { timeout: 30_000 })
     await page.waitForFunction(() => typeof (window as any).findElementByXPath === 'function', { timeout: 15_000 })

@@ -33,27 +33,12 @@ import {
 } from '@/services/dev-mode'
 import { logStore } from '@/services/log-store'
 import { registerBasicMenus } from '@/services/menu'
+import { ensureOptionalUi, openOptionalLogViewer } from '@/services/optional-ui'
+import { ensureRuntimeCore } from '@/services/runtime-core'
 import { executeEditorScript, executeLocalScript, executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
 import { getScriptUpdate } from '@/services/script-update'
 import { getTabCommunication } from '@/services/tab-communication'
-import { GME_openCommandPalette, GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_registerMenuCommand, GME_updateMenuCommand } from '@/ui/corner-widget/index'
-import { GME_openLogViewer } from '@/ui/log-viewer/index'
-import {
-  GME_areMarksHidden,
-  GME_cleanupInvalidMarks,
-  GME_clearAllMarks,
-  GME_clearSelection,
-  GME_disableNodeSelector,
-  GME_enableNodeSelector,
-  GME_getMarkedNodes,
-  GME_getSelectedNode,
-  GME_hideMarks,
-  GME_markNode,
-  GME_showMarks,
-  GME_unmarkNode,
-} from '@/ui/node-selector/index'
-import { GME_registerNodeToolbar, GME_registerNodeToolbarQuery, GME_unregisterNodeToolbar } from '@/ui/node-toolbar/index'
 import { GME_notification as GME_notificationUI, GME_notification_close, GME_notification_update } from '@/ui/notification/index'
 
 /**
@@ -62,6 +47,9 @@ import { GME_notification as GME_notificationUI, GME_notification_close, GME_not
  */
 export function registerGlobals(): void {
   const g = typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
+  const runtimeCore = ensureRuntimeCore()
+
+  const createUiUnavailable = (feature: string) => () => logger.GME_warn(`[Optional UI] ${feature} is unavailable. Load Preset UI first.`)
 
   Object.assign(g, {
     // Helpers (public API for GIST scripts)
@@ -78,29 +66,31 @@ export function registerGlobals(): void {
     fetchScript,
 
     // UI public API (GIST scripts)
-    GME_openLogViewer,
+    GME_openLogViewer: () => {
+      void openOptionalLogViewer()
+    },
     GME_notification: GME_notificationUI,
     GME_notification_update,
     GME_notification_close,
-    GME_openCommandPalette,
-    GME_registerCommandPaletteCommand,
+    GME_openCommandPalette: createUiUnavailable('command palette'),
+    GME_registerCommandPaletteCommand: createUiUnavailable('command palette registration'),
     GME_registerMenuCommand,
     GME_updateMenuCommand,
-    GME_registerNodeToolbar,
-    GME_registerNodeToolbarQuery,
-    GME_unregisterNodeToolbar,
-    GME_enableNodeSelector,
-    GME_disableNodeSelector,
-    GME_getSelectedNode,
-    GME_clearSelection,
-    GME_markNode,
-    GME_unmarkNode,
-    GME_clearAllMarks,
-    GME_getMarkedNodes,
-    GME_cleanupInvalidMarks,
-    GME_hideMarks,
-    GME_showMarks,
-    GME_areMarksHidden,
+    GME_registerNodeToolbar: createUiUnavailable('node toolbar'),
+    GME_registerNodeToolbarQuery: createUiUnavailable('node toolbar query'),
+    GME_unregisterNodeToolbar: createUiUnavailable('node toolbar'),
+    GME_enableNodeSelector: createUiUnavailable('node selector'),
+    GME_disableNodeSelector: createUiUnavailable('node selector'),
+    GME_getSelectedNode: () => null,
+    GME_clearSelection: createUiUnavailable('node selector'),
+    GME_markNode: createUiUnavailable('node selector'),
+    GME_unmarkNode: createUiUnavailable('node selector'),
+    GME_clearAllMarks: createUiUnavailable('node selector'),
+    GME_getMarkedNodes: () => [],
+    GME_cleanupInvalidMarks: createUiUnavailable('node selector'),
+    GME_hideMarks: createUiUnavailable('node selector'),
+    GME_showMarks: createUiUnavailable('node selector'),
+    GME_areMarksHidden: () => false,
     registerBasicMenus,
 
     // Rules (main.ts + matchRule; GIST may use matchUrl via matchRule)
@@ -136,5 +126,14 @@ export function registerGlobals(): void {
 
     // Tab communication (script-update and others)
     getTabCommunication,
+
+    // Runtime core contracts (module registry/event bus/handshake)
+    VWS_runtimeCore: runtimeCore,
+    VWS_registerModule: runtimeCore.register,
+    VWS_getModule: runtimeCore.get,
+    VWS_onRuntimeEvent: runtimeCore.on,
+    VWS_emitRuntimeEvent: runtimeCore.emit,
+    VWS_handshake: runtimeCore.handshake,
+    VWS_ensureOptionalUi: ensureOptionalUi,
   })
 }

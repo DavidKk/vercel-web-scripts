@@ -27,7 +27,10 @@ export interface PresetVariables {
 
 const PRESET_BUNDLE_PATH = join(process.cwd(), 'preset/dist/preset.js')
 const PRESET_MANIFEST_PATH = join(process.cwd(), 'preset/dist/manifest.json')
+const PRESET_UI_BUNDLE_PATH = join(process.cwd(), 'preset/dist/preset-ui.js')
+const PRESET_UI_MANIFEST_PATH = join(process.cwd(), 'preset/dist/manifest-ui.json')
 let presetBundleCache: { mtimeMs: number; content: string } | null = null
+let presetUiBundleCache: { mtimeMs: number; content: string } | null = null
 
 /** Manifest shape written by preset/vite build (content hash for ETag / If-None-Match). */
 export interface PresetManifest {
@@ -42,6 +45,19 @@ export interface PresetManifest {
 export async function getPresetManifest(): Promise<PresetManifest | null> {
   try {
     const raw = await readFile(PRESET_MANIFEST_PATH, 'utf-8')
+    return JSON.parse(raw) as PresetManifest
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Read preset-ui manifest (content hash). Returns null if not built.
+ * @returns Promise of UI manifest or null
+ */
+export async function getPresetUiManifest(): Promise<PresetManifest | null> {
+  try {
+    const raw = await readFile(PRESET_UI_MANIFEST_PATH, 'utf-8')
     return JSON.parse(raw) as PresetManifest
   } catch {
     return null
@@ -72,6 +88,25 @@ export async function getPresetBundle(): Promise<string> {
 }
 
 /**
+ * Load preset-ui bundle by reading file at request time.
+ * @returns Promise of preset-ui bundle content as string
+ */
+export async function getPresetUiBundle(): Promise<string> {
+  try {
+    const st = await stat(PRESET_UI_BUNDLE_PATH)
+    if (presetUiBundleCache && presetUiBundleCache.mtimeMs === st.mtimeMs) {
+      return presetUiBundleCache.content
+    }
+    const content = await readFile(PRESET_UI_BUNDLE_PATH, 'utf-8')
+    presetUiBundleCache = { mtimeMs: st.mtimeMs, content }
+    return content
+  } catch (e) {
+    presetUiBundleCache = null
+    throw e
+  }
+}
+
+/**
  * Build variable declarations string to prepend before preset bundle.
  * Preset expects these globals to be in scope when it runs.
  */
@@ -92,16 +127,34 @@ const __GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};
 }
 
 /**
+ * Options for {@link buildPresetGlobalAssignments} (launcher-only).
+ */
+export interface BuildPresetGlobalAssignmentsOptions {
+  /**
+   * Identifier assigned to `g.__SCRIPT_URL__` instead of a JSON string literal.
+   * Must match a formal parameter of the launcher `new Function(...)` wrapper (not an outer var — `new Function` has no closure).
+   */
+  scriptUrlExpression?: string
+}
+
+/**
  * Build global assignment statements for launcher: assign preset variables onto global object `g`.
  * Used when launcher evals preset so that preset code sees __BASE_URL__, __SCRIPT_URL__, etc.
+ * @param variables Preset runtime URLs and flags
+ * @param options Optional launcher overrides
+ * @returns Assignment snippet executed before preset body
  */
-export function buildPresetGlobalAssignments(variables: PresetVariables): string {
+export function buildPresetGlobalAssignments(variables: PresetVariables, options?: BuildPresetGlobalAssignmentsOptions): string {
+  const scriptAssign =
+    options?.scriptUrlExpression != null && options.scriptUrlExpression.length > 0
+      ? `g.__SCRIPT_URL__ = ${options.scriptUrlExpression};`
+      : `g.__SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)};`
   return `
 g.__BASE_URL__ = ${JSON.stringify(variables.__BASE_URL__)};
 g.__RULE_API_URL__ = ${JSON.stringify(variables.__RULE_API_URL__)};
 g.__EDITOR_URL__ = ${JSON.stringify(variables.__EDITOR_URL__)};
 g.__HMK_URL__ = ${JSON.stringify(variables.__HMK_URL__)};
-g.__SCRIPT_URL__ = ${JSON.stringify(variables.__SCRIPT_URL__)};
+${scriptAssign}
 g.__IS_DEVELOP_MODE__ = ${variables.__IS_DEVELOP_MODE__};
 g.__HOSTNAME_PORT__ = ${JSON.stringify(variables.__HOSTNAME_PORT__)};
 g.__GRANTS_STRING__ = ${JSON.stringify(variables.__GRANTS_STRING__)};

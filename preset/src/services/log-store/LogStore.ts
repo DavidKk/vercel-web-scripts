@@ -89,7 +89,17 @@ export class LogStore {
    * @param message Log message
    */
   push(level: LogLevel, message: string): void {
-    const entry: LogEntry = { level, message, timestamp: Date.now() }
+    this.pushAt(level, message, Date.now())
+  }
+
+  /**
+   * Push a log entry with an explicit timestamp (e.g. replaying launcher boot buffer before LogStore existed).
+   * @param level Log level
+   * @param message Log message
+   * @param timestampMs Event time in milliseconds
+   */
+  pushAt(level: LogLevel, message: string, timestampMs: number): void {
+    const entry: LogEntry = { level, message, timestamp: timestampMs }
     this.memoryBuffer.push(entry)
     this.memoryBuffer = this.filterWithinRetention(this.memoryBuffer).slice(-this.config.maxEntries)
     this.schedulePersist()
@@ -104,7 +114,10 @@ export class LogStore {
   getLogs(scope: LogScope = 'all'): LogEntry[] {
     const base = this.filterWithinRetention(this.memoryBuffer).slice()
     if (scope === 'current') {
-      return base.filter((e) => e.timestamp >= this.sessionStartMs)
+      /** Launcher boot lines replay with `t` slightly before LogStore construction; keep them in "current" without pulling old persisted `[boot]` rows. */
+      const bootSlipMs = 5 * 60 * 1000
+      const bootFloor = this.sessionStartMs - bootSlipMs
+      return base.filter((e) => e.timestamp >= this.sessionStartMs || (e.message.startsWith('[boot]') && e.timestamp >= bootFloor))
     }
     return base
   }
@@ -158,7 +171,8 @@ export class LogStore {
    */
   loadFromIDB(): void {
     if (typeof indexedDB === 'undefined' || !indexedDB) return
-    const currentSessionLogs = this.memoryBuffer.filter((e) => e.timestamp >= this.sessionStartMs)
+    /** Entire in-memory buffer (includes boot replay with timestamps before sessionStartMs). */
+    const inMemorySnapshot = this.memoryBuffer.slice()
     this.openDB()
       .then((db) => {
         const tx = db.transaction(this.config.storeName, 'readonly')
@@ -167,9 +181,9 @@ export class LogStore {
         req.onsuccess = () => {
           const data = req.result
           const persisted = Array.isArray(data) ? this.filterWithinRetention(data) : []
-          const merged = [...persisted, ...currentSessionLogs].sort((a, b) => a.timestamp - b.timestamp)
+          const merged = [...persisted, ...inMemorySnapshot].sort((a, b) => a.timestamp - b.timestamp)
           this.memoryBuffer = this.filterWithinRetention(merged).slice(-this.config.maxEntries)
-          if (persisted.length > 0 || currentSessionLogs.length > 0) {
+          if (persisted.length > 0 || inMemorySnapshot.length > 0) {
             this.schedulePersist()
           }
           this.notifyListeners()

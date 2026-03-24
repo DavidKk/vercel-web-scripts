@@ -2,20 +2,29 @@
   <div class="log-viewer__backdrop" part="backdrop"></div>
   <div class="log-viewer__panel" part="panel">
     <div class="log-viewer__header">
-      <h2 class="log-viewer__title">Log Viewer</h2>
-      <button type="button" class="log-viewer__close" part="close" aria-label="Close">×</button>
+      <h2 class="log-viewer__title">Logs</h2>
+      <button type="button" class="log-viewer__icon-btn log-viewer__icon-btn--close" part="close" aria-label="Close" title="Close"></button>
     </div>
     <div class="log-viewer__toolbar">
       <div class="log-viewer__filters">
-        <label class="log-viewer__filter"><input type="checkbox" data-level="info" checked /> INFO</label>
-        <label class="log-viewer__filter"><input type="checkbox" data-level="ok" checked /> OK</label>
-        <label class="log-viewer__filter"><input type="checkbox" data-level="warn" checked /> WARN</label>
-        <label class="log-viewer__filter"><input type="checkbox" data-level="fail" checked /> FAIL</label>
-        <label class="log-viewer__filter"><input type="checkbox" data-level="debug" /> DEBUG</label>
+        <label class="log-viewer__filter" title="Info"><input type="checkbox" data-level="info" checked /><span class="log-viewer__filter-key">I</span></label>
+        <label class="log-viewer__filter" title="OK"><input type="checkbox" data-level="ok" checked /><span class="log-viewer__filter-key">O</span></label>
+        <label class="log-viewer__filter" title="Warn"><input type="checkbox" data-level="warn" checked /><span class="log-viewer__filter-key">W</span></label>
+        <label class="log-viewer__filter" title="Fail"><input type="checkbox" data-level="fail" checked /><span class="log-viewer__filter-key">F</span></label>
+        <label class="log-viewer__filter" title="Debug"><input type="checkbox" data-level="debug" /><span class="log-viewer__filter-key">D</span></label>
       </div>
-      <input type="text" class="log-viewer__search" part="search" placeholder="Search keyword..." />
-      <button type="button" class="log-viewer__include-previous" part="include-previous" title="Include logs from previous page sessions">Include previous</button>
-      <button type="button" class="log-viewer__clear" part="clear">Clear</button>
+      <input type="text" class="log-viewer__search" part="search" placeholder="Filter…" title="Search [boot], ModuleLoad, preset-ui… — enable D for debug" />
+      <div class="log-viewer__actions">
+        <button type="button" class="log-viewer__icon-btn" data-action="copy" aria-label="Copy filtered logs" title="Copy visible logs (respects filters &amp; search)"></button>
+        <button
+          type="button"
+          class="log-viewer__icon-btn"
+          data-action="include-previous"
+          aria-label="Include previous sessions"
+          title="Include logs from previous sessions"
+        ></button>
+        <button type="button" class="log-viewer__icon-btn" data-action="clear" aria-label="Clear all logs" title="Clear all stored logs"></button>
+      </div>
     </div>
     <div class="log-viewer__list" part="list"></div>
   </div>

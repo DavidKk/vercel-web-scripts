@@ -11,7 +11,7 @@ export interface Params {
 /**
  * GET /static/[key]/tampermonkey.user.js
  * Serves the launcher (startup) userscript — the single entry users install.
- * Launcher loads preset from /static/preset.js and remote from /static/[key]/tampermonkey-remote.js.
+ * Launcher loads preset from /static/[key]/pending/preset.js and remote from /static/[key]/tampermonkey-remote.js.
  * Preset and remote can be updated without reinstalling this script.
  */
 export async function GET(req: Request, context: { params: Promise<Params> }) {

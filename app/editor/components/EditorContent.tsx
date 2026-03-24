@@ -169,6 +169,19 @@ export function EditorContent({
         return
       }
 
+      // Validate scripts server-side (same as remote bundle; no preset) before persisting to Gist
+      const compileRes = await fetch('/tampermonkey/compile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: filesToPublish }),
+      })
+      if (!compileRes.ok) {
+        const errText = (await compileRes.text()).trim()
+        notification.error(errText || 'Failed to compile script')
+        setIsPublishing(false)
+        return
+      }
+
       // First, save all files to Gist
       const filesToSave = Object.entries(filesToPublish).map(([path, content]) => ({
         file: path,
@@ -195,19 +208,7 @@ export function EditorContent({
         fileState.markFileAsSaved(ENTRY_SCRIPT_RULES_FILE)
       }
 
-      // Compile and publish
-      const compileUrl = `/tampermonkey/compile`
-      const response = await fetch(compileUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ files: filesToPublish }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to compile script')
-      }
+      // Skip compile validation for publish: only persist files to Gist.
 
       // After successful publish, mark all published files as unchanged
       // This includes both script files and rules file

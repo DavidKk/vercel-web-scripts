@@ -14,6 +14,7 @@ const editorTypingsSourcePath = path.join(repoRoot, 'preset/src/editor-typings.d
 const editorTypingsOutPath = path.join(repoRoot, 'lib/tampermonkey-editor-typings.generated.ts')
 
 const PRESET_DEV_SERVER_URL = process.env.PRESET_DEV_SERVER_URL || 'http://localhost:3000'
+const IS_WATCH_MODE = process.argv.includes('--watch')
 
 /** 40-char placeholder for preset build hash (SHA-1 hex length); replaced in writeBundle with actual hash. */
 const PRESET_BUILD_HASH_PLACEHOLDER = '0'.repeat(40)
@@ -139,7 +140,7 @@ function presetBuiltNotifyPlugin() {
 }
 
 /**
- * Preset build: entry → preset/dist/preset.js (IIFE). Clears dist.
+ * Preset build: entry → preset/dist/preset.js (IIFE). One-shot build clears `dist/`; watch mode keeps `dist/` so `preset-ui.js` from the parallel UI build is not removed.
  */
 const presetConfig = defineConfig({
   root: __dirname,
@@ -151,7 +152,8 @@ const presetConfig = defineConfig({
   plugins: [Icons({ compiler: 'raw', autoInstall: true }), editorTypingsPlugin(), presetBuildHashPlugin(), presetBuiltNotifyPlugin()],
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
+    /** In `--watch`, do not wipe `dist/` — `build:preset:dev` runs UI build in parallel; clearing would delete `preset-ui.js` after each core rebuild. */
+    emptyOutDir: !IS_WATCH_MODE,
     lib: {
       entry: path.resolve(__dirname, 'src/entry.ts'),
       name: 'GME',
@@ -165,8 +167,8 @@ const presetConfig = defineConfig({
       },
     },
     target: 'esnext',
-    minify: false,
-    sourcemap: 'inline',
+    minify: IS_WATCH_MODE ? false : 'esbuild',
+    sourcemap: IS_WATCH_MODE ? 'inline' : false,
   },
   resolve: {
     alias: {

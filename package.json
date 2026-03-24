@@ -28,8 +28,8 @@
     "test:e2e:install": "playwright install chromium",
     "dev:e2e": "next dev --webpack --hostname 127.0.0.1 --port 3000",
     "generate:editor-typings": "node scripts/generate-editor-typings.mjs",
-    "build:preset": "vite build --config preset/vite.config.ts",
-    "build:preset:dev": "vite build --config preset/vite.config.ts --watch",
+    "build:preset": "vite build --config preset/vite.config.ts && vite build --config preset/vite.ui.config.ts",
+    "build:preset:dev": "concurrently -n preset-core,preset-ui \"vite build --config preset/vite.config.ts --watch\" \"vite build --config preset/vite.ui.config.ts --watch\"",
     "prepare": "husky"
   },
   "dependencies": {

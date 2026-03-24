@@ -3,19 +3,21 @@ import { NextResponse } from 'next/server'
 import { EXCLUDED_FILES } from '@/constants/file'
 import { plainText } from '@/initializer/controller'
 import { fetchGist, getGistInfo } from '@/services/gist'
-import { createUserScript } from '@/services/tampermonkey/createUserScript.server'
+import { getRemoteScriptContent } from '@/services/tampermonkey/createUserScript.server'
 
+/**
+ * POST /tampermonkey/compile
+ * Compiles script files only (same pipeline as tampermonkey-remote.js). No preset, no userscript banner.
+ */
 export const POST = plainText(async (req) => {
-  const body = (await req.json()) as Record<string, string>
+  const body = (await req.json()) as { files?: Record<string, string> }
   const files = body.files || {}
   if (Object.keys(files).length === 0) {
-    throw new Error('No files provided')
+    return new NextResponse('No files provided', { status: 400 })
   }
 
-  const scriptUrl = req.url
-  const version = `0.${(new Date().getTime() / 1e3).toString()}`
   try {
-    const content = await createUserScript({ scriptUrl, version, files })
+    const content = await getRemoteScriptContent(files)
     return content.replace(/\r\n/g, '\n')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

@@ -56,6 +56,7 @@ export default [
             '**/playwright-tsconfig.json',
             '**/__webtests__/**/*.ts',
             '**/vite.config.ts',
+            '**/vite.ui.config.ts',
           ],
         },
       ],

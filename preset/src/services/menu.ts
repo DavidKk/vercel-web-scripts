@@ -2,13 +2,13 @@
  * Menu registration functions
  */
 
-import { PRESET_CACHE_KEY } from '@/constants'
 import { GME_debug, GME_fail } from '@/helpers/logger'
 import { fetchAndCacheRules } from '@/rules'
 import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, isEditorDevMode } from '@/services/dev-mode'
+import { deleteLauncherBootstrapStorage } from '@/services/launcher-bootstrap-storage'
+import { openOptionalLogViewer } from '@/services/optional-ui'
 import { getScriptUpdate } from '@/services/script-update'
 import { isShellNetworkEnabled, runWithShellNetworkAsync, setShellNetworkEnabled } from '@/services/shell-network-settings'
-import { GME_openLogViewer } from '@/ui/log-viewer/index'
 import { GME_notification } from '@/ui/notification/index'
 
 /** Tampermonkey menu command id for shell network toggle (re-registered when state changes) */
@@ -52,7 +52,7 @@ export function registerBasicMenus(): void {
     try {
       GME_debug('[Update Script] Starting in-place update...')
       await runWithShellNetworkAsync(async () => {
-        GM_deleteValue(PRESET_CACHE_KEY)
+        deleteLauncherBootstrapStorage()
         await getScriptUpdate().update(__SCRIPT_URL__)
       })
     } catch (error: unknown) {
@@ -72,7 +72,7 @@ export function registerBasicMenus(): void {
   })
 
   GM_registerMenuCommand('View Logs', () => {
-    GME_openLogViewer()
+    void openOptionalLogViewer()
   })
 
   /**

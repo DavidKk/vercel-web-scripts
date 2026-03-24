@@ -11,8 +11,12 @@ import iconWarn from '~icons/mdi/alert?raw'
 import iconDebug from '~icons/mdi/bug?raw'
 import iconOk from '~icons/mdi/check-circle?raw'
 import iconLogViewer from '~icons/mdi/clipboard-text?raw'
+import iconClose from '~icons/mdi/close?raw'
 import iconFail from '~icons/mdi/close-circle?raw'
+import iconCopy from '~icons/mdi/content-copy?raw'
+import iconHistory from '~icons/mdi/history?raw'
 import iconInfo from '~icons/mdi/information?raw'
+import iconTrash from '~icons/mdi/trash-can-outline?raw'
 
 import logViewerCss from './index.css?raw'
 import logViewerHtml from './index.html?raw'
@@ -31,6 +35,36 @@ function escapeHtml(s: string): string {
   return div.innerHTML
 }
 
+/**
+ * Copy plain text to the system clipboard (with execCommand fallback).
+ * @param text Text to copy
+ * @returns Whether copy likely succeeded
+ */
+async function copyPlainTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
 export class LogViewerUI extends HTMLElement {
   static TAG_NAME = TAG
   #shadowRoot: ShadowRoot | null = null
@@ -38,6 +72,7 @@ export class LogViewerUI extends HTMLElement {
   #store: typeof logStore | null = null
   /** When false, only logs from current page session are shown; when true, include persisted history */
   #includePrevious = false
+  #copyFlashTimer: ReturnType<typeof setTimeout> | null = null
 
   connectedCallback() {
     const template = this.querySelector('template')
@@ -50,23 +85,34 @@ export class LogViewerUI extends HTMLElement {
     this.#store = logStore ?? null
 
     const backdrop = this.#shadowRoot.querySelector('.log-viewer__backdrop')
-    const closeBtn = this.#shadowRoot.querySelector('.log-viewer__close')
-    const clearBtn = this.#shadowRoot.querySelector('.log-viewer__clear')
-    const includePreviousBtn = this.#shadowRoot.querySelector('.log-viewer__include-previous')
+    const closeBtn = this.#shadowRoot.querySelector('.log-viewer__icon-btn--close')
+    const copyBtn = this.#shadowRoot.querySelector('[data-action="copy"]')
+    const includePreviousBtn = this.#shadowRoot.querySelector('[data-action="include-previous"]')
+    const clearBtn = this.#shadowRoot.querySelector('[data-action="clear"]')
     const searchInput = this.#shadowRoot.querySelector('.log-viewer__search')
     const filterInputs = this.#shadowRoot.querySelectorAll('.log-viewer__filter input')
 
+    if (closeBtn) closeBtn.innerHTML = iconClose
+    if (copyBtn) copyBtn.innerHTML = iconCopy
+    if (includePreviousBtn) includePreviousBtn.innerHTML = iconHistory
+    if (clearBtn) clearBtn.innerHTML = iconTrash
+
     backdrop?.addEventListener('click', () => this.close())
     closeBtn?.addEventListener('click', () => this.close())
+    copyBtn?.addEventListener('click', () => void this.#onCopy())
     clearBtn?.addEventListener('click', () => this.#onClear())
     includePreviousBtn?.addEventListener('click', () => this.#onToggleIncludePrevious())
     searchInput?.addEventListener('input', () => this.#render())
-    filterInputs?.forEach((input) => input.addEventListener('change', () => this.#render()))
+    filterInputs.forEach((input) => input.addEventListener('change', () => this.#render()))
   }
 
   disconnectedCallback() {
     this.#unsubscribe?.()
     this.#unsubscribe = null
+    if (this.#copyFlashTimer != null) {
+      clearTimeout(this.#copyFlashTimer)
+      this.#copyFlashTimer = null
+    }
   }
 
   open() {
@@ -97,12 +143,36 @@ export class LogViewerUI extends HTMLElement {
     this.#render()
   }
 
+  async #onCopy() {
+    const filtered = this.#getFilteredLogEntries()
+    if (filtered.length === 0) {
+      return
+    }
+    const lines = filtered.map((e) => this.#formatLinePlain(e))
+    const text = lines.join('\n')
+    const ok = await copyPlainTextToClipboard(text)
+    const btn = this.#shadowRoot?.querySelector('[data-action="copy"]') as HTMLButtonElement | null
+    if (!btn) {
+      return
+    }
+    if (this.#copyFlashTimer != null) {
+      clearTimeout(this.#copyFlashTimer)
+    }
+    btn.classList.toggle('log-viewer__icon-btn--copied', ok)
+    btn.title = ok ? 'Copied' : 'Copy failed — check permissions'
+    this.#copyFlashTimer = setTimeout(() => {
+      btn.classList.remove('log-viewer__icon-btn--copied')
+      btn.title = 'Copy visible logs (respects filters & search)'
+      this.#copyFlashTimer = null
+    }, 1600)
+  }
+
   #updateIncludePreviousButton() {
-    const btn = this.#shadowRoot?.querySelector('.log-viewer__include-previous') as HTMLButtonElement
+    const btn = this.#shadowRoot?.querySelector('[data-action="include-previous"]') as HTMLButtonElement | null
     if (btn) {
-      btn.textContent = this.#includePrevious ? 'Current only' : 'Include previous'
-      btn.title = this.#includePrevious ? 'Show only logs from this page session' : 'Include logs from previous page sessions'
-      btn.classList.toggle('log-viewer__include-previous--active', this.#includePrevious)
+      btn.title = this.#includePrevious ? 'Showing all sessions — click for this session only' : 'Include logs from previous sessions'
+      btn.setAttribute('aria-pressed', this.#includePrevious ? 'true' : 'false')
+      btn.classList.toggle('log-viewer__icon-btn--active', this.#includePrevious)
     }
   }
 
@@ -126,14 +196,38 @@ export class LogViewerUI extends HTMLElement {
     return d.toLocaleTimeString('en-GB', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0')
   }
 
+  /**
+   * One line for clipboard (plain text).
+   */
+  #formatLinePlain(e: LogEntry): string {
+    return `${this.#formatTime(e.timestamp)} [${e.level.toUpperCase()}] ${e.message}`
+  }
+
+  /**
+   * Entries after level + search filter (same as rendered list).
+   */
+  #getFilteredLogEntries(): LogEntry[] {
+    if (!this.#store) {
+      return []
+    }
+    const levels = this.#getSelectedLevels()
+    const keyword = this.#getSearchKeyword()
+    const scope = this.#includePrevious ? 'all' : 'current'
+    const entries = this.#store.getLogs(scope)
+    return entries.filter((e) => {
+      if (!levels.has(e.level)) return false
+      if (keyword && !e.message.toLowerCase().includes(keyword)) return false
+      return true
+    })
+  }
+
   #render() {
     if (!this.#shadowRoot) return
 
     const listEl = this.#shadowRoot.querySelector('.log-viewer__list') as HTMLElement
     if (!listEl) return
 
-    const levels = this.#getSelectedLevels()
-    const keyword = this.#getSearchKeyword()
+    const copyBtn = this.#shadowRoot.querySelector('[data-action="copy"]') as HTMLButtonElement | null
 
     if (!this.#store) {
       listEl.innerHTML = ''
@@ -141,16 +235,16 @@ export class LogViewerUI extends HTMLElement {
       empty.className = 'log-viewer__empty'
       empty.textContent = 'Log store not available (logger may not be loaded)'
       listEl.appendChild(empty)
+      if (copyBtn) copyBtn.disabled = true
       return
     }
 
-    const scope = this.#includePrevious ? 'all' : 'current'
-    const entries: LogEntry[] = this.#store.getLogs(scope)
-    const filtered = entries.filter((e) => {
-      if (!levels.has(e.level)) return false
-      if (keyword && !e.message.toLowerCase().includes(keyword)) return false
-      return true
-    })
+    const filtered = this.#getFilteredLogEntries()
+    const entries: LogEntry[] = this.#store.getLogs(this.#includePrevious ? 'all' : 'current')
+
+    if (copyBtn) {
+      copyBtn.disabled = filtered.length === 0
+    }
 
     listEl.innerHTML = ''
 

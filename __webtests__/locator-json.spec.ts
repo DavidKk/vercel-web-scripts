@@ -3,12 +3,24 @@
  * 测试基于语义指纹的多策略节点定位方案
  */
 
+import { createHash } from 'node:crypto'
+
 import { expect, test } from '@playwright/test'
+
+/** Same key as `getTampermonkeyScriptKey()` (SHA-256 hex of GIST_ID); preset is only served under this path. */
+function e2eTampermonkeyScriptKey(): string {
+  const gistId = process.env.GIST_ID
+  if (!gistId) {
+    throw new Error('GIST_ID must be set for E2E (matches dev server /static/{key}/pending/preset.js)')
+  }
+  return createHash('sha256').update(gistId).digest('hex')
+}
 
 test.describe('Locator JSON Generation and Playback', () => {
   test.setTimeout(90_000) // beforeEach may take up to ~45s when waiting for preset under load
   test.beforeEach(async ({ page }) => {
-    // Navigate to baseURL first so <script src="/static/preset.js"> resolves to the dev server
+    const scriptKey = e2eTampermonkeyScriptKey()
+    // Navigate to baseURL first so <script src="/static/{key}/pending/preset.js"> resolves to the dev server
     await page.goto('/')
     // Load a test HTML page with various DOM structures
     await page.setContent(`
@@ -61,7 +73,7 @@ test.describe('Locator JSON Generation and Playback', () => {
               <p class="footer-text">Footer</p>
             </footer>
           </div>
-          <script src="/static/preset.js"></script>
+          <script src="/static/${scriptKey}/pending/preset.js"></script>
         </body>
       </html>
     `)
