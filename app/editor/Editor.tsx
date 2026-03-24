@@ -16,6 +16,7 @@ import { EditorContent } from './components/EditorContent'
 const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
 
 export interface EditorProps {
+  displayUsername: string
   files: Record<
     string,
     {
@@ -30,7 +31,7 @@ export interface EditorProps {
 }
 
 export default function Editor(props: EditorProps) {
-  const { files: inFiles, scriptKey, rules: initialRules } = props
+  const { files: inFiles, scriptKey, displayUsername, rules: initialRules } = props
 
   // Rules state
   const [rules, setRules] = useState<RuleConfig[]>(initialRules)
@@ -90,6 +91,7 @@ export default function Editor(props: EditorProps) {
           <TabBarProvider>
             <EditorContent
               scriptKey={scriptKey}
+              displayUsername={displayUsername}
               initialFiles={initialFiles}
               tampermonkeyTypings={props.tampermonkeyTypings}
               rules={rules}

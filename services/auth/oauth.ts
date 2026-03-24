@@ -34,6 +34,7 @@ export async function exchangeOAuthSession(token: string) {
     authenticated: true,
     provider: 'oauth',
     username,
+    sub: username,
   })
 
   const cookie = serialize(AUTH_TOKEN_NAME, sessionToken, {

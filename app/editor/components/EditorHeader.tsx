@@ -1,40 +1,40 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { FiLogOut, FiPlay, FiPlayCircle, FiZap } from 'react-icons/fi'
+import { useEffect, useRef, useState } from 'react'
+import { FiChevronDown, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
 
 import { Spinner } from '@/components/Spinner'
 
+import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
+
+const iconBtn = 'p-2 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
 
 interface EditorHeaderProps {
   scriptKey: string
+  displayUsername: string
   onSave: () => void
   isSaving: boolean
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void
   isCompiling: boolean
-  /** Callback to toggle AI panel */
   onToggleAI?: () => void
-  /** Whether AI panel is open */
   isAIOpen?: boolean
-  /** Whether AI button should be disabled */
   isAIDisabled?: boolean
-  /** Callback to toggle Rules panel */
   onToggleRules?: () => void
-  /** Whether Rules panel is open */
   isRulesOpen?: boolean
 }
 
 /**
- * Editor header component with exit, dev mode, install, and publish buttons
+ * Editor header: brand left, integration + tool icons, user menu with logout on the right.
  */
 export default function EditorHeader({
   scriptKey,
+  displayUsername,
   onSave,
   isSaving,
   isEditorDevMode,
@@ -49,8 +49,20 @@ export default function EditorHeader({
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
-  /** Handle install: validate launcher script (HEAD), then open install URL in new tab if OK */
+  useEffect(() => {
+    if (!userMenuOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (!userMenuRef.current?.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [userMenuOpen])
+
   const handleInstall = async () => {
     if (isChecking || isSaving) return
     setIsChecking(true)
@@ -70,146 +82,142 @@ export default function EditorHeader({
     }
   }
 
-  /** Handle logout - clear authentication and redirect to login */
   const handleLogout = async () => {
-    if (isSaving) {
-      return
-    }
-
+    if (isSaving) return
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
       router.push('/')
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Logout failed:', error)
-      // Still redirect even if logout API fails
       router.push('/')
     }
   }
 
   return (
-    <header className="h-12 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center justify-between px-4 sticky top-0 z-50">
-      {/* Left: Exit button */}
-      <button
-        onClick={handleLogout}
-        disabled={isSaving}
-        className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-        title="Logout"
-      >
-        <FiLogOut className="w-4 h-4" />
-        <span className="text-sm">Exit</span>
-      </button>
+    <header className="h-11 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center gap-2 px-3 sticky top-0 z-50">
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
+        <div className="w-8 h-8 rounded-md bg-[#0e639c] flex items-center justify-center text-white text-xs font-bold select-none" aria-hidden>
+          V
+        </div>
+        <span className="text-sm text-[#e0e0e0] font-medium truncate hidden sm:inline">Web Scripts</span>
+      </div>
 
-      {/* Right: Action buttons */}
-      <div className="flex items-center gap-2">
-        {/* Keyboard shortcuts help */}
-        <button
-          type="button"
-          onClick={() => setShortcutsHelpOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors"
-          title="Keyboard shortcuts"
-        >
+      <div className="flex-1 min-w-2" />
+
+      <EditorIntegrationModals />
+
+      <div className="flex items-center gap-0.5 shrink-0">
+        <button type="button" onClick={() => setShortcutsHelpOpen(true)} className={iconBtn} title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
           <MdOutlineKeyboard className="w-4 h-4" />
-          <span className="text-sm">Shortcuts</span>
         </button>
 
-        {/* Rules button */}
         {onToggleRules && (
           <button
+            type="button"
             onClick={onToggleRules}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-              isRulesOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-            title={isRulesOpen ? 'Close URL Rules panel' : 'Open URL Rules panel'}
+            className={`${iconBtn} ${isRulesOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
+            title={isRulesOpen ? 'Close URL rules' : 'URL rules'}
+            aria-label="URL rules"
           >
             <LuAsterisk className="w-4 h-4" />
-            <span className="text-sm">Rules</span>
           </button>
         )}
 
-        {/* AI Rewrite button */}
         {onToggleAI && (
           <button
+            type="button"
             onClick={onToggleAI}
             disabled={isSaving || isAIDisabled}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-              isAIOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-            title={isAIOpen ? 'Close AI panel' : 'Open AI Code Rewriter'}
+            className={`${iconBtn} ${isAIOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
+            title={isAIOpen ? 'Close AI panel' : 'AI rewrite'}
+            aria-label="AI rewrite"
           >
             <FiZap className="w-4 h-4" />
-            <span className="text-sm">AI</span>
           </button>
         )}
 
-        {/* Editor Dev Mode toggle */}
         <button
+          type="button"
           onClick={onToggleEditorDevMode}
           disabled={isCompiling}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-            isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : 'text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d]'
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
-          title={isCompiling ? 'Compiling...' : isEditorDevMode ? 'Disable editor dev mode' : 'Enable editor dev mode'}
+          className={`${iconBtn} ${isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : ''}`}
+          title={isCompiling ? 'Compiling' : isEditorDevMode ? 'Disable dev mode' : 'Editor dev mode'}
+          aria-label="Editor dev mode"
         >
           {isCompiling ? (
-            <>
-              <span className="w-4 h-4 flex items-center justify-center">
-                <Spinner />
-              </span>
-              <span className="text-sm">Compiling...</span>
-            </>
+            <span className="w-4 h-4 flex items-center justify-center">
+              <Spinner />
+            </span>
+          ) : isEditorDevMode ? (
+            <FiPlay className="w-4 h-4" />
           ) : (
-            <>
-              {isEditorDevMode ? <FiPlay className="w-4 h-4" /> : <FiPlayCircle className="w-4 h-4" />}
-              <span className="text-sm">Dev Mode</span>
-            </>
+            <FiPlayCircle className="w-4 h-4" />
           )}
         </button>
 
-        {/* Install button */}
-        <button
-          onClick={handleInstall}
-          disabled={isSaving || isChecking}
-          className="flex items-center gap-2 px-3 py-1.5 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-          title="Validate and open script install link"
-        >
+        <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} title="Install userscript" aria-label="Install userscript">
           {isChecking ? (
-            <>
-              <span className="w-4 h-4 flex items-center justify-center">
-                <Spinner />
-              </span>
-              <span className="text-sm">Checking...</span>
-            </>
+            <span className="w-4 h-4 flex items-center justify-center">
+              <Spinner />
+            </span>
           ) : (
-            <>
-              <IoExtensionPuzzleOutline className="w-4 h-4" />
-              <span className="text-sm">Install</span>
-            </>
+            <IoExtensionPuzzleOutline className="w-4 h-4" />
           )}
         </button>
 
-        {/* Publish button */}
         <button
+          type="button"
           onClick={onSave}
           disabled={isSaving}
-          className="flex items-center gap-2 px-4 py-1.5 bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
-          title="Publish changes to production"
+          className={`${iconBtn} bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50`}
+          title="Publish to Gist"
+          aria-label="Publish to Gist"
         >
           {isSaving ? (
-            <>
-              <span className="w-4 h-4 flex items-center justify-center">
-                <Spinner />
-              </span>
-              <span className="text-sm">Publishing...</span>
-            </>
+            <span className="w-4 h-4 flex items-center justify-center">
+              <Spinner />
+            </span>
           ) : (
-            <>
-              <MdOutlineCloudUpload className="w-4 h-4" />
-              <span className="text-sm">Publish</span>
-            </>
+            <MdOutlineCloudUpload className="w-4 h-4" />
           )}
         </button>
+      </div>
+
+      <div className="relative shrink-0 pl-2 border-l border-[#2d2d2d] ml-1" ref={userMenuRef}>
+        <button
+          type="button"
+          onClick={() => setUserMenuOpen((o) => !o)}
+          disabled={isSaving}
+          className="flex items-center gap-1 px-2 py-1.5 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50"
+          title="Account"
+          aria-label="Account"
+          aria-expanded={userMenuOpen}
+          aria-haspopup="menu"
+        >
+          <FiUser className="w-4 h-4 shrink-0" />
+          <FiChevronDown className={`w-3 h-3 shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {userMenuOpen ? (
+          <div className="absolute right-0 top-full mt-1 py-1 bg-[#252526] border border-[#3c3c3c] rounded-md shadow-lg min-w-[180px] z-[70]" role="menu">
+            <div className="px-3 py-2 text-xs text-[#a0a0a0] border-b border-[#3c3c3c] truncate" title={displayUsername}>
+              {displayUsername}
+            </div>
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#e0e0e0] hover:bg-[#2d2d2d] text-left"
+              onClick={() => {
+                setUserMenuOpen(false)
+                void handleLogout()
+              }}
+            >
+              <FiLogOut className="w-4 h-4" />
+              Log out
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <ShortcutsHelpModal open={shortcutsHelpOpen} onClose={() => setShortcutsHelpOpen(false)} />

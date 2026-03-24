@@ -23,6 +23,7 @@ const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
 
 export interface EditorContentProps {
   scriptKey: string
+  displayUsername: string
   initialFiles: Record<string, string>
   tampermonkeyTypings: string
   rules: RuleConfig[]
@@ -40,6 +41,7 @@ export interface EditorContentProps {
  */
 export function EditorContent({
   scriptKey,
+  displayUsername,
   initialFiles,
   tampermonkeyTypings,
   rules,
@@ -255,6 +257,7 @@ export function EditorContent({
     <div className="w-full h-screen overflow-hidden flex flex-col">
       <EditorHeaderWrapper
         scriptKey={scriptKey}
+        displayUsername={displayUsername}
         onSave={handlePublish}
         isSaving={isPublishing || isSaving}
         isEditorDevMode={isEditorDevMode}

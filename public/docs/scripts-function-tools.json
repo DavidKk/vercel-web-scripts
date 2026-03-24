@@ -1,0 +1,63 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_list",
+      "description": "List .ts/.js script files in the Gist (excludes generated entry and rules JSON). Returns filenames and byte lengths.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_get",
+      "description": "Read one script file by exact Gist filename.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Gist file name e.g. my-script.ts"
+          }
+        },
+        "required": ["filename"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_upsert",
+      "description": "Create or replace a script file in the Gist.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "content": { "type": "string" }
+        },
+        "required": ["filename", "content"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_delete",
+      "description": "Delete a script file from the Gist.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" }
+        },
+        "required": ["filename"],
+        "additionalProperties": false
+      }
+    }
+  }
+]

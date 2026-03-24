@@ -6,6 +6,7 @@ import EditorHeader from './EditorHeader'
 
 interface EditorHeaderWrapperProps {
   scriptKey: string
+  displayUsername: string
   onSave: () => void
   isSaving: boolean
   isEditorDevMode: boolean
