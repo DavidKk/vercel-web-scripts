@@ -51,6 +51,45 @@ export function registerGlobals(): void {
 
   const createUiUnavailable = (feature: string) => () => logger.GME_warn(`[Optional UI] ${feature} is unavailable. Load Preset UI first.`)
 
+  /**
+   * Some GIST scripts may call `GME_registerCommandPaletteCommand` at `document-start`
+   * before optional preset-ui lazy-loads the command-palette module.
+   * Keep a persistent global backlog so registrations survive delayed load / module reload.
+   */
+  const COMMAND_PALETTE_BACKLOG_KEY = '__VWS_COMMAND_PALETTE_COMMANDS__'
+  const registerCommandPaletteCommand = (command: any): void => {
+    try {
+      if (!command || typeof command !== 'object') return
+      const backlog = ((g as any)[COMMAND_PALETTE_BACKLOG_KEY] ??= []) as any[]
+      if (!Array.isArray(backlog)) return
+      const id = (command as any).id
+      if (typeof id === 'string' && id.length) {
+        const idx = backlog.findIndex((c) => (c as any)?.id === id)
+        if (idx >= 0) backlog[idx] = command
+        else backlog.push(command)
+      } else {
+        backlog.push(command)
+      }
+
+      // If preset-ui is ready, forward immediately; otherwise backlog will be replayed on UI load.
+      const uiApi = runtimeCore.get('preset-ui') as { registerCommandPaletteCommand?: (cmd: any) => void } | undefined
+      if (typeof uiApi?.registerCommandPaletteCommand === 'function') {
+        uiApi.registerCommandPaletteCommand(command)
+      } else {
+        // Ensure optional UI lazy-load is kicked and forward once ready.
+        void ensureOptionalUi().then((api) => {
+          try {
+            api?.registerCommandPaletteCommand?.(command)
+          } catch {
+            /* ignore */
+          }
+        })
+      }
+    } catch {
+      // Silent: registration is best-effort; actual UI module may still load later.
+    }
+  }
+
   Object.assign(g, {
     // Helpers (public API for GIST scripts)
     ...utils,
@@ -73,7 +112,8 @@ export function registerGlobals(): void {
     GME_notification_update,
     GME_notification_close,
     GME_openCommandPalette: createUiUnavailable('command palette'),
-    GME_registerCommandPaletteCommand: createUiUnavailable('command palette registration'),
+    // Queue registrations if command-palette UI hasn't loaded yet.
+    GME_registerCommandPaletteCommand: registerCommandPaletteCommand,
     GME_registerMenuCommand,
     GME_updateMenuCommand,
     GME_registerNodeToolbar: createUiUnavailable('node toolbar'),

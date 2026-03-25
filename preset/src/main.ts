@@ -23,6 +23,7 @@ import {
 } from '@/services/dev-mode'
 import { deleteLauncherBootstrapStorage } from '@/services/launcher-bootstrap-storage'
 import { registerBasicMenus } from '@/services/menu'
+import { ensureOptionalUi } from '@/services/optional-ui'
 import { logAndClearPresetUpdatedNotify, subscribePresetBuiltSSE } from '@/services/preset-built-sse'
 import { executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
 import { getScriptUpdate } from '@/services/script-update'
@@ -69,6 +70,11 @@ async function main(): Promise<void> {
   GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
   GME_debug('[Main] Logger online — earlier [VWS][Launcher] lines were captured as [boot] in the log viewer (same timeline timestamps as console)')
   GME_debug('[Main] Starting main, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
+
+  // Auto-ensure optional UI on page startup so command-palette entries
+  // registered by preset-ui (e.g. Log Viewer) are restored after refresh.
+  // This is non-blocking and uses cache-first behavior in ensureOptionalUi().
+  void ensureOptionalUi()
 
   if (IS_DEVELOP_MODE && isShellNetworkEnabled()) {
     subscribePresetBuiltSSE(__BASE_URL__)

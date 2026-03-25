@@ -426,12 +426,35 @@ function openStringTool(type: StringToolType): void {
 }
 
 STRING_COMMANDS.forEach(({ id, title, keywords, hint }) => {
+  // Gate hash commands by input shape so the palette can show them only after
+  // the user inputs a full-length hex string (e.g. 32 hex chars for MD5).
+  const hexOnlyGate =
+    (expectedLen: number) =>
+    (input: string): boolean => {
+      // Exact length + hex chars only.
+      return input.length === expectedLen && /^[\da-fA-F]+$/.test(input)
+    }
+
+  const onShown =
+    id === 'md5'
+      ? hexOnlyGate(32)
+      : id === 'sha1'
+        ? hexOnlyGate(40)
+        : id === 'sha256'
+          ? hexOnlyGate(64)
+          : id === 'sha384'
+            ? hexOnlyGate(96)
+            : id === 'sha512'
+              ? hexOnlyGate(128)
+              : undefined
+
   GME_registerCommandPaletteCommand({
     id,
     keywords,
     title,
     iconHtml: iconStringTool,
     hint,
+    onShown,
     action: () => openStringTool(id),
   })
 })

@@ -340,6 +340,9 @@ ${grantLines}
     }
   })();
 
+  // Only persist latest manifest etag after preset apply/execute succeeds.
+  var pendingManifestEtag = '';
+
   function applyPresetWithAtomicSwitch(presetText, normalizedHash) {
     var activeHash = readScopedValue(PRESET_ACTIVATED_HASH_KEY_SCOPED, ${JSON.stringify(PRESET_ACTIVATED_HASH_KEY)}, '');
     var nextH = normalizedHash || '';
@@ -358,6 +361,10 @@ ${grantLines}
       writeScopedAndLegacy(PRESET_ETAG_KEY_SCOPED, ${JSON.stringify(PRESET_ETAG_KEY)}, normalizedHash);
     }
     writeScopedAndLegacy(PRESET_CACHE_KEY_SCOPED, ${JSON.stringify(PRESET_CACHE_KEY)}, presetText);
+    if (pendingManifestEtag) {
+      persistManifestEtag(pendingManifestEtag);
+      pendingManifestEtag = '';
+    }
     var displayNewHash = nextH || activeHash;
     bootLog(
       'ok',
@@ -391,6 +398,7 @@ ${grantLines}
   }
 
   function loadAndRun(skipConditionalRequest) {
+    pendingManifestEtag = '';
     var presetCode0 = readScopedValue(PRESET_CACHE_KEY_SCOPED, ${JSON.stringify(PRESET_CACHE_KEY)}, '');
     var localH0 = normalizeEtag(readScopedValue(PRESET_ETAG_KEY_SCOPED, ${JSON.stringify(PRESET_ETAG_KEY)}, ''));
     var manE0 = normalizeEtag(readScopedValue(MODULE_MANIFEST_ETAG_KEY_SCOPED, ${JSON.stringify(MODULE_MANIFEST_ETAG_KEY)}, ''));
@@ -419,6 +427,8 @@ ${grantLines}
     function requestPreset(fetchUrl, expectedHash, forceFullFetch) {
       var url = fetchUrl && typeof fetchUrl === 'string' ? fetchUrl : PRESET_URL;
       var hdrs = {};
+      var lastProgressPercent = -1;
+      var lastProgressLogAt = 0;
       if (!forceFullFetch && !skipConditionalRequest && localPresetHash) {
         hdrs['If-None-Match'] = localPresetHash;
       }
@@ -431,9 +441,37 @@ ${grantLines}
         method: 'GET',
         url: url,
         headers: hdrs,
+        onprogress: function (evt) {
+          var now = Date.now();
+          var loaded = evt && typeof evt.loaded === 'number' ? evt.loaded : 0;
+          var total = evt && typeof evt.total === 'number' ? evt.total : 0;
+          var lengthComputable = !!(evt && evt.lengthComputable && total > 0);
+
+          if (lengthComputable) {
+            var percent = Math.floor((loaded / total) * 100);
+            var shouldLogByPercent = percent >= lastProgressPercent + 5 || percent === 100;
+            var shouldLogByTime = now - lastProgressLogAt >= 1200;
+            if (shouldLogByPercent || shouldLogByTime) {
+              lastProgressPercent = percent;
+              lastProgressLogAt = now;
+              bootLog('info', MODULE_LOG_PREFIX, 'preset-core:fetch:progress ' + percent + '% (' + loaded + '/' + total + ' bytes)');
+            }
+            return;
+          }
+
+          // When total is unknown, still emit sparse progress logs with downloaded bytes.
+          if (now - lastProgressLogAt >= 1200) {
+            lastProgressLogAt = now;
+            bootLog('info', MODULE_LOG_PREFIX, 'preset-core:fetch:progress bytes=' + loaded + ' (total unknown)');
+          }
+        },
         onload: function (res) {
           if (res.status === 304) {
             bootLog('info', MODULE_LOG_PREFIX, 'preset-core:fetch:304 not-modified server agrees localHash=' + shortHash(localPresetHash));
+            if (pendingManifestEtag) {
+              persistManifestEtag(pendingManifestEtag);
+              pendingManifestEtag = '';
+            }
             if (presetCode) {
               runPreset(presetCode);
             } else {
@@ -444,6 +482,7 @@ ${grantLines}
           }
           if (res.status === 404) {
             bootLog('warn', MODULE_LOG_PREFIX, 'preset-core:fetch:404 url may be stale — manifest refresh or rollback');
+            pendingManifestEtag = '';
             if (!tryRollbackPreset()) {
               loadAndRun(true);
             }
@@ -457,6 +496,7 @@ ${grantLines}
               'preset-core:fetch:200 bytes=' + res.responseText.length + ' responseEtag=' + shortHash(normalizedEtag)
             );
             if (expectedHash && normalizedEtag && expectedHash !== normalizedEtag) {
+              pendingManifestEtag = '';
               bootLog(
                 'fail',
                 MODULE_LOG_PREFIX,
@@ -473,6 +513,7 @@ ${grantLines}
             return;
           }
           bootLog('fail', MODULE_LOG_PREFIX, 'preset-core:fetch:failed status=' + res.status);
+          pendingManifestEtag = '';
           console.error('[Launcher] failed to fetch preset, status:', res.status);
           if (!tryRollbackPreset()) {
             console.error('[Launcher] rollback failed: no cached preset');
@@ -480,6 +521,7 @@ ${grantLines}
         },
         onerror: function () {
           bootLog('fail', MODULE_LOG_PREFIX, 'preset-core:fetch:network-error');
+          pendingManifestEtag = '';
           console.error('[Launcher] failed to fetch preset (network error)');
           if (!tryRollbackPreset()) {
             console.error('[Launcher] rollback failed: no cached preset');
@@ -497,7 +539,7 @@ ${grantLines}
           presetMod = extractPresetCoreModule(mres.data);
           expectedHash = hashFromPresetCoreModule(presetMod);
           if (mres.etag) {
-            persistManifestEtag(mres.etag);
+            pendingManifestEtag = mres.etag;
           }
         } else {
           applyScriptBundleUrlFromManifest(null, true);
@@ -518,6 +560,7 @@ ${grantLines}
       }
       if (mres.notModified) {
         applyScriptBundleUrlFromManifest(null, true);
+        pendingManifestEtag = '';
         bootLog(
           'info',
           MODULE_LOG_PREFIX,
@@ -532,13 +575,17 @@ ${grantLines}
         return;
       }
       if (mres.etag) {
-        persistManifestEtag(mres.etag);
+        pendingManifestEtag = mres.etag;
       }
       applyScriptBundleUrlFromManifest(mres.data, false);
       var presetMod = extractPresetCoreModule(mres.data);
       var presetFetchUrl = presetMod && presetMod.url ? presetMod.url : PRESET_URL;
       var remoteHash = hashFromPresetCoreModule(presetMod);
       if (remoteHash && localPresetHash && remoteHash === localPresetHash && presetCode) {
+        if (pendingManifestEtag) {
+          persistManifestEtag(pendingManifestEtag);
+          pendingManifestEtag = '';
+        }
         bootLog(
           'info',
           MODULE_LOG_PREFIX,

@@ -506,11 +506,27 @@ declare function GME_updateMenuCommand(id: string, updates: Partial<Omit<MenuIte
  */
 declare interface CommandPaletteCommand {
   id: string
-  keywords: string[]
-  title: string
+  text?: string
+  keywords?: string[]
+  title?: string
   icon?: string
   hint?: string
-  action: () => void
+  /**
+   * Optional gate to decide whether this command should be shown in the dropdown.
+   * Called with the current user input (trimmed, not lowercased).
+   * Return `false` to hide the item even if title/keywords match.
+   */
+  onShown?: (input: string) => boolean
+  /**
+   * Backward-compatible alias for `onShown`.
+   * (Some scripts use `onShow` name.)
+   */
+  onShow?: (input: string) => boolean
+  /**
+   * Called when user selects this command.
+   * `input` is the current trimmed input from the palette.
+   */
+  action: (input?: string) => void
 }
 
 /**

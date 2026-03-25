@@ -25,7 +25,7 @@ Only `.ts` / `.js` files that are **not** the generated entry or rules JSON can 
 
 - Base URL: `GET /api/mcp` (manifest), `POST /api/mcp` (JSON-RPC 2.0: `initialize`, `tools/list`, `tools/call`, or legacy `{ "tool": "scripts_list", "params": {} }`).
 
-Tools: `scripts_runtime_summary`, `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_delete`.
+Tools: `scripts_runtime_summary`, `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_delete`, `scripts_rename`.
 
 **End users do not “install” `/api/mcp`.** That URL is only for MCP clients (e.g. Cursor) that call JSON-RPC to edit **Gist files**. It does **not** run in the browser and does **not** load the preset.
 
@@ -92,4 +92,5 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 1. `scripts_runtime_summary` first (runtime APIs + constraints).
 2. `scripts_list` (or `GET /api/v1/scripts`) to see names.
 3. `scripts_get` / GET to read.
-4. `scripts_upsert` / PUT to apply edits; then user can publish from UI or rely on Gist sync as configured.
+4. (optional) `scripts_rename` to change the managed filename before editing.
+5. `scripts_upsert` / PUT to apply edits; then user can publish from UI or rely on Gist sync as configured.

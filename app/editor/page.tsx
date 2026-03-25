@@ -13,12 +13,30 @@ import { loadTampermonkeyTypings } from './typings'
 /** Auth reads cookies; cannot be statically generated at build time. */
 export const dynamic = 'force-dynamic'
 
+interface EditorFilesResult {
+  files: Record<string, { content: string; rawUrl: string }>
+  updatedAt: number
+}
+
+async function loadEditorFilesWithFallback(): Promise<EditorFilesResult> {
+  try {
+    return await fetchFiles()
+  } catch (error) {
+    // eslint-disable-next-line no-console -- keep remote/network failures visible
+    console.error('[editor] fetchFiles failed, fallback to empty files:', error)
+    return {
+      files: {},
+      updatedAt: Date.now(),
+    }
+  }
+}
+
 export default async function Home() {
   try {
     await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
 
     const scriptKey = getTampermonkeyScriptKey()
-    const { files, updatedAt } = await fetchFiles()
+    const { files, updatedAt } = await loadEditorFilesWithFallback()
     const tampermonkeyTypings = loadTampermonkeyTypings()
     const rules = await getRules()
 

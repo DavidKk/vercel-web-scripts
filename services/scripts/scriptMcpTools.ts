@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { type Tool, tool } from '@/initializer/mcp/tool'
-import { deleteManagedScriptFile, getManagedScriptFile, listManagedScriptFiles, upsertManagedScriptFile } from '@/services/scripts/gistScripts'
+import { deleteManagedScriptFile, getManagedScriptFile, listManagedScriptFiles, renameManagedScriptFile, upsertManagedScriptFile } from '@/services/scripts/gistScripts'
 
 /**
  * Build a compact runtime summary that tells AI callers which APIs exist at execution time.
@@ -92,6 +92,19 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     }
   )
 
+  const rename = tool(
+    'scripts_rename',
+    'Rename a managed script file inside the Gist (read old content -> upsert new filename -> delete old filename).',
+    z.object({
+      fromFilename: z.string().min(1).describe('Existing managed script file name in the Gist (e.g. old.ts)'),
+      toFilename: z.string().min(1).describe('New managed script file name in the Gist (e.g. hello.ts)'),
+    }),
+    async ({ fromFilename, toFilename }) => {
+      await renameManagedScriptFile(fromFilename, toFilename)
+      return { ok: true as const, fromFilename, toFilename }
+    }
+  )
+
   const runtimeSummary = tool(
     'scripts_runtime_summary',
     'Return runtime/preset capability summary (GM_*, GME_*, constants, and authoring constraints). Call this before generating script content.',
@@ -104,6 +117,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     [get.name, get],
     [upsert.name, upsert],
     [del.name, del],
+    [rename.name, rename],
     [runtimeSummary.name, runtimeSummary],
   ])
 }

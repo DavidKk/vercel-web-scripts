@@ -94,3 +94,29 @@ export async function deleteManagedScriptFile(filename: string): Promise<void> {
   const { gistId, gistToken } = getGistInfo()
   await writeGistFiles({ gistId, gistToken, files: [{ file: filename, content: null }] })
 }
+
+/**
+ * Rename a managed script file inside the backing Gist.
+ *
+ * Implemented as: read old content -> upsert new filename -> delete old filename.
+ * @param fromFilename Existing managed script file name in the Gist
+ * @param toFilename New managed script file name in the Gist
+ * @returns Confirmation object for the rename operation
+ */
+export async function renameManagedScriptFile(fromFilename: string, toFilename: string): Promise<{ ok: true; fromFilename: string; toFilename: string }> {
+  if (!fromFilename || !toFilename) {
+    throw new Error('Both fromFilename and toFilename are required')
+  }
+  if (fromFilename === toFilename) {
+    throw new Error('fromFilename and toFilename must be different')
+  }
+  if (!isManagedScriptFilename(fromFilename) || !isManagedScriptFilename(toFilename)) {
+    throw new Error('File is not a managed script path')
+  }
+
+  const { content } = await getManagedScriptFile(fromFilename)
+  await upsertManagedScriptFile(toFilename, content)
+  await deleteManagedScriptFile(fromFilename)
+
+  return { ok: true as const, fromFilename, toFilename }
+}

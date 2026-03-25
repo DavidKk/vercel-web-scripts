@@ -71,5 +71,27 @@
         "additionalProperties": false
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_rename",
+      "description": "Rename a managed script file inside the Gist (read old content -> upsert new filename -> delete old filename).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "fromFilename": {
+            "type": "string",
+            "description": "Existing managed script file name in the Gist (e.g. old.ts)"
+          },
+          "toFilename": {
+            "type": "string",
+            "description": "New managed script file name in the Gist (e.g. hello.ts)"
+          }
+        },
+        "required": ["fromFilename", "toFilename"],
+        "additionalProperties": false
+      }
+    }
   }
 ]

@@ -7,10 +7,14 @@ const STATIC_PENDING_SEGMENT = 'pending'
 
 interface OptionalUiApi {
   openLogViewer?: () => void
+  registerCommandPaletteCommand?: (command: unknown) => void
 }
 
 const OPTIONAL_UI_LOG_PREFIX = '[ModuleLoad][preset-ui]'
 const { GME_debug, GME_warn } = createGMELogger('ModuleLoad:preset-ui')
+const OPTIONAL_UI_CACHE_KEY_PREFIX = 'vws_optional_ui'
+const OPTIONAL_UI_REFRESH_LOCK_KEY = 'vws_optional_ui_refreshing'
+const OPTIONAL_UI_REFRESH_LOCK_TTL_MS = 15_000
 
 /**
  * Parse Tampermonkey script key from remote or launcher URL under `/static/[key]/...`.
@@ -101,6 +105,110 @@ function reportPresetUiLoadFailure(context: string, technicalDetail: string, use
   }
 }
 
+interface OptionalUiCacheRecord {
+  content: string
+  url: string
+  etag: string
+}
+
+function getOptionalUiScopeKey(): string {
+  const scriptUrl = String(typeof __SCRIPT_URL__ !== 'undefined' ? __SCRIPT_URL__ : '')
+  const key = parseStaticKeyFromScriptUrl(scriptUrl)
+  return key || '__default__'
+}
+
+function getOptionalUiCacheKeys(): { content: string; etag: string; url: string } {
+  const scope = getOptionalUiScopeKey()
+  return {
+    content: `${OPTIONAL_UI_CACHE_KEY_PREFIX}:${scope}:content`,
+    etag: `${OPTIONAL_UI_CACHE_KEY_PREFIX}:${scope}:etag`,
+    url: `${OPTIONAL_UI_CACHE_KEY_PREFIX}:${scope}:url`,
+  }
+}
+
+function readOptionalUiCache(): OptionalUiCacheRecord | null {
+  try {
+    const keys = getOptionalUiCacheKeys()
+    const content = String(GM_getValue(keys.content, '') || '')
+    if (!content) return null
+    const etag = String(GM_getValue(keys.etag, '') || '')
+    const url = String(GM_getValue(keys.url, '') || '')
+    return { content, etag, url }
+  } catch {
+    return null
+  }
+}
+
+function writeOptionalUiCache(content: string, url: string, etag: string): void {
+  try {
+    const keys = getOptionalUiCacheKeys()
+    GM_setValue(keys.content, content)
+    GM_setValue(keys.url, url)
+    GM_setValue(keys.etag, etag)
+  } catch {
+    /* ignore cache write failures */
+  }
+}
+
+function executeOptionalUiContent(content: string): OptionalUiApi | null {
+  try {
+    const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as any
+    const core = g.__VWS_CORE__
+    const execute = new Function('global', `with(global){${content}}`)
+    execute(g)
+    const loaded = core?.get ? (core.get('preset-ui') as OptionalUiApi | undefined) : undefined
+    return loaded ?? null
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    reportPresetUiLoadFailure('execute:cache-exception', message, `Optional UI cache execution error: ${message.slice(0, 120)}`)
+    return null
+  }
+}
+
+async function refreshOptionalUiInBackground(previousCache: OptionalUiCacheRecord | null): Promise<void> {
+  if (!isShellNetworkEnabled()) return
+  const now = Date.now()
+  const lockUntil = Number(GM_getValue(OPTIONAL_UI_REFRESH_LOCK_KEY, 0))
+  if (Number.isFinite(lockUntil) && lockUntil > now) return
+
+  GM_setValue(OPTIONAL_UI_REFRESH_LOCK_KEY, now + OPTIONAL_UI_REFRESH_LOCK_TTL_MS)
+  try {
+    const url = await resolvePresetUiScriptUrl()
+    const headers: Record<string, string> = {}
+    if (previousCache?.etag) {
+      headers['If-None-Match'] = previousCache.etag
+    }
+    const response = await GME_fetch(url, { method: 'GET', headers })
+
+    if (response.status === 304) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:not-modified`)
+      return
+    }
+    if (!response.ok) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:skip status=${response.status}`)
+      return
+    }
+
+    const etag = String(response.headers.get('etag') || '').trim()
+    const content = await response.text()
+    if (!content) return
+
+    const changed = !previousCache || previousCache.content !== content
+    writeOptionalUiCache(content, url, etag)
+    GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:cached bytes=${content.length} changed=${changed ? 'yes' : 'no'}`)
+
+    // Follow "cache first, update in background, then refresh" contract.
+    const pageVisible = typeof document !== 'undefined' && document.visibilityState === 'visible'
+    if (changed && typeof window !== 'undefined' && pageVisible) {
+      window.location.reload()
+    }
+  } catch (error) {
+    GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:error ${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    GM_setValue(OPTIONAL_UI_REFRESH_LOCK_KEY, 0)
+  }
+}
+
 /**
  * Ensure optional UI runtime is loaded, then return its API.
  * @returns Optional UI API if available
@@ -116,6 +224,18 @@ export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
       return existing
     }
   }
+
+  // Prefer local cache for instant availability; refresh in background when network is on.
+  const cache = readOptionalUiCache()
+  if (cache?.content) {
+    const loadedFromCache = executeOptionalUiContent(cache.content)
+    if (loadedFromCache) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-hit`)
+      void refreshOptionalUiInBackground(cache)
+      return loadedFromCache
+    }
+  }
+
   if (!isShellNetworkEnabled()) {
     const msg = `${OPTIONAL_UI_LOG_PREFIX} load:skip:network-off`
     // eslint-disable-next-line no-console -- match user request for visible console output
@@ -138,10 +258,10 @@ export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
     }
     const content = await response.text()
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} fetch:success bytes=${content.length}`)
+    const etag = String(response.headers.get('etag') || '').trim()
+    writeOptionalUiCache(content, url, etag)
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:start`)
-    const execute = new Function('global', `with(global){${content}}`)
-    execute(g)
-    const loaded = core?.get ? (core.get('preset-ui') as OptionalUiApi | undefined) : undefined
+    const loaded = executeOptionalUiContent(content) ?? undefined
     if (loaded) {
       GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:success`)
     } else {

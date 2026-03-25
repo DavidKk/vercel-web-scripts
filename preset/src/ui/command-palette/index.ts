@@ -15,17 +15,60 @@ const TAG = 'vercel-web-script-command-palette'
 
 export interface CommandPaletteCommand {
   id: string
-  keywords: string[]
-  title: string
+  /** Optional alias for `title` (some scripts use `text`). */
+  text?: string
+  /** Matching keywords. Optional so scripts can rely on `onShow/onShown` gating. */
+  keywords?: string[]
+  /** Command title for matching/rendering. Optional if `text` is provided. */
+  title?: string
   /** Plain text or emoji; escaped when rendered. */
   icon?: string
   /** Raw HTML (e.g. inline SVG from unplugin-icons ?raw). Used when set, else icon. */
   iconHtml?: string
   hint?: string
-  action: () => void
+  /**
+   * Backward-compatible alias for `onShown`.
+   * (Some scripts use `onShow` name.)
+   */
+  onShow?: (input: string) => boolean
+  /**
+   * Optional gate to decide whether this command should be shown in the dropdown.
+   * Called with the current user input (trimmed, not lowercased).
+   * Return `false` to hide the item even if title/keywords match.
+   */
+  onShown?: (input: string) => boolean
+  /**
+   * Called when user selects this command.
+   * `input` is the current trimmed input from the palette.
+   */
+  action: (input?: string) => void
 }
 
 const PRE_COMMANDS: CommandPaletteCommand[] = []
+
+const COMMAND_PALETTE_BACKLOG_KEY = '__VWS_COMMAND_PALETTE_COMMANDS__'
+
+/**
+ * Replay persistent global backlog (populated by global-registry).
+ * This allows document-start GIST scripts and post-reload scenarios to register reliably.
+ */
+function drainGlobalPreCommands(): void {
+  const g = typeof __GLOBAL__ !== 'undefined' ? (__GLOBAL__ as any) : (globalThis as any)
+  const backlog = g?.[COMMAND_PALETTE_BACKLOG_KEY]
+  if (!Array.isArray(backlog) || backlog.length === 0) return
+
+  for (const cmd of backlog) {
+    // De-dup by id, matching registerCommand semantics.
+    const id = (cmd as any)?.id
+    if (typeof id !== 'string' || !id) continue
+    const existing = PRE_COMMANDS.find((c) => c.id === id)
+    if (existing) {
+      PRE_COMMANDS[PRE_COMMANDS.indexOf(existing)] = cmd
+    } else {
+      PRE_COMMANDS.push(cmd)
+    }
+  }
+}
 
 export function GME_registerCommandPaletteCommand(command: CommandPaletteCommand): void {
   const existing = PRE_COMMANDS.find((c) => c.id === command.id)
@@ -39,6 +82,9 @@ export function GME_registerCommandPaletteCommand(command: CommandPaletteCommand
     el.registerCommand(command)
   }
 }
+
+// Drain pre-queue as soon as the module loads (before element init/connection).
+drainGlobalPreCommands()
 
 function escapeHtml(s: string): string {
   const div = document.createElement('div')
@@ -58,7 +104,8 @@ export class CommandPaletteUI extends HTMLElement {
 
   /** True if command is a DEBUG entry (title starts with "DEBUG"); these are shown at the bottom */
   #isDebugCommand(cmd: CommandPaletteCommand): boolean {
-    return cmd.title.trim().toUpperCase().startsWith('DEBUG')
+    const titleText = cmd.title ?? cmd.text ?? ''
+    return titleText.trim().toUpperCase().startsWith('DEBUG')
   }
 
   /** Sort commands so DEBUG commands (title starts with "DEBUG") are at the bottom; stable order otherwise */
@@ -72,17 +119,35 @@ export class CommandPaletteUI extends HTMLElement {
   }
 
   #filterCommands(query: string): CommandPaletteCommand[] {
-    const q = query.trim().toLowerCase()
-    let list: CommandPaletteCommand[]
-    if (!q) {
-      list = [...this.#commands]
-    } else {
-      list = this.#commands.filter((cmd) => {
-        const titleMatch = cmd.title.toLowerCase().includes(q)
-        const keywordMatch = cmd.keywords.some((k) => k.toLowerCase().includes(q) || k.toLowerCase() === q)
-        return titleMatch || keywordMatch
-      })
-    }
+    const raw = query.trim()
+    const q = raw.toLowerCase()
+
+    // Show when title/keywords match OR optional gate passes.
+    // For empty input, title/keyword matching defaults to true; gate can still hide items.
+    const list = this.#commands.filter((cmd) => {
+      let titleOrKeywordMatch = true
+      if (q) {
+        const titleText = cmd.title ?? cmd.text ?? ''
+        const titleMatch = titleText.toLowerCase().includes(q)
+        const keywords = cmd.keywords ?? []
+        const keywordMatch = keywords.some((k) => k.toLowerCase().includes(q) || k.toLowerCase() === q)
+        titleOrKeywordMatch = titleMatch || keywordMatch
+      }
+
+      let shownGate = false
+      const gate = cmd.onShown ?? cmd.onShow
+      if (gate) {
+        try {
+          shownGate = !!gate(raw)
+        } catch {
+          // Fail-safe: gate errors should not break the palette, but also shouldn't show items unexpectedly.
+          shownGate = false
+        }
+      }
+
+      return titleOrKeywordMatch || shownGate
+    })
+
     return this.#sortCommandsWithDebugLast(list)
   }
 
@@ -116,10 +181,11 @@ export class CommandPaletteUI extends HTMLElement {
       li.dataset.index = String(i)
       const iconContent = cmd.iconHtml !== undefined ? cmd.iconHtml : escapeHtml(cmd.icon ?? '◆')
       const hintHtml = cmd.hint ? `<div class="command-palette__item-hint">${escapeHtml(cmd.hint)}</div>` : ''
+      const titleText = cmd.title ?? cmd.text ?? ''
       li.innerHTML = `
           <span class="command-palette__item-icon">${iconContent}</span>
           <div class="command-palette__item-content">
-            <div class="command-palette__item-title">${escapeHtml(cmd.title)}</div>
+            <div class="command-palette__item-title">${escapeHtml(titleText)}</div>
             ${hintHtml}
           </div>
         `
@@ -130,8 +196,9 @@ export class CommandPaletteUI extends HTMLElement {
   #executeSelected(): void {
     const cmd = this.#filteredCommands[this.#selectedIndex]
     if (cmd?.action) {
+      const currentInput = this.#getInputValue()
       this.close()
-      cmd.action()
+      cmd.action(currentInput)
     }
   }
 

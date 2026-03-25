@@ -20,7 +20,8 @@ Project: **MagickMonkey**. Scripts live in a private **GitHub Gist**; integratio
 ## MCP (HTTP)
 
 - `/api/mcp` — **GET** manifest; **POST** JSON-RPC `initialize` / `tools/list` / `tools/call`, or legacy `{ tool, params }` (same shape as `/api/mcp` on the OpenAPI deployment).
-- Recommended generation flow: call `scripts_runtime_summary` first, then `scripts_list` / `scripts_get`, and finally `scripts_upsert`.
+- Tools: `scripts_runtime_summary`, `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_rename`, `scripts_delete`.
+- Recommended generation flow: call `scripts_runtime_summary` first, then `scripts_list` / `scripts_get`, optionally `scripts_rename`, and finally `scripts_upsert`.
 
 ## Maintenance note
 
