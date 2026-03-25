@@ -67,6 +67,11 @@ export async function createUserScript({ scriptUrl, version, files }: CreateScri
 export interface CompileScriptsOptions {
   /** When true, syntax / transpile errors fail the whole compile (throws). */
   strictCompile?: boolean
+  /**
+   * Epoch ms baked into each module wrapper for logs. Use a stable value (e.g. Gist `updated_at`) for
+   * remote bundles so content hash matches between manifest and `/static/.../tampermonkey-remote.js`; omit for `Date.now()`.
+   */
+  scriptBuiltAt?: number
 }
 
 /**
@@ -78,7 +83,10 @@ export interface CompileScriptsOptions {
  * @returns Compiled remote script body
  */
 export async function getRemoteScriptContent(files: Record<string, string>, options: CompileScriptsOptions = { strictCompile: true }): Promise<string> {
-  const { content } = compileScripts(files, { strictCompile: options.strictCompile !== false })
+  const { content } = compileScripts(files, {
+    strictCompile: options.strictCompile !== false,
+    scriptBuiltAt: options.scriptBuiltAt,
+  })
   return content
 }
 
@@ -111,7 +119,7 @@ function formatTranspileErrors(displayFile: string, diagnostics: readonly ts.Dia
 
 function compileScripts(files: Record<string, string>, options?: CompileScriptsOptions) {
   const strictCompile = options?.strictCompile !== false
-  const scriptBuiltAt = Date.now()
+  const scriptBuiltAt = options?.scriptBuiltAt !== undefined ? options.scriptBuiltAt : Date.now()
   const { compile, grants, connects } = createScriptCompiler(scriptBuiltAt, { strictCompile })
 
   const parts: string[] = []

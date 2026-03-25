@@ -36,7 +36,8 @@ export async function buildRemoteScriptBundleFromGist(): Promise<RemoteScriptBun
         }
       })()
     )
-    const raw = await getRemoteScriptContent(files)
+    const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
+    const raw = await getRemoteScriptContent(files, { strictCompile: true, scriptBuiltAt: gistUpdatedAtMs })
     const content = raw.replace(/\r\n/g, '\n')
     if (!content.trim()) {
       return null
