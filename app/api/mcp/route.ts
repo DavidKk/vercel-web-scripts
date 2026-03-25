@@ -5,8 +5,6 @@ import { authorizeScriptIntegration } from '@/services/auth/integrationAuth'
 
 import { execute, manifest } from './server'
 
-export const runtime = 'edge'
-
 /**
  * GET /api/mcp — MCP tool manifest (same auth as /api/v1/scripts).
  * @param req Incoming request
