@@ -20,10 +20,18 @@ Project: **MagickMonkey**. Scripts live in a private **GitHub Gist**; integratio
 ## MCP (HTTP)
 
 - `/api/mcp` — **GET** manifest; **POST** JSON-RPC `initialize` / `tools/list` / `tools/call`, or legacy `{ tool, params }` (same shape as `/api/mcp` on the OpenAPI deployment).
+- Recommended generation flow: call `scripts_runtime_summary` first, then `scripts_list` / `scripts_get`, and finally `scripts_upsert`.
+
+## Maintenance note
+
+If the preset adds/modifies any `GM_*` / `GME_*` interfaces, you must keep docs and the runtime summary tool in sync:
+
+- Update `public/docs/scripts-ai-skill.md` capability summary table.
+- Update `services/scripts/scriptMcpTools.ts` output of `scripts_runtime_summary`.
 
 ## Human-readable skill copy
 
-See `public/docs/scripts-ai-skill.md` in the repo (also served as static `/docs/scripts-ai-skill.md`).
+See `public/docs/scripts-ai-skill.md` in the repo (also served as static `/docs/scripts-ai-skill.md`). That file includes **Runtime (preset) vs Gist** and a **capability summary** (`GM_*` / `GME_*`); use it when generating or editing scripts so you do not need the full typings in context. For exact signatures, read `preset/src/editor-typings.d.ts` in the repo.
 
 ## Chat “function” definitions
 
