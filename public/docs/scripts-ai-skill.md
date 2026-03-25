@@ -23,8 +23,7 @@ Only `.ts` / `.js` files that are **not** the generated entry or rules JSON can 
 
 ## MCP (HTTP)
 
-- Manifest: `GET /api/mcp/scripts/manifest`
-- Execute: `POST /api/mcp/scripts/execute` with JSON-RPC 2.0 (`tools/list`, `tools/call`) or legacy `{ "tool": "scripts_list", "params": {} }`.
+- Base URL: `GET /api/mcp` (manifest), `POST /api/mcp` (JSON-RPC 2.0: `initialize`, `tools/list`, `tools/call`, or legacy `{ "tool": "scripts_list", "params": {} }`).
 
 Tools: `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_delete`.
 

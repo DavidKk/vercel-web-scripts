@@ -19,8 +19,7 @@ Project: **MagickMonkey**. Scripts live in a private **GitHub Gist**; integratio
 
 ## MCP (HTTP)
 
-- `/api/mcp/scripts/manifest` (GET)
-- `/api/mcp/scripts/execute` (POST) — JSON-RPC `tools/list`, `tools/call`, or `{ tool, params }`.
+- `/api/mcp` — **GET** manifest; **POST** JSON-RPC `initialize` / `tools/list` / `tools/call`, or legacy `{ tool, params }` (same shape as `/api/mcp` on the OpenAPI deployment).
 
 ## Human-readable skill copy
 

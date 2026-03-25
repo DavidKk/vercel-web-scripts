@@ -124,31 +124,17 @@ export function EditorIntegrationModals() {
         renderModal(
           'MCP',
           <div className="space-y-3">
-            {renderCommandRow('Manifest URL', `${origin}/api/mcp/scripts/manifest`, [
+            {renderCommandRow('MCP URL (GET manifest · POST execute)', `${origin}/api/mcp`, [
               {
-                id: 'copy-manifest',
+                id: 'copy-mcp',
                 title: 'Copy',
-                onClick: () => void copyText(`${origin}/api/mcp/scripts/manifest`),
+                onClick: () => void copyText(`${origin}/api/mcp`),
                 icon: <FiCopy className="w-3.5 h-3.5" />,
               },
               {
-                id: 'open-manifest',
+                id: 'open-mcp',
                 title: 'Open',
-                onClick: () => window.open('/api/mcp/scripts/manifest', '_blank', 'noopener,noreferrer'),
-                icon: <FiExternalLink className="w-3.5 h-3.5" />,
-              },
-            ])}
-            {renderCommandRow('Execute URL', `${origin}/api/mcp/scripts/execute`, [
-              {
-                id: 'copy-execute',
-                title: 'Copy',
-                onClick: () => void copyText(`${origin}/api/mcp/scripts/execute`),
-                icon: <FiCopy className="w-3.5 h-3.5" />,
-              },
-              {
-                id: 'open-execute',
-                title: 'Open',
-                onClick: () => window.open('/api/mcp/scripts/execute', '_blank', 'noopener,noreferrer'),
+                onClick: () => window.open('/api/mcp', '_blank', 'noopener,noreferrer'),
                 icon: <FiExternalLink className="w-3.5 h-3.5" />,
               },
             ])}
