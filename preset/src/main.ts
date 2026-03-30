@@ -67,10 +67,11 @@ async function main(): Promise<void> {
     return
   }
   const staticDevelopMode = isDevelopMode()
-  // Effective dev mode requires runtime dev service presence.
-  // This allows dev/prod scripts to coexist: dev takes effect only when pnpm dev is running.
-  const runtimeDevelopMode = await detectDevelopModePresence()
-  const IS_DEVELOP_MODE = runtimeDevelopMode
+  // Effective dev mode requires BOTH:
+  // 1) static dev compilation (Web Script (dev))
+  // 2) runtime dev service presence (pnpm dev online)
+  const runtimeDevelopMode = staticDevelopMode ? await detectDevelopModePresence() : false
+  const IS_DEVELOP_MODE = staticDevelopMode && runtimeDevelopMode
   const IS_REMOTE_SCRIPT = isRemoteScript()
 
   const projectVersion = typeof __PROJECT_VERSION__ !== 'undefined' && __PROJECT_VERSION__ ? __PROJECT_VERSION__ : 'unknown'
