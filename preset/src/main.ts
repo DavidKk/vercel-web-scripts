@@ -4,7 +4,7 @@
  */
 
 import { shouldSkipNonHtmlDocument } from '@/helpers/dom'
-import { ensureWebScriptInitialized, getWebScriptId, isDevelopMode, isRemoteScript } from '@/helpers/env'
+import { detectDevelopModePresence, ensureWebScriptInitialized, getWebScriptId, isDevelopMode, isRemoteScript } from '@/helpers/env'
 import { GME_debug, GME_fail, GME_info } from '@/helpers/logger'
 import { fetchRulesFromCache, getMatchRule, setGlobalRules } from '@/rules'
 import {
@@ -31,6 +31,13 @@ import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 
 const WEB_SCRIPT_ID = getWebScriptId()
 ensureWebScriptInitialized(WEB_SCRIPT_ID)
+const ACTIVE_DEV_SCRIPT_KEY = 'vws_active_dev_script_presence'
+const ACTIVE_DEV_SCRIPT_TTL_MS = 15_000
+
+interface ActiveDevScriptPresence {
+  host: string
+  ts: number
+}
 
 /**
  * Get the shared global object for preset and remote script (launcher's g or globalThis/window).
@@ -59,7 +66,11 @@ async function main(): Promise<void> {
     GME_debug('[Main] Non-HTML document (contentType: ' + (typeof document !== 'undefined' ? document.contentType : 'n/a') + '), skipping preset')
     return
   }
-  const IS_DEVELOP_MODE = isDevelopMode()
+  const staticDevelopMode = isDevelopMode()
+  // Effective dev mode requires runtime dev service presence.
+  // This allows dev/prod scripts to coexist: dev takes effect only when pnpm dev is running.
+  const runtimeDevelopMode = await detectDevelopModePresence()
+  const IS_DEVELOP_MODE = runtimeDevelopMode
   const IS_REMOTE_SCRIPT = isRemoteScript()
 
   const projectVersion = typeof __PROJECT_VERSION__ !== 'undefined' && __PROJECT_VERSION__ ? __PROJECT_VERSION__ : 'unknown'
@@ -69,7 +80,40 @@ async function main(): Promise<void> {
   const updateTimeHint = updateTime === 'unknown' ? ' (preset may be cached; add ?vws_script_update=1 and reload to refresh)' : ''
   GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
   GME_debug('[Main] Logger online — earlier [VWS][Launcher] lines were captured as [boot] in the log viewer (same timeline timestamps as console)')
-  GME_debug('[Main] Starting main, IS_DEVELOP_MODE: ' + IS_DEVELOP_MODE + ', IS_REMOTE_SCRIPT: ' + IS_REMOTE_SCRIPT)
+  GME_debug(
+    '[Main] Starting main, IS_DEVELOP_MODE: ' +
+      IS_DEVELOP_MODE +
+      ' (static: ' +
+      staticDevelopMode +
+      ', runtime-probe: ' +
+      runtimeDevelopMode +
+      '), IS_REMOTE_SCRIPT: ' +
+      IS_REMOTE_SCRIPT
+  )
+
+  const now = Date.now()
+  const activeDevPresence = GM_getValue(ACTIVE_DEV_SCRIPT_KEY, null) as ActiveDevScriptPresence | null
+  const hasActiveDevPresence = !!activeDevPresence && typeof activeDevPresence.ts === 'number' && now - activeDevPresence.ts < ACTIVE_DEV_SCRIPT_TTL_MS
+
+  // "Web Script (dev)" should be active only when dev service is reachable.
+  if (staticDevelopMode && !IS_DEVELOP_MODE) {
+    GM_setValue(ACTIVE_DEV_SCRIPT_KEY, null)
+    GME_debug('[Main] Dev script idle: dev service unavailable, skip execution')
+    return
+  }
+
+  // "Web Script" should step aside while "Web Script (dev)" is active.
+  if (!staticDevelopMode && hasActiveDevPresence) {
+    GME_debug('[Main] Prod script skipped: active dev script presence detected')
+    return
+  }
+
+  if (staticDevelopMode && IS_DEVELOP_MODE) {
+    GM_setValue(ACTIVE_DEV_SCRIPT_KEY, {
+      host: window.location.host,
+      ts: now,
+    } satisfies ActiveDevScriptPresence)
+  }
 
   // Auto-ensure optional UI on page startup so command-palette entries
   // registered by preset-ui (e.g. Log Viewer) are restored after refresh.

@@ -48,6 +48,77 @@ export function isDevelopMode(): boolean {
   return !!(__IS_DEVELOP_MODE__ && __HOSTNAME_PORT__ === window.location.host)
 }
 
+interface DevProbeCache {
+  at: number
+  value: boolean
+}
+
+let devProbeCache: DevProbeCache | null = null
+
+/**
+ * Probe whether dev runtime (webpack HMR endpoint) is reachable.
+ * Used when build-time __IS_DEVELOP_MODE__ is false but a dev server may coexist.
+ * @param timeoutMs Probe timeout in milliseconds
+ * @returns True when HMR websocket can be opened
+ */
+export async function detectDevelopModePresence(timeoutMs = 1200): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+    return false
+  }
+
+  // Use a short-lived cache to avoid probing on every page init.
+  const now = Date.now()
+  if (devProbeCache && now - devProbeCache.at < 30_000) {
+    return devProbeCache.value
+  }
+
+  const result = await new Promise<boolean>((resolve) => {
+    let done = false
+    const finish = (value: boolean) => {
+      if (done) return
+      done = true
+      resolve(value)
+    }
+
+    let ws: WebSocket | null = null
+    const timer = window.setTimeout(() => {
+      try {
+        ws?.close()
+      } catch {
+        // ignore
+      }
+      finish(false)
+    }, timeoutMs)
+
+    try {
+      ws = new WebSocket(__HMK_URL__)
+      ws.addEventListener('open', () => {
+        clearTimeout(timer)
+        try {
+          ws?.close()
+        } catch {
+          // ignore
+        }
+        finish(true)
+      })
+      ws.addEventListener('error', () => {
+        clearTimeout(timer)
+        finish(false)
+      })
+      ws.addEventListener('close', () => {
+        clearTimeout(timer)
+        finish(false)
+      })
+    } catch {
+      clearTimeout(timer)
+      finish(false)
+    }
+  })
+
+  devProbeCache = { at: now, value: result }
+  return result
+}
+
 /**
  * Ensure single initialization: set window[WEB_SCRIPT_INIT_KEY] to scriptId if not already set.
  * Skip further init if already set (e.g. loader already running).
