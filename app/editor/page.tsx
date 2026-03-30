@@ -31,6 +31,16 @@ async function loadEditorFilesWithFallback(): Promise<EditorFilesResult> {
   }
 }
 
+async function loadRulesWithFallback() {
+  try {
+    return await getRules()
+  } catch (error) {
+    // eslint-disable-next-line no-console -- keep remote/network failures visible
+    console.error('[editor] getRules failed, fallback to empty rules:', error)
+    return []
+  }
+}
+
 export default async function Home() {
   try {
     await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
@@ -38,7 +48,7 @@ export default async function Home() {
     const scriptKey = getTampermonkeyScriptKey()
     const { files, updatedAt } = await loadEditorFilesWithFallback()
     const tampermonkeyTypings = loadTampermonkeyTypings()
-    const rules = await getRules()
+    const rules = await loadRulesWithFallback()
 
     const cookieStore = await cookies()
     const token = cookieStore.get(AUTH_TOKEN_NAME)?.value

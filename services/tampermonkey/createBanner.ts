@@ -67,7 +67,7 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
 // @version      ${version}
 // @description  Download and evaluate a remote script
 // @author       Vercel Web Script
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=vercel.com
+// @icon         ${__BASE_URL__}/logo.png?v=${encodeURIComponent(version)}
 // @downloadURL  ${scriptUrl}
 // @updateURL    ${scriptUrl}
 // @match        */*

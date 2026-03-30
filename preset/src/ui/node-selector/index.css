@@ -301,9 +301,7 @@ vercel-web-script-marker-highlight-box .node-selector-xpath-panel {
   display: none;
   flex-direction: column;
   max-height: min(320px, 60vh); /* Leave room for footer; cap for small targets */
-  transition:
-    top 0.1s ease,
-    left 0.1s ease;
+  transition: none;
 }
 
 /* Visible state: flex layout so footer (Copy buttons) stays visible; only XPath list scrolls */

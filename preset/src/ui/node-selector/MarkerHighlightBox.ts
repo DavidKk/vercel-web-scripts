@@ -385,17 +385,13 @@ export class MarkerHighlightBox extends HTMLElement {
     // Initial marker position update
     this.#updateMarkerPosition()
 
-    // Observe marker label and panel size changes
+    // Observe marker label size changes.
+    // Avoid observing the panel itself to prevent reposition feedback loops.
     if (this.#markerLabel) {
       this.#markerResizeObserver = new ResizeObserver(() => {
         this.#updateMarkerPosition()
       })
       this.#markerResizeObserver.observe(this.#markerLabel)
-
-      // Also observe XPath panel if it exists
-      if (this.#xpathPanel) {
-        this.#markerResizeObserver.observe(this.#xpathPanel)
-      }
     }
 
     // Listen to scroll and resize events for marker positioning
@@ -415,6 +411,7 @@ export class MarkerHighlightBox extends HTMLElement {
     // Update panel if it exists
     if (this.#xpathPanel) {
       this.#xpathPanel.setXPaths(this.#xpaths)
+      this.#updateMarkerPosition()
     }
   }
 
@@ -432,7 +429,11 @@ export class MarkerHighlightBox extends HTMLElement {
   #showXPathPanel() {
     if (!this.#xpathPanel) return
     this.#xpathPanel.show()
+    // Reposition once immediately and once on next frame so panel width settles first.
     this.#updateMarkerPosition()
+    requestAnimationFrame(() => {
+      this.#updateMarkerPosition()
+    })
   }
 
   /**
@@ -513,6 +514,7 @@ export class MarkerHighlightBox extends HTMLElement {
 
     // Get marker label dimensions
     const markerWidth = this.#markerLabel.offsetWidth
+    const markerHeight = this.#markerLabel.offsetHeight
 
     // Get XPath panel dimensions if it exists and is visible
     let panelWidth = 0
@@ -522,62 +524,84 @@ export class MarkerHighlightBox extends HTMLElement {
       panelHeight = this.#xpathPanel.offsetHeight
     }
 
-    // Default position: top: -4px, left: -4px (relative to highlight box)
-    // After transform: translateY(-100%), marker bottom is at -4px
-    let offsetX = -4
-    let offsetY = -4
-
-    // Calculate maximum width needed (marker or panel, whichever is wider)
-    const maxContentWidth = Math.max(markerWidth, panelWidth)
-
-    // Check right edge overflow
-    const rightEdge = highlightRect.left + offsetX + maxContentWidth
     const padding = 8
-    if (rightEdge > viewportWidth - padding) {
-      // Need to shift left
-      offsetX = viewportWidth - highlightRect.left - maxContentWidth - padding
-      // Ensure we don't go too far left (keep some padding from left edge)
-      const minLeft = padding
-      if (highlightRect.left + offsetX < minLeft) {
-        offsetX = minLeft - highlightRect.left
+    const gap = 4
+
+    // 8-position candidates around the target.
+    // Priority keeps "left side first" as default behavior:
+    // 上左 -> 下左 -> 左上 -> 左下 -> 上右 -> 下右 -> 右上 -> 右下
+    const candidateOffsets = [
+      { top: -markerHeight - gap, left: -4 }, // 上左
+      { top: highlightRect.height + gap, left: -4 }, // 下左
+      { top: -4, left: -markerWidth - gap }, // 左上
+      { top: highlightRect.height - markerHeight + 4, left: -markerWidth - gap }, // 左下
+      { top: -markerHeight - gap, left: highlightRect.width - markerWidth + 4 }, // 上右
+      { top: highlightRect.height + gap, left: highlightRect.width - markerWidth + 4 }, // 下右
+      { top: -4, left: highlightRect.width + gap }, // 右上
+      { top: highlightRect.height - markerHeight + 4, left: highlightRect.width + gap }, // 右下
+    ]
+
+    const markerViewportLeftMin = padding
+    const markerViewportLeftMax = Math.max(padding, viewportWidth - padding - markerWidth)
+    const markerViewportTopMin = padding
+    const markerViewportTopMax = Math.max(padding, viewportHeight - padding - markerHeight)
+
+    let markerLeft = candidateOffsets[0].left
+    let markerTop = candidateOffsets[0].top
+    let bestOverflow = Number.POSITIVE_INFINITY
+
+    for (const candidate of candidateOffsets) {
+      const rawLeft = highlightRect.left + candidate.left
+      const rawTop = highlightRect.top + candidate.top
+      const rawRight = rawLeft + markerWidth
+      const rawBottom = rawTop + markerHeight
+
+      const overflowLeft = Math.max(0, markerViewportLeftMin - rawLeft)
+      const overflowRight = Math.max(0, rawRight - (viewportWidth - padding))
+      const overflowTop = Math.max(0, markerViewportTopMin - rawTop)
+      const overflowBottom = Math.max(0, rawBottom - (viewportHeight - padding))
+      const totalOverflow = overflowLeft + overflowRight + overflowTop + overflowBottom
+
+      if (totalOverflow < bestOverflow) {
+        bestOverflow = totalOverflow
+        markerLeft = candidate.left
+        markerTop = candidate.top
+      }
+
+      if (totalOverflow === 0) {
+        markerLeft = candidate.left
+        markerTop = candidate.top
+        break
       }
     }
 
-    // Check left edge overflow
-    const leftEdge = highlightRect.left + offsetX
-    if (leftEdge < padding) {
-      offsetX = padding - highlightRect.left
-    }
+    // Final clamp (keeps marker as close to the preferred candidate as possible)
+    markerLeft = Math.min(Math.max(markerLeft, markerViewportLeftMin - highlightRect.left), markerViewportLeftMax - highlightRect.left)
+    markerTop = Math.min(Math.max(markerTop, markerViewportTopMin - highlightRect.top), markerViewportTopMax - highlightRect.top)
 
-    // Check bottom edge overflow (for XPath panel)
-    if (this.#xpathPanel && this.#xpathPanel.isVisible() && panelHeight > 0) {
-      // Panel is positioned at top: 0px + 4px margin (relative to marker)
-      // Marker is at highlightRect.top + offsetY
-      // After marker's translateY(-100%), marker bottom is at offsetY
-      // Panel top should be at offsetY + 4px (margin-top)
-      const panelTop = highlightRect.top + offsetY + 4
-      const panelBottom = panelTop + panelHeight
-      if (panelBottom > viewportHeight - padding) {
-        // Shift panel up (move marker up)
-        const overflow = panelBottom - (viewportHeight - padding)
-        offsetY = offsetY - overflow
-        // Ensure we don't go too far up
-        const minTop = padding
-        if (highlightRect.top + offsetY < minTop) {
-          offsetY = minTop - highlightRect.top
-        }
-      }
-    }
+    // Apply marker position directly (without translate transform)
+    this.#markerLabel.style.transform = 'none'
+    this.#markerLabel.style.top = `${markerTop}px`
+    this.#markerLabel.style.left = `${markerLeft}px`
 
-    // Apply offsets directly to marker label
-    this.#markerLabel.style.top = `${offsetY}px`
-    this.#markerLabel.style.left = `${offsetX}px`
-
-    // Apply offsets to XPath panel (positioned below marker)
-    // Marker bottom is at offsetY (after translateY(-100%)), so panel top should be at offsetY + 4px
+    // Position XPath panel below marker, then clamp to viewport
     if (this.#xpathPanel) {
-      this.#xpathPanel.style.top = `${offsetY + 4}px` // 4px spacing from marker
-      this.#xpathPanel.style.left = `${offsetX}px`
+      let panelLeft = markerLeft
+      if (panelWidth > 0) {
+        const panelViewportLeftMin = padding
+        const panelViewportLeftMax = Math.max(padding, viewportWidth - padding - panelWidth)
+        panelLeft = Math.min(Math.max(panelLeft, panelViewportLeftMin - highlightRect.left), panelViewportLeftMax - highlightRect.left)
+      }
+
+      let panelTop = markerTop + markerHeight + gap
+      if (panelHeight > 0) {
+        const panelViewportTopMin = padding
+        const panelViewportTopMax = Math.max(padding, viewportHeight - padding - panelHeight)
+        panelTop = Math.min(Math.max(panelTop, panelViewportTopMin - highlightRect.top), panelViewportTopMax - highlightRect.top)
+      }
+
+      this.#xpathPanel.style.top = `${panelTop}px`
+      this.#xpathPanel.style.left = `${panelLeft}px`
     }
 
     this.#pendingMarkerUpdate = false
