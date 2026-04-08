@@ -193,6 +193,17 @@ export class CommandPaletteUI extends HTMLElement {
     })
   }
 
+  /**
+   * Keep the current keyboard-selected item visible in the scroll container.
+   */
+  #scrollSelectedIntoView(): void {
+    if (!this.#shadowRoot || this.#filteredCommands.length === 0) {
+      return
+    }
+    const selected = this.#shadowRoot.querySelector(`.command-palette__item[data-index="${this.#selectedIndex}"]`) as HTMLElement | null
+    selected?.scrollIntoView({ block: 'nearest' })
+  }
+
   #executeSelected(): void {
     const cmd = this.#filteredCommands[this.#selectedIndex]
     if (cmd?.action) {
@@ -244,11 +255,13 @@ export class CommandPaletteUI extends HTMLElement {
     if (event.key === 'ArrowDown') {
       this.#selectedIndex = (this.#selectedIndex + 1) % Math.max(1, this.#filteredCommands.length)
       this.#render()
+      this.#scrollSelectedIntoView()
       return
     }
     if (event.key === 'ArrowUp') {
       this.#selectedIndex = (this.#selectedIndex - 1 + this.#filteredCommands.length) % Math.max(1, this.#filteredCommands.length)
       this.#render()
+      this.#scrollSelectedIntoView()
       return
     }
 
