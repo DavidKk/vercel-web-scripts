@@ -110,6 +110,8 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
 // @description  Entry script: loads preset and remote script; update without reinstall
 // @author       Vercel Web Script
 // @icon         ${__BASE_URL__}/logo.png?v=${encodeURIComponent(version)}
+// @downloadURL  ${launcherScriptUrl}
+// @updateURL    ${launcherScriptUrl}
 // @match        */*
 // @noframes
 // @connect      ${uri.hostname}
