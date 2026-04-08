@@ -40,8 +40,18 @@ export async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise
       content = cached
       GME_debug('[Remote script] Shell network off, using cached remote script')
     } else {
-      GME_fail('[Remote script] Shell network off and no cached remote script; enable Shell network or use Update Script once while online.')
-      return
+      GME_debug('[Remote script] Shell network off and no cache, attempting one-time bootstrap fetch')
+      try {
+        content = await fetchScript(url)
+        if (content) {
+          GM_setValue(REMOTE_SCRIPT_CACHE_KEY, content)
+          GME_debug('[Remote script] Bootstrap fetch succeeded, remote script cached')
+        }
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error)
+        GME_fail('[Remote script] Bootstrap fetch failed: ' + msg)
+        return
+      }
     }
   } else {
     content = await fetchScript(url)
