@@ -416,7 +416,11 @@ ${grantLines}
         runPreset(cachedOnly);
       } else {
         bootLog('warn', MODULE_LOG_PREFIX, 'load:cache-miss no preset body');
-        console.warn('[Launcher] Shell network is off and preset cache is empty. Enable "Shell network" in the script menu while online once.');
+        bootLog('warn', MODULE_LOG_PREFIX, 'load:bootstrap:network-off-cache-empty allow one-time preset bootstrap fetch');
+        console.warn('[Launcher] Shell network is off and preset cache is empty. Attempting one-time bootstrap fetch...');
+        // First install / empty cache bootstrap:
+        // allow a one-time preset fetch so menu/UI can load and user can manage the network toggle.
+        requestPreset(PRESET_URL, '', true);
       }
       return;
     }
