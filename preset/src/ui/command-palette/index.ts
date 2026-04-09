@@ -194,14 +194,26 @@ export class CommandPaletteUI extends HTMLElement {
   }
 
   /**
-   * Keep the current keyboard-selected item visible in the scroll container.
+   * Keep the current keyboard-selected item visible inside `.command-palette__list`.
+   * `Element.scrollIntoView({ block: 'nearest' })` often does not scroll nested overflow
+   * containers reliably (e.g. flex + shadow DOM); adjust `scrollTop` from layout rects.
    */
   #scrollSelectedIntoView(): void {
     if (!this.#shadowRoot || this.#filteredCommands.length === 0) {
       return
     }
+    const listEl = this.#shadowRoot.querySelector('.command-palette__list') as HTMLElement | null
     const selected = this.#shadowRoot.querySelector(`.command-palette__item[data-index="${this.#selectedIndex}"]`) as HTMLElement | null
-    selected?.scrollIntoView({ block: 'nearest' })
+    if (!listEl || !selected) {
+      return
+    }
+    const listRect = listEl.getBoundingClientRect()
+    const itemRect = selected.getBoundingClientRect()
+    if (itemRect.top < listRect.top) {
+      listEl.scrollTop -= listRect.top - itemRect.top
+    } else if (itemRect.bottom > listRect.bottom) {
+      listEl.scrollTop += itemRect.bottom - listRect.bottom
+    }
   }
 
   #executeSelected(): void {
