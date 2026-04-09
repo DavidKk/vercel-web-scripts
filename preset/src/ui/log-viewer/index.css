@@ -210,6 +210,13 @@
   min-height: 160px;
   display: flex;
   flex-direction: column;
+  /* Hide scrollbar; wheel / trackpad scrolling still works */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.log-viewer__list::-webkit-scrollbar {
+  display: none;
 }
 
 .log-viewer__entry {
