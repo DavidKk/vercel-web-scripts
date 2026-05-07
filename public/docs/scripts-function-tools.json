@@ -15,7 +15,7 @@
     "type": "function",
     "function": {
       "name": "scripts_runtime_summary",
-      "description": "Return runtime/preset capability summary (GM_*, GME_*, constants, and constraints). Call before generating script content.",
+      "description": "Return runtime/preset capability summary, usage boundaries, GM_*/GME_* guidance, constants, and authoring constraints. Call before generating script content.",
       "parameters": {
         "type": "object",
         "properties": {},
@@ -82,7 +82,7 @@
     "type": "function",
     "function": {
       "name": "scripts_upsert",
-      "description": "Create or replace a script file in the Gist. Before writing userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate syntax when possible; do not default to broad *://*/* scope unless explicitly requested.",
+      "description": "Create or replace a script file in the Gist. Before writing userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate header sanity and syntax when possible; do not default to broad *://*/* scope unless explicitly requested, and never include API keys in script content.",
       "parameters": {
         "type": "object",
         "properties": {

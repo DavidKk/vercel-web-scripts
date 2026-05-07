@@ -2,12 +2,29 @@
 
 Use this when you should **read or change user script files** stored in the project’s GitHub Gist **without opening the web editor**.
 
+## When to use
+
+- Read, search, create, update, rename, validate, or delete managed `.ts` / `.js` userscript files in the Gist.
+- Generate browser userscript code that will run after the MagickMonkey launcher loads the shared preset runtime.
+- Make token-efficient remote edits through MCP tools instead of copying full files into the conversation.
+- Inspect available runtime APIs before authoring code, especially `GM_*`, `GME_*`, and injected constants.
+
+## When not to use
+
+- Do **not** use this to install runtime for browser end users. Browser users install the launcher userscript URL, not `/api/mcp`.
+- Do **not** use this to edit the launcher, preset bundle, generated entry file, rules JSON, or other project source files.
+- Do **not** use this for generic browser automation or scraping when no Gist script file should be read or changed.
+- Do **not** call write tools when the target domains, path patterns, activation mode, or runtime timing are unclear.
+- Do **not** default to broad `@match` patterns like `*://*/*`, broad `@connect` targets, or unnecessary `@grant` values.
+- Do **not** put API keys into Gist files, generated scripts, page DOM, console examples, prompts, commits, or user-visible output.
+
 ## Authentication
 
 - **Browser session**: same cookie as the admin UI after login.
-- **Automation / MCP / API clients**: set env `SCRIPTS_MCP_HEADERS` on the deployment (JSON string) and provide `x-api-key` in request headers.
+- **Automation / MCP / API clients**: provide `x-api-key` in request headers. If your MCP client supports env-driven headers, set `SCRIPTS_MCP_HEADERS` as a JSON string in that client/deployment.
   - Example env: `SCRIPTS_MCP_HEADERS='{"x-api-key":"<your-key>","x-org-id":"acme"}'`
   - Required auth header for integration APIs: `x-api-key: <your-key>`
+- **Signed-in admin users**: `GET /api/mcp/headers` can return the MCP endpoint and configured headers for the current deployment.
 
 Never commit the API key or paste it into user-visible pages.
 
@@ -51,6 +68,8 @@ After they install that once, the launcher loads **preset** and **remote bundle*
 
 ### Capability summary (for AI script authors)
 
+Default to `GME_*` helpers when they match the task. Use `GM_*` when you need Tampermonkey compatibility, native userscript storage, tab/menu primitives, resources, or low-level network behavior. Treat the lists below as a compact orientation, not a complete type reference.
+
 **Tampermonkey-style `GM_*` (subset; see typings for full signatures)**
 
 | Area             | APIs                                                                                                                                       |
@@ -58,7 +77,7 @@ After they install that once, the launcher loads **preset** and **remote bundle*
 | Network          | `GM_xmlhttpRequest`                                                                                                                        |
 | Storage          | `GM_getValue`, `GM_setValue`, `GM_deleteValue`, `GM_listValues`, `GM_getValues`, `GM_setValues`, `GM_deleteValues`, value change listeners |
 | UI / page        | `GM_addElement`, `GM_addStyle`, `GM_registerMenuCommand`, `GM_unregisterMenuCommand`, `GM_notification`, `GM_openInTab`, `GM_download`     |
-| Resources / meta | `GM_getResourceText`, `GM_getResourceURL`, `GM_log`, `GM_setClipboard`                                                                     |
+| Resources / meta | `GM_getResourceText`, `GM_getResourceURL`, `GM_log`, `GM_setClipboard`, `GM_info`                                                          |
 | Tabs             | `GM_getTab`, `GM_saveTab`, `GM_getTabs`                                                                                                    |
 | Advanced         | `GM_webRequest`, `GM_cookie`                                                                                                               |
 
@@ -77,6 +96,11 @@ After they install that once, the launcher loads **preset** and **remote bundle*
 **Injected constants (typical)**
 
 - `__BASE_URL__`, `__RULE_API_URL__`, `__EDITOR_URL__`, `__PROJECT_VERSION__`, `__SCRIPT_UPDATED_AT__`, `__PRESET_BUILD_HASH__` — see typings for exact types.
+
+**Advanced / use sparingly**
+
+- `unsafeWindow`, `GM_webRequest`, and `GM_cookie` are available in the typings but should be used only when the task explicitly needs page-window access, request interception, or cookie-level behavior.
+- `scripts_runtime_summary` returns a compact machine-readable summary. For exact function signatures, use `preset/src/editor-typings.d.ts` as the source of truth.
 
 ### Maintenance note (keep docs in sync)
 
@@ -119,7 +143,8 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 - Output **only** the Gist file body over MCP; do not inline the preset.
 - Before `scripts_upsert`, sanity-check the final content:
   - Ensure the header block is present exactly once.
-  - For TypeScript/JavaScript, run a syntax/transpile check when a local toolchain is available.
+  - Use `scripts_validate` for remote userscript header sanity. It is not a full TypeScript/JavaScript compiler.
+  - For TypeScript/JavaScript, run an additional syntax/transpile check when a local toolchain is available.
   - If you cannot run a check, inspect generated string escapes and state the residual risk.
 - Prefer token-efficient remote editing tools:
   - Use `scripts_search` before `scripts_get` when locating code.

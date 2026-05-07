@@ -27,6 +27,22 @@ function buildRuntimeSummary() {
       gistViaMcpContainsPreset: false,
       notes: ['MCP/REST read and write Gist source files only.', 'Preset APIs are injected at runtime in browser pages after launcher install.'],
     },
+    usageBoundaries: {
+      useWhen: [
+        'Read, search, create, update, rename, validate, or delete managed .ts/.js userscript files in the Gist.',
+        'Generate browser userscript code that will run after the MagickMonkey launcher loads the shared preset runtime.',
+        'Make token-efficient remote edits through MCP tools instead of copying full files into the conversation.',
+        'Inspect runtime APIs before authoring code, especially GM_*, GME_*, and injected constants.',
+      ],
+      doNotUseWhen: [
+        'Do not use this to install runtime for browser end users; they install the launcher userscript URL, not /api/mcp.',
+        'Do not use this to edit the launcher, preset bundle, generated entry file, rules JSON, or other project source files.',
+        'Do not use this for generic browser automation or scraping when no Gist script file should be read or changed.',
+        'Do not call write tools when target domains, path patterns, activation mode, or runtime timing are unclear.',
+        'Do not default to broad @match patterns like *://*/*, broad @connect targets, or unnecessary @grant values.',
+        'Do not put API keys into Gist files, generated scripts, page DOM, console examples, prompts, commits, or user-visible output.',
+      ],
+    },
     tokenEfficientEditing: {
       preferredFlow: [
         'Use scripts_search to find candidate files and line-level context before reading full files.',
@@ -67,7 +83,8 @@ function buildRuntimeSummary() {
       supportedRunAt: ['document-start', 'document-body', 'document-end', 'document-idle'],
       validationPolicy: [
         'Before scripts_upsert, ensure the userscript header block is present exactly once.',
-        'Run a TypeScript/JavaScript syntax or transpile check when a local toolchain is available.',
+        'Use scripts_validate for remote userscript header sanity. It is not a full TypeScript/JavaScript compiler.',
+        'Run an additional TypeScript/JavaScript syntax or transpile check when a local toolchain is available.',
         'If validation cannot be run, inspect generated string escapes and state the residual risk.',
       ],
       confirmationExample: [
@@ -93,7 +110,7 @@ function buildRuntimeSummary() {
         'GM_removeValueChangeListener',
       ],
       uiAndPage: ['GM_addElement', 'GM_addStyle', 'GM_registerMenuCommand', 'GM_unregisterMenuCommand', 'GM_notification', 'GM_openInTab', 'GM_download'],
-      resources: ['GM_getResourceText', 'GM_getResourceURL', 'GM_log', 'GM_setClipboard'],
+      resources: ['GM_getResourceText', 'GM_getResourceURL', 'GM_log', 'GM_setClipboard', 'GM_info'],
       tabs: ['GM_getTab', 'GM_saveTab', 'GM_getTabs'],
       advanced: ['GM_webRequest', 'GM_cookie'],
     },
@@ -105,6 +122,13 @@ function buildRuntimeSummary() {
       domAndTiming: ['GME_waitFor', 'GME_watchFor', 'GME_watchForVisible', 'GME_pollFor', 'GME_sleep', 'GME_isVisible'],
       utilities: ['GME_debounce', 'GME_throttle', 'GME_sha1', 'GME_md5', 'GME_uuid'],
       notificationsAndLogs: ['GME_ok', 'GME_info', 'GME_warn', 'GME_fail', 'GME_group', 'GME_notification', 'GME_notification_update', 'GME_notification_close'],
+    },
+    globalApiGuidance: {
+      preferredDefault: 'Prefer GME_* helpers when they match the task.',
+      useGmWhen: 'Use GM_* for Tampermonkey compatibility, native userscript storage, tab/menu primitives, resources, or low-level network behavior.',
+      compactSummaryOnly: true,
+      advancedUseSparingly: ['unsafeWindow', 'GM_webRequest', 'GM_cookie'],
+      exactSignatures: 'preset/src/editor-typings.d.ts',
     },
     references: {
       typingsSource: 'preset/src/editor-typings.d.ts',
