@@ -1,7 +1,19 @@
 import { z } from 'zod'
 
 import { type Tool, tool } from '@/initializer/mcp/tool'
-import { deleteManagedScriptFile, getManagedScriptFile, listManagedScriptFiles, renameManagedScriptFile, upsertManagedScriptFile } from '@/services/scripts/gistScripts'
+import {
+  batchPatchManagedScriptFiles,
+  deleteManagedScriptFile,
+  getManagedScriptFile,
+  getManagedScriptSnippet,
+  listManagedScriptFiles,
+  patchManagedScriptFile,
+  renameManagedScriptFile,
+  replaceManagedScriptFile,
+  searchManagedScriptFiles,
+  upsertManagedScriptFile,
+  validateManagedScriptFile,
+} from '@/services/scripts/gistScripts'
 
 /**
  * Build a compact runtime summary that tells AI callers which APIs exist at execution time.
@@ -14,6 +26,17 @@ function buildRuntimeSummary() {
       executionOrder: ['launcher', 'preset', 'remoteBundle'],
       gistViaMcpContainsPreset: false,
       notes: ['MCP/REST read and write Gist source files only.', 'Preset APIs are injected at runtime in browser pages after launcher install.'],
+    },
+    tokenEfficientEditing: {
+      preferredFlow: [
+        'Use scripts_search to find candidate files and line-level context before reading full files.',
+        'Use scripts_snippet to inspect only the needed line ranges.',
+        'Use scripts_replace for exact small replacements with expectedCount.',
+        'Use scripts_patch for structured local edits within one file.',
+        'Use scripts_batch_patch for related edits across multiple files.',
+        'Use scripts_get and scripts_upsert only for large rewrites or when full-file review is necessary.',
+      ],
+      validation: 'Use scripts_validate after remote-side edits when userscript header sanity matters.',
     },
     authoringRules: {
       headerPolicy: [
@@ -98,6 +121,31 @@ function buildRuntimeSummary() {
 export function buildScriptMcpToolsMap(): Map<string, Tool> {
   const list = tool('scripts_list', 'List .ts/.js script files in the Gist (excludes generated entry and rules JSON).', z.object({}), async () => listManagedScriptFiles())
 
+  const search = tool(
+    'scripts_search',
+    'Search managed script files in the Gist and return compact line-level matches with bounded context. Prefer this before scripts_get to reduce token usage.',
+    z.object({
+      query: z.string().min(1),
+      filename: z.string().min(1).optional().describe('Optional exact Gist filename to search within.'),
+      regex: z.boolean().optional(),
+      caseSensitive: z.boolean().optional(),
+      contextLines: z.number().int().min(0).max(5).optional(),
+      maxResults: z.number().int().min(1).max(200).optional(),
+    }),
+    async (options) => searchManagedScriptFiles(options)
+  )
+
+  const snippet = tool(
+    'scripts_snippet',
+    'Read a bounded line range from one script file instead of returning the full file.',
+    z.object({
+      filename: z.string().min(1),
+      startLine: z.number().int().min(1),
+      endLine: z.number().int().min(1),
+    }),
+    async (options) => getManagedScriptSnippet(options)
+  )
+
   const get = tool(
     'scripts_get',
     'Read one script file by Gist filename.',
@@ -118,6 +166,81 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
       await upsertManagedScriptFile(filename, content)
       return { ok: true as const, filename }
     }
+  )
+
+  const replace = tool(
+    'scripts_replace',
+    'Replace text in one managed script file server-side. Use expectedCount for safety; avoids full-file get/upsert for small edits.',
+    z.object({
+      filename: z.string().min(1),
+      search: z.string().min(1),
+      replace: z.string(),
+      regex: z.boolean().optional(),
+      caseSensitive: z.boolean().optional(),
+      expectedCount: z.number().int().min(0).optional(),
+      validate: z.boolean().optional(),
+    }),
+    async (options) => replaceManagedScriptFile(options)
+  )
+
+  const patchOperationSchema = z.discriminatedUnion('type', [
+    z.object({
+      type: z.literal('replace'),
+      search: z.string().min(1),
+      replace: z.string(),
+      expectedCount: z.number().int().min(0).optional(),
+    }),
+    z.object({
+      type: z.literal('insertBefore'),
+      search: z.string().min(1),
+      text: z.string(),
+      expectedCount: z.number().int().min(0).optional(),
+    }),
+    z.object({
+      type: z.literal('insertAfter'),
+      search: z.string().min(1),
+      text: z.string(),
+      expectedCount: z.number().int().min(0).optional(),
+    }),
+  ])
+
+  const patch = tool(
+    'scripts_patch',
+    'Apply structured exact-match patch operations to one managed script file server-side. Use for local edits without transferring the whole file.',
+    z.object({
+      filename: z.string().min(1),
+      operations: z.array(patchOperationSchema).min(1),
+      validate: z.boolean().optional(),
+    }),
+    async (options) => patchManagedScriptFile(options)
+  )
+
+  const batchPatch = tool(
+    'scripts_batch_patch',
+    'Apply structured exact-match patch operations across multiple managed script files and write them in one Gist update. Use for related multi-file edits.',
+    z.object({
+      files: z
+        .array(
+          z.object({
+            filename: z.string().min(1),
+            operations: z.array(patchOperationSchema).min(1),
+            validate: z.boolean().optional(),
+          })
+        )
+        .min(1),
+      validate: z.boolean().optional(),
+      atomic: z.boolean().optional().describe('Reserved for compatibility; batch writes are prepared before the single Gist update.'),
+    }),
+    async (options) => batchPatchManagedScriptFiles(options)
+  )
+
+  const validate = tool(
+    'scripts_validate',
+    'Validate one managed script file without returning full content. Checks userscript header sanity.',
+    z.object({
+      filename: z.string().min(1),
+    }),
+    async ({ filename }) => validateManagedScriptFile(filename)
   )
 
   const del = tool(
@@ -154,8 +277,14 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   return new Map([
     [list.name, list],
+    [search.name, search],
+    [snippet.name, snippet],
     [get.name, get],
     [upsert.name, upsert],
+    [replace.name, replace],
+    [patch.name, patch],
+    [batchPatch.name, batchPatch],
+    [validate.name, validate],
     [del.name, del],
     [rename.name, rename],
     [runtimeSummary.name, runtimeSummary],

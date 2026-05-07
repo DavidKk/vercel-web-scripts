@@ -25,7 +25,10 @@ Only `.ts` / `.js` files that are **not** the generated entry or rules JSON can 
 
 - Base URL: `GET /api/mcp` (manifest), `POST /api/mcp` (JSON-RPC 2.0: `initialize`, `tools/list`, `tools/call`, or legacy `{ "tool": "scripts_list", "params": {} }`).
 
-Tools: `scripts_runtime_summary`, `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_delete`, `scripts_rename`.
+Tools:
+
+- Baseline CRUD: `scripts_runtime_summary`, `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_delete`, `scripts_rename`.
+- Token-efficient reads/edits: `scripts_search`, `scripts_snippet`, `scripts_replace`, `scripts_patch`, `scripts_batch_patch`, `scripts_validate`.
 
 **End users do not “install” `/api/mcp`.** That URL is only for MCP clients (e.g. Cursor) that call JSON-RPC to edit **Gist files**. It does **not** run in the browser and does **not** load the preset.
 
@@ -118,13 +121,21 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
   - Ensure the header block is present exactly once.
   - For TypeScript/JavaScript, run a syntax/transpile check when a local toolchain is available.
   - If you cannot run a check, inspect generated string escapes and state the residual risk.
+- Prefer token-efficient remote editing tools:
+  - Use `scripts_search` before `scripts_get` when locating code.
+  - Use `scripts_snippet` to inspect bounded line ranges instead of full files.
+  - Use `scripts_replace` for small exact replacements and set `expectedCount` whenever possible.
+  - Use `scripts_patch` for structured local edits in one file.
+  - Use `scripts_batch_patch` for related changes across multiple files.
+  - Use `scripts_get` + `scripts_upsert` only for full-file review, large rewrites, or when patch tools are insufficient.
 
 ## Workflow
 
 1. `scripts_runtime_summary` first (runtime APIs + constraints).
 2. `scripts_list` (or `GET /api/v1/scripts`) to see names.
-3. For updates, `scripts_get` / GET before proposing changes so existing metadata, version, grants, connects, and activation patterns are preserved intentionally.
+3. For updates, start with `scripts_search` / `scripts_snippet`; use `scripts_get` only when full-file context is needed.
 4. For new scripts, propose the userscript header metadata, especially activation mode, `@match`, and `@run-at`, and get user confirmation before drafting or writing content in most cases.
-5. (optional) `scripts_rename` to change the managed filename before editing.
-6. Validate or inspect the final script content.
-7. `scripts_upsert` / PUT to apply edits; then user can publish from UI or rely on Gist sync as configured.
+5. Use the narrowest safe edit path: `scripts_replace` for simple replacements, `scripts_patch` for local edits, `scripts_batch_patch` for related multi-file edits, and `scripts_upsert` only for full rewrites.
+6. (optional) `scripts_rename` to change the managed filename before editing.
+7. Validate or inspect the final script content with `scripts_validate` or an equivalent local check.
+8. User can publish from UI or rely on Gist sync as configured.

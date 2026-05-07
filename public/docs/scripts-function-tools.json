@@ -44,6 +44,43 @@
   {
     "type": "function",
     "function": {
+      "name": "scripts_search",
+      "description": "Search managed script files in the Gist and return compact line-level matches with bounded context. Prefer this before scripts_get to reduce token usage.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "filename": { "type": "string", "description": "Optional exact Gist filename to search within." },
+          "regex": { "type": "boolean" },
+          "caseSensitive": { "type": "boolean" },
+          "contextLines": { "type": "integer", "minimum": 0, "maximum": 5 },
+          "maxResults": { "type": "integer", "minimum": 1, "maximum": 200 }
+        },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_snippet",
+      "description": "Read a bounded line range from one script file instead of returning the full file.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "startLine": { "type": "integer", "minimum": 1 },
+          "endLine": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["filename", "startLine", "endLine"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "scripts_upsert",
       "description": "Create or replace a script file in the Gist. Before writing userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate syntax when possible; do not default to broad *://*/* scope unless explicitly requested.",
       "parameters": {
@@ -53,6 +90,119 @@
           "content": { "type": "string" }
         },
         "required": ["filename", "content"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_replace",
+      "description": "Replace text in one managed script file server-side. Use expectedCount for safety; avoids full-file get/upsert for small edits.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "search": { "type": "string" },
+          "replace": { "type": "string" },
+          "regex": { "type": "boolean" },
+          "caseSensitive": { "type": "boolean" },
+          "expectedCount": { "type": "integer", "minimum": 0 },
+          "validate": { "type": "boolean" }
+        },
+        "required": ["filename", "search", "replace"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_patch",
+      "description": "Apply structured exact-match patch operations to one managed script file server-side. Use for local edits without transferring the whole file.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["replace", "insertBefore", "insertAfter"] },
+                "search": { "type": "string" },
+                "replace": { "type": "string" },
+                "text": { "type": "string" },
+                "expectedCount": { "type": "integer", "minimum": 0 }
+              },
+              "required": ["type", "search"],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "validate": { "type": "boolean" }
+        },
+        "required": ["filename", "operations"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_batch_patch",
+      "description": "Apply structured exact-match patch operations across multiple managed script files and write them in one Gist update. Use for related multi-file edits.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": { "type": "string" },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["replace", "insertBefore", "insertAfter"] },
+                      "search": { "type": "string" },
+                      "replace": { "type": "string" },
+                      "text": { "type": "string" },
+                      "expectedCount": { "type": "integer", "minimum": 0 }
+                    },
+                    "required": ["type", "search"],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1
+                },
+                "validate": { "type": "boolean" }
+              },
+              "required": ["filename", "operations"],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "validate": { "type": "boolean" },
+          "atomic": { "type": "boolean", "description": "Reserved for compatibility; batch writes are prepared before the single Gist update." }
+        },
+        "required": ["files"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_validate",
+      "description": "Validate one managed script file without returning full content. Checks userscript header sanity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" }
+        },
+        "required": ["filename"],
         "additionalProperties": false
       }
     }
