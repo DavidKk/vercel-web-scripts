@@ -1,13 +1,11 @@
 import { api } from '@/initializer/controller'
 import { jsonSuccess, jsonUnauthorized } from '@/initializer/response'
 import { validateCookie } from '@/services/auth/access'
+import { getConfiguredMCPHeaders } from '@/services/auth/integrationAuth'
 
 interface MCPHeadersPayload {
   endpoint: string
-  headers: {
-    'x-api-key': string
-    Authorization: string
-  }
+  headers: Record<string, string>
 }
 
 /**
@@ -18,22 +16,8 @@ export const GET = api(async (req) => {
     return jsonUnauthorized()
   }
 
-  const apiKey = process.env.SCRIPTS_API_KEY?.trim()
-  if (!apiKey) {
-    return jsonSuccess({
-      endpoint: `${req.nextUrl.origin}/api/mcp`,
-      headers: {
-        'x-api-key': '',
-        Authorization: '',
-      },
-    } satisfies MCPHeadersPayload)
-  }
-
   return jsonSuccess({
     endpoint: `${req.nextUrl.origin}/api/mcp`,
-    headers: {
-      'x-api-key': apiKey,
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: getConfiguredMCPHeaders(),
   } satisfies MCPHeadersPayload)
 })

@@ -14,19 +14,13 @@ interface MCPHeadersResponse {
   message: string
   data: {
     endpoint: string
-    headers: {
-      'x-api-key': string
-      Authorization: string
-    }
+    headers: Record<string, string>
   } | null
 }
 
 interface MCPResolvedHeaders {
   endpoint: string
-  headers: {
-    'x-api-key': string
-    Authorization: string
-  }
+  headers: Record<string, string>
 }
 
 const btnClass = 'p-2 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
@@ -226,7 +220,7 @@ export function EditorIntegrationModals() {
               return (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <div className="text-[#8fb9ff] text-[11px]">MCP Headers</div>
+                    <div className="text-[#8fb9ff] text-[11px]">MCP Auth Key</div>
                     {maskedHeaders ? (
                       <Tooltip content={showSecret ? 'Hide secrets' : 'Show secrets'} placement="top">
                         <button type="button" className={rowIconBtnClass} aria-label={showSecret ? 'Hide secrets' : 'Show secrets'} onClick={() => setShowSecret((prev) => !prev)}>
