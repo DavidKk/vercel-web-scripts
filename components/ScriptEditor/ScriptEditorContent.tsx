@@ -53,6 +53,7 @@ function ScriptEditorContentBody({
   renderRightPanel,
   onSave: onSaveProp,
   onDelete: onDeleteProp,
+  onReloadOnlineFiles,
   readOnly = false,
 }: ScriptEditorProps & { readOnly: boolean }) {
   const fileState = useFileState()
@@ -147,7 +148,7 @@ function ScriptEditorContentBody({
   const handleResetToOnline = useCallback(async () => {
     await fileStorage.clearFiles()
     tabBar.closeAllTabs()
-    const initial = fileState.initialFiles
+    const initial = onReloadOnlineFiles ? await onReloadOnlineFiles() : fileState.initialFiles
     if (Object.keys(initial).length > 0) {
       const record: Record<string, FileMetadata> = {}
       const now = Date.now()
@@ -163,7 +164,7 @@ function ScriptEditorContentBody({
     } else {
       fileState.loadStoredFiles({})
     }
-  }, [fileStorage, tabBar, fileState])
+  }, [fileStorage, tabBar, fileState, onReloadOnlineFiles])
 
   /**
    * Handle file rename

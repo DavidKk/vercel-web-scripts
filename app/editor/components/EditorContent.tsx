@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 
-import { updateFiles } from '@/app/api/scripts/actions'
+import { fetchFiles, updateFiles } from '@/app/api/scripts/actions'
 import { useNotification } from '@/components/Notification'
 import { useFileState } from '@/components/ScriptEditor/context/FileStateContext'
 import { ScriptEditorContent } from '@/components/ScriptEditor/ScriptEditorContent'
@@ -131,6 +131,11 @@ export function EditorContent({
     }
   }, [isEditorDevMode, editorHostId, sendEditorDevModeFiles])
 
+  const handleReloadOnlineFiles = useCallback(async () => {
+    const latest = await fetchFiles()
+    return Object.fromEntries(Object.entries(latest.files).map(([path, info]) => [path, info.content]))
+  }, [])
+
   /**
    * Handle publish - save all files to Gist and compile
    */
@@ -142,15 +147,11 @@ export function EditorContent({
     setIsPublishing(true)
 
     try {
-      // Get all files (excluding deleted files and excluded files)
+      // Get all files to write plus deleted script files to remove from Gist.
       const filesToPublish: Record<string, string> = {}
+      const filesToDelete: string[] = []
 
       Object.values(fileState.files).forEach((file) => {
-        // Skip deleted files
-        if (file.status === FileStatus.Deleted) {
-          return
-        }
-
         // Skip excluded files (rules file, entry script file)
         if (EXCLUDED_FILES.includes(file.path)) {
           return
@@ -162,33 +163,47 @@ export function EditorContent({
           return
         }
 
+        if (file.status === FileStatus.Deleted) {
+          filesToDelete.push(file.path)
+          return
+        }
+
         filesToPublish[file.path] = file.content.modifiedContent
       })
 
-      if (Object.keys(filesToPublish).length === 0) {
+      if (Object.keys(filesToPublish).length === 0 && filesToDelete.length === 0) {
         notification.warning('No files to publish')
         setIsPublishing(false)
         return
       }
 
-      // Validate scripts server-side (same as remote bundle; no preset) before persisting to Gist
-      const compileRes = await fetch('/tampermonkey/compile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: filesToPublish }),
-      })
-      if (!compileRes.ok) {
-        const errText = (await compileRes.text()).trim()
-        notification.error(errText || 'Failed to compile script')
-        setIsPublishing(false)
-        return
+      if (Object.keys(filesToPublish).length > 0) {
+        // Validate scripts server-side (same as remote bundle; no preset) before persisting to Gist.
+        // Delete-only publishes have no script body to compile.
+        const compileRes = await fetch('/tampermonkey/compile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: filesToPublish }),
+        })
+        if (!compileRes.ok) {
+          const errText = (await compileRes.text()).trim()
+          notification.error(errText || 'Failed to compile script')
+          setIsPublishing(false)
+          return
+        }
       }
 
       // First, save all files to Gist
-      const filesToSave = Object.entries(filesToPublish).map(([path, content]) => ({
+      const filesToSave: Array<{ file: string; content: string | null }> = Object.entries(filesToPublish).map(([path, content]) => ({
         file: path,
         content,
       }))
+      filesToDelete.forEach((path) => {
+        filesToSave.push({
+          file: path,
+          content: null,
+        })
+      })
 
       // Also save rules file if it exists
       const rulesFile = fileState.getFile(ENTRY_SCRIPT_RULES_FILE)
@@ -204,6 +219,9 @@ export function EditorContent({
 
       // Mark all saved files as saved
       Object.keys(filesToPublish).forEach((path) => {
+        fileState.markFileAsSaved(path)
+      })
+      filesToDelete.forEach((path) => {
         fileState.markFileAsSaved(path)
       })
       if (rulesFile && rulesFile.status !== FileStatus.Deleted) {
@@ -274,6 +292,7 @@ export function EditorContent({
           extraLibs={[{ content: tampermonkeyTypings, filePath: 'file:///typings.d.ts' }]}
           typingsForLocal={tampermonkeyTypings}
           onSave={handleEditorSave}
+          onReloadOnlineFiles={handleReloadOnlineFiles}
           onLocalFilesSynced={() => {
             if (isEditorDevMode && editorHostId) sendEditorDevModeFiles()
           }}

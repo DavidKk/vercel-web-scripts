@@ -30,6 +30,8 @@ export interface ScriptEditorProps {
   onSave?: (path: string, content: string) => void | Promise<void>
   /** Callback when a file is deleted */
   onDelete?: (path: string) => void | Promise<void>
+  /** Reload the latest online files when resetting local cache */
+  onReloadOnlineFiles?: () => Promise<Record<string, string>>
   /** Callback when editor is ready */
   onReady?: () => void
   /** Render function for the right-side panel content */

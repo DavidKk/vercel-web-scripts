@@ -25,6 +25,7 @@ export interface FetchGistFileParams {
 export async function fetchGist(params: FetchGistFileParams): Promise<Gist> {
   const { gistId, gistToken } = params
   const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+    cache: 'no-store',
     headers: {
       Authorization: `token ${gistToken}`,
     },
