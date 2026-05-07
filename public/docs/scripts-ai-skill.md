@@ -98,7 +98,7 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
   - `@grant` / `@connect`: only when needed by the APIs or network targets used.
 - Treat `@match` and `@run-at` as confirmation-critical fields:
   - Ask/confirm which domains and path patterns should be covered by `@match`.
-  - Prefer the narrowest practical `@match` patterns, such as `https://admin.example.com/orders/*`.
+  - Prefer the narrowest practical `@match` patterns, such as `https://<target-host>/<target-path>/*`.
   - Do not use broad patterns such as `*://*/*` unless the user explicitly asks for all supported sites/paths or the task is clearly universal.
   - Choose `@run-at` based on timing needs: use `document-start` only for early interception, `document-body` when `document.body` is enough, `document-end` for DOMContentLoaded behavior, and `document-idle` for most page enhancement/automation scripts.
   - If the scope or timing is unknown, pause and ask before calling `scripts_upsert`.
@@ -109,10 +109,10 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 - Confirmation example:
 
 ```ts
-// @name itch.io Auto Accept Content Warning
-// @version 1.0.1
-// @description 自动勾选 remember 并提交 itch.io 内容警告表单
-// @match *://*.itch.io/*
+// @name <Script Name>
+// @version <Version>
+// @description <Short behavior summary>
+// @match <scheme>://<target-host>/<target-path>/*
 // @run-at document-idle
 ```
 
