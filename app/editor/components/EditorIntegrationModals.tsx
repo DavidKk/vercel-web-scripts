@@ -1,13 +1,33 @@
 'use client'
 
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
-import { FiChevronDown, FiCopy, FiDownload, FiExternalLink, FiX } from 'react-icons/fi'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { FiChevronDown, FiCopy, FiDownload, FiExternalLink, FiEye, FiEyeOff, FiX } from 'react-icons/fi'
 import { TbApi, TbCode, TbFileText, TbRobot } from 'react-icons/tb'
 
 import { useNotification } from '@/components/Notification'
 import { Tooltip } from '@/components/Tooltip'
 
 type ModalId = 'mcp' | 'api' | 'skill' | 'tools' | null
+
+interface MCPHeadersResponse {
+  code: number
+  message: string
+  data: {
+    endpoint: string
+    headers: {
+      'x-api-key': string
+      Authorization: string
+    }
+  } | null
+}
+
+interface MCPResolvedHeaders {
+  endpoint: string
+  headers: {
+    'x-api-key': string
+    Authorization: string
+  }
+}
 
 const btnClass = 'p-2 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
 const inputClass = 'flex-1 h-7 px-2 rounded bg-[#1a1a1a] border border-[#3c3c3c] text-[#d4d4d4] text-[11px] font-mono focus:outline-none focus:border-[#0e639c]'
@@ -19,7 +39,11 @@ const rowIconBtnClass = 'h-7 w-7 inline-flex items-center justify-center rounded
 export function EditorIntegrationModals() {
   const [open, setOpen] = useState<ModalId>(null)
   const [apiExpanded, setApiExpanded] = useState<Record<string, boolean>>({})
+  const [mcpHeaders, setMcpHeaders] = useState<MCPResolvedHeaders | null>(null)
+  const [mcpLoading, setMcpLoading] = useState(false)
+  const [showSecret, setShowSecret] = useState(false)
   const notification = useNotification()
+  const notificationRef = useRef(notification)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -52,6 +76,59 @@ export function EditorIntegrationModals() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
+
+  useEffect(() => {
+    notificationRef.current = notification
+  }, [notification])
+
+  useEffect(() => {
+    if (open !== 'mcp') return
+
+    let cancelled = false
+    setMcpLoading(true)
+    setShowSecret(false)
+
+    void fetch('/api/mcp/headers', { method: 'GET' })
+      .then(async (res) => {
+        const data = (await res.json()) as MCPHeadersResponse
+        if (cancelled) return
+        if (!res.ok || data.code !== 0 || !data.data) {
+          throw new Error(data.message || 'Load MCP headers failed')
+        }
+        setMcpHeaders(data.data)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setMcpHeaders(null)
+        notificationRef.current.error('Failed to load MCP headers')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setMcpLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  function maskSecret(value: string) {
+    if (!value) return ''
+    if (value.length <= 8) return '*'.repeat(value.length)
+    return `${value.slice(0, 4)}${'*'.repeat(Math.max(value.length - 8, 4))}${value.slice(-4)}`
+  }
+
+  function getVisibleHeaders(headers?: MCPResolvedHeaders['headers']) {
+    if (!headers) {
+      return null
+    }
+    const entries = Object.entries(headers).filter(([, value]) => value.trim().length > 0)
+    if (entries.length === 0) {
+      return null
+    }
+    return Object.fromEntries(entries)
+  }
 
   function renderModal(title: string, body: ReactNode) {
     return (
@@ -124,11 +201,11 @@ export function EditorIntegrationModals() {
         renderModal(
           'MCP',
           <div className="space-y-3">
-            {renderCommandRow('MCP URL (GET manifest · POST execute)', `${origin}/api/mcp`, [
+            {renderCommandRow('MCP URL (GET manifest · POST execute)', mcpHeaders?.endpoint ?? `${origin}/api/mcp`, [
               {
                 id: 'copy-mcp',
                 title: 'Copy',
-                onClick: () => void copyText(`${origin}/api/mcp`),
+                onClick: () => void copyText(mcpHeaders?.endpoint ?? `${origin}/api/mcp`),
                 icon: <FiCopy className="w-3.5 h-3.5" />,
               },
               {
@@ -138,6 +215,32 @@ export function EditorIntegrationModals() {
                 icon: <FiExternalLink className="w-3.5 h-3.5" />,
               },
             ])}
+            {(() => {
+              const visibleHeaders = getVisibleHeaders(mcpHeaders?.headers)
+              const maskedHeaders = visibleHeaders ? Object.fromEntries(Object.entries(visibleHeaders).map(([key, value]) => [key, showSecret ? value : maskSecret(value)])) : null
+
+              if (!mcpLoading && !maskedHeaders) {
+                return null
+              }
+
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[#8fb9ff] text-[11px]">MCP Headers</div>
+                    {maskedHeaders ? (
+                      <Tooltip content={showSecret ? 'Hide secrets' : 'Show secrets'} placement="top">
+                        <button type="button" className={rowIconBtnClass} aria-label={showSecret ? 'Hide secrets' : 'Show secrets'} onClick={() => setShowSecret((prev) => !prev)}>
+                          {showSecret ? <FiEyeOff className="w-3.5 h-3.5" /> : <FiEye className="w-3.5 h-3.5" />}
+                        </button>
+                      </Tooltip>
+                    ) : null}
+                  </div>
+                  <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-[#1a1a1a] border border-[#333] rounded p-2">
+                    {mcpLoading ? 'Loading...' : JSON.stringify(maskedHeaders, null, 2)}
+                  </pre>
+                </div>
+              )
+            })()}
           </div>
         )}
 
