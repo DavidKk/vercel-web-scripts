@@ -221,13 +221,27 @@ export function EditorIntegrationModals() {
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="text-[#8fb9ff] text-[11px]">MCP Auth Key</div>
-                    {maskedHeaders ? (
-                      <Tooltip content={showSecret ? 'Hide secrets' : 'Show secrets'} placement="top">
-                        <button type="button" className={rowIconBtnClass} aria-label={showSecret ? 'Hide secrets' : 'Show secrets'} onClick={() => setShowSecret((prev) => !prev)}>
-                          {showSecret ? <FiEyeOff className="w-3.5 h-3.5" /> : <FiEye className="w-3.5 h-3.5" />}
-                        </button>
-                      </Tooltip>
-                    ) : null}
+                    <div className="flex items-center gap-1">
+                      {maskedHeaders ? (
+                        <>
+                          <Tooltip content="Copy" placement="top">
+                            <button type="button" className={rowIconBtnClass} aria-label="Copy" onClick={() => void copyText(JSON.stringify(visibleHeaders, null, 2))}>
+                              <FiCopy className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip content={showSecret ? 'Hide secrets' : 'Show secrets'} placement="top">
+                            <button
+                              type="button"
+                              className={rowIconBtnClass}
+                              aria-label={showSecret ? 'Hide secrets' : 'Show secrets'}
+                              onClick={() => setShowSecret((prev) => !prev)}
+                            >
+                              {showSecret ? <FiEyeOff className="w-3.5 h-3.5" /> : <FiEye className="w-3.5 h-3.5" />}
+                            </button>
+                          </Tooltip>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                   <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed bg-[#1a1a1a] border border-[#333] rounded p-2">
                     {mcpLoading ? 'Loading...' : JSON.stringify(maskedHeaders, null, 2)}
