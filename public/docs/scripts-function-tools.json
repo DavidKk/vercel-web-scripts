@@ -45,7 +45,7 @@
     "type": "function",
     "function": {
       "name": "scripts_upsert",
-      "description": "Create or replace a script file in the Gist.",
+      "description": "Create or replace a script file in the Gist. Before writing userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate syntax when possible; do not default to broad *://*/* scope unless explicitly requested.",
       "parameters": {
         "type": "object",
         "properties": {

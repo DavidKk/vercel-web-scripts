@@ -15,6 +15,46 @@ function buildRuntimeSummary() {
       gistViaMcpContainsPreset: false,
       notes: ['MCP/REST read and write Gist source files only.', 'Preset APIs are injected at runtime in browser pages after launcher install.'],
     },
+    authoringRules: {
+      headerPolicy: [
+        'Before writing or updating userscript content, propose the header metadata for user confirmation in most cases.',
+        'Confirmation-critical fields include @name, @version, @description, @match, and @run-at.',
+        'Treat @match and @run-at as especially important: confirm where the script runs and when it executes before calling scripts_upsert.',
+        'Use @grant and @connect only when needed by the script APIs or network targets.',
+        'For updates, read the existing file first and preserve metadata, version, grants, connects, and activation patterns intentionally.',
+      ],
+      activationPolicy: [
+        'Scripts can activate through header @match patterns or configured UI/API rules keyed by filename via matchRule(file).',
+        'Ask whether activation should be fixed in the header, dynamic through rules, or both.',
+        'Avoid broad header @match patterns when rule-based activation is the better fit.',
+      ],
+      matchPolicy: [
+        'Prefer the narrowest practical @match patterns for the user request.',
+        'Do not use broad patterns such as *://*/* unless the user explicitly asks for all supported sites/paths or the task is clearly universal.',
+        'If the activation scope is unknown, ask for target domains/paths before calling scripts_upsert.',
+      ],
+      runAtPolicy: [
+        'Choose @run-at based on timing needs.',
+        'Use document-start only for early interception.',
+        'Use document-body when document.body is enough and full DOMContentLoaded is not required.',
+        'Use document-end for DOM-ready behavior.',
+        'Use document-idle for most page enhancement or automation scripts.',
+        'If timing is unknown, ask before calling scripts_upsert.',
+      ],
+      supportedRunAt: ['document-start', 'document-body', 'document-end', 'document-idle'],
+      validationPolicy: [
+        'Before scripts_upsert, ensure the userscript header block is present exactly once.',
+        'Run a TypeScript/JavaScript syntax or transpile check when a local toolchain is available.',
+        'If validation cannot be run, inspect generated string escapes and state the residual risk.',
+      ],
+      confirmationExample: [
+        '// @name itch.io Auto Accept Content Warning',
+        '// @version 1.0.1',
+        '// @description 自动勾选 remember 并提交 itch.io 内容警告表单',
+        '// @match *://*.itch.io/*',
+        '// @run-at document-idle',
+      ],
+    },
     constants: ['__BASE_URL__', '__RULE_API_URL__', '__EDITOR_URL__', '__PROJECT_VERSION__', '__SCRIPT_UPDATED_AT__', '__PRESET_BUILD_HASH__'],
     gmApis: {
       network: ['GM_xmlhttpRequest'],
@@ -69,7 +109,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const upsert = tool(
     'scripts_upsert',
-    'Create or replace a script file in the Gist.',
+    'Create or replace a script file in the Gist. Before calling this for userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate syntax when possible; do not default to broad *://*/* scope unless explicitly requested.',
     z.object({
       filename: z.string().min(1),
       content: z.string(),

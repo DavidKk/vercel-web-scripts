@@ -81,16 +81,50 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 
 - This document’s **Capability summary** table (`GM_*` / `GME_*`) and the typical injected constants list.
 - The MCP tool output list returned by `scripts_runtime_summary` (source: `services/scripts/scriptMcpTools.ts`) so AI sees the same reality.
+- The static function-tool reference (`public/docs/scripts-function-tools.json`) when tool descriptions or authoring constraints change.
 
 **Authoring rules**
 
 - One userscript header block (`// ==UserScript==` … `// ==/UserScript==`) per Gist file; `@match` / `@grant` / `@connect` as needed.
+- Before writing or updating a userscript, explicitly identify the intended header metadata and return it for user confirmation in most cases:
+  - `@name`: short, user-visible script name.
+  - `@version`: semantic script version; preserve and bump existing versions intentionally.
+  - `@description`: concise behavior summary.
+  - `@match`: domains and path patterns where the script should run.
+  - `@run-at`: when the script should run; supported values are `document-start`, `document-body`, `document-end`, and `document-idle`.
+  - `@grant` / `@connect`: only when needed by the APIs or network targets used.
+- Treat `@match` and `@run-at` as confirmation-critical fields:
+  - Ask/confirm which domains and path patterns should be covered by `@match`.
+  - Prefer the narrowest practical `@match` patterns, such as `https://admin.example.com/orders/*`.
+  - Do not use broad patterns such as `*://*/*` unless the user explicitly asks for all supported sites/paths or the task is clearly universal.
+  - Choose `@run-at` based on timing needs: use `document-start` only for early interception, `document-body` when `document.body` is enough, `document-end` for DOMContentLoaded behavior, and `document-idle` for most page enhancement/automation scripts.
+  - If the scope or timing is unknown, pause and ask before calling `scripts_upsert`.
+- Activation can come from either script metadata or configured rules:
+  - Header `@match` is compiled into the generated userscript and checked at runtime.
+  - UI/API rules can also activate a script by filename through `matchRule("<filename>")`.
+  - Ask whether the user wants fixed header `@match` patterns, dynamic rule-based activation, or both. Avoid broad header matches when a configured rule is the better fit.
+- Confirmation example:
+
+```ts
+// @name itch.io Auto Accept Content Warning
+// @version 1.0.1
+// @description 自动勾选 remember 并提交 itch.io 内容警告表单
+// @match *://*.itch.io/*
+// @run-at document-idle
+```
+
 - Output **only** the Gist file body over MCP; do not inline the preset.
+- Before `scripts_upsert`, sanity-check the final content:
+  - Ensure the header block is present exactly once.
+  - For TypeScript/JavaScript, run a syntax/transpile check when a local toolchain is available.
+  - If you cannot run a check, inspect generated string escapes and state the residual risk.
 
 ## Workflow
 
 1. `scripts_runtime_summary` first (runtime APIs + constraints).
 2. `scripts_list` (or `GET /api/v1/scripts`) to see names.
-3. `scripts_get` / GET to read.
-4. (optional) `scripts_rename` to change the managed filename before editing.
-5. `scripts_upsert` / PUT to apply edits; then user can publish from UI or rely on Gist sync as configured.
+3. For updates, `scripts_get` / GET before proposing changes so existing metadata, version, grants, connects, and activation patterns are preserved intentionally.
+4. For new scripts, propose the userscript header metadata, especially activation mode, `@match`, and `@run-at`, and get user confirmation before drafting or writing content in most cases.
+5. (optional) `scripts_rename` to change the managed filename before editing.
+6. Validate or inspect the final script content.
+7. `scripts_upsert` / PUT to apply edits; then user can publish from UI or rely on Gist sync as configured.
