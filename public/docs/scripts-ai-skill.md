@@ -5,9 +5,9 @@ Use this when you should **read or change user script files** stored in the proj
 ## Authentication
 
 - **Browser session**: same cookie as the admin UI after login.
-- **Automation / MCP / API clients**: set env `SCRIPTS_API_KEY` on the deployment, then send:
-  - `Authorization: Bearer <SCRIPTS_API_KEY>`, or
-  - `x-api-key: <SCRIPTS_API_KEY>`
+- **Automation / MCP / API clients**: set env `SCRIPTS_MCP_HEADERS` on the deployment (JSON string) and provide `x-api-key` in request headers.
+  - Example env: `SCRIPTS_MCP_HEADERS='{"x-api-key":"<your-key>","x-org-id":"acme"}'`
+  - Required auth header for integration APIs: `x-api-key: <your-key>`
 
 Never commit the API key or paste it into user-visible pages.
 

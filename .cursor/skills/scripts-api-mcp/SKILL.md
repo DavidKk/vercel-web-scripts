@@ -10,7 +10,7 @@ Project: **MagickMonkey**. Scripts live in a private **GitHub Gist**; integratio
 ## Auth
 
 - **Session**: admin login cookie (same as `/editor`).
-- **API key**: env `SCRIPTS_API_KEY` on the server. Send `Authorization: Bearer …` or `x-api-key: …`. Do not put the key in skills, commits, or client-only bundles.
+- **API key**: configure env `SCRIPTS_MCP_HEADERS` (JSON string) on the server, and send `x-api-key: …`. Do not put keys in skills, commits, or client-only bundles.
 
 ## REST
 

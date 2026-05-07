@@ -8,7 +8,7 @@ export const SCRIPTS_OPENAPI_V1 = {
     title: 'MagickMonkey — Script files API',
     version: '1.0.0',
     description:
-      'CRUD for user script files stored in the configured GitHub Gist. Only .ts/.js files outside generated entry/rules are writable. Authenticate with session cookie or SCRIPTS_API_KEY (Bearer or x-api-key).',
+      'CRUD for user script files stored in the configured GitHub Gist. Only .ts/.js files outside generated entry/rules are writable. Authenticate with session cookie or x-api-key configured via SCRIPTS_MCP_HEADERS.',
   },
   servers: [{ url: '/', description: 'Deployment origin' }],
   security: [{ ScriptsApiKey: [] }, { cookieAuth: [] }],
@@ -225,9 +225,10 @@ export const SCRIPTS_OPENAPI_V1 = {
     },
     securitySchemes: {
       ScriptsApiKey: {
-        type: 'http',
-        scheme: 'bearer',
-        description: 'Value must match env SCRIPTS_API_KEY',
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-api-key',
+        description: 'Value must match x-api-key defined in env SCRIPTS_MCP_HEADERS',
       },
       cookieAuth: {
         type: 'apiKey',
