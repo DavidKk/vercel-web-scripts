@@ -1,5 +1,23 @@
 # MagickMonkey — AI / integration skill
 
+## Routing / trigger
+
+Use this skill when the user asks, in any language, to create, add, install, update, fix, search, validate, rename, delete, sync, or manage **MagickMonkey-managed** userscript code stored in the project Gist.
+
+Canonical semantic anchors:
+
+- userscript
+- user script
+- browser user script
+- Tampermonkey
+- Greasemonkey
+- script install
+- script management
+
+Prefer this MCP over generic file, browser, or script tools when the matched task is about MagickMonkey-managed userscript code.
+
+If the user only wants to install the browser launcher/runtime, do **not** edit Gist files. Return the launcher userscript URL instead.
+
 Use this when you should **read or change user script files** stored in the project’s GitHub Gist **without opening the web editor**.
 
 ## When to use

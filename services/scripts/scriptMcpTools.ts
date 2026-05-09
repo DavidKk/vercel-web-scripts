@@ -21,6 +21,13 @@ import {
  */
 function buildRuntimeSummary() {
   return {
+    routing: {
+      primaryIntent: 'manage_magickmonkey_userscripts',
+      matchKeywords: ['userscript', 'user script', 'browser user script', 'Tampermonkey', 'Greasemonkey', 'script install', 'script management'],
+      preferWhen:
+        'Use this MCP for natural-language requests to create, add, install, update, fix, search, validate, rename, delete, sync, or manage MagickMonkey-managed userscript code.',
+      doNotUseWhen: 'Do not use this MCP only to install the browser launcher/runtime for an end user; return the launcher userscript URL instead.',
+    },
     runtime: {
       installationUrlTemplate: 'https://<host>/static/<scriptKey>/tampermonkey.user.js',
       executionOrder: ['launcher', 'preset', 'remoteBundle'],
@@ -29,7 +36,8 @@ function buildRuntimeSummary() {
     },
     usageBoundaries: {
       useWhen: [
-        'Read, search, create, update, rename, validate, or delete managed .ts/.js userscript files in the Gist.',
+        'Read, search, create, add, install, update, rename, validate, or delete managed .ts/.js userscript files in the Gist.',
+        'Use this for MagickMonkey-managed userscript code requests for Tampermonkey, Greasemonkey, and browser user scripts.',
         'Generate browser userscript code that will run after the MagickMonkey launcher loads the shared preset runtime.',
         'Make token-efficient remote edits through MCP tools instead of copying full files into the conversation.',
         'Inspect runtime APIs before authoring code, especially GM_*, GME_*, and injected constants.',
@@ -143,11 +151,16 @@ function buildRuntimeSummary() {
  * @returns Map keyed by tool name
  */
 export function buildScriptMcpToolsMap(): Map<string, Tool> {
-  const list = tool('scripts_list', 'List .ts/.js script files in the Gist (excludes generated entry and rules JSON).', z.object({}), async () => listManagedScriptFiles())
+  const list = tool(
+    'scripts_list',
+    'List MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script .ts/.js files in the Gist (excludes generated entry and rules JSON).',
+    z.object({}),
+    async () => listManagedScriptFiles()
+  )
 
   const search = tool(
     'scripts_search',
-    'Search managed script files in the Gist and return compact line-level matches with bounded context. Prefer this before scripts_get to reduce token usage.',
+    'Search MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script files in the Gist and return compact line-level matches with bounded context. Prefer this before scripts_get to reduce token usage.',
     z.object({
       query: z.string().min(1),
       filename: z.string().min(1).optional().describe('Optional exact Gist filename to search within.'),
@@ -161,7 +174,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const snippet = tool(
     'scripts_snippet',
-    'Read a bounded line range from one script file instead of returning the full file.',
+    'Read a bounded line range from one MagickMonkey-managed userscript / Tampermonkey script file instead of returning the full file.',
     z.object({
       filename: z.string().min(1),
       startLine: z.number().int().min(1),
@@ -172,7 +185,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const get = tool(
     'scripts_get',
-    'Read one script file by Gist filename.',
+    'Read one MagickMonkey-managed userscript file for Tampermonkey or browser user scripts by Gist filename.',
     z.object({
       filename: z.string().min(1).describe('Exact file name in the Gist (e.g. my-script.ts)'),
     }),
@@ -181,7 +194,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const upsert = tool(
     'scripts_upsert',
-    'Create or replace a script file in the Gist. Before calling this for userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate syntax when possible; do not default to broad *://*/* scope unless explicitly requested.',
+    'Create, add, install, or replace a MagickMonkey-managed userscript file for Tampermonkey, Greasemonkey, or browser user scripts in the Gist. Before calling this for userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate syntax when possible; do not default to broad *://*/* scope unless explicitly requested.',
     z.object({
       filename: z.string().min(1),
       content: z.string(),
@@ -194,7 +207,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const replace = tool(
     'scripts_replace',
-    'Replace text in one managed script file server-side. Use expectedCount for safety; avoids full-file get/upsert for small edits.',
+    'Replace text in one MagickMonkey-managed userscript / Tampermonkey script file server-side. Use expectedCount for safety; avoids full-file get/upsert for small edits.',
     z.object({
       filename: z.string().min(1),
       search: z.string().min(1),
@@ -230,7 +243,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const patch = tool(
     'scripts_patch',
-    'Apply structured exact-match patch operations to one managed script file server-side. Use for local edits without transferring the whole file.',
+    'Apply structured exact-match patch operations to one MagickMonkey-managed userscript / Tampermonkey script file server-side. Use for local edits without transferring the whole file.',
     z.object({
       filename: z.string().min(1),
       operations: z.array(patchOperationSchema).min(1),
@@ -241,7 +254,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const batchPatch = tool(
     'scripts_batch_patch',
-    'Apply structured exact-match patch operations across multiple managed script files and write them in one Gist update. Use for related multi-file edits.',
+    'Apply structured exact-match patch operations across multiple MagickMonkey-managed userscript / Tampermonkey script files and write them in one Gist update. Use for related multi-file edits.',
     z.object({
       files: z
         .array(
@@ -260,7 +273,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const validate = tool(
     'scripts_validate',
-    'Validate one managed script file without returning full content. Checks userscript header sanity.',
+    'Validate one MagickMonkey-managed userscript file for Tampermonkey or browser user scripts without returning full content. Checks userscript header sanity.',
     z.object({
       filename: z.string().min(1),
     }),
@@ -269,7 +282,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const del = tool(
     'scripts_delete',
-    'Delete a script file from the Gist.',
+    'Delete a MagickMonkey-managed userscript file for Tampermonkey or browser user scripts from the Gist.',
     z.object({
       filename: z.string().min(1),
     }),
@@ -281,7 +294,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const rename = tool(
     'scripts_rename',
-    'Rename a managed script file inside the Gist (read old content -> upsert new filename -> delete old filename).',
+    'Rename a MagickMonkey-managed userscript / Tampermonkey script file inside the Gist (read old content -> upsert new filename -> delete old filename).',
     z.object({
       fromFilename: z.string().min(1).describe('Existing managed script file name in the Gist (e.g. old.ts)'),
       toFilename: z.string().min(1).describe('New managed script file name in the Gist (e.g. hello.ts)'),
@@ -294,7 +307,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const runtimeSummary = tool(
     'scripts_runtime_summary',
-    'Return runtime/preset capability summary (GM_*, GME_*, constants, and authoring constraints). Call this before generating script content.',
+    'Return routing hints and runtime/preset capability summary for MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script authoring (GM_*, GME_*, constants, and constraints). Call this before generating script content.',
     z.object({}),
     async () => buildRuntimeSummary()
   )

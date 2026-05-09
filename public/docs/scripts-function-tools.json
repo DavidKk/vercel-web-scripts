@@ -3,7 +3,7 @@
     "type": "function",
     "function": {
       "name": "scripts_list",
-      "description": "List .ts/.js script files in the Gist (excludes generated entry and rules JSON). Returns filenames and byte lengths.",
+      "description": "List MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script .ts/.js files in the Gist (excludes generated entry and rules JSON). Returns filenames and byte lengths.",
       "parameters": {
         "type": "object",
         "properties": {},
@@ -15,7 +15,7 @@
     "type": "function",
     "function": {
       "name": "scripts_runtime_summary",
-      "description": "Return runtime/preset capability summary, usage boundaries, GM_*/GME_* guidance, constants, and authoring constraints. Call before generating script content.",
+      "description": "Return routing hints and runtime/preset capability summary for MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script authoring, usage boundaries, GM_*/GME_* guidance, constants, and authoring constraints. Call before generating script content.",
       "parameters": {
         "type": "object",
         "properties": {},
@@ -27,7 +27,7 @@
     "type": "function",
     "function": {
       "name": "scripts_get",
-      "description": "Read one script file by exact Gist filename.",
+      "description": "Read one MagickMonkey-managed userscript file for Tampermonkey or browser user scripts by exact Gist filename.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -45,7 +45,7 @@
     "type": "function",
     "function": {
       "name": "scripts_search",
-      "description": "Search managed script files in the Gist and return compact line-level matches with bounded context. Prefer this before scripts_get to reduce token usage.",
+      "description": "Search MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script files in the Gist and return compact line-level matches with bounded context. Prefer this before scripts_get to reduce token usage.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -65,7 +65,7 @@
     "type": "function",
     "function": {
       "name": "scripts_snippet",
-      "description": "Read a bounded line range from one script file instead of returning the full file.",
+      "description": "Read a bounded line range from one MagickMonkey-managed userscript / Tampermonkey script file instead of returning the full file.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -82,7 +82,7 @@
     "type": "function",
     "function": {
       "name": "scripts_upsert",
-      "description": "Create or replace a script file in the Gist. Before writing userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate header sanity and syntax when possible; do not default to broad *://*/* scope unless explicitly requested, and never include API keys in script content.",
+      "description": "Create, add, install, or replace a MagickMonkey-managed userscript file for Tampermonkey, Greasemonkey, or browser user scripts in the Gist. Before writing userscript content, read existing files for updates, propose and confirm header metadata in most cases, especially activation mode, @match domains/path patterns, and @run-at timing, then validate header sanity and syntax when possible; do not default to broad *://*/* scope unless explicitly requested, and never include API keys in script content.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -98,7 +98,7 @@
     "type": "function",
     "function": {
       "name": "scripts_replace",
-      "description": "Replace text in one managed script file server-side. Use expectedCount for safety; avoids full-file get/upsert for small edits.",
+      "description": "Replace text in one MagickMonkey-managed userscript / Tampermonkey script file server-side. Use expectedCount for safety; avoids full-file get/upsert for small edits.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -119,7 +119,7 @@
     "type": "function",
     "function": {
       "name": "scripts_patch",
-      "description": "Apply structured exact-match patch operations to one managed script file server-side. Use for local edits without transferring the whole file.",
+      "description": "Apply structured exact-match patch operations to one MagickMonkey-managed userscript / Tampermonkey script file server-side. Use for local edits without transferring the whole file.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -151,7 +151,7 @@
     "type": "function",
     "function": {
       "name": "scripts_batch_patch",
-      "description": "Apply structured exact-match patch operations across multiple managed script files and write them in one Gist update. Use for related multi-file edits.",
+      "description": "Apply structured exact-match patch operations across multiple MagickMonkey-managed userscript / Tampermonkey script files and write them in one Gist update. Use for related multi-file edits.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -196,7 +196,7 @@
     "type": "function",
     "function": {
       "name": "scripts_validate",
-      "description": "Validate one managed script file without returning full content. Checks userscript header sanity.",
+      "description": "Validate one MagickMonkey-managed userscript file for Tampermonkey or browser user scripts without returning full content. Checks userscript header sanity.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -211,7 +211,7 @@
     "type": "function",
     "function": {
       "name": "scripts_delete",
-      "description": "Delete a script file from the Gist.",
+      "description": "Delete a MagickMonkey-managed userscript file for Tampermonkey or browser user scripts from the Gist.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -226,7 +226,7 @@
     "type": "function",
     "function": {
       "name": "scripts_rename",
-      "description": "Rename a managed script file inside the Gist (read old content -> upsert new filename -> delete old filename).",
+      "description": "Rename a MagickMonkey-managed userscript / Tampermonkey script file inside the Gist (read old content -> upsert new filename -> delete old filename).",
       "parameters": {
         "type": "object",
         "properties": {
