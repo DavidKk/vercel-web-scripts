@@ -1,13 +1,13 @@
 'use client'
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { FiChevronDown, FiCopy, FiDownload, FiExternalLink, FiEye, FiEyeOff, FiX } from 'react-icons/fi'
-import { TbApi, TbCode, TbFileText, TbRobot } from 'react-icons/tb'
+import { FiChevronDown, FiCopy, FiExternalLink, FiEye, FiEyeOff, FiX } from 'react-icons/fi'
+import { TbApi, TbCode, TbRobot } from 'react-icons/tb'
 
 import { useNotification } from '@/components/Notification'
 import { Tooltip } from '@/components/Tooltip'
 
-type ModalId = 'mcp' | 'api' | 'skill' | 'tools' | null
+type ModalId = 'mcp' | 'api' | 'tools' | null
 
 interface MCPHeadersResponse {
   code: number
@@ -28,7 +28,7 @@ const inputClass = 'flex-1 h-7 px-2 rounded bg-[#1a1a1a] border border-[#3c3c3c]
 const rowIconBtnClass = 'h-7 w-7 inline-flex items-center justify-center rounded bg-[#2d2d2d] text-[#d4d4d4] hover:bg-[#0e639c] hover:text-white transition-colors'
 
 /**
- * Icon buttons that open read-only docs for MCP URLs, OpenAPI, skill markdown, and function-calling JSON.
+ * Icon buttons that open read-only docs for MCP URLs, OpenAPI, and function-calling JSON.
  */
 export function EditorIntegrationModals() {
   const [open, setOpen] = useState<ModalId>(null)
@@ -182,11 +182,6 @@ export function EditorIntegrationModals() {
         <Tooltip content="Function Calling" placement="bottom">
           <button type="button" className={btnClass} aria-label="Function Calling" onClick={() => setOpen('tools')}>
             <TbCode className="w-4 h-4" />
-          </button>
-        </Tooltip>
-        <Tooltip content="Skill" placement="bottom">
-          <button type="button" className={btnClass} aria-label="Skill" onClick={() => setOpen('skill')}>
-            <TbFileText className="w-4 h-4" />
           </button>
         </Tooltip>
       </div>
@@ -360,34 +355,6 @@ export function EditorIntegrationModals() {
 }`}</pre>
               ) : null}
             </div>
-          </div>
-        )}
-
-      {open === 'skill' &&
-        renderModal(
-          'Skill',
-          <div className="space-y-2">
-            {renderCommandRow('Bash', `curl -fsSL "${origin}/docs/scripts-ai-skill.md" -o scripts-ai-skill.md`, [
-              {
-                id: 'copy-skill-bash',
-                title: 'Copy',
-                onClick: () => void copyText(`curl -fsSL "${origin}/docs/scripts-ai-skill.md" -o scripts-ai-skill.md`),
-                icon: <FiCopy className="w-3.5 h-3.5" />,
-              },
-              {
-                id: 'download-skill',
-                title: 'Download',
-                onClick: () => {
-                  const anchor = document.createElement('a')
-                  anchor.href = '/docs/scripts-ai-skill.md'
-                  anchor.download = 'scripts-ai-skill.md'
-                  document.body.appendChild(anchor)
-                  anchor.click()
-                  anchor.remove()
-                },
-                icon: <FiDownload className="w-3.5 h-3.5" />,
-              },
-            ])}
           </div>
         )}
 
