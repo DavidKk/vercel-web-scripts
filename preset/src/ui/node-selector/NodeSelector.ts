@@ -137,6 +137,21 @@ export class NodeSelector extends HTMLElement {
   }
 
   /**
+   * Check if a node belongs to a native download link.
+   * These links rely on the browser's default click handling, especially for blob: URLs.
+   * @param node Node to check
+   * @returns Whether the node is part of a native download target
+   */
+  #isNativeDownloadTarget(node: HTMLElement): boolean {
+    const link = node.closest('a[href], area[href]')
+    if (!(link instanceof HTMLAnchorElement) && !(link instanceof HTMLAreaElement)) {
+      return false
+    }
+
+    return link.hasAttribute('download') || link.href.startsWith('blob:')
+  }
+
+  /**
    * Check if a node should be excluded
    * @param node Node to check
    * @returns Whether the node should be excluded
@@ -144,6 +159,11 @@ export class NodeSelector extends HTMLElement {
   #shouldExclude(node: HTMLElement): boolean {
     // Check plugin elements first
     if (this.#isPluginElement(node)) {
+      return true
+    }
+
+    // Preserve native browser download behavior for blob/download links.
+    if (this.#isNativeDownloadTarget(node)) {
       return true
     }
 
