@@ -1,8 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-const SKILL_RESOURCE_URI = 'skill://magickmonkey/scripts-ai-skill'
-const ROUTING_RESOURCE_URI = 'skill://magickmonkey/scripts-routing'
+/** URIs must end with `.md` so Cursor treats them as skill prompts (same pattern as openapi/unbnd). */
+const SKILL_RESOURCE_URI = 'skill://magickmonkey/scripts-ai-skill.md'
+const ROUTING_RESOURCE_URI = 'skill://magickmonkey/scripts-routing.md'
+/** Legacy URIs without suffix — still accepted on `resources/read` for older clients. */
+const SKILL_RESOURCE_URI_LEGACY = 'skill://magickmonkey/scripts-ai-skill'
+const ROUTING_RESOURCE_URI_LEGACY = 'skill://magickmonkey/scripts-routing'
 const SKILL_RESOURCE_NAME = 'magickmonkey-scripts-ai-skill.md'
 const ROUTING_RESOURCE_NAME = 'magickmonkey-scripts-routing.md'
 const SKILL_RESOURCE_DESCRIPTION = 'Agent-ready skill markdown for MagickMonkey scripts MCP and REST integration.'
@@ -62,13 +66,13 @@ export function createMcpSkillResourceProvider() {
     },
     async readResource(uri: string) {
       const normalizedUri = uri.trim()
-      if (normalizedUri === ROUTING_RESOURCE_URI) {
+      if (normalizedUri === ROUTING_RESOURCE_URI || normalizedUri === ROUTING_RESOURCE_URI_LEGACY) {
         return {
           mimeType: 'text/markdown',
           text: ROUTING_RESOURCE_TEXT,
         }
       }
-      if (normalizedUri !== SKILL_RESOURCE_URI) {
+      if (normalizedUri !== SKILL_RESOURCE_URI && normalizedUri !== SKILL_RESOURCE_URI_LEGACY) {
         return null
       }
       const markdown = await loadSkillDocMarkdown()

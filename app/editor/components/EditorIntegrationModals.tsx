@@ -1,9 +1,10 @@
 'use client'
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiChevronDown, FiCopy, FiExternalLink, FiEye, FiEyeOff, FiX } from 'react-icons/fi'
 import { TbApi, TbCode, TbRobot } from 'react-icons/tb'
 
+import { buildCursorMcpInstallDeepLink, buildCursorMcpJson, buildVsCodeMcpInstallDeepLink, MCP_INSTALL_SERVER_KEY, normalizeMcpAuthHeaders } from '@/app/api/mcp/installSnippets'
 import { useNotification } from '@/components/Notification'
 import { Tooltip } from '@/components/Tooltip'
 
@@ -26,6 +27,9 @@ interface MCPResolvedHeaders {
 const btnClass = 'p-2 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
 const inputClass = 'flex-1 h-7 px-2 rounded bg-[#1a1a1a] border border-[#3c3c3c] text-[#d4d4d4] text-[11px] font-mono focus:outline-none focus:border-[#0e639c]'
 const rowIconBtnClass = 'h-7 w-7 inline-flex items-center justify-center rounded bg-[#2d2d2d] text-[#d4d4d4] hover:bg-[#0e639c] hover:text-white transition-colors'
+/** Cursor / VS Code / Insiders / copy — same idle, hover, active, focus (no single “primary” bias) */
+const mcpInstallBtnClass =
+  'inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border border-[#3c3c3c] bg-[#2d2d2d] text-[#e0e0e0] hover:bg-[#0e639c] hover:border-[#0e639c] hover:text-white active:bg-[#0a5280] active:border-[#0a5280] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0e639c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#252526] transition-colors'
 
 /**
  * Icon buttons that open read-only docs for MCP URLs, OpenAPI, and function-calling JSON.
@@ -40,6 +44,13 @@ export function EditorIntegrationModals() {
   const notificationRef = useRef(notification)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
+
+  const mcpInstallUrl = useMemo(() => mcpHeaders?.endpoint ?? (origin ? `${origin}/api/mcp` : '/api/mcp'), [mcpHeaders?.endpoint, origin])
+
+  /** Auth headers from `/api/mcp/headers` for one-click install (includes API key). */
+  const mcpInstallAuthHeaders = useMemo(() => normalizeMcpAuthHeaders(mcpHeaders?.headers ?? null), [mcpHeaders?.headers])
+
+  const mcpOneClickReady = useMemo(() => !mcpLoading && mcpInstallAuthHeaders !== undefined && Object.keys(mcpInstallAuthHeaders).length > 0, [mcpLoading, mcpInstallAuthHeaders])
 
   const copyText = useCallback(
     async (text: string) => {
@@ -244,6 +255,74 @@ export function EditorIntegrationModals() {
                 </div>
               )
             })()}
+            <div className="border-t border-[#3c3c3c] pt-3 space-y-2">
+              <div className="text-[#8fb9ff] text-[11px]">Install in Cursor / VS Code</div>
+              <p className="text-[#9d9d9d] text-[10px] leading-relaxed">
+                One-click embeds the same auth headers as above (API key). Wait until headers finish loading. Links may appear in browser history — use only on trusted devices.
+              </p>
+              {!mcpOneClickReady ? (
+                <p className="text-[#c5854f] text-[10px] leading-relaxed">
+                  {mcpLoading ? 'Loading auth headers…' : 'Sign in and open this dialog again so MCP auth headers load before one-click install.'}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={mcpOneClickReady ? buildCursorMcpInstallDeepLink(mcpInstallUrl, MCP_INSTALL_SERVER_KEY, mcpInstallAuthHeaders) : '#'}
+                  className={`${mcpInstallBtnClass}${mcpOneClickReady ? '' : ' opacity-40 pointer-events-none cursor-not-allowed'}`}
+                  rel="noopener noreferrer"
+                  aria-disabled={!mcpOneClickReady}
+                  onClick={(e) => {
+                    if (!mcpOneClickReady) {
+                      e.preventDefault()
+                    }
+                  }}
+                >
+                  <FiExternalLink className="w-3 h-3" aria-hidden />
+                  Cursor
+                </a>
+                <a
+                  href={mcpOneClickReady ? buildVsCodeMcpInstallDeepLink(mcpInstallUrl, MCP_INSTALL_SERVER_KEY, 'stable', mcpInstallAuthHeaders) : '#'}
+                  className={`${mcpInstallBtnClass}${mcpOneClickReady ? '' : ' opacity-40 pointer-events-none cursor-not-allowed'}`}
+                  rel="noopener noreferrer"
+                  aria-disabled={!mcpOneClickReady}
+                  onClick={(e) => {
+                    if (!mcpOneClickReady) {
+                      e.preventDefault()
+                    }
+                  }}
+                >
+                  <FiExternalLink className="w-3 h-3" aria-hidden />
+                  VS Code
+                </a>
+                <a
+                  href={mcpOneClickReady ? buildVsCodeMcpInstallDeepLink(mcpInstallUrl, MCP_INSTALL_SERVER_KEY, 'insiders', mcpInstallAuthHeaders) : '#'}
+                  className={`${mcpInstallBtnClass}${mcpOneClickReady ? '' : ' opacity-40 pointer-events-none cursor-not-allowed'}`}
+                  rel="noopener noreferrer"
+                  aria-disabled={!mcpOneClickReady}
+                  onClick={(e) => {
+                    if (!mcpOneClickReady) {
+                      e.preventDefault()
+                    }
+                  }}
+                >
+                  <FiExternalLink className="w-3 h-3" aria-hidden />
+                  Insiders
+                </a>
+                <button
+                  type="button"
+                  className={`${mcpInstallBtnClass}${mcpOneClickReady ? '' : ' opacity-40 cursor-not-allowed'}`}
+                  disabled={!mcpOneClickReady}
+                  onClick={() => {
+                    if (mcpOneClickReady && mcpInstallAuthHeaders) {
+                      void copyText(buildCursorMcpJson(mcpInstallUrl, MCP_INSTALL_SERVER_KEY, mcpInstallAuthHeaders))
+                    }
+                  }}
+                >
+                  <FiCopy className="w-3 h-3" aria-hidden />
+                  Copy mcp.json snippet
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
