@@ -1,7 +1,9 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+
+import { loadSignetSdk } from '@/lib/load-signet-sdk'
 
 import type { OAuthStatus } from './constants'
 import { OAUTH_CALLBACK_PARAMS, OAUTH_LOGIN_URL, OAUTH_SERVER_PUBLIC_KEY } from './constants'
@@ -27,22 +29,34 @@ export function useOAuthLogin(options: UseOAuthLoginOptions = {}): UseOAuthLogin
   const isConfigReady = Boolean(OAUTH_SERVER_PUBLIC_KEY)
   const initialError = isConfigReady ? null : 'NEXT_PUBLIC_OAUTH_SERVER_PUBLIC_KEY is not configured. Third-party login is disabled.'
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [status, setStatus] = useState<OAuthStatus>(isConfigReady ? 'idle' : 'error')
   const [error, setError] = useState<string | null>(initialError)
   const processingRef = useRef(false)
+  const [tokenFromUrl, setTokenFromUrl] = useState('')
+  const [stateFromUrl, setStateFromUrl] = useState('')
 
-  const tokenFromUrl = searchParams?.get(OAUTH_CALLBACK_PARAMS.token) ?? ''
-  const stateFromUrl = searchParams?.get(OAUTH_CALLBACK_PARAMS.state) ?? ''
+  useLayoutEffect(() => {
+    let cancelled = false
+    void loadSignetSdk().then((signet) => {
+      if (cancelled || typeof window === 'undefined') {
+        return
+      }
+      const parsed = signet.parseLoginCallbackParams(window.location.href)
+      setTokenFromUrl(parsed.token ?? '')
+      setStateFromUrl(parsed.state ?? '')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  const stripOAuthParams = useCallback(() => {
+  const stripOAuthParams = useCallback(async () => {
     if (typeof window === 'undefined') {
       return
     }
-    const url = new URL(window.location.href)
-    url.searchParams.delete(OAUTH_CALLBACK_PARAMS.token)
-    url.searchParams.delete(OAUTH_CALLBACK_PARAMS.state)
-    window.history.replaceState(window.history.state, '', url.toString())
+    const signet = await loadSignetSdk()
+    const next = signet.stripLoginCallbackFromUrl(window.location.href)
+    window.history.replaceState(window.history.state, '', next)
   }, [])
 
   useEffect(() => {
@@ -78,13 +92,17 @@ export function useOAuthLogin(options: UseOAuthLoginOptions = {}): UseOAuthLogin
       persistOAuthSession({ state, clientPublicKey, clientPrivateKey })
 
       const callbackUrl = buildCallbackUrl()
-      const loginUrl = new URL(OAUTH_LOGIN_URL)
-      loginUrl.searchParams.set('redirectUrl', encodeURIComponent(callbackUrl))
-      loginUrl.searchParams.set('state', state)
-      loginUrl.searchParams.set('clientPublicKey', clientPublicKey)
+      const signet = await loadSignetSdk()
+      const authCenterOrigin = new URL(OAUTH_LOGIN_URL).origin
+      const loginUrl = signet.buildOAuthLoginUrl({
+        authCenterOrigin,
+        redirectUrl: callbackUrl,
+        state,
+        clientPublicKey,
+      })
 
       setStatus('redirecting')
-      window.location.href = loginUrl.toString()
+      window.location.href = loginUrl
     } catch (err) {
       setStatus('error')
       setError(err instanceof Error ? err.message : 'Failed to start third-party login.')
@@ -92,7 +110,7 @@ export function useOAuthLogin(options: UseOAuthLoginOptions = {}): UseOAuthLogin
   }, [isConfigReady])
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !tokenFromUrl || processingRef.current) {
+    if (typeof window === 'undefined' || !tokenFromUrl || processingRef.current || !isConfigReady) {
       return
     }
 
@@ -119,21 +137,21 @@ export function useOAuthLogin(options: UseOAuthLoginOptions = {}): UseOAuthLogin
         await exchangeOAuthToken(payload.token)
 
         clearOAuthSession()
-        stripOAuthParams()
+        await stripOAuthParams()
         setStatus('success')
         router.push(redirectUrl)
       } catch (err) {
         setStatus('error')
         setError(err instanceof Error ? err.message : 'Third-party login failed. Please try again later.')
         clearOAuthSession()
-        stripOAuthParams()
+        await stripOAuthParams()
       } finally {
         processingRef.current = false
       }
     }
 
     handleCallback()
-  }, [redirectUrl, router, stateFromUrl, stripOAuthParams, tokenFromUrl])
+  }, [isConfigReady, redirectUrl, router, stateFromUrl, stripOAuthParams, tokenFromUrl])
 
   const resetError = useCallback(() => setError(null), [])
 
@@ -170,6 +188,7 @@ async function exchangeOAuthToken(token: string) {
 
 function buildCallbackUrl() {
   const url = new URL(window.location.href)
+  url.hash = ''
   url.searchParams.delete(OAUTH_CALLBACK_PARAMS.token)
   url.searchParams.delete(OAUTH_CALLBACK_PARAMS.state)
   const sanitizedSearch = url.searchParams.toString()

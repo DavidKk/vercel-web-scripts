@@ -1,8 +1,11 @@
+import { getSignetAuthCenterOrigin } from '@/lib/signet-sdk-url'
 import { checkUnAccess } from '@/services/auth/access'
 
 import LoginForm from './login/Form'
 
 export default async function Home() {
   await checkUnAccess({ redirectUrl: '/editor', isApiRouter: false })
-  return <LoginForm enable2FA={!!process.env.ACCESS_2FA_SECRET} redirectUrl="/editor" />
+  const vercel2FAOrigin = getSignetAuthCenterOrigin()
+
+  return <LoginForm enable2FA={!!process.env.ACCESS_2FA_SECRET} redirectUrl="/editor" vercel2FAOrigin={vercel2FAOrigin} />
 }

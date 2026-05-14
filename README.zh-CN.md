@@ -32,6 +32,10 @@ MagickMonkey 主要用于在 Vercel 上管理和部署自定义脚本。
 - `JWT_EXPIRES_IN`: JWT 过期时间
 - `GEMINI_API_KEY`: GEMINI API 密钥，用于 AI 代码改写功能（可选），可在 [Google AI Studio](https://makersuite.google.com/app/apikey) 获取
 
+### Vercel 2FA 统一登录（可选）
+
+内置回调：`/auth/vercel-2fa/callback`（须写入认证中心 `ALLOWED_REDIRECT_URLS`，例如本应用 `…/auth/vercel-2fa/callback`）。环境变量见 `.env.example`；同源部署通常只需 **`NEXT_PUBLIC_SIGNET_SDK_URL`**（指向 `…/sdk/signet-client.mjs`），`buildLoginUrl` / `verify` 的 host 由 `getSignetAuthCenterOrigin()` 推导。SDK 走 CDN 时需另配 **`VERCEL_2FA_ORIGIN`** 或 **`NEXT_PUBLIC_VERCEL_2FA_ORIGIN`**。客户端与服务端通过 `lib/load-signet-sdk.ts` 动态加载托管 `signet-client.mjs`。
+
 ## 快速开始
 
 1. 创建一个 **GitHub Gist** 并生成一个 **GitHub Access Token**（需勾选 gist 权限）。

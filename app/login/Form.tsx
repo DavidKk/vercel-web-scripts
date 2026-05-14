@@ -8,16 +8,19 @@ import { FiGithub } from 'react-icons/fi'
 import type { AlertImperativeHandler } from '@/components/Alert'
 import Alert from '@/components/Alert'
 import { Spinner } from '@/components/Spinner'
+import { Vercel2FALoginButton } from '@/components/Vercel2FALoginButton'
 import { repositoryUrl } from '@/config/package'
 import { useOAuthLoginContext, withOAuthLogin } from '@/services/oauth-login/withOAuthLogin'
 
 export interface LoginFormProps {
   enable2FA?: boolean
   redirectUrl?: string
+  /** When set, shows “Sign in with Vercel 2FA” (auth center base URL; see `getSignetAuthCenterOrigin`). */
+  vercel2FAOrigin?: string | null
 }
 
 function LoginForm(props: LoginFormProps) {
-  const { enable2FA, redirectUrl = '/' } = props
+  const { enable2FA, redirectUrl = '/', vercel2FAOrigin } = props
   const oauth = useOAuthLoginContext()
 
   if (oauth.isHandlingCallback) {
@@ -98,6 +101,30 @@ function LoginForm(props: LoginFormProps) {
     }
   }, [username, password, access2FAToken])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    const params = new URLSearchParams(window.location.search)
+    const err = params.get('vf2fa_error')
+    if (!err) {
+      return
+    }
+    const message =
+      err === 'missing_token'
+        ? 'Vercel 2FA login missing token. Try again.'
+        : err === 'invalid_state'
+          ? 'Vercel 2FA state check failed. Try signing in again.'
+          : err === 'verify_failed'
+            ? 'Could not verify login with the auth center. Check auth center origin env (see getSignetAuthCenterOrigin) and auth center logs.'
+            : `Vercel 2FA login error: ${err}`
+    alertRef.current?.show(message, { type: 'error' })
+    params.delete('vf2fa_error')
+    const qs = params.toString()
+    const path = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    window.history.replaceState(null, '', path)
+  }, [])
+
   const githubUrl = repositoryUrl || 'https://github.com/DavidKk/vercel-web-scripts'
 
   return (
@@ -176,6 +203,15 @@ function LoginForm(props: LoginFormProps) {
             </div>
           </div>
         </div>
+
+        {vercel2FAOrigin ? (
+          <Vercel2FALoginButton authCenterOrigin={vercel2FAOrigin} postLoginPath={redirectUrl} />
+        ) : (
+          <p className="text-xs text-[#858585] text-center max-w-lg leading-relaxed">
+            可选：配置 <code className="text-[#cccccc]">NEXT_PUBLIC_SIGNET_SDK_URL</code>（同源 Signet 的 signet-client.mjs）或见{' '}
+            <code className="text-[#cccccc]">.env.example</code>。
+          </p>
+        )}
 
         <a
           href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDavidKk%2Fvercel-web-scripts"

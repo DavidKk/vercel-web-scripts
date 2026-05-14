@@ -53,8 +53,15 @@ export default async function Home() {
     const cookieStore = await cookies()
     const token = cookieStore.get(AUTH_TOKEN_NAME)?.value
     const payload = token ? await verifyToken(token) : null
-    const fromJwt = typeof payload?.sub === 'string' ? payload.sub : typeof payload?.username === 'string' ? payload.username : null
-    const displayUsername = fromJwt || process.env.ACCESS_USERNAME || 'Admin'
+    const p = payload as Record<string, unknown> | undefined
+    /** Prefer readable profile claims; `sub` is an opaque id from Vercel 2FA. */
+    const displayUsername =
+      (p && typeof p.preferred_username === 'string' && p.preferred_username.trim()) ||
+      (p && typeof p.username === 'string' && p.username.trim()) ||
+      (p && typeof p.email === 'string' && p.email.trim()) ||
+      (p && typeof p.sub === 'string' && p.sub.trim()) ||
+      process.env.ACCESS_USERNAME ||
+      'Admin'
 
     return <Editor displayUsername={displayUsername} files={files} scriptKey={scriptKey} updatedAt={updatedAt} tampermonkeyTypings={tampermonkeyTypings} rules={rules} />
   } catch (err) {
