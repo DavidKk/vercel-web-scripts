@@ -18,10 +18,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'MagickMonkey',
   description: 'MagickMonkey is a script management and deployment workspace.',
+  manifest: '/site.webmanifest',
   icons: {
-    icon: [{ url: '/android-icon-192x192.png?v=2', type: 'image/png', sizes: '192x192' }],
-    shortcut: ['/android-icon-192x192.png?v=2'],
-    apple: [{ url: '/apple-icon-180x180.png?v=2', type: 'image/png', sizes: '180x180' }],
+    icon: [
+      { url: '/favicon.svg?v=5', type: 'image/svg+xml' },
+      { url: '/favicon-96x96.png?v=5', type: 'image/png', sizes: '96x96' },
+      { url: '/android-icon-192x192.png?v=5', type: 'image/png', sizes: '192x192' },
+    ],
+    shortcut: ['/favicon-96x96.png?v=5'],
+    apple: [{ url: '/apple-icon-180x180.png?v=5', type: 'image/png', sizes: '180x180' }],
   },
 }
 

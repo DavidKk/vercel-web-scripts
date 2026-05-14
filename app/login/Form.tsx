@@ -152,7 +152,7 @@ function LoginForm(props: LoginFormProps) {
       )}
       <form onSubmit={handleSubmit} className="w-full max-w-md rounded-lg border border-[#2a303a] bg-[#1b1f27] p-5 shadow-2xl shadow-black/30">
         <div className="mb-5 flex flex-col items-center gap-3">
-          <Image src="/logo.png" alt="MagickMonkey logo" width={40} height={40} className="rounded-md" priority />
+          <Image src="/logo.png" alt="MagickMonkey logo" width={72} height={72} className="rounded-md" priority />
           <div className="text-center">
             <h1 className="text-xl font-semibold text-white">MagickMonkey</h1>
             <p className="mt-1 text-sm text-[#9aa4b2]">Sign in to open the script editor</p>
