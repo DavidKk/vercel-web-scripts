@@ -51,7 +51,7 @@
   left: var(--cw-right-hidden);
   z-index: 2147483647;
 
-  /* 隔离页面可继承样式，避免 body 影响 Shadow DOM */
+  /* Isolate inherited page styles so body rules do not leak into Shadow DOM */
   font-family:
     ui-sans-serif,
     system-ui,

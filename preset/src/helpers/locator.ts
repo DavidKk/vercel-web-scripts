@@ -1,52 +1,52 @@
 /**
- * Locator JSON 生成与回放定位工具
- * 基于语义指纹的多策略节点定位方案，适配动态 DOM 和 SPA 场景
+ * Locator JSON generation and replay helpers.
+ * Multi-strategy DOM targeting from semantic fingerprints; suited to dynamic DOM / SPAs.
  */
 
 import { generateXPath, isHashLike } from './xpath'
 
 /**
- * Locator JSON 数据结构
+ * Locator JSON payload shape.
  */
 export interface LocatorJSON {
-  /** 标签名，限定候选范围 */
+  /** Tag name; narrows candidate set */
   tag?: string
-  /** ARIA role，语义稳定定位 */
+  /** ARIA role for stable semantic targeting */
   role?: string
-  /** 节点文本内容（innerText，截断 ≤120 字符） */
+  /** Node text (innerText, truncated to ≤120 chars) */
   text?: string
-  /** 稳定属性集合 */
+  /** Stable attribute bag */
   attributes?: Record<string, string>
-  /** 稳定 class 列表（过滤动态 hash） */
+  /** Stable class list (dynamic hashes filtered out) */
   stableClasses?: string[]
-  /** 邻近语义文本（上下文匹配） */
+  /** Neighbor semantic text (context matching) */
   nearText?: string[]
-  /** DOM 深度 */
+  /** DOM depth */
   domDepth?: number
-  /** 位置提示 */
+  /** Positional hints */
   positionHint?: {
-    /** 同类标签中的索引 */
+    /** Index among same tag name siblings */
     indexAmongSameTag?: number
   }
-  /** XPath 兜底策略 */
+  /** XPath fallback */
   xpathFallback?: string
-  /** 创建时间戳 */
+  /** Creation timestamp */
   createdAt?: number
-  /** 版本号 */
+  /** Schema version */
   version?: number
-  /** 稳定性等级（A-E） */
+  /** Stability tier (A–E) */
   stabilityLevel?: 'A' | 'B' | 'C' | 'D' | 'E'
 }
 
 /**
- * 匹配评分结果
+ * Match scoring result.
  */
 interface MatchScore {
-  /** 匹配的节点 */
+  /** Matched element */
   node: HTMLElement
-  /** 评分总分 */
+  /** Total score */
   score: number
-  /** 评分详情 */
+  /** Per-signal breakdown */
   details: {
     testIdMatch?: number
     roleMatch?: number
@@ -59,7 +59,7 @@ interface MatchScore {
 }
 
 /**
- * 评分权重配置
+ * Score weights.
  */
 const SCORE_WEIGHTS = {
   testIdMatch: 100,
@@ -72,23 +72,21 @@ const SCORE_WEIGHTS = {
 }
 
 /**
- * 检查 class 是否为 hash class（动态生成）
- * @param className Class 名称
- * @returns 是否为 hash class
+ * Whether a class token looks like a build-time hash.
+ * @param className Class token
  */
 function isHashClass(className: string): boolean {
   if (!className || className.length >= 20) {
     return false
   }
-  // 匹配常见的 hash 模式：css-xxx, sc-xxx, jsx-xxx, 或纯 hash
+  // Typical hashed tokens: css-*, sc-*, jsx-*, or short opaque hashes
   const hashPattern = /^css-|^sc-|^jsx-|^[a-z0-9]{6,}$/i
   return hashPattern.test(className)
 }
 
 /**
- * 提取稳定 class（过滤动态 hash）
- * @param node DOM 节点
- * @returns 稳定 class 列表
+ * Stable classes only (strip dynamic-looking tokens).
+ * @param node DOM node
  */
 function extractStableClasses(node: HTMLElement): string[] {
   const className = node.className
@@ -102,14 +100,13 @@ function extractStableClasses(node: HTMLElement): string[] {
 }
 
 /**
- * 提取稳定属性
- * @param node DOM 节点
- * @returns 稳定属性对象
+ * Stable attributes (priority attrs + other data-*).
+ * @param node DOM node
  */
 function extractStableAttributes(node: HTMLElement): Record<string, string> {
   const attrs: Record<string, string> = {}
 
-  // 优先检查高优先级属性
+  // High-signal attributes first
   const priorityAttrs = ['data-testid', 'data-id', 'data-component-id', 'name', 'role', 'type', 'placeholder', 'title', 'href', 'src', 'alt', 'aria-label', 'aria-labelledby']
 
   for (const attrName of priorityAttrs) {
@@ -122,14 +119,13 @@ function extractStableAttributes(node: HTMLElement): Record<string, string> {
     }
   }
 
-  // 检查其他 data-* 属性
+  // Other data-* attributes
   for (let i = 0; i < node.attributes.length; i++) {
     const attr = node.attributes[i]
     const name = attr.name.toLowerCase()
     const value = attr.value.trim()
 
     if (name.startsWith('data-') && value && !isHashLike(value)) {
-      // 跳过已添加的属性
       if (!attrs[name]) {
         attrs[name] = value
       }
@@ -140,9 +136,8 @@ function extractStableAttributes(node: HTMLElement): Record<string, string> {
 }
 
 /**
- * 提取节点文本内容
- * @param node DOM 节点
- * @returns 文本内容（截断 ≤120 字符）
+ * Visible text for the node (truncated).
+ * @param node DOM node
  */
 function extractText(node: HTMLElement): string | undefined {
   const text = node.innerText || node.textContent || ''
@@ -150,21 +145,18 @@ function extractText(node: HTMLElement): string | undefined {
   if (!trimmed) {
     return undefined
   }
-  // 截断到 120 字符
   return trimmed.length > 120 ? trimmed.substring(0, 120) : trimmed
 }
 
 /**
- * 提取邻近语义文本（从父节点和兄弟节点）
- * @param node DOM 节点
- * @returns 邻近文本列表
+ * Neighbor semantic snippets from parent / siblings.
+ * @param node DOM node
  */
 function extractNearText(node: HTMLElement): string[] {
   const nearText: string[] = []
   const maxLength = 50
   const maxCount = 5
 
-  // 从父节点提取
   let parent = node.parentElement
   let parentCount = 0
   while (parent && parentCount < 2 && nearText.length < maxCount) {
@@ -176,7 +168,6 @@ function extractNearText(node: HTMLElement): string[] {
     parentCount++
   }
 
-  // 从兄弟节点提取
   const siblings = Array.from(node.parentElement?.children || [])
   for (const sibling of siblings) {
     if (sibling === node || nearText.length >= maxCount) {
@@ -192,9 +183,8 @@ function extractNearText(node: HTMLElement): string[] {
 }
 
 /**
- * 计算 DOM 深度
- * @param node DOM 节点
- * @returns DOM 深度
+ * DOM depth from documentElement.
+ * @param node DOM node
  */
 function calculateDomDepth(node: HTMLElement): number {
   let depth = 0
@@ -207,9 +197,8 @@ function calculateDomDepth(node: HTMLElement): number {
 }
 
 /**
- * 计算同类标签中的索引
- * @param node DOM 节点
- * @returns 索引位置
+ * Index among siblings with the same tag name.
+ * @param node DOM node
  */
 function calculateIndexAmongSameTag(node: HTMLElement): number {
   const tag = node.tagName.toLowerCase()
@@ -219,12 +208,11 @@ function calculateIndexAmongSameTag(node: HTMLElement): number {
 }
 
 /**
- * 评估稳定性等级
+ * Assign stability tier from captured fields.
  * @param locator Locator JSON
- * @returns 稳定性等级
  */
 function evaluateStabilityLevel(locator: LocatorJSON): 'A' | 'B' | 'C' | 'D' | 'E' {
-  // A: testId / aria 可用
+  // A: test id / aria present
   if (locator.attributes?.['data-testid'] || locator.attributes?.['aria-label'] || locator.attributes?.['aria-labelledby']) {
     return 'A'
   }
@@ -232,11 +220,11 @@ function evaluateStabilityLevel(locator: LocatorJSON): 'A' | 'B' | 'C' | 'D' | '
   if (locator.role && locator.text) {
     return 'B'
   }
-  // C: 仅 text
+  // C: text only
   if (locator.text) {
     return 'C'
   }
-  // D: 结构 fallback
+  // D: structural hints
   if (locator.stableClasses || locator.nearText || locator.domDepth !== undefined) {
     return 'D'
   }
@@ -245,9 +233,8 @@ function evaluateStabilityLevel(locator: LocatorJSON): 'A' | 'B' | 'C' | 'D' | '
 }
 
 /**
- * 生成 Locator JSON（从 DOM 节点）
- * @param node DOM 节点
- * @returns Locator JSON
+ * Build Locator JSON from a live DOM node.
+ * @param node DOM node
  */
 export function generateLocatorJSON(node: HTMLElement): LocatorJSON {
   const tag = node.tagName.toLowerCase()
@@ -279,23 +266,21 @@ export function generateLocatorJSON(node: HTMLElement): LocatorJSON {
     version: 1,
   }
 
-  // 评估稳定性等级
   locator.stabilityLevel = evaluateStabilityLevel(locator)
 
   return locator
 }
 
 /**
- * 计算节点匹配评分
- * @param node 候选节点
+ * Score how well a candidate matches the locator.
+ * @param node Candidate element
  * @param locator Locator JSON
- * @returns 匹配评分
  */
 function calculateMatchScore(node: HTMLElement, locator: LocatorJSON): MatchScore {
   const details: MatchScore['details'] = {}
   let score = 0
 
-  // 1. testId 匹配（+100）
+  // 1. data-testid (+100)
   if (locator.attributes?.['data-testid']) {
     const nodeTestId = node.getAttribute('data-testid')
     if (nodeTestId === locator.attributes['data-testid']) {
@@ -304,7 +289,7 @@ function calculateMatchScore(node: HTMLElement, locator: LocatorJSON): MatchScor
     }
   }
 
-  // 2. role 匹配（+60）
+  // 2. role (+60)
   if (locator.role) {
     const nodeRole = node.getAttribute('role')
     if (nodeRole === locator.role) {
@@ -313,20 +298,20 @@ function calculateMatchScore(node: HTMLElement, locator: LocatorJSON): MatchScor
     }
   }
 
-  // 3. text 精确匹配（+50）
+  // 3. exact text (+50)
   if (locator.text) {
     const nodeText = (node.innerText || node.textContent || '').trim()
     if (nodeText === locator.text) {
       details.textExactMatch = SCORE_WEIGHTS.textExactMatch
       score += SCORE_WEIGHTS.textExactMatch
     } else if (nodeText.includes(locator.text) || locator.text.includes(nodeText)) {
-      // 4. text 模糊匹配（+30）
+      // 4. fuzzy text (+30)
       details.textFuzzyMatch = SCORE_WEIGHTS.textFuzzyMatch
       score += SCORE_WEIGHTS.textFuzzyMatch
     }
   }
 
-  // 5. stable class 命中（+20）
+  // 5. stable classes (+20)
   if (locator.stableClasses && locator.stableClasses.length > 0) {
     const nodeClasses = extractStableClasses(node)
     const matchedClasses = locator.stableClasses.filter((c) => nodeClasses.includes(c))
@@ -336,7 +321,7 @@ function calculateMatchScore(node: HTMLElement, locator: LocatorJSON): MatchScor
     }
   }
 
-  // 6. nearText 命中（+15）
+  // 6. nearText (+15)
   if (locator.nearText && locator.nearText.length > 0) {
     const parentText = (node.parentElement?.innerText || node.parentElement?.textContent || '').trim()
     const hasNearText = locator.nearText.some((nt) => parentText.includes(nt))
@@ -346,7 +331,7 @@ function calculateMatchScore(node: HTMLElement, locator: LocatorJSON): MatchScor
     }
   }
 
-  // 7. depth 接近（+10）
+  // 7. depth proximity (+10, decay with distance)
   if (locator.domDepth !== undefined) {
     const nodeDepth = calculateDomDepth(node)
     const depthDiff = Math.abs(nodeDepth - locator.domDepth)
@@ -364,12 +349,11 @@ function calculateMatchScore(node: HTMLElement, locator: LocatorJSON): MatchScor
 }
 
 /**
- * 查找匹配的节点（基于 Locator JSON）
+ * Resolve the best-matching element for a locator.
  * @param locator Locator JSON
- * @returns 匹配的节点，如果未找到返回 null
  */
 export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
-  // 1. 精确属性命中（优先级最高）
+  // 1. Exact attribute hit (highest priority)
   if (locator.attributes?.['data-testid']) {
     const node = document.querySelector(`[data-testid="${locator.attributes['data-testid']}"]`) as HTMLElement | null
     if (node) {
@@ -377,7 +361,7 @@ export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
     }
   }
 
-  // 2. 语义 role + aria-label
+  // 2. role + aria-label
   if (locator.role && locator.attributes?.['aria-label']) {
     const node = document.querySelector(`[role="${locator.role}"][aria-label="${locator.attributes['aria-label']}"]`) as HTMLElement | null
     if (node) {
@@ -396,7 +380,7 @@ export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
     }
   }
 
-  // 4. text 模糊匹配
+  // 4. fuzzy text scan
   if (locator.text) {
     const tag = locator.tag || '*'
     const candidates = Array.from(document.querySelectorAll(tag)) as HTMLElement[]
@@ -408,7 +392,7 @@ export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
     }
   }
 
-  // 5. 评分匹配（多策略综合）
+  // 5. scored multi-strategy pass
   const tag = locator.tag || '*'
   const candidates = Array.from(document.querySelectorAll(tag)) as HTMLElement[]
   const scores: MatchScore[] = []
@@ -420,7 +404,6 @@ export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
     }
   }
 
-  // 按评分排序，返回最高分的节点
   if (scores.length > 0) {
     scores.sort((a, b) => b.score - a.score)
     return scores[0].node
@@ -432,7 +415,7 @@ export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
       const result = document.evaluate(locator.xpathFallback, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
       return (result.singleNodeValue as HTMLElement) || null
     } catch (e) {
-      // XPath 解析失败，继续返回 null
+      // Invalid XPath → null
     }
   }
 
@@ -440,10 +423,9 @@ export function locateNodeByJSON(locator: LocatorJSON): HTMLElement | null {
 }
 
 /**
- * 查找所有匹配的节点（基于 Locator JSON，返回评分排序的列表）
+ * Return top matches sorted by score.
  * @param locator Locator JSON
- * @param maxResults 最大返回结果数
- * @returns 匹配的节点列表（按评分降序）
+ * @param maxResults Max number of hits
  */
 export function locateAllNodesByJSON(locator: LocatorJSON, maxResults = 10): Array<{ node: HTMLElement; score: number; details: MatchScore['details'] }> {
   const tag = locator.tag || '*'
@@ -457,10 +439,8 @@ export function locateAllNodesByJSON(locator: LocatorJSON, maxResults = 10): Arr
     }
   }
 
-  // 按评分排序
   scores.sort((a, b) => b.score - a.score)
 
-  // 返回前 N 个结果
   return scores.slice(0, maxResults).map((s) => ({
     node: s.node,
     score: s.score,

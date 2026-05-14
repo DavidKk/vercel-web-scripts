@@ -633,7 +633,7 @@ export function GME_updateMenuCommand(id: string, updates: Partial<Omit<MenuItem
  * Register DEBUG command in command-palette to open a Corner Widget DEMO (development only).
  * Shows the widget with temporary demo menu items and opens the menu so you can see the effect.
  */
-/* 仅开发环境注册：正式环境 (__IS_DEVELOP_MODE__ === false) 下 command-palette 不出现此项 */
+/* Dev-only: when __IS_DEVELOP_MODE__ is false, command-palette does not register this item. */
 if (typeof __IS_DEVELOP_MODE__ !== 'undefined' && __IS_DEVELOP_MODE__) {
   GME_registerCommandPaletteCommand({
     id: 'corner-widget-demo',

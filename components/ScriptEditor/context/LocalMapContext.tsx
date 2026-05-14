@@ -154,7 +154,7 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
         return
       }
       const filesToWriteToDisk: Record<string, string> = { ...filesToWrite }
-      // 强制注入最新的 tsconfig.json 与 gm-globals.d.ts，覆盖本地已有文件，便于本地 IDE 使用最新类型
+      // Force-inject latest tsconfig.json and gm-globals.d.ts over local copies so the IDE sees up-to-date types.
       filesToWriteToDisk[LOCAL_TSCONFIG_FILE] = LOCAL_TSCONFIG_JSON
       if (typingsForLocal && typingsForLocal.trim() !== '') {
         filesToWriteToDisk[LOCAL_TYPINGS_FILE] = stripFileSystemAccessGlobalBlock(typingsForLocal)
@@ -326,7 +326,7 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
               fs.deleteFile(path)
             }
           })
-          // Synced from local = saved state; show "变动已保存" (ModifiedSaved) in UI
+          // Synced from local = saved state; show ModifiedSaved in UI
           for (const path of Object.keys(contents)) {
             fs.markFileAsSaved(path)
           }

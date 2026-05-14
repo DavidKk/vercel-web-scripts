@@ -14,11 +14,11 @@ declare namespace NodeJS {
     JWT_SECRET: string
     /** JWT Token Expiration Time */
     JWT_EXPIRES_IN: string
-    /** 自定义三方登录入口 */
+    /** Custom third-party OAuth login entry URL */
     NEXT_PUBLIC_OAUTH_LOGIN_URL?: string
-    /** 三方服务端公钥，用于 ECDH 解密 */
+    /** Third-party server ECDH public key (SPKI) for decrypting the OAuth return */
     NEXT_PUBLIC_OAUTH_SERVER_PUBLIC_KEY?: string
-    /** 三方 JWT 签名密钥（可复用 JWT_SECRET） */
+    /** Third-party JWT signing secret (may reuse JWT_SECRET) */
     OAUTH_JWT_SECRET?: string
     /** GEMINI API Key for AI code rewriting */
     GEMINI_API_KEY?: string

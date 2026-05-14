@@ -2,7 +2,7 @@
 
 import { createObjectStore, DB_NAME, DB_VERSION, OBJECT_STORES, STORE_CONFIGS } from '../conf/indexedDBConfig'
 
-// 重新导出配置，保持向后兼容
+// Re-export config for backward compatibility
 export { createFileKey, INDEX_NAMES, OBJECT_STORES } from '../conf/indexedDBConfig'
 
 /**
@@ -156,7 +156,7 @@ export class IndexedDBService {
                 console.log('[IndexedDBService] Database upgrade triggered (missing stores), creating stores...')
                 // eslint-disable-next-line no-console
                 console.log(`[IndexedDBService] Missing stores: ${missingStores.join(', ')}`)
-                // 使用配置创建所有对象存储
+                // Create object stores from config
                 Object.values(STORE_CONFIGS).forEach((config) => {
                   if (!upgradeDb.objectStoreNames.contains(config.name)) {
                     // eslint-disable-next-line no-console
@@ -216,7 +216,7 @@ export class IndexedDBService {
 
             // eslint-disable-next-line no-console
             console.log('[IndexedDBService] Database upgrade triggered, creating missing stores...')
-            // 使用配置创建所有对象存储
+            // Create object stores from config
             Object.values(STORE_CONFIGS).forEach((config) => {
               if (!db.objectStoreNames.contains(config.name)) {
                 // eslint-disable-next-line no-console

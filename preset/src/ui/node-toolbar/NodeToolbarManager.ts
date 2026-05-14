@@ -53,7 +53,7 @@ export class NodeToolbarManager {
     }
   }
 
-  /** Mouse left toolbar: hide immediately (移开隐藏). */
+  /** Mouse left toolbar: hide immediately when pointer leaves the toolbar. */
   #onToolbarMouseLeave = (): void => {
     if (this.#hideTimer != null) {
       clearTimeout(this.#hideTimer)
@@ -62,7 +62,7 @@ export class NodeToolbarManager {
     this.#hide()
   }
 
-  /** Mouse left node: schedule hide after short delay so user can move to toolbar; otherwise 移开隐藏. */
+  /** Mouse left node: schedule hide after a short delay so the user can move to the toolbar; otherwise hide when pointer leaves. */
   #scheduleHide(): void {
     if (this.#hideTimer != null) return
     this.#hideTimer = setTimeout(() => {
@@ -315,7 +315,7 @@ export class NodeToolbarManager {
     const reg: QueryRegistration = { getElements, options, bound: new Set() }
     this.#queryRegistrations.push(reg)
     this.#startObserver()
-    // 初始化时立即执行一次，节点可能已渲染且后续不再变化
+    // Run once on init: the node may already be rendered and never change afterward.
     this.#syncQueryRegistration(reg)
     setTimeout(() => this.#syncQueryRegistration(reg), 0)
     return () => {

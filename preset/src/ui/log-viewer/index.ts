@@ -295,7 +295,7 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
 
 GME_registerCommandPaletteCommand({
   id: 'log',
-  keywords: ['log', 'logs', '日志', 'viewer'],
+  keywords: ['log', 'logs', 'viewer'],
   title: 'Open Log Viewer',
   iconHtml: iconLogViewer,
   hint: 'View script logs',

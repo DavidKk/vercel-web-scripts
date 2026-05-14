@@ -51,7 +51,7 @@ export async function createBanner({ grant, connect, scriptUrl, version }: Creat
     presetContent = await getPresetBundle()
   } catch (e) {
     if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
-      throw new Error('Preset 未构建，请先执行 pnpm run build:preset')
+      throw new Error('Preset bundle not found; run pnpm run build:preset first.')
     }
     throw e
   }

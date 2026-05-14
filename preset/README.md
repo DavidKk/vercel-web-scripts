@@ -1,14 +1,14 @@
-# Preset (gm-templates 模块化构建)
+# Preset (modular gm-templates build)
 
-将 `templates/gm-templates` 迁移到 `preset/`，全部改为 ES 模块（import/export），使用 Vite 构建，输出 `preset/dist/ipreset.js`。目标环境：Chrome，ESNext。
+`templates/gm-templates` was moved into `preset/` as ES modules (`import` / `export`), built with Vite. Output: `preset/dist/preset.js` (not `ipreset.js` in the default config—check `vite.config.ts`). Target: Chrome, ESNext.
 
-## 目录结构
+## Layout
 
 ```
 preset/
 ├── src/
-│   ├── typings.d.ts    # 全局声明（GM_*、__BASE_URL__ 等）
-│   ├── entry.ts        # 构建入口，按依赖顺序 import
+│   ├── typings.d.ts    # Globals (GM_*, __BASE_URL__, etc.)
+│   ├── entry.ts        # Build entry: ordered imports
 │   ├── helpers/        # utils, logger, http, dom
 │   ├── services/       # log-store, tab-communication, script-update, ...
 │   ├── ui/             # corner-widget, notification, log-viewer, node-selector, command-palette
@@ -16,21 +16,21 @@ preset/
 │   ├── scripts.ts
 │   └── main.ts
 ├── dist/
-│   └── ipreset.js      # 构建产物（IIFE）
+│   └── preset.js       # Built IIFE (see vite output filename)
 ├── vite.config.ts
 ├── tsconfig.json
 └── README.md
 ```
 
-## UI 模块（HTML + CSS）
+## UI modules (HTML + CSS)
 
-每个 UI 模块（如 `ui/corner-widget`）包含：
+Each UI module (e.g. `ui/corner-widget`) has:
 
-- `index.ts`：逻辑，需 `import css from './index.css?raw'`、`import html from './index.html?raw'`，并 **export** 出 `css`、`html` 供注入用。
-- `index.css`：样式，Vite 以 `?raw` 导入为字符串。
-- `index.html`：模板，Vite 以 `?raw` 导入为字符串。
+- `index.ts`: logic; `import css from './index.css?raw'` and `import html from './index.html?raw'`; **export** `{ css, html }` for injection.
+- `index.css`: styles as a string via Vite `?raw`.
+- `index.html`: markup as a string via Vite `?raw`.
 
-在 `preset/src/typings.d.ts` 中已声明：
+`preset/src/typings.d.ts` declares:
 
 ```ts
 declare module '*.css?raw' {
@@ -43,64 +43,64 @@ declare module '*.html?raw' {
 }
 ```
 
-UI 的 `index.ts` 示例：
+Example `index.ts`:
 
 ```ts
 import css from './index.css?raw'
 import html from './index.html?raw'
-// ... 组件逻辑（如注册 custom element）
+// ... component logic (e.g. register custom element)
 export { css, html }
 ```
 
-## 构建
+## Build
 
-在仓库根目录执行：
+From the repo root:
 
 ```bash
 pnpm build:preset
 ```
 
-产物：`preset/dist/preset.js`（及 sourcemap）。
+Output: `preset/dist/preset.js` (and source maps).
 
-## 开发流程（推荐）
+## Dev workflow (recommended)
 
-开发 preset 时不必每次改完都手动刷新浏览器，可按下面方式实现「改代码 → 自动构建 → 所有标签页自动刷新」：
+You do not need to reload the browser manually after every preset change:
 
-1. **在仓库根目录执行**
+1. **From the repo root**
 
    ```bash
    pnpm dev
    ```
 
-   会同时启动 Next 开发服务器和 Vite 的 preset 监听（`build:preset:dev`），preset 源码变更会自动重新构建。
+   Starts the Next dev server and Vite preset watch (`build:preset:dev`); edits under `preset/src` rebuild automatically.
 
-2. **保持至少一个「同源」标签页打开**  
-   例如打开本地的编辑器页：`http://localhost:3000/editor`（或任意 `http://localhost:3000/...` 的页面）。  
-   该页面会通过 SSE 接收「preset 已重新构建」事件；收到后会自动清除预设缓存并刷新当前页，同时通过 GM 存储通知**所有其他标签页**（包括其他站点上的脚本页）刷新，从而加载最新 preset。
+2. **Keep at least one same-origin tab open**  
+   e.g. `http://localhost:3000/editor` (or any `http://localhost:3000/...`).  
+   That tab listens over SSE for “preset rebuilt”; on event it clears preset cache and reloads, and notifies **other tabs** via GM storage so they pick up the new preset too.
 
-3. **日常操作**
-   - 改 `preset/src` 下任意文件并保存。
-   - 等待终端里 Vite 输出构建完成。
-   - 几秒内所有已安装 launcher 的标签页会自动刷新并加载新 preset，无需手动刷新。
+3. **Day to day**
+   - Edit and save anything under `preset/src`.
+   - Wait for Vite to finish in the terminal.
+   - Within a few seconds, tabs with the launcher reload and load the new preset.
 
-若只跑 `pnpm build:preset` 而不跑 `pnpm dev`，则没有 SSE 推送，需要手动刷新浏览器才能看到最新 preset。
+If you only run `pnpm build:preset` without `pnpm dev`, there is no SSE broadcast—refresh manually.
 
-## 迁移状态
+## Migration checklist
 
-- [x] typings.d.ts（含 ?raw 声明）
+- [x] typings.d.ts (incl. `?raw` declarations)
 - [x] helpers/utils.ts
 - [x] services/log-store.ts
-- [x] helpers/logger.ts（import logStore）
+- [x] helpers/logger.ts (imports logStore)
 - [ ] helpers/http.ts
 - [ ] helpers/dom.ts
-- [ ] services/\*（tab-communication, script-update, dev-mode, script-execution, editor-dev-mode, local-dev-mode, menu, cli-service）
+- [ ] services/\* (tab-communication, script-update, dev-mode, script-execution, editor-dev-mode, local-dev-mode, menu, cli-service)
 - [ ] rules.ts, scripts.ts
 - [ ] main.ts
-- [ ] ui/\*（各模块 index.ts 使用 ?raw 导入 css/html 并 export）
+- [ ] ui/\* (each module: `?raw` css/html and export)
 
-未迁移的模块可从 `templates/gm-templates` 复制到 `preset/src`，并做以下转换：
+To port a module from `templates/gm-templates` into `preset/src`:
 
-1. 将“全局依赖”改为 **import**（如 logger 从 `../services/log-store` 引入 `logStore`）。
-2. 在文件末尾 **export** 需要对外暴露的符号。
-3. 删除原有的 `const g = globalThis; (g as any).xxx = xxx` 等挂全局的代码。
-4. UI 的 `index.ts` 增加 `import css from './index.css?raw'`、`import html from './index.html?raw'` 并 **export { css, html }**。
+1. Replace globals with **import** (e.g. logger imports `logStore` from `../services/log-store`).
+2. **export** public symbols at the bottom of the file.
+3. Remove `const g = globalThis; (g as any).xxx = xxx` style globals.
+4. In UI `index.ts`, add `import css from './index.css?raw'`, `import html from './index.html?raw'`, and **export { css, html }**.

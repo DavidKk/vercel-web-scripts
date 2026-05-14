@@ -1,4 +1,4 @@
-/* 紧凑型，参考 log-viewer：小标题、小按钮、小内边距 */
+/* Compact layout; aligned with log-viewer: small title, small buttons, tight padding */
 .compiled-code-viewer {
   --ccv-radius: 8px;
   --ccv-pad-sm: 8px 12px;

@@ -42,8 +42,8 @@ export function calculateTotalWithTax(price: number, taxRate: number, quantity: 
 **Incorrect Examples:**
 
 ```typescript
-// ❌ Incorrect: Using Chinese comments
-// 计算商品总价
+// ❌ Incorrect: Comments not in English
+// calc total
 export function calculateTotal(price: number, quantity: number): number {
   return price * quantity
 }

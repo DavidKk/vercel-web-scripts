@@ -1,6 +1,6 @@
-/* 与 string-tool、log-viewer 统一：8px 圆角、12px 16px 内边距、同一字体 */
+/* Match string-tool / log-viewer: 8px radius, 12px 16px padding, shared font stack */
 :host {
-  /* 隔离页面可继承样式，避免 body 影响 Shadow DOM */
+  /* Isolate inherited page styles so body rules do not leak into Shadow DOM */
   font-family:
     system-ui,
     -apple-system,

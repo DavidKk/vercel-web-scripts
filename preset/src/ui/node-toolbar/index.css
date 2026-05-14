@@ -24,7 +24,7 @@
     visibility 0s linear 0.12s;
 }
 
-/* Only show when hover on target node (or toolbar); 非 hover 不展示 */
+/* Only visible when hovering the target node or the toolbar */
 .nt-host.nt-host--visible {
   pointer-events: auto;
   visibility: visible;

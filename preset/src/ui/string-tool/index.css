@@ -1,4 +1,4 @@
-/* String Tool: 统一变量，参考 Log Viewer 风格，与 command-palette 一致 */
+/* String Tool: shared tokens; Log Viewer look; aligned with command-palette */
 .string-tool {
   --st-radius: 8px;
   --st-radius-sm: 4px;
@@ -39,7 +39,7 @@
   cursor: pointer;
 }
 
-/* 紧凑型单一样式 */
+/* Compact single style */
 .string-tool__box {
   position: relative;
   margin: 10vh auto;
@@ -74,7 +74,7 @@
   color: var(--st-color-text);
 }
 
-/* 统一样式：所有按钮复用（关闭按钮单独样式，参考 Log Viewer） */
+/* Shared button styles; close button styled separately (see Log Viewer) */
 .string-tool__btn,
 .string-tool__uuid-regenerate,
 .string-tool__copy-btn {
@@ -94,7 +94,7 @@
   background: var(--st-bg-btn-hover);
 }
 
-/* 关闭按钮：X 图标，参考 Log Viewer */
+/* Close: X icon (Log Viewer style) */
 .string-tool__close {
   width: 32px;
   height: 32px;
@@ -116,7 +116,7 @@
   background: var(--st-bg-btn);
 }
 
-/* 输入槽：根据布局显示/隐藏或缩小 */
+/* Input slot: show/hide or shrink per layout */
 .string-tool__input-slot {
   min-height: var(--st-input-height);
   border-bottom: 1px solid var(--st-color-border);
@@ -142,7 +142,7 @@
   flex-direction: column;
 }
 
-/* 布局 json-editor：隐藏结果区，输入槽占满剩余高度并限制最大高度避免破板 */
+/* json-editor layout: hide result pane; input fills remaining height with max-height */
 .string-tool__box[data-layout='json-editor'] .string-tool__result-wrap {
   display: none;
 }
@@ -184,10 +184,10 @@
 }
 
 .string-tool__uuid-regenerate {
-  /* 统一样式已在上方与 .string-tool__btn 一起定义 */
+  /* Same as .string-tool__btn above */
 }
 
-/* JSON 单编辑器：wrap 填满 input-slot，内部可滚动 */
+/* JSON editor: wrap fills input slot; inner area scrolls */
 .string-tool__json-editor-wrap {
   display: flex;
   flex-direction: column;
@@ -275,7 +275,7 @@
   min-height: 0;
   height: 100%;
   display: flex;
-  /* 不设 flex-direction，保持默认 row：gutters 在左、scroller 在右，行号才能显示 */
+  /* Default row: gutters left, scroller right so line numbers render */
   outline: none;
   background: transparent;
 }
@@ -290,12 +290,12 @@
   line-height: 1.5;
 }
 
-/* content 至少填满 scroller 可视高度，配合 EditorView.theme 使用 */
+/* Content fills scroller min height (EditorView.theme) */
 .string-tool__input-editor .cm-content {
   min-height: 100%;
 }
 
-/* 行号 gutter：保持横向在左，与 string-tool 风格一致 */
+/* Line number gutter on the left (string-tool style) */
 .string-tool__input-editor .cm-gutters {
   flex-shrink: 0;
   background: rgba(0, 0, 0, 0.04);
@@ -326,5 +326,5 @@
 }
 
 .string-tool__copy-btn {
-  /* 统一样式已在上方定义 */
+  /* Same as shared button styles above */
 }

@@ -1,6 +1,6 @@
 /**
- * XPath 生成与节点查找 E2E 测试
- * 仅测试 generateXPath / findElementByXPath，不依赖 node-selector UI 与 GM 存储
+ * E2E: XPath generation and element lookup.
+ * Covers generateXPath / findElementByXPath only (no node-selector UI or GM storage).
  */
 
 import { createHash } from 'node:crypto'

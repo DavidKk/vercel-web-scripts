@@ -7,12 +7,11 @@ export interface CurlParsedData {
 }
 
 /**
- * 解析 CURL 命令，提取其中的请求信息
- * @param curlCommand CURL 命令字符串
- * @returns 解析后的请求数据
+ * Parse a curl CLI string into request fields.
+ * @param curlCommand Raw curl command
  */
 export function parseCurlCommand(curlCommand: string): CurlParsedData {
-  // 移除开头的 curl 和引号
+  // Strip leading "curl"
   let command = curlCommand.trim()
   if (command.startsWith('curl')) {
     command = command.substring(4).trim()
@@ -24,7 +23,6 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
     headers: {},
   }
 
-  // 分割命令参数
   const args = parseCurlArgs(command)
 
   for (let i = 0; i < args.length; i++) {
@@ -36,7 +34,7 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
       case '--request':
         if (nextArg) {
           result.method = nextArg.toUpperCase()
-          i++ // 跳过下一个参数
+          i++ // consume value
         }
         break
 
@@ -49,7 +47,7 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
             result.headers[name.trim()] = value.trim()
           }
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       case '-d':
@@ -57,12 +55,11 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
       case '--data-raw':
         if (nextArg) {
           result.body = nextArg
-          // 如果没有设置 Content-Type，默认为 application/x-www-form-urlencoded
           if (!result.headers['Content-Type'] && !result.headers['content-type']) {
             result.headers['Content-Type'] = 'application/x-www-form-urlencoded'
           }
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       case '--data-binary':
@@ -72,7 +69,7 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
             result.headers['Content-Type'] = 'application/octet-stream'
           }
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       case '--json':
@@ -80,13 +77,12 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
           result.body = nextArg
           result.headers['Content-Type'] = 'application/json'
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       case '-F':
       case '--form':
         if (nextArg) {
-          // 处理表单数据
           const formMatch = nextArg.match(/^([^=]+)=(.*)$/)
           if (formMatch) {
             const [, name, value] = formMatch
@@ -102,7 +98,7 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
             result.headers['Content-Type'] = 'application/x-www-form-urlencoded'
           }
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       case '-u':
@@ -112,7 +108,7 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
           const credentials = btoa(`${username}:${password || ''}`)
           result.headers['Authorization'] = `Basic ${credentials}`
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       case '-b':
@@ -120,11 +116,10 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
         if (nextArg) {
           result.headers['Cookie'] = nextArg
         }
-        i++ // 跳过下一个参数
+        i++ // consume value
         break
 
       default:
-        // 如果不是已知参数，可能是 URL
         if (!arg.startsWith('-') && !result.url) {
           result.url = arg.replace(/^["']|["']$/g, '')
         }
@@ -136,9 +131,8 @@ export function parseCurlCommand(curlCommand: string): CurlParsedData {
 }
 
 /**
- * 解析 CURL 命令参数，处理引号和转义字符
- * @param command CURL 命令字符串
- * @returns 解析后的参数数组
+ * Tokenize curl arguments with quote / escape handling.
+ * @param command Body after "curl"
  */
 function parseCurlArgs(command: string): string[] {
   const args: string[] = []
@@ -166,7 +160,6 @@ function parseCurlArgs(command: string): string[] {
         current = ''
       }
     } else if (char === '\\' && i + 1 < command.length) {
-      // 处理转义字符
       current += command[i + 1]
       i++
     } else {
@@ -184,9 +177,8 @@ function parseCurlArgs(command: string): string[] {
 }
 
 /**
- * 将解析后的 CURL 数据转换为 fetch 请求
- * @param parsedData 解析后的 CURL 数据
- * @returns fetch 请求的配置对象
+ * Map parsed curl data to `fetch` options.
+ * @param parsedData Output of {@link parseCurlCommand}
  */
 export function curlToFetch(parsedData: CurlParsedData): RequestInit {
   const fetchConfig: RequestInit = {
@@ -194,7 +186,6 @@ export function curlToFetch(parsedData: CurlParsedData): RequestInit {
     headers: parsedData.headers,
   }
 
-  // 处理请求体
   if (parsedData.body) {
     const contentType = parsedData.headers['Content-Type'] || parsedData.headers['content-type']
 
@@ -215,9 +206,8 @@ export function curlToFetch(parsedData: CurlParsedData): RequestInit {
 }
 
 /**
- * 执行 CURL 命令转换的 fetch 请求
- * @param curlCommand CURL 命令字符串
- * @returns fetch 响应
+ * Run `fetch` from a curl command string.
+ * @param curlCommand Full curl CLI string
  */
 export async function executeCurlAsFetch(curlCommand: string): Promise<Response> {
   if (!curlCommand) {
@@ -256,9 +246,8 @@ export async function executeCurlAsFetch(curlCommand: string): Promise<Response>
 }
 
 /**
- * 验证 CURL 命令是否有效
- * @param curlCommand CURL 命令字符串
- * @returns 验证结果
+ * Lightweight syntax check for a curl string.
+ * @param curlCommand Full curl CLI string
  */
 export function validateCurlCommand(curlCommand: string): { isValid: boolean; error?: string } {
   try {
@@ -268,7 +257,6 @@ export function validateCurlCommand(curlCommand: string): { isValid: boolean; er
       return { isValid: false, error: 'URL is required' }
     }
 
-    // 验证 URL 格式
     try {
       new URL(parsed.url)
     } catch {

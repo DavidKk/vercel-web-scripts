@@ -26,21 +26,18 @@ export const husky = async (options = {}) => {
     return
   }
 
-  // Husky v9+ 使用新的方式：直接创建 hook 文件
-  // 首先初始化 husky（使用 husky install 或 husky init）
+  // Husky v9+: create hook files directly; initialize husky (install or init)
   try {
-    // 尝试使用 husky init（v9+ 推荐方式）
+    // Prefer husky init (v9+)
     execSync('husky init', { stdio: 'pipe', cwd })
   } catch (error) {
-    // 如果 husky init 失败，尝试 husky install
     try {
       execSync('husky install', { stdio: 'pipe', cwd })
     } catch (installError) {
-      // 如果都失败，手动创建 .husky 目录
       if (!fs.existsSync(huskyHooksPath)) {
         await fs.promises.mkdir(huskyHooksPath, { recursive: true })
       }
-      // 创建 _/husky.sh 文件（husky 需要的辅助脚本）
+      // Husky helper script at _/husky.sh
       const huskyShPath = path.join(huskyHooksPath, '_', 'husky.sh')
       const huskyShDir = path.dirname(huskyShPath)
       if (!fs.existsSync(huskyShDir)) {
@@ -92,42 +89,39 @@ fi
     }
   }
 
-  // 根据平台生成不同的 hook 内容
-  // Windows 下 Git GUI 可能 PATH 不完整，需要确保能找到 pnpm
+  // Hook body differs by platform; Git GUIs on Windows often ship a minimal PATH
   const isWindows = inPlatform('win32')
 
-  // Windows 下使用 Git Bash，需要确保 PATH 包含系统 PATH
-  // Unix 系统也需要确保 PATH 正确（Git GUI 可能 PATH 不完整）
-  // 这个设置是为了解决 Git GUI 工具（如 SourceTree, GitHub Desktop 等）运行时 PATH 不完整的问题
+  // Ensure PATH includes system locations so pnpm is found (SourceTree, GitHub Desktop, etc.)
   const pathSetup = isWindows
-    ? `# Windows Git GUI 环境变量可能不完整，需要手动设置 PATH
-# 确保包含系统 PATH（Git GUI 可能只提供最小 PATH）
+    ? `# Git GUIs on Windows may provide an incomplete PATH; extend it explicitly
+# Include full system PATH (GUI may only pass a minimal PATH)
 export PATH="$PATH":$PATH
-# Windows 下 pnpm 的常见安装位置
+# Common pnpm install locations on Windows
 if [ -n "$USERPROFILE" ] && [ -d "$USERPROFILE/AppData/Local/pnpm" ]; then
   export PATH="$USERPROFILE/AppData/Local/pnpm:$PATH"
 fi
 if [ -n "$HOME" ] && [ -d "$HOME/AppData/Local/pnpm" ]; then
   export PATH="$HOME/AppData/Local/pnpm:$PATH"
 fi
-# 尝试从 npm 全局路径找到 pnpm
+# Try npm global prefix for pnpm
 if command -v npm >/dev/null 2>&1; then
   npm_prefix=$(npm config get prefix 2>/dev/null)
   if [ -n "$npm_prefix" ] && [ -d "$npm_prefix" ]; then
     export PATH="$npm_prefix:$PATH"
   fi
 fi`
-    : `# Git GUI 环境变量可能不完整，需要手动设置 PATH
-# 确保包含系统 PATH（Git GUI 可能只提供最小 PATH）
+    : `# Git GUIs may provide an incomplete PATH; extend it explicitly
+# Include full system PATH (GUI may only pass a minimal PATH)
 export PATH="$PATH":$PATH
-# Unix 系统下 pnpm 的常见安装位置
+# Common pnpm install locations on Unix
 if [ -d "$HOME/.local/share/pnpm" ]; then
   export PATH="$HOME/.local/share/pnpm:$PATH"
 fi
 if [ -d "$HOME/.pnpm" ]; then
   export PATH="$HOME/.pnpm:$PATH"
 fi
-# 尝试从 npm 全局路径找到 pnpm
+# Try npm global prefix for pnpm
 if command -v npm >/dev/null 2>&1; then
   npm_prefix=$(npm config get prefix 2>/dev/null)
   if [ -n "$npm_prefix" ] && [ -d "$npm_prefix" ]; then
@@ -135,7 +129,7 @@ if command -v npm >/dev/null 2>&1; then
   fi
 fi`
 
-  // 定义 hooks 配置（Husky v9+ 不再需要 shebang 和 _/husky.sh，由 .husky/_/h 通过 sh -e 执行本文件）
+  // Husky v9+: no shebang / _/husky.sh in each hook; .husky/_/h runs this file with sh -e
   const hooks = [
     {
       name: 'pre-commit',
@@ -153,16 +147,13 @@ pnpm commitlint --edit "$1"
     },
   ]
 
-  // 创建 hook 文件
   for (const hook of hooks) {
     const hookPath = path.join(huskyHooksPath, hook.name)
 
-    // 确保 .husky 目录存在
     if (!fs.existsSync(huskyHooksPath)) {
       await fs.promises.mkdir(huskyHooksPath, { recursive: true })
     }
 
-    // 写入 hook 文件
     await fs.promises.writeFile(hookPath, hook.content, { mode: 0o755 })
     info(`Created ${path.relative(cwd, hookPath)}`)
   }

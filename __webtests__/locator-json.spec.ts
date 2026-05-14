@@ -1,6 +1,6 @@
 /**
- * Locator JSON 生成与回放定位 E2E 测试
- * 测试基于语义指纹的多策略节点定位方案
+ * E2E: Locator JSON generation and replay.
+ * Multi-strategy DOM targeting based on semantic fingerprints.
  */
 
 import { createHash } from 'node:crypto'

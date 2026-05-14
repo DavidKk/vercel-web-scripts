@@ -325,7 +325,7 @@ function registerNotificationCLI(): void {
           const id = GME_notification(String(message), 'loading', 0, { indeterminate: true })
           if (!id) return null
 
-          // 返回对象，便于在 CLI 中继续写入进度 / 完成态
+          // Return an object so the CLI can update progress / completion
           return {
             id,
             message: `Shown loading: ${message}`,

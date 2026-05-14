@@ -357,7 +357,7 @@ export class NodeSelector extends HTMLElement {
     const xpath = generateXPath(node)
     const xpathEl = this.#tooltip.querySelector('.node-selector-tooltip__xpath')
     if (xpathEl) {
-      xpathEl.textContent = xpath ? `XPath: ${xpath}` : 'XPath: 无法生成有效的 XPath'
+      xpathEl.textContent = xpath ? `XPath: ${xpath}` : 'XPath: (could not generate a valid XPath)'
     }
 
     if (!this.#getNodeInfoCallback) {

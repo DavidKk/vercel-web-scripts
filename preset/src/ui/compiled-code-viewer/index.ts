@@ -119,7 +119,7 @@ export function openCompiledCodeViewer(): void {
 GME_registerCommandPaletteCommand({
   id: 'compiled-code-viewer',
   title: 'View compiled script',
-  keywords: ['compiled', 'script', 'code', 'setvalue', 'view', '编译'],
+  keywords: ['compiled', 'script', 'code', 'setvalue', 'view', 'bundle'],
   hint: 'Show full compiled JS (Editor/Local Dev Mode)',
   action: openCompiledCodeViewer,
 })

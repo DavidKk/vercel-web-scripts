@@ -227,7 +227,7 @@ export class CommandPaletteUI extends HTMLElement {
 
   /**
    * Capture-phase keydown on document. When palette is open, consume keydown
-   * so page shortcuts (e.g. 语雀) never run; apply keys to our input ourselves.
+   * so page shortcuts (e.g. on doc sites) never run; apply keys to our input ourselves.
    * Cmd/Ctrl+A/C/V/X are not consumed so the input keeps native select-all/copy/paste/cut.
    * Single-character keys (and when IME is composing) are not intercepted so the input
    * receives them natively — avoids duplicate input when using IME (e.g. Chinese).

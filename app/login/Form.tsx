@@ -208,8 +208,8 @@ function LoginForm(props: LoginFormProps) {
           <Vercel2FALoginButton authCenterOrigin={vercel2FAOrigin} postLoginPath={redirectUrl} />
         ) : (
           <p className="text-xs text-[#858585] text-center max-w-lg leading-relaxed">
-            可选：配置 <code className="text-[#cccccc]">NEXT_PUBLIC_SIGNET_SDK_URL</code>（同源 Signet 的 signet-client.mjs）或见{' '}
-            <code className="text-[#cccccc]">.env.example</code>。
+            Optional: set <code className="text-[#cccccc]">NEXT_PUBLIC_SIGNET_SDK_URL</code> to your hosted <code className="text-[#cccccc]">signet-client.mjs</code> (same-origin
+            Signet); see <code className="text-[#cccccc]">.env.example</code>.
           </p>
         )}
 

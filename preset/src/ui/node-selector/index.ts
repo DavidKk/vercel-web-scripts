@@ -197,7 +197,7 @@ if (typeof document !== 'undefined' && !document.querySelector(NodeSelector.TAG_
 
 GME_registerCommandPaletteCommand({
   id: 'node-selector-toggle',
-  keywords: ['node', 'selector', 'toggle', '节点', '选择器', '开关'],
+  keywords: ['node', 'selector', 'toggle', 'element', 'picker'],
   title: 'Toggle Node Selector',
   iconHtml: iconNodeSelector,
   hint: 'Enable/disable node selection mode',

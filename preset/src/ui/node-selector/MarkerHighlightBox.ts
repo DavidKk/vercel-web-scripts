@@ -529,16 +529,16 @@ export class MarkerHighlightBox extends HTMLElement {
 
     // 8-position candidates around the target.
     // Priority keeps "left side first" as default behavior:
-    // 上左 -> 下左 -> 左上 -> 左下 -> 上右 -> 下右 -> 右上 -> 右下
+    // top-left -> bottom-left -> top-left-corner -> bottom-left-corner -> top-right -> bottom-right -> top-right-corner -> bottom-right-corner
     const candidateOffsets = [
-      { top: -markerHeight - gap, left: -4 }, // 上左
-      { top: highlightRect.height + gap, left: -4 }, // 下左
-      { top: -4, left: -markerWidth - gap }, // 左上
-      { top: highlightRect.height - markerHeight + 4, left: -markerWidth - gap }, // 左下
-      { top: -markerHeight - gap, left: highlightRect.width - markerWidth + 4 }, // 上右
-      { top: highlightRect.height + gap, left: highlightRect.width - markerWidth + 4 }, // 下右
-      { top: -4, left: highlightRect.width + gap }, // 右上
-      { top: highlightRect.height - markerHeight + 4, left: highlightRect.width + gap }, // 右下
+      { top: -markerHeight - gap, left: -4 }, // top-left
+      { top: highlightRect.height + gap, left: -4 }, // bottom-left
+      { top: -4, left: -markerWidth - gap }, // top-left (outer)
+      { top: highlightRect.height - markerHeight + 4, left: -markerWidth - gap }, // bottom-left (outer)
+      { top: -markerHeight - gap, left: highlightRect.width - markerWidth + 4 }, // top-right
+      { top: highlightRect.height + gap, left: highlightRect.width - markerWidth + 4 }, // bottom-right
+      { top: -4, left: highlightRect.width + gap }, // top-right (outer)
+      { top: highlightRect.height - markerHeight + 4, left: highlightRect.width + gap }, // bottom-right (outer)
     ]
 
     const markerViewportLeftMin = padding

@@ -1,7 +1,7 @@
 // ============================================================================
 // HTTP / Network Functions
 // ============================================================================
-// GM_xmlhttpRequest, __BASE_URL__ 等类型由 preset/tsconfig 引入的 editor-typings.d.ts 提供
+// GM_xmlhttpRequest, __BASE_URL__, etc. are declared in editor-typings.d.ts (via preset/tsconfig).
 
 export function GME_curl(content: string) {
   if (!content) {
