@@ -68,7 +68,7 @@ export function FileTreeNode({
   const isExpanded = expandedPaths.has(node.path)
   const isEditing = editingPath === node.path
   const isSelected = selectedFile === node.path
-  const Icon = node.isDirectory ? <VscFolder className={`w-4 h-4 ${isExpanded ? 'text-[#007acc]' : 'text-[#cccccc]'}`} /> : getFileIcon(node.name)
+  const Icon = node.isDirectory ? <VscFolder className={`w-4 h-4 ${isExpanded ? 'text-[#3b82f6]' : 'text-[#cbd5e1]'}`} /> : getFileIcon(node.name)
   const status = !node.isDirectory ? getFileStatus(node.path) : undefined
   const statusIndicator = status !== undefined ? getFileStatusIndicator(status) : null
 
@@ -79,7 +79,7 @@ export function FileTreeNode({
         className={`
           group flex items-center cursor-pointer select-none
           transition-colors duration-150 outline-none focus:outline-none
-          ${isSelected ? 'bg-[#37373d] text-white' : 'text-[#cccccc] hover:bg-[#2a2d2e]'}
+          ${isSelected ? 'bg-[#202634] text-white' : 'text-[#cbd5e1] hover:bg-[#202634]'}
         `}
         style={{
           paddingLeft: `${level * 16 + 8}px`,
@@ -128,7 +128,7 @@ export function FileTreeNode({
         </div>
         <span className="mr-2 flex-shrink-0">{Icon}</span>
         {isEditing ? (
-          <div className="flex items-center flex-1 bg-[#3c3c3c]">
+          <div className="flex items-center flex-1 bg-[#2a303a]">
             <input
               autoFocus
               className="bg-transparent text-white px-1 outline-none flex-1 min-w-0"
@@ -154,7 +154,7 @@ export function FileTreeNode({
         )}
         {onDeleteFile && !isEditing && (
           <button
-            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-red-400 transition-all duration-150"
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-red-400 transition-all duration-150"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()

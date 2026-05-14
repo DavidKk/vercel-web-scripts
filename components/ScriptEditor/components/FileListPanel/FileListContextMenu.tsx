@@ -39,10 +39,10 @@ export function FileListContextMenu({
   }
 
   return (
-    <div ref={contextMenuRef} className="fixed bg-[#252526] shadow-xl border border-[#3a3a3a] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
+    <div ref={contextMenuRef} className="fixed bg-[#171a21] shadow-xl border border-[#2a303a] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
       {onRenameFile && (
         <button
-          className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
+          className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#1f3b63] hover:text-white transition-colors"
           onClick={() => onStartRename(contextMenu.path, contextMenu.name)}
         >
           Rename
@@ -50,7 +50,7 @@ export function FileListContextMenu({
       )}
       {!contextMenu.isDirectory && hasUnsavedChanges(contextMenu.path) && (
         <button
-          className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors"
+          className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#1f3b63] hover:text-white transition-colors"
           onClick={() => {
             setConfirmState({ open: true, type: 'resetFile', path: contextMenu.path, name: contextMenu.name })
             setContextMenu(null)
@@ -61,7 +61,7 @@ export function FileListContextMenu({
       )}
       {onDeleteFile && (
         <button
-          className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#ce3c3c] hover:text-white transition-colors"
+          className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#ef4444] hover:text-white transition-colors"
           onClick={() => {
             setConfirmState({
               open: true,

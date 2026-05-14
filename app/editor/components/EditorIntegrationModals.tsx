@@ -24,12 +24,12 @@ interface MCPResolvedHeaders {
   headers: Record<string, string>
 }
 
-const btnClass = 'p-2 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
-const inputClass = 'flex-1 h-7 px-2 rounded bg-[#1a1a1a] border border-[#3c3c3c] text-[#d4d4d4] text-[11px] font-mono focus:outline-none focus:border-[#0e639c]'
-const rowIconBtnClass = 'h-7 w-7 inline-flex items-center justify-center rounded bg-[#2d2d2d] text-[#d4d4d4] hover:bg-[#0e639c] hover:text-white transition-colors'
+const btnClass = 'p-2 rounded text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+const inputClass = 'flex-1 h-7 px-2 rounded bg-[#111318] border border-[#2a303a] text-[#e6eaf0] text-[11px] font-mono focus:outline-none focus:border-[#3b82f6]'
+const rowIconBtnClass = 'h-7 w-7 inline-flex items-center justify-center rounded bg-[#2a303a] text-[#e6eaf0] hover:bg-[#3b82f6] hover:text-white transition-colors'
 /** Cursor / VS Code / Insiders / copy — same idle, hover, active, focus (no single “primary” bias) */
 const mcpInstallBtnClass =
-  'inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border border-[#3c3c3c] bg-[#2d2d2d] text-[#e0e0e0] hover:bg-[#0e639c] hover:border-[#0e639c] hover:text-white active:bg-[#0a5280] active:border-[#0a5280] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0e639c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#252526] transition-colors'
+  'inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border border-[#2a303a] bg-[#2a303a] text-[#e6eaf0] hover:bg-[#3b82f6] hover:border-[#3b82f6] hover:text-white active:bg-[#2563eb] active:border-[#2563eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#171a21] transition-colors'
 
 /**
  * Icon buttons that open read-only docs for MCP URLs, OpenAPI, and function-calling JSON.
@@ -138,14 +138,14 @@ export function EditorIntegrationModals() {
   function renderModal(title: string, body: ReactNode) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={() => setOpen(null)}>
-        <div className="bg-[#252526] border border-[#3c3c3c] rounded-lg shadow-xl max-w-3xl w-full max-h-[min(80vh,720px)] flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#3c3c3c]">
-            <h2 className="text-sm font-medium text-[#e0e0e0]">{title}</h2>
+        <div className="bg-[#171a21] border border-[#2a303a] rounded-lg shadow-xl max-w-3xl w-full max-h-[min(80vh,720px)] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a303a]">
+            <h2 className="text-sm font-medium text-[#e6eaf0]">{title}</h2>
             <button type="button" className={btnClass} title="Close" onClick={() => setOpen(null)} aria-label="Close">
               <FiX className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex-1 overflow-auto p-3 text-xs text-[#cccccc] [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="flex-1 overflow-auto p-3 text-xs text-[#cbd5e1] [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {body}
           </div>
         </div>
@@ -179,7 +179,7 @@ export function EditorIntegrationModals() {
 
   return (
     <>
-      <div className="flex items-center gap-0.5 border-r border-[#2d2d2d] pr-2 mr-1">
+      <div className="flex items-center gap-0.5 border-r border-[#2a303a] pr-2 mr-1">
         <Tooltip content="API" placement="bottom">
           <button type="button" className={btnClass} aria-label="API" onClick={() => setOpen('api')}>
             <TbApi className="w-4 h-4" />
@@ -255,7 +255,7 @@ export function EditorIntegrationModals() {
                 </div>
               )
             })()}
-            <div className="border-t border-[#3c3c3c] pt-3 space-y-2">
+            <div className="border-t border-[#2a303a] pt-3 space-y-2">
               <div className="text-[#8fb9ff] text-[11px]">Install in Cursor / VS Code</div>
               <p className="text-[#9d9d9d] text-[10px] leading-relaxed">
                 One-click embeds the same auth headers as above (API key). Wait until headers finish loading. Links may appear in browser history — use only on trusted devices.
@@ -330,11 +330,11 @@ export function EditorIntegrationModals() {
         renderModal(
           'API (OpenAPI)',
           <div className="space-y-3">
-            <div className="border border-[#3c3c3c] rounded-md p-2 bg-[#1f1f1f]">
+            <div className="border border-[#2a303a] rounded-md p-2 bg-[#1f1f1f]">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-[11px]">
-                    <span className="px-1.5 py-0.5 rounded bg-[#0e639c] text-white font-semibold">GET</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#3b82f6] text-white font-semibold">GET</span>
                     <code className="text-[#d7d7d7] truncate">/api/v1/scripts</code>
                   </div>
                   <div className="mt-1 text-[11px] text-[#c8c8c8]">List script files (200 example only)</div>
@@ -364,11 +364,11 @@ export function EditorIntegrationModals() {
 }`}</pre>
               ) : null}
             </div>
-            <div className="border border-[#3c3c3c] rounded-md p-2 bg-[#1f1f1f]">
+            <div className="border border-[#2a303a] rounded-md p-2 bg-[#1f1f1f]">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-[11px]">
-                    <span className="px-1.5 py-0.5 rounded bg-[#0e639c] text-white font-semibold">GET</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#3b82f6] text-white font-semibold">GET</span>
                     <code className="text-[#d7d7d7] truncate">/api/v1/scripts/{`{filename}`}</code>
                   </div>
                   <div className="mt-1 text-[11px] text-[#c8c8c8]">Get script content (200 example only)</div>
@@ -399,11 +399,11 @@ export function EditorIntegrationModals() {
 }`}</pre>
               ) : null}
             </div>
-            <div className="border border-[#3c3c3c] rounded-md p-2 bg-[#1f1f1f]">
+            <div className="border border-[#2a303a] rounded-md p-2 bg-[#1f1f1f]">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-[11px]">
-                    <span className="px-1.5 py-0.5 rounded bg-[#0e639c] text-white font-semibold">PUT/DELETE</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#3b82f6] text-white font-semibold">PUT/DELETE</span>
                     <code className="text-[#d7d7d7] truncate">/api/v1/scripts/{`{filename}`}</code>
                   </div>
                   <div className="mt-1 text-[11px] text-[#c8c8c8]">Mutation result (200 example only)</div>

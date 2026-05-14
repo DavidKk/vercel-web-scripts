@@ -236,14 +236,14 @@ function ScriptEditorContentBody({
   const unsavedFiles = fileState.getUnsavedFiles()
 
   return (
-    <div className={`w-full h-full flex flex-col bg-[#1e1e1e] text-[#cccccc] ${className}`}>
+    <div className={`w-full h-full flex flex-col bg-[#111318] text-[#cbd5e1] ${className}`}>
       {/* Header */}
       {!hideHeader && (
-        <div className="h-[40px] bg-[#2d2d2d] border-b border-[#3e3e42] flex items-center justify-between px-4 sticky top-0 z-20 flex-shrink-0">
+        <div className="h-[40px] bg-[#2a303a] border-b border-[#3a4352] flex items-center justify-between px-4 sticky top-0 z-20 flex-shrink-0">
           <div className="flex items-center gap-4">
             <div className="text-sm font-semibold truncate">{title}</div>
             {showFileCount && (
-              <div className="text-xs text-[#858585] hidden sm:block">
+              <div className="text-xs text-[#6f7a8a] hidden sm:block">
                 {Object.keys(fileState.files).length} files
                 {unsavedFiles.length > 0 && ` • ${unsavedFiles.length} unsaved`}
               </div>
@@ -277,7 +277,7 @@ function ScriptEditorContentBody({
           {/* Tab Bar */}
           <TabBar onTabClick={handleSelectFile} onTabClose={(path) => tabBar.closeTab(path)} />
 
-          <div className="flex-1 min-w-0 relative bg-[#1e1e1e]">
+          <div className="flex-1 min-w-0 relative bg-[#111318]">
             {/* 
               Render CodeEditor always to speed up initialization.
               It will show its own loading spinner initially.
@@ -315,7 +315,7 @@ function ScriptEditorContentBody({
 
             {/* Overlay if no tab is selected. Only show when editor is ready or when definitely no file. */}
             {!tabBar.activeTab && (
-              <div className="absolute inset-0 flex items-center justify-center text-[#858585] bg-[#1e1e1e] z-10 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center text-[#6f7a8a] bg-[#111318] z-10 pointer-events-none">
                 <div className="text-center p-8">
                   <p className="text-lg mb-2">No file selected</p>
                   <p className="text-sm">Select a file from the sidebar to start editing</p>
@@ -329,7 +329,7 @@ function ScriptEditorContentBody({
         {layout.rightPanelType && renderRightPanel && (
           <>
             <Resizer initialWidth={layout.rightPanelWidth} minWidth={300} maxWidth={800} onResize={layout.setRightPanelWidth} reverse={true} />
-            <div className="flex-shrink-0 bg-[#1e1e1e] border-l border-[#3e3e42]" style={{ width: `${layout.rightPanelWidth}px` }}>
+            <div className="flex-shrink-0 bg-[#111318] border-l border-[#3a4352]" style={{ width: `${layout.rightPanelWidth}px` }}>
               {renderRightPanel(layout.rightPanelType)}
             </div>
           </>
@@ -338,7 +338,7 @@ function ScriptEditorContentBody({
 
       {/* Footer */}
       {!hideFooter && (
-        <div className="h-[24px] bg-[#007acc] flex items-center px-4 text-xs text-white justify-between flex-shrink-0">
+        <div className="h-[24px] bg-[#3b82f6] flex items-center px-4 text-xs text-white justify-between flex-shrink-0">
           <div className="flex items-center gap-4 overflow-hidden">
             <span className="truncate">Selected: {tabBar.activeTab || 'None'}</span>
             {selectedFileData && (

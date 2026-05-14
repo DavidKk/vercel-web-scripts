@@ -14,7 +14,7 @@ import { Tooltip } from '@/components/Tooltip'
 import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
 
-const iconBtn = 'p-2 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const iconBtn = 'p-2 rounded text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
 
 interface EditorHeaderProps {
   scriptKey: string
@@ -97,10 +97,10 @@ export default function EditorHeader({
   }
 
   return (
-    <header className="h-11 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center gap-2 px-3 sticky top-0 z-50">
+    <header className="h-11 bg-[#111318] border-b border-[#2a303a] flex items-center gap-2 px-3 sticky top-0 z-50">
       <div className="flex items-center gap-2 min-w-0 shrink-0">
         <Image src="/logo.png" alt="MagickMonkey logo" width={24} height={24} className="rounded-sm shrink-0" priority />
-        <span className="text-sm text-[#e0e0e0] font-medium truncate hidden sm:inline">MagickMonkey</span>
+        <span className="text-sm text-[#e6eaf0] font-medium truncate hidden sm:inline">MagickMonkey</span>
       </div>
 
       <div className="flex-1 min-w-2" />
@@ -120,7 +120,7 @@ export default function EditorHeader({
               type="button"
               onClick={onToggleRules}
               disabled={isSaving}
-              className={`${iconBtn} ${isRulesOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
+              className={`${iconBtn} ${isRulesOpen ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
               aria-label="URL rules"
             >
               <LuAsterisk className="w-4 h-4" />
@@ -134,7 +134,7 @@ export default function EditorHeader({
               type="button"
               onClick={onToggleAI}
               disabled={isSaving || isAIDisabled}
-              className={`${iconBtn} ${isAIOpen ? 'bg-[#0e639c] text-white hover:bg-[#1177bb]' : ''}`}
+              className={`${iconBtn} ${isAIOpen ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
               aria-label="AI rewrite"
             >
               <FiZap className="w-4 h-4" />
@@ -147,7 +147,7 @@ export default function EditorHeader({
             type="button"
             onClick={onToggleEditorDevMode}
             disabled={isCompiling}
-            className={`${iconBtn} ${isEditorDevMode ? 'bg-[#059669] text-white hover:bg-[#047857]' : ''}`}
+            className={`${iconBtn} ${isEditorDevMode ? 'bg-[#22c55e] text-white hover:bg-[#16a34a]' : ''}`}
             aria-label="Editor dev mode"
           >
             {isCompiling ? (
@@ -179,7 +179,7 @@ export default function EditorHeader({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className={`${iconBtn} bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50`}
+            className={`${iconBtn} bg-[#3b82f6] text-white hover:bg-[#2563eb] disabled:opacity-50`}
             aria-label="Publish to Gist"
           >
             {isSaving ? (
@@ -193,13 +193,13 @@ export default function EditorHeader({
         </Tooltip>
       </div>
 
-      <div className="relative shrink-0 pl-2 border-l border-[#2d2d2d] ml-1" ref={userMenuRef}>
+      <div className="relative shrink-0 pl-2 border-l border-[#2a303a] ml-1" ref={userMenuRef}>
         <Tooltip content="Account" placement="bottom">
           <button
             type="button"
             onClick={() => setUserMenuOpen((o) => !o)}
             disabled={isSaving}
-            className="flex items-center gap-1 px-2 py-1.5 rounded text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] disabled:opacity-50"
+            className="flex items-center gap-1 px-2 py-1.5 rounded text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] disabled:opacity-50"
             aria-label="Account"
             aria-expanded={userMenuOpen}
             aria-haspopup="menu"
@@ -209,14 +209,14 @@ export default function EditorHeader({
           </button>
         </Tooltip>
         {userMenuOpen ? (
-          <div className="absolute right-0 top-full mt-1 py-1 bg-[#252526] border border-[#3c3c3c] rounded-md shadow-lg min-w-[180px] z-[70]" role="menu">
-            <div className="px-3 py-2 text-xs text-[#a0a0a0] border-b border-[#3c3c3c] truncate" title={displayUsername}>
+          <div className="absolute right-0 top-full mt-1 py-1 bg-[#171a21] border border-[#2a303a] rounded-md shadow-lg min-w-[180px] z-[70]" role="menu">
+            <div className="px-3 py-2 text-xs text-[#9aa4b2] border-b border-[#2a303a] truncate" title={displayUsername}>
               {displayUsername}
             </div>
             <button
               type="button"
               role="menuitem"
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#e0e0e0] hover:bg-[#2d2d2d] text-left"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#e6eaf0] hover:bg-[#2a303a] text-left"
               onClick={() => {
                 setUserMenuOpen(false)
                 void handleLogout()

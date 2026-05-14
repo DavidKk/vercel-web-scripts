@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server'
 
 import { loadSignetSdk } from '@/lib/load-signet-sdk'
 import { getSignetAuthCenterOrigin } from '@/lib/signet-sdk-url'
-import { AUTH_TOKEN_NAME, VF2FA_NEXT_COOKIE, VF2FA_OAUTH_STATE_COOKIE } from '@/services/auth/constants'
+import { AUTH_TOKEN_NAME, VF2FA_NEXT_COOKIE, VF2FA_OAUTH_STATE_COOKIE, VF2FA_REMEMBER_ME_COOKIE } from '@/services/auth/constants'
+import { getSessionMaxAge } from '@/services/auth/sessionDuration'
 import { generateToken } from '@/utils/jwt'
 
 /**
@@ -52,11 +53,13 @@ export async function GET(request: Request) {
   const cookieStore = await cookies()
   const expectedState = cookieStore.get(VF2FA_OAUTH_STATE_COOKIE)?.value
   const nextRaw = cookieStore.get(VF2FA_NEXT_COOKIE)?.value
+  const rememberMe = cookieStore.get(VF2FA_REMEMBER_ME_COOKIE)?.value === '1'
 
   /** Append clearing cookies for VF2FA flow (non-httpOnly mirrors client-set cookies). */
   function appendClearVF2FACookies(headers: Headers) {
     headers.append('Set-Cookie', serialize(VF2FA_OAUTH_STATE_COOKIE, '', { path: '/', maxAge: 0 }))
     headers.append('Set-Cookie', serialize(VF2FA_NEXT_COOKIE, '', { path: '/', maxAge: 0 }))
+    headers.append('Set-Cookie', serialize(VF2FA_REMEMBER_ME_COOKIE, '', { path: '/', maxAge: 0 }))
   }
 
   if (!state || !expectedState || state !== expectedState) {
@@ -110,11 +113,12 @@ export async function GET(request: Request) {
     sessionPayload.email = displayEmail
   }
 
-  const authToken = await generateToken(sessionPayload)
+  const maxAge = getSessionMaxAge(rememberMe)
+  const authToken = await generateToken(sessionPayload, { expiresIn: maxAge })
   const authCookie = serialize(AUTH_TOKEN_NAME, authToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60,
+    maxAge,
     path: '/',
   })
 

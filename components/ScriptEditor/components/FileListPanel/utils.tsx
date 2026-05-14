@@ -18,9 +18,9 @@ export function getFileIcon(fileName: string): React.ReactNode {
     json: <VscJson className="w-4 h-4 text-[#cbcb41]" />,
     css: <VscFileCode className="w-4 h-4 text-[#1572b6]" />,
     html: <VscFileCode className="w-4 h-4 text-[#e34c26]" />,
-    md: <VscMarkdown className="w-4 h-4 text-[#cccccc]" />,
+    md: <VscMarkdown className="w-4 h-4 text-[#cbd5e1]" />,
   }
-  return iconMap[ext || ''] || <VscFile className="w-4 h-4 text-[#cccccc]" />
+  return iconMap[ext || ''] || <VscFile className="w-4 h-4 text-[#cbd5e1]" />
 }
 
 /**
@@ -32,12 +32,12 @@ export function getFileStatusIndicator(status: FileStatus): React.ReactNode {
   switch (status) {
     case FileStatus.ModifiedUnsaved:
     case FileStatus.NewUnsaved:
-      return <span className="w-1.5 h-1.5 rounded-full bg-[#007acc]" title="Unsaved changes" />
+      return <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]" title="Unsaved changes" />
     case FileStatus.ModifiedSaved:
     case FileStatus.NewSaved:
-      return <span className="w-1.5 h-1.5 rounded-full bg-[#ff9900]" title="Saved locally" />
+      return <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" title="Saved locally" />
     case FileStatus.Deleted:
-      return <span className="w-1.5 h-1.5 rounded-full bg-[#ce3c3c]" title="Deleted" />
+      return <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" title="Deleted" />
     case FileStatus.Unchanged:
     default:
       return null

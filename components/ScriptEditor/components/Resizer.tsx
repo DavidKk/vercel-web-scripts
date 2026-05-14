@@ -160,7 +160,7 @@ export function Resizer({ onResizeStart, onResizeEnd, onResize, initialWidth = 2
 
   return (
     <div
-      className={`relative flex-shrink-0 ${direction === 'horizontal' ? 'cursor-col-resize' : 'cursor-row-resize'} hover:bg-[#007acc] transition-colors ${isDragging ? 'bg-[#007acc]' : 'bg-[#3c3c3c]'}`}
+      className={`relative flex-shrink-0 ${direction === 'horizontal' ? 'cursor-col-resize' : 'cursor-row-resize'} hover:bg-[#3b82f6] transition-colors ${isDragging ? 'bg-[#3b82f6]' : 'bg-[#2a303a]'}`}
       style={{ width: direction === 'horizontal' ? '4px' : '100%', height: direction === 'horizontal' ? '100%' : '4px' }}
       onMouseDown={handleMouseDown}
       role="separator"

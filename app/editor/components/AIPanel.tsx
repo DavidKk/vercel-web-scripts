@@ -30,34 +30,35 @@ interface AIPanelProps {
   tampermonkeyTypings?: string
 }
 
-// Theme colors inspired by One Dark
+// Theme colors aligned with the main editor shell.
 const ONE_DARK_THEME = {
   base: 'vs-dark' as const,
   inherit: true,
   rules: [
-    { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
-    { token: 'keyword', foreground: 'c678dd' },
-    { token: 'number', foreground: 'd19a66' },
-    { token: 'string', foreground: '98c379' },
-    { token: 'operator', foreground: '56b6c2' },
-    { token: 'type', foreground: 'e5c07b' },
-    { token: 'function', foreground: '61afef' },
-    { token: 'variable', foreground: 'abb2bf' },
-    { token: 'constant', foreground: 'd19a66' },
+    { token: 'comment', foreground: '6f7a8a', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '93c5fd' },
+    { token: 'number', foreground: 'fbbf24' },
+    { token: 'string', foreground: '86efac' },
+    { token: 'operator', foreground: '67e8f9' },
+    { token: 'type', foreground: 'fde68a' },
+    { token: 'function', foreground: '60a5fa' },
+    { token: 'variable', foreground: 'cbd5e1' },
+    { token: 'constant', foreground: 'fbbf24' },
   ],
   colors: {
-    'editor.background': '#282c34',
-    'editor.foreground': '#abb2bf',
-    'editorCursor.foreground': '#528bff',
-    'editor.lineHighlightBackground': '#2c313a',
-    'editorLineNumber.foreground': '#4b5263',
-    'editor.selectionBackground': '#3e4451',
-    'editorIndentGuide.background': '#3b4048',
-    'editorIndentGuide.activeBackground': '#c8ccd4',
-    'diffEditor.insertedTextBackground': '#1e4620',
-    'diffEditor.removedTextBackground': '#5a1d1d',
-    'diffEditor.insertedLineBackground': '#1e462040',
-    'diffEditor.removedLineBackground': '#5a1d1d40',
+    'editor.background': '#111318',
+    'editor.foreground': '#e6eaf0',
+    'editorCursor.foreground': '#3b82f6',
+    'editor.lineHighlightBackground': '#1b1f27',
+    'editorLineNumber.foreground': '#6f7a8a',
+    'editorLineNumber.activeForeground': '#cbd5e1',
+    'editor.selectionBackground': '#1f3b63',
+    'editorIndentGuide.background': '#2a303a',
+    'editorIndentGuide.activeBackground': '#3a4352',
+    'diffEditor.insertedTextBackground': '#22c55e26',
+    'diffEditor.removedTextBackground': '#ef444426',
+    'diffEditor.insertedLineBackground': '#22c55e14',
+    'diffEditor.removedLineBackground': '#ef444414',
   },
 }
 
@@ -186,11 +187,11 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
   }, [chatHistory])
 
   return (
-    <div className="w-full h-full bg-[#1e1e1e] border-l border-[#2d2d2d] flex flex-col">
+    <div className="w-full h-full bg-[#111318] border-l border-[#2a303a] flex flex-col">
       {/* Chat History - Middle */}
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto min-h-0">
         {chatHistory.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-[#858585] text-sm">
+          <div className="h-full flex items-center justify-center text-[#6f7a8a] text-sm">
             <div className="text-center px-4">
               <p className="mb-2">No chat history</p>
               <p className="text-xs">Enter an instruction below to start</p>
@@ -203,29 +204,29 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
               const hasResult = message.rewrittenContent !== null || message.error !== null
 
               return (
-                <div key={message.id} className={`border border-[#2d2d2d] rounded-lg overflow-hidden ${isSelected ? 'ring-2 ring-[#0e639c]' : ''}`}>
+                <div key={message.id} className={`border border-[#2a303a] rounded-lg overflow-hidden ${isSelected ? 'ring-2 ring-[#3b82f6]' : ''}`}>
                   {/* Message Header */}
-                  <div className="p-3 bg-[#252526]">
-                    <div className="cursor-pointer hover:bg-[#2d2d2d] transition-colors -m-3 p-3 rounded-t-lg" onClick={() => setSelectedMessageId(isSelected ? null : message.id)}>
+                  <div className="p-3 bg-[#171a21]">
+                    <div className="cursor-pointer hover:bg-[#2a303a] transition-colors -m-3 p-3 rounded-t-lg" onClick={() => setSelectedMessageId(isSelected ? null : message.id)}>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm text-[#abb2bf] flex-1">{message.instruction}</p>
+                        <p className="text-sm text-[#cbd5e1] flex-1">{message.instruction}</p>
                         {message.error ? (
                           <span className="text-xs text-red-400 flex-shrink-0">Error</span>
                         ) : message.rewrittenContent ? (
                           <span className="text-xs text-green-400 flex-shrink-0">Ready</span>
                         ) : (
-                          <span className="text-xs text-[#5c6370] flex-shrink-0">Processing...</span>
+                          <span className="text-xs text-[#6f7a8a] flex-shrink-0">Processing...</span>
                         )}
                       </div>
                     </div>
                     {message.rewrittenContent && (
-                      <div className="mt-2 pt-2 border-t border-[#2d2d2d]">{/* Show in Editor button removed as it's complex to implement without parent control for now */}</div>
+                      <div className="mt-2 pt-2 border-t border-[#2a303a]">{/* Show in Editor button removed as it's complex to implement without parent control for now */}</div>
                     )}
                   </div>
 
                   {/* Diff View - Only show when selected */}
                   {isSelected && hasResult && (
-                    <div className="h-64 border-t border-[#2d2d2d]">
+                    <div className="h-64 border-t border-[#2a303a]">
                       {message.error ? (
                         <div className="p-4 bg-red-900/20 text-red-400 text-sm">{message.error}</div>
                       ) : message.rewrittenContent ? (
@@ -294,13 +295,13 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
                               }}
                             />
                           </div>
-                          <div className="flex items-center justify-end gap-2 p-2 border-t border-[#2d2d2d] bg-[#252526]">
+                          <div className="flex items-center justify-end gap-2 p-2 border-t border-[#2a303a] bg-[#171a21]">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setSelectedMessageId(null)
                               }}
-                              className="px-3 py-1 text-xs text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors"
+                              className="px-3 py-1 text-xs text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] rounded transition-colors"
                             >
                               Cancel
                             </button>
@@ -309,7 +310,7 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
                                 e.stopPropagation()
                                 handleAccept(message.id)
                               }}
-                              className="px-3 py-1 text-xs bg-[#059669] text-white hover:bg-[#047857] rounded transition-colors flex items-center gap-1"
+                              className="px-3 py-1 text-xs bg-[#22c55e] text-white hover:bg-[#16a34a] rounded transition-colors flex items-center gap-1"
                             >
                               <FiCheck className="w-3 h-3" />
                               Accept
@@ -327,7 +328,7 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
       </div>
 
       {/* Input Area - Bottom */}
-      <div className="border-t border-[#2d2d2d] p-4 flex-shrink-0 bg-[#1e1e1e]">
+      <div className="border-t border-[#2a303a] p-4 flex-shrink-0 bg-[#111318]">
         <div className="space-y-2">
           <textarea
             ref={instructionTextareaRef}
@@ -341,17 +342,17 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
             }}
             disabled={isLoading}
             placeholder={`Describe what you want to change... (e.g., 'Add error handling', 'Optimize performance') - Press ${shortcutKey} + Enter to submit`}
-            className="w-full h-20 px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:ring-2 focus:ring-[#0e639c] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            className="w-full h-20 px-3 py-2 bg-[#171a21] border border-[#2a303a] rounded text-[#cbd5e1] placeholder-[#6f7a8a] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[#5c6370]">Model:</span>
+              <span className="text-xs text-[#6f7a8a]">Model:</span>
               <span className="text-xs text-[#61afef] font-medium">GEMINI</span>
             </div>
             <button
               onClick={handleRewrite}
               disabled={isLoading || !instruction.trim()}
-              className="px-4 py-1.5 bg-[#0e639c] text-white hover:bg-[#1177bb] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors flex items-center justify-center gap-2 text-sm"
+              className="px-4 py-1.5 bg-[#3b82f6] text-white hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors flex items-center justify-center gap-2 text-sm"
             >
               {isLoading ? (
                 <>

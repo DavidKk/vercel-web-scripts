@@ -7,7 +7,7 @@ export type JWTPayload = Record<string, unknown>
  * Parse JWT_EXPIRES_IN-style value to seconds from now.
  * @param exp - Numeric seconds, digits-only string (seconds), or e.g. 1d / 12h / 30m / 60s
  */
-function parseExpirationSeconds(exp: string | number): number {
+export function parseExpirationSeconds(exp: string | number): number {
   if (typeof exp === 'number' && Number.isFinite(exp)) {
     return Math.max(1, Math.floor(exp))
   }
@@ -62,9 +62,10 @@ function verifyHs256Jwt(token: string, secretKey: Uint8Array): JWTPayload | null
   }
 }
 
-export async function generateToken(payload: object): Promise<string> {
+export async function generateToken(payload: object, options?: { expiresIn?: string | number }): Promise<string> {
   const { secretKey, JWT_EXPIRES_IN } = getJWTConfigWithKey()
-  const expiresIn = /^\d+$/.test(JWT_EXPIRES_IN) ? Number(JWT_EXPIRES_IN) : JWT_EXPIRES_IN
+  const rawExpiresIn = options?.expiresIn ?? JWT_EXPIRES_IN
+  const expiresIn = typeof rawExpiresIn === 'string' && /^\d+$/.test(rawExpiresIn) ? Number(rawExpiresIn) : rawExpiresIn
   const seconds = parseExpirationSeconds(expiresIn)
   const now = Math.floor(Date.now() / 1000)
   const body: Record<string, unknown> = {

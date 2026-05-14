@@ -1,9 +1,10 @@
 'use client'
 
 import { useRequest } from 'ahooks'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { FiGithub } from 'react-icons/fi'
+import { FiCheck, FiEye, FiEyeOff, FiGithub, FiLock, FiUser } from 'react-icons/fi'
 
 import type { AlertImperativeHandler } from '@/components/Alert'
 import Alert from '@/components/Alert'
@@ -25,9 +26,9 @@ function LoginForm(props: LoginFormProps) {
 
   if (oauth.isHandlingCallback) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#1e1e1e] gap-4">
-        <Spinner />
-        <p className="text-[#d4d4d4] text-sm">Validating third-party login...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#111318] gap-4">
+        <Spinner color="text-[#3b82f6]" />
+        <p className="text-[#e6eaf0] text-sm">Validating third-party login...</p>
       </div>
     )
   }
@@ -56,6 +57,8 @@ function LoginForm(props: LoginFormProps) {
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [access2FAToken, setAccess2FAToken] = useState('')
   const [complete, setComplete] = useState(false)
   const alertRef = useRef<AlertImperativeHandler>(null)
@@ -70,7 +73,7 @@ function LoginForm(props: LoginFormProps) {
       const response = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, token: access2FAToken }),
+        body: JSON.stringify({ username, password, token: access2FAToken, rememberMe }),
       })
 
       if (!response.ok) {
@@ -126,106 +129,125 @@ function LoginForm(props: LoginFormProps) {
   }, [])
 
   const githubUrl = repositoryUrl || 'https://github.com/DavidKk/vercel-web-scripts'
+  const inputClass =
+    'mt-1 w-full px-3.5 py-2.5 bg-[#171a21] border border-[#2a303a] rounded text-[#e6eaf0] placeholder:text-[#6f7a8a] placeholder:tracking-normal text-base shadow-inner focus:ring-2 focus:ring-[#3b82f6]/30 focus:border-[#3b82f6] focus:outline-none transition-colors'
+  const inputWithLeftIconClass =
+    'mt-1 w-full pl-10 pr-3.5 py-2.5 bg-[#171a21] border border-[#2a303a] rounded text-[#e6eaf0] placeholder:text-[#6f7a8a] placeholder:tracking-normal text-base shadow-inner focus:ring-2 focus:ring-[#3b82f6]/30 focus:border-[#3b82f6] focus:outline-none transition-colors'
+  const passwordInputClass =
+    'mt-1 w-full pl-10 pr-10 py-2.5 bg-[#171a21] border border-[#2a303a] rounded text-[#e6eaf0] placeholder:text-[#6f7a8a] placeholder:tracking-normal text-base shadow-inner focus:ring-2 focus:ring-[#3b82f6]/30 focus:border-[#3b82f6] focus:outline-none transition-colors'
 
   return (
-    <div className="relative flex justify-center items-center h-screen bg-[#1e1e1e]">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#111318] px-4 py-8 text-[#e6eaf0]">
       {/* GitHub link in top right corner */}
       {githubUrl && (
         <a
           href={githubUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute top-4 right-4 p-2 text-[#d4d4d4] hover:text-white hover:bg-[#2d2d2d] rounded transition-colors"
+          className="absolute top-4 right-4 p-2 text-[#9aa4b2] hover:text-white hover:bg-[#1b1f27] rounded transition-colors"
           title="View on GitHub"
         >
           <FiGithub className="w-5 h-5" />
         </a>
       )}
-      <form onSubmit={handleSubmit} className="w-full max-w-lg flex flex-col items-center gap-4 p-4">
-        <h1 className="text-2xl text-white">Login</h1>
-
-        <input
-          type="text"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          placeholder="Username"
-          required
-          className="mt-1 w-full px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#d4d4d4] placeholder:text-[#858585] placeholder:tracking-normal text-lg focus:ring-[#0e639c] focus:border-[#0e639c] focus:outline-none"
-        />
-
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
-          required
-          className="mt-1 w-full px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-[#d4d4d4] placeholder:text-[#858585] placeholder:tracking-normal text-lg focus:ring-[#0e639c] focus:border-[#0e639c] focus:outline-none"
-        />
-
-        {enable2FA && (
-          <input
-            className="mt-1 w-full px-3 py-2 bg-[#252526] border border-[#2d2d2d] rounded text-center tracking-[1em] text-[#d4d4d4] placeholder:text-[#858585] placeholder:tracking-normal text-lg focus:ring-[#0e639c] focus:border-[#0e639c] focus:outline-none"
-            value={access2FAToken}
-            onChange={(event) => setAccess2FAToken(event.target.value)}
-            placeholder="2FA Code"
-            maxLength={6}
-            pattern="\d{6}"
-            required
-          />
-        )}
-
-        <button
-          disabled={submitting || complete}
-          type="submit"
-          className="relative w-full max-w-lg bg-[#0e639c] text-white px-4 py-2 rounded hover:bg-[#1177bb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {submitting ? (
-            <div>
-              <span className="w-6 h-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <Spinner />
-              </span>
-              &nbsp;
-            </div>
-          ) : complete ? (
-            <span>Redirecting to dashboard, please wait...</span>
-          ) : (
-            <span>Login</span>
-          )}
-        </button>
-
-        <div className="w-full max-w-lg">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#2d2d2d]"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-[#1e1e1e] text-[#858585]">Or</span>
-            </div>
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-lg border border-[#2a303a] bg-[#1b1f27] p-5 shadow-2xl shadow-black/30">
+        <div className="mb-5 flex flex-col items-center gap-3">
+          <Image src="/logo.png" alt="MagickMonkey logo" width={40} height={40} className="rounded-md" priority />
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-white">MagickMonkey</h1>
+            <p className="mt-1 text-sm text-[#9aa4b2]">Sign in to open the script editor</p>
           </div>
         </div>
 
-        {vercel2FAOrigin ? (
-          <Vercel2FALoginButton authCenterOrigin={vercel2FAOrigin} postLoginPath={redirectUrl} />
-        ) : (
-          <p className="text-xs text-[#858585] text-center max-w-lg leading-relaxed">
-            Optional: set <code className="text-[#cccccc]">NEXT_PUBLIC_SIGNET_SDK_URL</code> to your hosted <code className="text-[#cccccc]">signet-client.mjs</code> (same-origin
-            Signet); see <code className="text-[#cccccc]">.env.example</code>.
-          </p>
-        )}
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative w-full">
+            <FiUser className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6f7a8a]" />
+            <input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" required className={inputWithLeftIconClass} />
+          </div>
 
-        <a
-          href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDavidKk%2Fvercel-web-scripts"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full max-w-lg bg-[#252526] border border-[#2d2d2d] text-[#cccccc] px-4 py-2 rounded hover:bg-[#2d2d2d] hover:border-[#3e3e42] transition-colors"
-        >
-          <svg width="16" height="16" viewBox="0 0 76 65" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="white" />
-          </svg>
-          <span>Deploy to Vercel</span>
-        </a>
+          <div className="relative w-full">
+            <FiLock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6f7a8a]" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Password"
+              required
+              className={passwordInputClass}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-2 top-1/2 rounded p-1 text-[#6f7a8a] -translate-y-1/2 transition-colors hover:bg-[#2a303a] hover:text-white"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
+            </button>
+          </div>
 
-        <Alert ref={alertRef} />
+          {enable2FA && (
+            <input
+              value={access2FAToken}
+              onChange={(event) => setAccess2FAToken(event.target.value)}
+              placeholder="2FA Code"
+              maxLength={6}
+              pattern="\d{6}"
+              required
+              className={`${inputClass} text-center tracking-[1em]`}
+            />
+          )}
+
+          <label className="flex w-full cursor-pointer select-none items-center gap-2 text-sm text-[#9aa4b2]">
+            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+              <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="peer sr-only" />
+              <span className="absolute inset-0 rounded border border-[#2a303a] bg-[#171a21] transition-colors peer-checked:border-[#3b82f6] peer-checked:bg-[#3b82f6]" />
+              <FiCheck className="relative h-3 w-3 text-white opacity-0 transition-opacity peer-checked:opacity-100" />
+            </span>
+            <span>Remember me</span>
+          </label>
+
+          <button
+            disabled={submitting || complete}
+            type="submit"
+            className="relative w-full bg-[#3b82f6] text-white px-4 py-2.5 rounded font-medium hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {submitting ? (
+              <div>
+                <span className="w-6 h-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <Spinner />
+                </span>
+                &nbsp;
+              </div>
+            ) : complete ? (
+              <span>Redirecting to dashboard, please wait...</span>
+            ) : (
+              <span>Login</span>
+            )}
+          </button>
+
+          <div className="w-full max-w-lg">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#2a303a]"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-[#1b1f27] text-[#6f7a8a]">Or</span>
+              </div>
+            </div>
+          </div>
+
+          {vercel2FAOrigin ? (
+            <Vercel2FALoginButton authCenterOrigin={vercel2FAOrigin} postLoginPath={redirectUrl} rememberMe={rememberMe} />
+          ) : (
+            <p className="text-xs text-[#6f7a8a] text-center max-w-lg leading-relaxed">
+              Optional: set <code className="text-[#cbd5e1]">NEXT_PUBLIC_SIGNET_SDK_URL</code> to your hosted <code className="text-[#cbd5e1]">signet-client.mjs</code> (same-origin
+              Signet); see <code className="text-[#cbd5e1]">.env.example</code>.
+            </p>
+          )}
+
+          <Alert ref={alertRef} />
+        </div>
 
         {/* {oauth.available && (
           <>

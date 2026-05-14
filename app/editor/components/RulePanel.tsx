@@ -185,7 +185,7 @@ export function RulePanel(props: RulePanelProps) {
 
   if (!selectedFile) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#1e1e1e] text-[#858585]">
+      <div className="h-full flex items-center justify-center bg-[#111318] text-[#6f7a8a]">
         <div className="text-center">
           <p className="text-sm">No file selected</p>
           <p className="text-xs mt-1">Select a script file to manage its rules</p>
@@ -196,25 +196,25 @@ export function RulePanel(props: RulePanelProps) {
 
   if (!isScript) {
     return (
-      <div className="h-full flex flex-col bg-[#1e1e1e] border-l border-[#2d2d2d] overflow-hidden">
+      <div className="h-full flex flex-col bg-[#111318] border-l border-[#2a303a] overflow-hidden">
         {/* Header */}
-        <div className="h-[33px] px-3 text-xs font-semibold text-[#cccccc] uppercase border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-0 z-10 flex items-center">
+        <div className="h-[33px] px-3 text-xs font-semibold text-[#cbd5e1] uppercase border-b border-[#2a303a] bg-[#111318] sticky top-0 z-10 flex items-center">
           <div className="flex items-center gap-2">
-            <FiGlobe className="w-3.5 h-3.5 text-[#007acc]" />
+            <FiGlobe className="w-3.5 h-3.5 text-[#3b82f6]" />
             <span>URL Rules</span>
           </div>
         </div>
 
         {/* Description */}
-        <div className="px-3 py-2 border-b border-[#2d2d2d] bg-[#252526]">
-          <p className="text-xs text-[#858585]">Configure which URLs this script runs on</p>
+        <div className="px-3 py-2 border-b border-[#2a303a] bg-[#171a21]">
+          <p className="text-xs text-[#6f7a8a]">Configure which URLs this script runs on</p>
         </div>
 
         {/* Not supported message */}
-        <div className="flex-1 flex items-center justify-center text-[#858585] px-4">
+        <div className="flex-1 flex items-center justify-center text-[#6f7a8a] px-4">
           <div className="text-center">
             <p className="text-sm mb-1">Rules are only available for script files</p>
-            <p className="text-xs text-[#6a6a6a]">Please select a TypeScript (.ts) or JavaScript (.js) file</p>
+            <p className="text-xs text-[#6f7a8a]">Please select a TypeScript (.ts) or JavaScript (.js) file</p>
           </div>
         </div>
       </div>
@@ -222,22 +222,22 @@ export function RulePanel(props: RulePanelProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#1e1e1e] border-l border-[#2d2d2d] overflow-hidden">
+    <div className="h-full flex flex-col bg-[#111318] border-l border-[#2a303a] overflow-hidden">
       {/* Header */}
-      <div className="h-[33px] px-3 text-xs font-semibold text-[#cccccc] uppercase border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-0 z-10 flex items-center justify-between">
+      <div className="h-[33px] px-3 text-xs font-semibold text-[#cbd5e1] uppercase border-b border-[#2a303a] bg-[#111318] sticky top-0 z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span>URL Rules</span>
         </div>
         <div className="flex items-center gap-1">
           <button
-            className="px-1.5 py-0.5 text-xs hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
+            className="px-1.5 py-0.5 text-xs hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors"
             onClick={handleAddMultiple}
             title="Add Multiple Rules (3 at once)"
             type="button"
           >
             +3
           </button>
-          <button className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors" onClick={handleAddRule} title="Add Rule" type="button">
+          <button className="p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors" onClick={handleAddRule} title="Add Rule" type="button">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -246,18 +246,18 @@ export function RulePanel(props: RulePanelProps) {
       </div>
 
       {/* Description */}
-      <div className="px-3 py-2 border-b border-[#2d2d2d] bg-[#252526]">
-        <p className="text-xs text-[#858585]">Configure which URLs this script runs on</p>
+      <div className="px-3 py-2 border-b border-[#2a303a] bg-[#171a21]">
+        <p className="text-xs text-[#6f7a8a]">Configure which URLs this script runs on</p>
       </div>
 
       {/* Rules List */}
       <div className="flex-1 overflow-auto">
         {rules.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-[#858585] px-4">
+          <div className="h-full flex flex-col items-center justify-center text-[#6f7a8a] px-4">
             <p className="text-sm mb-1">No URL rules</p>
-            <p className="text-xs text-[#6a6a6a] mb-4">Add rules to specify where this script runs</p>
-            <div className="text-xs text-[#6a6a6a] space-y-1">
-              <p className="font-mono text-[#858585]">Example:</p>
+            <p className="text-xs text-[#6f7a8a] mb-4">Add rules to specify where this script runs</p>
+            <div className="text-xs text-[#6f7a8a] space-y-1">
+              <p className="font-mono text-[#6f7a8a]">Example:</p>
               <p className="font-mono">*://*.example.com/*</p>
               <p className="font-mono">*://github.com/*</p>
             </div>
@@ -265,7 +265,7 @@ export function RulePanel(props: RulePanelProps) {
         ) : (
           <div className="py-1">
             {rules.map((rule) => (
-              <div key={rule.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2d2e] transition-colors border-b border-[#2d2d2d] last:border-b-0">
+              <div key={rule.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#202634] transition-colors border-b border-[#2a303a] last:border-b-0">
                 <input
                   ref={(el) => {
                     inputRefs.current[rule.id] = el
@@ -275,11 +275,11 @@ export function RulePanel(props: RulePanelProps) {
                   onChange={(e) => handleWildcardChange(rule.id, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, rule.id)}
                   placeholder="*://*.example.com/*"
-                  className="flex-1 h-5 px-1.5 text-xs bg-transparent border-none text-[#cccccc] placeholder:text-[#6a6a6a] focus:outline-none focus:bg-[#1e1e1e] focus:ring-1 focus:ring-[#007acc] rounded"
+                  className="flex-1 h-5 px-1.5 text-xs bg-transparent border-none text-[#cbd5e1] placeholder:text-[#6f7a8a] focus:outline-none focus:bg-[#111318] focus:ring-1 focus:ring-[#3b82f6] rounded"
                 />
                 <button
                   onClick={() => handleDeleteRule(rule.id)}
-                  className="p-0.5 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
+                  className="p-0.5 hover:bg-[#3a4352] rounded text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
                   title="Delete Rule"
                   type="button"
                   tabIndex={-1}

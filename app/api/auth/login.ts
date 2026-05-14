@@ -4,9 +4,10 @@ import { serialize } from 'cookie'
 
 import { verify2fa } from '@/services/2fa'
 import { AUTH_TOKEN_NAME } from '@/services/auth/constants'
+import { getSessionMaxAge } from '@/services/auth/sessionDuration'
 import { generateToken } from '@/utils/jwt'
 
-export async function login(username: string, password: string, token: string) {
+export async function login(username: string, password: string, token: string, rememberMe = false) {
   if (!username) {
     throw new Error('Username is required')
   }
@@ -26,11 +27,12 @@ export async function login(username: string, password: string, token: string) {
     throw new Error('Invalid username or password')
   }
 
-  const authToken = await generateToken({ authenticated: true, sub: username })
+  const maxAge = getSessionMaxAge(rememberMe)
+  const authToken = await generateToken({ authenticated: true, sub: username }, { expiresIn: maxAge })
   const cookie = serialize(AUTH_TOKEN_NAME, authToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60,
+    maxAge,
     path: '/',
   })
 

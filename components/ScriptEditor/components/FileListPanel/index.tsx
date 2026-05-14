@@ -286,7 +286,7 @@ export default function FileListPanel({
   return (
     <div
       ref={fileTreePanelRef}
-      className="w-full h-full bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col relative"
+      className="w-full h-full bg-[#111318] border-r border-[#2a303a] flex flex-col relative"
       style={{ fontSize: FILE_LIST_ROW.fontSize, lineHeight: FILE_LIST_ROW.lineHeight }}
     >
       <FileListPanelHeader
@@ -337,8 +337,8 @@ export default function FileListPanel({
               lineHeight: FILE_LIST_ROW.lineHeight,
             }}
           >
-            <VscFileCode className="w-4 h-4 mr-2 text-[#cccccc] flex-shrink-0" />
-            <div className="flex items-center flex-1 bg-[#3c3c3c] rounded px-1">
+            <VscFileCode className="w-4 h-4 mr-2 text-[#cbd5e1] flex-shrink-0" />
+            <div className="flex items-center flex-1 bg-[#2a303a] rounded px-1">
               <input
                 autoFocus
                 className="bg-transparent text-white outline-none flex-1 min-w-0"
@@ -355,7 +355,7 @@ export default function FileListPanel({
                   }
                 }}
               />
-              <span className="text-[#858585] text-xs">.ts</span>
+              <span className="text-[#6f7a8a] text-xs">.ts</span>
             </div>
           </div>
         )}
@@ -364,8 +364,8 @@ export default function FileListPanel({
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center min-h-full">
             <div className="text-center flex flex-col items-center">
-              <Spinner color="text-[#007acc]" />
-              <p className="text-sm text-[#cccccc] mt-3">Loading files...</p>
+              <Spinner color="text-[#3b82f6]" />
+              <p className="text-sm text-[#cbd5e1] mt-3">Loading files...</p>
             </div>
           </div>
         ) : filteredRoot.children.size === 0 ? (
@@ -374,15 +374,15 @@ export default function FileListPanel({
             <div className="text-center flex flex-col items-center">
               {searchQuery.trim() ? (
                 <>
-                  <VscSearch className="w-12 h-12 text-[#858585] mb-3" />
-                  <p className="text-sm text-[#cccccc] mb-1">No files found</p>
-                  <p className="text-xs text-[#858585]">Try a different search term</p>
+                  <VscSearch className="w-12 h-12 text-[#6f7a8a] mb-3" />
+                  <p className="text-sm text-[#cbd5e1] mb-1">No files found</p>
+                  <p className="text-xs text-[#6f7a8a]">Try a different search term</p>
                 </>
               ) : (
                 <>
-                  <VscFolder className="w-12 h-12 text-[#858585] mb-3" />
-                  <p className="text-sm text-[#cccccc] mb-1">No files</p>
-                  <p className="text-xs text-[#858585]">Click the + button to add a file</p>
+                  <VscFolder className="w-12 h-12 text-[#6f7a8a] mb-3" />
+                  <p className="text-sm text-[#cbd5e1] mb-1">No files</p>
+                  <p className="text-xs text-[#6f7a8a]">Click the + button to add a file</p>
                 </>
               )}
             </div>

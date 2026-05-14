@@ -393,7 +393,7 @@ export function LocalMapProvider({ storageKey, onNotify, typingsForLocal, onLoca
         message={
           <span>
             The following file(s) already exist locally with different content. Choose an action:
-            <ul className="mt-2 list-disc list-inside text-[#858585] space-y-0.5">
+            <ul className="mt-2 list-disc list-inside text-[#6f7a8a] space-y-0.5">
               {conflictList.map((c) => (
                 <li key={c.path}>{c.path}</li>
               ))}

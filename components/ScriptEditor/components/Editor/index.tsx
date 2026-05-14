@@ -190,13 +190,13 @@ export default function InternalCodeEditor({
   const isDiffMode = !!diffMode
 
   return (
-    <div className="h-full w-full overflow-hidden relative border border-[#2d2d2d] bg-[#1e1e1e]">
+    <div className="h-full w-full overflow-hidden relative border border-[#2a303a] bg-[#111318]">
       {/* Loading Overlay - only shows until the active mode is ready */}
       {((!isDiffMode && !isEditorReady) || (isDiffMode && !isDiffEditorReady)) && (
-        <div className="absolute inset-0 bg-[#1e1e1e] flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-[#111318] flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-3">
-            <Spinner color="text-[#cccccc]" />
-            <span className="text-sm text-[#cccccc]">Loading {isDiffMode ? 'Diff Editor' : 'Editor'}...</span>
+            <Spinner color="text-[#cbd5e1]" />
+            <span className="text-sm text-[#cbd5e1]">Loading {isDiffMode ? 'Diff Editor' : 'Editor'}...</span>
           </div>
         </div>
       )}
@@ -236,17 +236,17 @@ export default function InternalCodeEditor({
           />
         </div>
         {isDiffMode && (diffMode.onAccept || diffMode.onReject) && (
-          <div className="flex items-center justify-end gap-2 p-3 border-t border-[#2d2d2d] bg-[#1e1e1e] flex-shrink-0">
+          <div className="flex items-center justify-end gap-2 p-3 border-t border-[#2a303a] bg-[#111318] flex-shrink-0">
             {diffMode.onReject && (
               <button
                 onClick={diffMode.onReject}
-                className="px-4 py-2 text-[#d4d4d4] hover:text-[#ffffff] hover:bg-[#2d2d2d] rounded transition-colors flex items-center gap-2 text-sm"
+                className="px-4 py-2 text-[#e6eaf0] hover:text-[#ffffff] hover:bg-[#2a303a] rounded transition-colors flex items-center gap-2 text-sm"
               >
                 Reject
               </button>
             )}
             {diffMode.onAccept && (
-              <button onClick={diffMode.onAccept} className="px-4 py-2 bg-[#059669] text-[#ffffff] hover:bg-[#047857] rounded transition-colors flex items-center gap-2 text-sm">
+              <button onClick={diffMode.onAccept} className="px-4 py-2 bg-[#22c55e] text-[#ffffff] hover:bg-[#16a34a] rounded transition-colors flex items-center gap-2 text-sm">
                 Accept
               </button>
             )}

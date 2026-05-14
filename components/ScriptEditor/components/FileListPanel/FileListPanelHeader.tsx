@@ -55,7 +55,7 @@ export function FileListPanelHeader({
 
   return (
     <>
-      <div className="h-[33px] px-3 text-xs font-semibold text-[#cccccc] uppercase border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-0 z-10 flex items-center justify-between">
+      <div className="h-[33px] px-3 text-xs font-semibold text-[#cbd5e1] uppercase border-b border-[#2a303a] bg-[#111318] sticky top-0 z-10 flex items-center justify-between">
         Files
         <div className="flex items-center gap-1">
           {localMap?.isLocalMapSupported && (
@@ -63,7 +63,7 @@ export function FileListPanelHeader({
               {!localMap.isLocalMapMode ? (
                 <Tooltip content="Map editor to local folder (read-only)" placement="bottom">
                   <button
-                    className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={(e) => {
                       e.stopPropagation()
                       localMap.onMapToLocal()
@@ -82,7 +82,7 @@ export function FileListPanelHeader({
               ) : (
                 <Tooltip content="Close local map" placement="bottom">
                   <button
-                    className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={(e) => {
                       e.stopPropagation()
                       localMap.onCloseLocalMap()
@@ -103,7 +103,7 @@ export function FileListPanelHeader({
           )}
           <Tooltip content="Search files (Cmd+F / Ctrl+F)" placement="bottom">
             <button
-              className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors"
+              className="p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors"
               onClick={(e) => {
                 e.stopPropagation()
                 setIsSearchOpen((prev: boolean) => !prev)
@@ -118,7 +118,7 @@ export function FileListPanelHeader({
           {onResetToOnline && (
             <Tooltip content="Clear local cache and reload from online" placement="bottom">
               <button
-                className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={(e) => {
                   e.stopPropagation()
                   setConfirmState({ open: true, type: 'resetToOnline' })
@@ -138,7 +138,7 @@ export function FileListPanelHeader({
           {onAddFile && (
             <Tooltip content="Add file" placement="bottom">
               <button
-                className="p-1 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={(e) => {
                   e.stopPropagation()
                   onStartAdd()
@@ -153,21 +153,21 @@ export function FileListPanelHeader({
       </div>
 
       {isSearchOpen && (
-        <div className="px-3 py-2 border-b border-[#2d2d2d] bg-[#1e1e1e] sticky top-[33px] z-10">
+        <div className="px-3 py-2 border-b border-[#2a303a] bg-[#111318] sticky top-[33px] z-10">
           <div className="relative flex items-center">
-            <VscSearch className="absolute left-2 w-3.5 h-3.5 text-[#858585]" />
+            <VscSearch className="absolute left-2 w-3.5 h-3.5 text-[#6f7a8a]" />
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search files..."
-              className="w-full pl-7 pr-7 py-1.5 text-sm bg-[#1e1e1e] border border-[#2d2d2d] rounded text-[#cccccc] placeholder-[#858585] focus:outline-none focus:border-[#007acc]"
+              className="w-full pl-7 pr-7 py-1.5 text-sm bg-[#111318] border border-[#2a303a] rounded text-[#cbd5e1] placeholder-[#6f7a8a] focus:outline-none focus:border-[#3b82f6]"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 p-0.5 hover:bg-[#3e3e42] rounded text-[#858585] hover:text-white transition-colors"
+                className="absolute right-2 p-0.5 hover:bg-[#3a4352] rounded text-[#6f7a8a] hover:text-white transition-colors"
                 title="Clear search"
               >
                 <FiX className="w-3.5 h-3.5" />

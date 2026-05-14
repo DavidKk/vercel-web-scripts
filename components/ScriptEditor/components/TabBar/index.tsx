@@ -126,7 +126,7 @@ export default function TabBar({ onTabClick, onTabClose }: TabBarProps) {
     <>
       <div
         ref={scrollContainerRef}
-        className="h-[33px] bg-[#2d2d2d] border-b border-[#2d2d2d] flex items-center overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="h-[33px] bg-[#2a303a] border-b border-[#2a303a] flex items-center overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
         {tabInfos.map((tab) => {
           const isActive = tab.path === tabBar.activeTab
@@ -138,9 +138,9 @@ export default function TabBar({ onTabClick, onTabClose }: TabBarProps) {
               key={tab.path}
               className={`
                 group flex items-center gap-1.5 px-3 py-1.5 h-full cursor-pointer
-                border-r border-[#2d2d2d] min-w-[120px] max-w-[200px]
+                border-r border-[#2a303a] min-w-[120px] max-w-[200px]
                 transition-colors duration-150
-                ${isActive ? 'bg-[#1e1e1e] text-white' : 'bg-[#2d2d2d] text-[#cccccc] hover:bg-[#37373d]'}
+                ${isActive ? 'bg-[#111318] text-white' : 'bg-[#2a303a] text-[#cbd5e1] hover:bg-[#202634]'}
               `}
               onClick={() => handleTabClick(tab.path)}
               onContextMenu={(e) => handleContextMenu(e, tab.path)}
@@ -159,7 +159,7 @@ export default function TabBar({ onTabClick, onTabClose }: TabBarProps) {
 
                 {/* Close button */}
                 <button
-                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#3e3e42] rounded text-gray-400 hover:text-white transition-all duration-150"
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#3a4352] rounded text-gray-400 hover:text-white transition-all duration-150"
                   onClick={(e) => handleTabClose(tab.path, e)}
                   title="Close tab"
                 >
@@ -173,17 +173,17 @@ export default function TabBar({ onTabClick, onTabClose }: TabBarProps) {
 
       {/* Context Menu */}
       {contextMenu && (
-        <div ref={contextMenuRef} className="fixed bg-[#252526] shadow-xl border border-[#3a3a3a] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
-          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors" onClick={handleCloseCurrent}>
+        <div ref={contextMenuRef} className="fixed bg-[#171a21] shadow-xl border border-[#2a303a] py-1 z-[100] min-w-[120px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
+          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#1f3b63] hover:text-white transition-colors" onClick={handleCloseCurrent}>
             Close
           </button>
-          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors" onClick={handleCloseTabsToRight}>
+          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#1f3b63] hover:text-white transition-colors" onClick={handleCloseTabsToRight}>
             Close Tabs to the Right
           </button>
-          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#094771] hover:text-white transition-colors" onClick={handleCloseOtherTabs}>
+          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#1f3b63] hover:text-white transition-colors" onClick={handleCloseOtherTabs}>
             Close Others
           </button>
-          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cccccc] hover:bg-[#ce3c3c] hover:text-white transition-colors" onClick={handleCloseAllTabs}>
+          <button className="w-full text-left px-3 py-1.5 text-sm text-[#cbd5e1] hover:bg-[#ef4444] hover:text-white transition-colors" onClick={handleCloseAllTabs}>
             Close All
           </button>
         </div>
