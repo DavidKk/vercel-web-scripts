@@ -18,7 +18,7 @@ export interface Vercel2FALoginButtonProps {
 const COOKIE_MAX_AGE_SEC = 600
 
 /**
- * Redirect the browser to the unified Vercel 2FA `/login` flow (sets short-lived cookies for `state` and post-login path).
+ * Redirect the browser to the Signet auth center `/login` flow (sets short-lived cookies for `state` and post-login path).
  */
 export function Vercel2FALoginButton(props: Vercel2FALoginButtonProps) {
   const { authCenterOrigin, callbackPath = '/auth/vercel-2fa/callback', postLoginPath = '/editor' } = props
@@ -70,7 +70,7 @@ export function Vercel2FALoginButton(props: Vercel2FALoginButtonProps) {
         onClick={handleClick}
         className="flex items-center justify-center gap-2 w-full max-w-lg bg-[#1e3a5f] border border-[#2b5278] text-[#e0e8f0] px-4 py-2 rounded hover:bg-[#254a73] hover:border-[#3d6a9a] transition-colors"
       >
-        <span className="font-medium">Sign in with Vercel 2FA</span>
+        <span className="font-medium">Continue with Signet</span>
       </button>
       {sdkError ? (
         <p className="text-xs text-red-400 text-center leading-relaxed">

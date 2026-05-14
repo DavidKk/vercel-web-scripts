@@ -15,7 +15,7 @@ import { useOAuthLoginContext, withOAuthLogin } from '@/services/oauth-login/wit
 export interface LoginFormProps {
   enable2FA?: boolean
   redirectUrl?: string
-  /** When set, shows “Sign in with Vercel 2FA” (auth center base URL; see `getSignetAuthCenterOrigin`). */
+  /** When set, shows “Continue with Signet” (auth center base URL; see `getSignetAuthCenterOrigin`). */
   vercel2FAOrigin?: string | null
 }
 
@@ -112,12 +112,12 @@ function LoginForm(props: LoginFormProps) {
     }
     const message =
       err === 'missing_token'
-        ? 'Vercel 2FA login missing token. Try again.'
+        ? 'Signet login missing token. Try again.'
         : err === 'invalid_state'
-          ? 'Vercel 2FA state check failed. Try signing in again.'
+          ? 'Signet login state check failed. Try signing in again.'
           : err === 'verify_failed'
             ? 'Could not verify login with the auth center. Check auth center origin env (see getSignetAuthCenterOrigin) and auth center logs.'
-            : `Vercel 2FA login error: ${err}`
+            : `Signet login error: ${err}`
     alertRef.current?.show(message, { type: 'error' })
     params.delete('vf2fa_error')
     const qs = params.toString()
