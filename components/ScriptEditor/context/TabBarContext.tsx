@@ -18,6 +18,13 @@ export interface TabInfo {
   status: FileStatus | undefined
   /** Whether file has unsaved changes */
   hasUnsavedChanges: boolean
+  /** Whether this tab is a replaceable preview tab */
+  isPreview: boolean
+}
+
+export interface OpenTabOptions {
+  /** Whether this open should reuse the current clean preview tab */
+  preview?: boolean
 }
 
 /**
@@ -33,7 +40,7 @@ export interface TabBarContextValue {
   /** Get all tab information */
   getAllTabInfo: () => TabInfo[]
   /** Open a tab (add to list if not already open) */
-  openTab: (path: string) => void
+  openTab: (path: string, options?: OpenTabOptions) => void
   /** Close a tab */
   closeTab: (path: string) => void
   /** Switch to a tab (set as active) */
@@ -73,6 +80,7 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
   const fileState = useFileState()
   const [openTabs, setOpenTabs] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [previewTab, setPreviewTab] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const hasValidatedTabsRef = useRef(false)
 
@@ -144,10 +152,12 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
           }
           return prevActive
         })
+        setPreviewTab((prevPreview) => (prevPreview && validTabs.includes(prevPreview) ? prevPreview : null))
         return validTabs
       } else {
         // All tabs are invalid, clear them
         setActiveTab(null)
+        setPreviewTab(null)
         return []
       }
     })
@@ -188,9 +198,10 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
         name,
         status: file.status,
         hasUnsavedChanges: fileState.hasUnsavedChanges(path),
+        isPreview: previewTab === path,
       }
     },
-    [fileState]
+    [fileState, previewTab]
   )
 
   /**
@@ -207,16 +218,42 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
   /**
    * Open a tab (add to list if not already open)
    * @param path File path
+   * @param options Optional open behavior
    */
-  const openTab = useCallback((path: string) => {
-    setOpenTabs((prev) => {
-      if (prev.includes(path)) {
-        return prev
-      }
-      return [...prev, path]
-    })
-    setActiveTab(path)
-  }, [])
+  const openTab = useCallback(
+    (path: string, options?: OpenTabOptions) => {
+      const preview = options?.preview === true
+
+      setOpenTabs((prev) => {
+        if (prev.includes(path)) {
+          if (!preview && previewTab === path) {
+            setPreviewTab(null)
+          }
+          return prev
+        }
+
+        if (preview && previewTab) {
+          const currentPreviewFile = fileState.getFile(previewTab)
+          const canReplacePreview = prev.includes(previewTab) && currentPreviewFile && currentPreviewFile.status !== FileStatus.Deleted && !fileState.hasUnsavedChanges(previewTab)
+
+          if (canReplacePreview) {
+            setPreviewTab(path)
+            return prev.map((tab) => (tab === previewTab ? path : tab))
+          }
+        }
+
+        if (preview) {
+          setPreviewTab(path)
+        } else if (previewTab === path) {
+          setPreviewTab(null)
+        }
+
+        return [...prev, path]
+      })
+      setActiveTab(path)
+    },
+    [fileState, previewTab]
+  )
 
   /**
    * Close a tab
@@ -237,10 +274,13 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
             setActiveTab(null)
           }
         }
+        if (path === previewTab) {
+          setPreviewTab(null)
+        }
         return newTabs
       })
     },
-    [activeTab]
+    [activeTab, previewTab]
   )
 
   /**
@@ -254,9 +294,12 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
         openTab(path)
       } else {
         setActiveTab(path)
+        if (previewTab === path) {
+          setPreviewTab(null)
+        }
       }
     },
-    [openTabs, openTab]
+    [openTabs, openTab, previewTab]
   )
 
   /**
@@ -265,6 +308,7 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
   const closeAllTabs = useCallback(() => {
     setOpenTabs([])
     setActiveTab(null)
+    setPreviewTab(null)
   }, [])
 
   /**
@@ -274,6 +318,7 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
   const closeOtherTabs = useCallback((path: string) => {
     setOpenTabs([path])
     setActiveTab(path)
+    setPreviewTab((current) => (current === path ? current : null))
   }, [])
 
   /**
@@ -292,10 +337,13 @@ export function TabBarProvider({ children }: TabBarProviderProps) {
         if (activeTab && !newTabs.includes(activeTab)) {
           setActiveTab(newTabs[newTabs.length - 1] || null)
         }
+        if (previewTab && !newTabs.includes(previewTab)) {
+          setPreviewTab(null)
+        }
         return newTabs
       })
     },
-    [activeTab]
+    [activeTab, previewTab]
   )
 
   /**

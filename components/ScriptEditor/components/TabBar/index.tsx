@@ -150,7 +150,7 @@ export default function TabBar({ onTabClick, onTabClose }: TabBarProps) {
               <span className="flex-shrink-0">{getFileIcon(fileName)}</span>
 
               {/* File name */}
-              <span className="text-xs flex-1 truncate">{fileName}</span>
+              <span className={`text-xs flex-1 truncate ${tab.isPreview ? 'italic' : ''}`}>{fileName}</span>
 
               {/* State indicator or close button */}
               <div className="flex items-center gap-1 flex-shrink-0">

@@ -120,8 +120,8 @@ function ScriptEditorContentBody({
   /**
    * Handle file selection
    */
-  function handleSelectFile(path: string) {
-    tabBar.openTab(path)
+  function handleSelectFile(path: string, options?: { preview?: boolean }) {
+    tabBar.openTab(path, options)
   }
 
   /**

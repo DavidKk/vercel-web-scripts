@@ -20,7 +20,7 @@ export interface FileListPanelProps {
   /** Selected file path */
   selectedFile: string | null
   /** Callback when file is selected */
-  onSelectFile: (filePath: string) => void
+  onSelectFile: (filePath: string, options?: { preview?: boolean }) => void
   /** Callback when file is deleted */
   onDeleteFile?: (filePath: string) => void
   /** Callback when new file is added */

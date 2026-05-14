@@ -10,6 +10,7 @@ import { createFileStateProvider } from './FileStateContext.spec'
 function createTabBarProvider(fileState: ReturnType<typeof createFileStateProvider>): TabBarContextValue {
   let openTabs: string[] = []
   let activeTab: string | null = null
+  let previewTab: string | null = null
 
   const getTabInfo = (path: string) => {
     const file = fileState.getFile(path)
@@ -23,6 +24,7 @@ function createTabBarProvider(fileState: ReturnType<typeof createFileStateProvid
       name,
       status: file.status,
       hasUnsavedChanges: fileState.hasUnsavedChanges(path),
+      isPreview: previewTab === path,
     }
   }
 
@@ -33,9 +35,27 @@ function createTabBarProvider(fileState: ReturnType<typeof createFileStateProvid
       .filter((tab) => tab!.status !== FileStatus.Deleted)
   }
 
-  const openTab = (path: string) => {
+  const openTab = (path: string, options?: { preview?: boolean }) => {
+    const preview = options?.preview === true
     if (!openTabs.includes(path)) {
+      if (preview && previewTab) {
+        const currentPreviewFile = fileState.getFile(previewTab)
+        const canReplacePreview =
+          openTabs.includes(previewTab) && currentPreviewFile && currentPreviewFile.status !== FileStatus.Deleted && !fileState.hasUnsavedChanges(previewTab)
+
+        if (canReplacePreview) {
+          openTabs = openTabs.map((tab) => (tab === previewTab ? path : tab))
+          previewTab = path
+          activeTab = path
+          return
+        }
+      }
       openTabs = [...openTabs, path]
+    }
+    if (preview) {
+      previewTab = path
+    } else if (previewTab === path) {
+      previewTab = null
     }
     activeTab = path
   }
@@ -51,6 +71,9 @@ function createTabBarProvider(fileState: ReturnType<typeof createFileStateProvid
         activeTab = null
       }
     }
+    if (path === previewTab) {
+      previewTab = null
+    }
     openTabs = newTabs
   }
 
@@ -59,17 +82,24 @@ function createTabBarProvider(fileState: ReturnType<typeof createFileStateProvid
       openTab(path)
     } else {
       activeTab = path
+      if (previewTab === path) {
+        previewTab = null
+      }
     }
   }
 
   const closeAllTabs = () => {
     openTabs = []
     activeTab = null
+    previewTab = null
   }
 
   const closeOtherTabs = (path: string) => {
     openTabs = [path]
     activeTab = path
+    if (previewTab !== path) {
+      previewTab = null
+    }
   }
 
   const closeTabsToRight = (path: string) => {
@@ -80,6 +110,9 @@ function createTabBarProvider(fileState: ReturnType<typeof createFileStateProvid
     const newTabs = openTabs.slice(0, currentIndex + 1)
     if (activeTab && !newTabs.includes(activeTab)) {
       activeTab = newTabs[newTabs.length - 1] || null
+    }
+    if (previewTab && !newTabs.includes(previewTab)) {
+      previewTab = null
     }
     openTabs = newTabs
   }
@@ -151,6 +184,48 @@ describe('TabBarContext', () => {
       expect(tabBar.getTabCount()).toBe(3)
       expect(tabBar.openTabs).toEqual(['file1.ts', 'file2.ts', 'file3.ts'])
       expect(tabBar.activeTab).toBe('file3.ts')
+    })
+
+    it('should replace a clean preview tab when opening another preview', () => {
+      const fileState = createFileStateProvider({
+        'file1.ts': 'content1',
+        'file2.ts': 'content2',
+      })
+      const tabBar = createTabBarProvider(fileState)
+
+      tabBar.openTab('file1.ts', { preview: true })
+      tabBar.openTab('file2.ts', { preview: true })
+
+      expect(tabBar.openTabs).toEqual(['file2.ts'])
+      expect(tabBar.activeTab).toBe('file2.ts')
+      expect(tabBar.getTabInfo('file2.ts')?.isPreview).toBe(true)
+    })
+
+    it('should keep a modified preview tab when opening another preview', () => {
+      const fileState = createFileStateProvider({
+        'file1.ts': 'content1',
+        'file2.ts': 'content2',
+      })
+      const tabBar = createTabBarProvider(fileState)
+
+      tabBar.openTab('file1.ts', { preview: true })
+      fileState.updateFile('file1.ts', 'modified')
+      tabBar.openTab('file2.ts', { preview: true })
+
+      expect(tabBar.openTabs).toEqual(['file1.ts', 'file2.ts'])
+      expect(tabBar.activeTab).toBe('file2.ts')
+      expect(tabBar.getTabInfo('file1.ts')?.isPreview).toBe(false)
+      expect(tabBar.getTabInfo('file2.ts')?.isPreview).toBe(true)
+    })
+
+    it('should pin a preview tab when opened without preview mode', () => {
+      const fileState = createFileStateProvider({ 'file1.ts': 'content1' })
+      const tabBar = createTabBarProvider(fileState)
+
+      tabBar.openTab('file1.ts', { preview: true })
+      tabBar.openTab('file1.ts')
+
+      expect(tabBar.getTabInfo('file1.ts')?.isPreview).toBe(false)
     })
   })
 

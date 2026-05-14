@@ -27,7 +27,7 @@ export interface FileTreeNodeProps {
   /** Get file status for path (for status indicator) */
   getFileStatus: (path: string) => FileStatus | undefined
   /** Callback when file is selected */
-  onSelectFile: (path: string) => void
+  onSelectFile: (path: string, options?: { preview?: boolean }) => void
   /** Toggle directory expand/collapse */
   toggleExpand: (path: string) => void
   /** Start editing (rename) for path */
@@ -94,12 +94,12 @@ export function FileTreeNode({
           if (node.isDirectory) {
             toggleExpand(node.path)
           } else {
-            onSelectFile(node.path)
+            onSelectFile(node.path, { preview: true })
           }
         }}
         onDoubleClick={() => {
           if (!node.isDirectory) {
-            onSelectFile(node.path)
+            onSelectFile(node.path, { preview: false })
           }
         }}
         onContextMenu={(e) => onContextMenu(e, node.path, node.name, node.isDirectory)}
