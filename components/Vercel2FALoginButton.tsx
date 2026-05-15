@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { FiShield } from 'react-icons/fi'
 
 import { loadSignetSdk } from '@/lib/load-signet-sdk'
-import { getSignetSdkModuleUrl } from '@/lib/signet-sdk-url'
 import { VF2FA_NEXT_COOKIE, VF2FA_OAUTH_STATE_COOKIE, VF2FA_REMEMBER_ME_COOKIE } from '@/services/auth/constants'
 
 export interface Vercel2FALoginButtonProps {
-  /** Auth center base URL (e.g. http://localhost:3000). Resolved with server via `getSignetAuthCenterOrigin()`. */
+  /** Auth center base URL (e.g. http://localhost:3000). Resolved on the server via `getSignetAuthCenterOrigin()`. */
   authCenterOrigin: string
+  /** Hosted `signet-client.mjs` URL from the server (`getSignetSdkModuleUrl()`), since `SIGNET_SDK_URL` is not available in the browser. */
+  signetSdkModuleUrl: string
   /** App path for the OAuth callback (must be allowlisted on the auth center). */
   callbackPath?: string
   /** Relative path after login (e.g. /editor). Must start with `/` and must not be `//`. */
@@ -24,14 +25,13 @@ const COOKIE_MAX_AGE_SEC = 600
  * Redirect the browser to the Signet auth center `/login` flow (sets short-lived cookies for `state` and post-login path).
  */
 export function Vercel2FALoginButton(props: Vercel2FALoginButtonProps) {
-  const { authCenterOrigin, callbackPath = '/auth/vercel-2fa/callback', postLoginPath = '/editor', rememberMe = false } = props
+  const { authCenterOrigin, signetSdkModuleUrl, callbackPath = '/auth/vercel-2fa/callback', postLoginPath = '/editor', rememberMe = false } = props
 
-  const sdkUrl = getSignetSdkModuleUrl()
   const [sdkError, setSdkError] = useState<string | null>(null)
 
   const ensureSdk = useCallback(async () => {
-    return loadSignetSdk()
-  }, [])
+    return loadSignetSdk(signetSdkModuleUrl)
+  }, [signetSdkModuleUrl])
 
   useEffect(() => {
     void ensureSdk()
@@ -79,7 +79,7 @@ export function Vercel2FALoginButton(props: Vercel2FALoginButtonProps) {
       </button>
       {sdkError ? (
         <p className="text-xs text-red-400 text-center leading-relaxed">
-          Could not load Signet SDK from <code className="text-[#cbd5e1]">{sdkUrl}</code>: {sdkError}
+          Could not load Signet SDK from <code className="text-[#cbd5e1]">{signetSdkModuleUrl}</code>: {sdkError}
         </p>
       ) : null}
     </div>

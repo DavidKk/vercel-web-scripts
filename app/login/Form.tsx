@@ -18,10 +18,12 @@ export interface LoginFormProps {
   redirectUrl?: string
   /** When set, shows “Continue with Signet” (auth center base URL; see `getSignetAuthCenterOrigin`). */
   vercel2FAOrigin?: string | null
+  /** Hosted Signet SDK URL from the server (`getSignetSdkModuleUrl()`); required when `vercel2FAOrigin` is set. */
+  signetSdkModuleUrl?: string
 }
 
 function LoginForm(props: LoginFormProps) {
-  const { enable2FA, redirectUrl = '/', vercel2FAOrigin } = props
+  const { enable2FA, redirectUrl = '/', vercel2FAOrigin, signetSdkModuleUrl } = props
   const oauth = useOAuthLoginContext()
 
   if (oauth.isHandlingCallback) {
@@ -237,12 +239,12 @@ function LoginForm(props: LoginFormProps) {
             </div>
           </div>
 
-          {vercel2FAOrigin ? (
-            <Vercel2FALoginButton authCenterOrigin={vercel2FAOrigin} postLoginPath={redirectUrl} rememberMe={rememberMe} />
+          {vercel2FAOrigin && signetSdkModuleUrl ? (
+            <Vercel2FALoginButton authCenterOrigin={vercel2FAOrigin} signetSdkModuleUrl={signetSdkModuleUrl} postLoginPath={redirectUrl} rememberMe={rememberMe} />
           ) : (
             <p className="text-xs text-[#6f7a8a] text-center max-w-lg leading-relaxed">
-              Optional: set <code className="text-[#cbd5e1]">NEXT_PUBLIC_SIGNET_SDK_URL</code> to your hosted <code className="text-[#cbd5e1]">signet-client.mjs</code> (same-origin
-              Signet); see <code className="text-[#cbd5e1]">.env.example</code>.
+              Optional: set <code className="text-[#cbd5e1]">SIGNET_SDK_URL</code> to your hosted <code className="text-[#cbd5e1]">signet-client.mjs</code> (same-origin Signet);
+              see <code className="text-[#cbd5e1]">.env.example</code>.
             </p>
           )}
 

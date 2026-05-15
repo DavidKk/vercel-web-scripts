@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 import { loadSignetSdk } from '@/lib/load-signet-sdk'
-import { getSignetAuthCenterOrigin } from '@/lib/signet-sdk-url'
+import { getSignetAuthCenterOrigin, getSignetSdkModuleUrl } from '@/lib/signet-sdk-url'
 import { AUTH_TOKEN_NAME, VF2FA_NEXT_COOKIE, VF2FA_OAUTH_STATE_COOKIE, VF2FA_REMEMBER_ME_COOKIE } from '@/services/auth/constants'
 import { getSessionMaxAge } from '@/services/auth/sessionDuration'
 import { generateToken } from '@/utils/jwt'
@@ -40,13 +40,12 @@ function safeRelativePath(raw: string | undefined, fallback: string): string {
 export async function GET(request: Request) {
   const authCenterOrigin = getSignetAuthCenterOrigin()
   if (!authCenterOrigin) {
-    return new NextResponse(
-      'Signet origin not configured: set NEXT_PUBLIC_SIGNET_SDK_URL (…/signet-client.mjs on your API host) or VERCEL_2FA_ORIGIN / NEXT_PUBLIC_VERCEL_2FA_ORIGIN. Restart dev server.',
-      { status: 503 }
-    )
+    return new NextResponse('Signet origin not configured: set SIGNET_SDK_URL to your hosted …/signet-client.mjs (same host as the verify API). Restart dev server.', {
+      status: 503,
+    })
   }
 
-  const signet = await loadSignetSdk()
+  const signet = await loadSignetSdk(getSignetSdkModuleUrl())
   const url = new URL(request.url)
   const { token, state } = signet.parseLoginCallbackParams(url.searchParams)
 

@@ -1,26 +1,23 @@
 const DEFAULT_AUTH_CENTER_ORIGIN = 'https://vercel-2fa.vercel.app'
 
+function getExplicitSignetSdkUrlFromEnv(): string | null {
+  const v = process.env.SIGNET_SDK_URL?.trim()
+  return v || null
+}
+
 /**
- * Signet auth center base URL (scheme + host, no path, no trailing slash) for
+ * Signet auth center base URL (scheme + host, no trailing slash) for
  * `buildLoginUrl` / `verifyTokenAtAuthCenter`.
  *
- * Resolution order:
- * 1. `VERCEL_2FA_ORIGIN`
- * 2. `NEXT_PUBLIC_VERCEL_2FA_ORIGIN`
- * 3. If `NEXT_PUBLIC_SIGNET_SDK_URL` points at `…/signet-client.mjs` on some host, use that URL's **origin**
- *    (typical when SDK is served from the same deployment as `/api/auth/verify`). If the `.mjs` is on a **CDN
- *    that is not your Signet API host**, you must still set (1) or (2).
+ * When `SIGNET_SDK_URL` points at `…/signet-client.mjs`, returns that URL’s origin.
+ * Otherwise returns `null` (Signet entry hidden until configured). In the browser,
+ * `SIGNET_SDK_URL` is not exposed—this stays `null` on the client unless you pass
+ * the origin from a Server Component.
+ *
+ * @returns Normalized origin, or `null` if unset or not a `signet-client.mjs` URL
  */
 export function getSignetAuthCenterOrigin(): string | null {
-  const fromServer = process.env.VERCEL_2FA_ORIGIN?.trim().replace(/\/+$/, '')
-  if (fromServer) {
-    return fromServer
-  }
-  const fromPublic = process.env.NEXT_PUBLIC_VERCEL_2FA_ORIGIN?.trim().replace(/\/+$/, '')
-  if (fromPublic) {
-    return fromPublic
-  }
-  const sdkUrl = process.env.NEXT_PUBLIC_SIGNET_SDK_URL?.trim()
+  const sdkUrl = getExplicitSignetSdkUrlFromEnv()
   if (!sdkUrl) {
     return null
   }
@@ -42,11 +39,13 @@ function resolveAuthCenterBaseForSdkUrl(): string {
 
 /**
  * Full URL of the hosted Signet SDK (`signet-client.mjs`).
- * Prefer `NEXT_PUBLIC_SIGNET_SDK_URL` for a CDN or custom path.
- * Otherwise `{getSignetAuthCenterOrigin() or default}/sdk/signet-client.mjs`.
+ * Uses `SIGNET_SDK_URL` when set; otherwise `{default host}/sdk/signet-client.mjs`.
+ * Client bundles cannot read `SIGNET_SDK_URL`—pass this string from a Server Component when it must match the server.
+ *
+ * @returns Absolute SDK module URL
  */
 export function getSignetSdkModuleUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_SIGNET_SDK_URL?.trim()
+  const explicit = getExplicitSignetSdkUrlFromEnv()
   if (explicit) {
     return explicit
   }

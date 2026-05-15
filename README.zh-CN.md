@@ -34,7 +34,7 @@ MagickMonkey 主要用于在 Vercel 上管理和部署自定义脚本。
 
 ### Vercel 2FA 统一登录（可选）
 
-内置回调：`/auth/vercel-2fa/callback`（须写入认证中心 `ALLOWED_REDIRECT_URLS`，例如本应用 `…/auth/vercel-2fa/callback`）。环境变量见 `.env.example`；同源部署通常只需 **`NEXT_PUBLIC_SIGNET_SDK_URL`**（指向 `…/sdk/signet-client.mjs`），`buildLoginUrl` / `verify` 的 host 由 `getSignetAuthCenterOrigin()` 推导。SDK 走 CDN 时需另配 **`VERCEL_2FA_ORIGIN`** 或 **`NEXT_PUBLIC_VERCEL_2FA_ORIGIN`**。客户端与服务端通过 `lib/load-signet-sdk.ts` 动态加载托管 `signet-client.mjs`。
+内置回调：`/auth/vercel-2fa/callback`（须写入认证中心 `ALLOWED_REDIRECT_URLS`）。环境变量见 `.env.example`。设置服务端 **`SIGNET_SDK_URL`**（`…/signet-client.mjs` 的完整 URL）后，`getSignetAuthCenterOrigin()` 推导认证中心 origin，登录页由服务端传入 SDK URL 供浏览器加载；未设置则不显示 Signet 入口。
 
 ## 快速开始
 

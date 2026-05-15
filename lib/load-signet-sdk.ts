@@ -22,7 +22,7 @@ export type SignetClientModule = {
   }) => Promise<{ ok: boolean; status: number; response: Record<string, unknown> | null; error?: string }>
 }
 
-let signetLoadPromise: Promise<SignetClientModule> | null = null
+const signetLoadPromises = new Map<string, Promise<SignetClientModule>>()
 
 function isRemoteModuleUrl(moduleUrl: string): boolean {
   try {
@@ -66,14 +66,19 @@ async function importSignetModule(moduleUrl: string): Promise<SignetClientModule
 /**
  * Cached runtime `import()` of the hosted Signet SDK (browser + Node route handlers).
  * Uses `webpackIgnore` so the bundler does not try to resolve the remote URL at build time.
+ *
+ * @param moduleUrl Optional absolute SDK URL. When omitted, uses `getSignetSdkModuleUrl()` (server reads `SIGNET_SDK_URL`; client falls back to the public default).
+ * @returns Promise of the Signet client module namespace
  */
-export function loadSignetSdk(): Promise<SignetClientModule> {
-  if (!signetLoadPromise) {
-    const url = getSignetSdkModuleUrl()
-    signetLoadPromise = importSignetModule(url).catch((err: unknown) => {
-      signetLoadPromise = null
+export function loadSignetSdk(moduleUrl?: string): Promise<SignetClientModule> {
+  const url = moduleUrl ?? getSignetSdkModuleUrl()
+  let p = signetLoadPromises.get(url)
+  if (!p) {
+    p = importSignetModule(url).catch((err: unknown) => {
+      signetLoadPromises.delete(url)
       throw err
     })
+    signetLoadPromises.set(url, p)
   }
-  return signetLoadPromise
+  return p
 }
