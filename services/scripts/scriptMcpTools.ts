@@ -4,13 +4,16 @@ import { type Tool, tool } from '@/initializer/mcp/tool'
 import {
   batchPatchManagedScriptFiles,
   deleteManagedScriptFile,
+  findManagedScriptFiles,
   getManagedScriptFile,
   getManagedScriptSnippet,
   listManagedScriptFiles,
   patchManagedScriptFile,
+  rebuildManagedScriptIndex,
   renameManagedScriptFile,
   replaceManagedScriptFile,
   searchManagedScriptFiles,
+  updateManagedScriptIndexMetadata,
   upsertManagedScriptFile,
   validateManagedScriptFile,
 } from '@/services/scripts/gistScripts'
@@ -53,7 +56,8 @@ function buildRuntimeSummary() {
     },
     tokenEfficientEditing: {
       preferredFlow: [
-        'Use scripts_search to find candidate files and line-level context before reading full files.',
+        'Use scripts_find to find candidate files by filename, userscript header metadata, aliases, and keywords when the exact filename is unknown.',
+        'Use scripts_search to find line-level code context before reading full files.',
         'Use scripts_snippet to inspect only the needed line ranges.',
         'Use scripts_replace for exact small replacements with expectedCount.',
         'Use scripts_patch for structured local edits within one file.',
@@ -172,6 +176,17 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     async (options) => searchManagedScriptFiles(options)
   )
 
+  const find = tool(
+    'scripts_find',
+    'Find MagickMonkey-managed userscript files by filename, userscript @name, @description, @match, and index aliases/keywords. Prefer this when the user describes a script naturally and the exact filename is unknown. Requires magickmonkey.scripts.index.json; if it is missing or unreadable, call scripts_index_rebuild and retry.',
+    z.object({
+      query: z.string().min(1),
+      caseSensitive: z.boolean().optional(),
+      maxResults: z.number().int().min(1).max(100).optional(),
+    }),
+    async (options) => findManagedScriptFiles(options)
+  )
+
   const snippet = tool(
     'scripts_snippet',
     'Read a bounded line range from one MagickMonkey-managed userscript / Tampermonkey script file instead of returning the full file.',
@@ -280,6 +295,24 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     async ({ filename }) => validateManagedScriptFile(filename)
   )
 
+  const indexRebuild = tool(
+    'scripts_index_rebuild',
+    'Rebuild and persist magickmonkey.scripts.index.json from current managed userscript files, preserving aliases/keywords already present in the index.',
+    z.object({}),
+    async () => rebuildManagedScriptIndex()
+  )
+
+  const indexUpdateMetadata = tool(
+    'scripts_index_update_metadata',
+    'Update human-maintained search metadata for one managed userscript in magickmonkey.scripts.index.json. Derived fields such as @name, @description, @version, @match, and @run-at still come from the script file.',
+    z.object({
+      filename: z.string().min(1),
+      aliases: z.array(z.string()).optional(),
+      keywords: z.array(z.string()).optional(),
+    }),
+    async (options) => updateManagedScriptIndexMetadata(options)
+  )
+
   const del = tool(
     'scripts_delete',
     'Delete a MagickMonkey-managed userscript file for Tampermonkey or browser user scripts from the Gist.',
@@ -315,6 +348,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
   return new Map([
     [list.name, list],
     [search.name, search],
+    [find.name, find],
     [snippet.name, snippet],
     [get.name, get],
     [upsert.name, upsert],
@@ -322,6 +356,8 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     [patch.name, patch],
     [batchPatch.name, batchPatch],
     [validate.name, validate],
+    [indexRebuild.name, indexRebuild],
+    [indexUpdateMetadata.name, indexUpdateMetadata],
     [del.name, del],
     [rename.name, rename],
     [runtimeSummary.name, runtimeSummary],
