@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MagickMonkey Extension Settings</title>
+    <link rel="stylesheet" href="./shell.css" />
+  </head>
+  <body class="m-0 h-full min-h-screen bg-mm-canvas p-0 antialiased">
+    <mm-options-app>
+      <div class="mm-page">
+        <header class="mm-page-header">
+          <img
+            src="./icons/icon48.png"
+            width="48"
+            height="48"
+            alt="MagickMonkey logo"
+            class="h-11 w-11 shrink-0 rounded-lg shadow-mm-sm ring-1 ring-mm-border-light sm:h-12 sm:w-12"
+          />
+          <div class="min-w-0 flex-1">
+            <h1 class="mm-page-header-title">MagickMonkey Chrome Extension</h1>
+            <p class="mm-page-header-subtitle">Connection and develop settings</p>
+          </div>
+        </header>
+
+        <main class="mm-page-main">
+          <p class="mb-6 text-sm leading-relaxed text-mm-text-muted sm:max-w-2xl">Native shell for MagickMonkey: loads preset and remote scripts from your server.</p>
+
+          <div class="mm-card space-y-6 p-5 sm:p-6">
+            <div class="grid gap-6 sm:grid-cols-2">
+              <div class="mm-field sm:col-span-2">
+                <label for="baseUrl" class="mm-label">Server URL (baseUrl)</label>
+                <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" class="mm-input" autocomplete="url" />
+                <p class="mm-hint">Same origin as the editor, e.g. http://localhost:3000 for local dev</p>
+              </div>
+
+              <div class="mm-field sm:col-span-2">
+                <label for="scriptKey" class="mm-label">Script Key</label>
+                <input id="scriptKey" type="text" data-ref="script-key" placeholder="Script key from Gist / editor" class="mm-input" autocomplete="off" spellcheck="false" />
+                <p class="mm-hint">
+                  Same as the
+                  <code class="rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary">[key]</code>
+                  segment in
+                  <code class="rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary">/static/[key]/</code>
+                </p>
+              </div>
+            </div>
+
+            <p class="text-sm leading-relaxed text-mm-text-muted">
+              After saving, open the toolbar popup →
+              <strong class="font-medium text-mm-secondary">Sync rules from server</strong>
+              to populate script names.
+            </p>
+
+            <label class="mm-switch-row rounded-md border border-mm-border-light bg-mm-muted/70 px-3 py-3">
+              <span class="min-w-0 flex-1 text-sm leading-snug text-mm-secondary">
+                Develop mode (injects
+                <code class="rounded bg-mm-surface px-1 py-0.5 font-mono text-[11px] ring-1 ring-mm-border-light">__IS_DEVELOP_MODE__</code>
+                when enabled)
+              </span>
+              <span class="mm-switch">
+                <input type="checkbox" data-ref="develop-mode" class="mm-switch-input" role="switch" checked />
+                <span class="mm-switch-track" aria-hidden="true"></span>
+                <span class="mm-switch-thumb" aria-hidden="true"></span>
+              </span>
+            </label>
+
+            <div class="flex flex-wrap items-center gap-4 border-t border-mm-border-light pt-5">
+              <button type="button" data-action="save" class="mm-primary-btn w-full sm:w-auto sm:min-w-[10rem]">Save</button>
+              <p data-ref="status" class="text-sm text-mm-text-muted"></p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </mm-options-app>
+    <script src="./options.js"></script>
+  </body>
+</html>

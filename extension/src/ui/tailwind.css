@@ -1,0 +1,234 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+
+  button {
+    @apply m-0 appearance-none border-0 bg-transparent p-0 outline-none;
+    font: inherit;
+    color: inherit;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='range']) {
+    @apply m-0 appearance-none;
+    font: inherit;
+    color: inherit;
+  }
+
+  input[type='checkbox'] {
+    @apply m-0 shrink-0 appearance-auto;
+  }
+}
+
+@layer components {
+  mm-options-app,
+  mm-scripts-app {
+    @apply block min-h-screen w-full;
+  }
+
+  .mm-shell {
+    @apply relative bg-mm-canvas font-sans text-sm text-mm-ink antialiased;
+  }
+
+  .mm-page {
+    @apply flex min-h-screen w-full flex-col bg-mm-canvas;
+  }
+
+  .mm-page-header {
+    @apply flex shrink-0 items-center gap-4 border-b border-mm-border-light bg-mm-surface px-6 py-4 shadow-mm-sm;
+  }
+
+  .mm-page-header-title {
+    @apply text-lg font-semibold leading-tight tracking-tight text-mm-ink sm:text-xl;
+  }
+
+  .mm-page-header-subtitle {
+    @apply mt-0.5 text-sm text-mm-text-muted;
+  }
+
+  .mm-page-main {
+    @apply flex flex-1 flex-col px-6 py-6 sm:px-8 sm:py-8;
+  }
+
+  .mm-page-fill {
+    @apply flex h-screen min-h-screen flex-col overflow-hidden;
+  }
+
+  .mm-page-body-fill {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-6;
+  }
+
+  .mm-page-toolbar {
+    @apply mt-auto flex shrink-0 flex-wrap items-center gap-3 border-t border-mm-border-light pt-6;
+  }
+
+  .mm-page-toolbar-inline {
+    @apply mb-3 flex shrink-0 flex-wrap items-center gap-3;
+  }
+
+  .mm-virtual-scroll {
+    @apply relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border border-mm-border-light bg-mm-surface shadow-mm;
+  }
+
+  .mm-virtual-spacer {
+    @apply pointer-events-none w-full;
+  }
+
+  .mm-virtual-content {
+    @apply absolute left-0 top-0 w-full;
+  }
+
+  .mm-virtual-sentinel {
+    @apply shrink-0 py-2 text-center text-xs text-mm-text-muted;
+  }
+
+  .mm-scripts-empty {
+    @apply flex flex-1 items-center justify-center rounded-lg border border-dashed border-mm-border-light bg-mm-surface px-6 py-12 text-center text-sm leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-page-list {
+    @apply mb-4 min-h-[12rem] flex-1;
+  }
+
+  /* Overlay toast — does not affect popup document height (Chrome popup won't shrink after grow). */
+  .mm-toast {
+    @apply pointer-events-none absolute inset-x-0 bottom-0 z-10 border-t px-3 py-2 text-xs opacity-0 shadow-mm transition-opacity duration-200;
+  }
+
+  .mm-toast-visible {
+    @apply pointer-events-auto opacity-100;
+  }
+
+  .mm-toast-success {
+    @apply border-mm-success/30 bg-mm-success-soft text-mm-success;
+  }
+
+  .mm-toast-error {
+    @apply border-mm-danger/30 bg-mm-danger-soft text-mm-danger;
+  }
+
+  .mm-card {
+    @apply overflow-hidden rounded-lg border border-mm-border-light bg-mm-surface shadow-mm;
+  }
+
+  .mm-section-title {
+    @apply border-b border-mm-border-light bg-mm-muted px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-mm-label;
+  }
+
+  .mm-row-btn {
+    @apply flex w-full items-center gap-2.5 border-0 bg-transparent px-3 py-2.5 text-left text-[13px] leading-none text-mm-secondary outline-none transition-colors hover:bg-mm-muted active:bg-mm-canvas/60;
+  }
+
+  .mm-row-btn-danger {
+    @apply flex w-full items-center gap-2.5 border-0 bg-transparent px-3 py-2.5 text-left text-[13px] leading-none font-medium text-mm-danger outline-none transition-colors hover:bg-mm-danger-soft active:bg-mm-danger-soft;
+  }
+
+  .mm-icon-slot {
+    @apply inline-flex h-4 w-4 shrink-0 items-center justify-center leading-none;
+  }
+
+  .mm-icon-slot svg {
+    @apply block h-4 w-4 shrink-0;
+  }
+
+  .mm-icon-spin svg {
+    animation: mm-spin 0.75s linear infinite;
+  }
+
+  @keyframes mm-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .mm-row-btn:disabled,
+  .mm-row-btn-danger:disabled,
+  .mm-primary-btn:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .mm-row-icon {
+    @apply text-mm-icon;
+  }
+
+  .mm-row-icon-danger {
+    @apply text-mm-danger/70;
+  }
+
+  .mm-switch-row {
+    @apply flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-mm-muted;
+  }
+
+  .mm-list-row {
+    @apply flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-mm-muted;
+  }
+
+  .mm-switch {
+    @apply relative inline-block h-5 w-9 shrink-0;
+  }
+
+  .mm-switch-input {
+    @apply sr-only;
+  }
+
+  .mm-switch-track {
+    @apply block h-5 w-9 rounded-full bg-mm-border transition-colors;
+  }
+
+  .mm-switch-input:checked + .mm-switch-track {
+    @apply bg-mm-accent;
+  }
+
+  .mm-switch-thumb {
+    @apply pointer-events-none absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-mm-surface shadow-mm-sm ring-1 ring-mm-border-light/80 transition-transform;
+  }
+
+  .mm-switch-input:checked ~ .mm-switch-thumb {
+    transform: translateX(1rem);
+  }
+
+  .mm-primary-btn {
+    @apply flex w-full items-center justify-center gap-2 rounded-lg bg-mm-accent px-3 py-2.5 text-sm font-semibold leading-none text-white shadow-mm-sm transition hover:bg-mm-accent-hover active:brightness-95;
+  }
+
+  .mm-secondary-btn {
+    @apply rounded-md border border-mm-border-light bg-mm-surface px-4 py-2 text-sm font-medium text-mm-secondary shadow-mm-sm transition hover:bg-mm-muted active:bg-mm-canvas/50;
+  }
+
+  .mm-icon-btn {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary;
+  }
+
+  .mm-field {
+    @apply block;
+  }
+
+  .mm-label {
+    @apply mb-1.5 block text-sm font-semibold text-mm-secondary;
+  }
+
+  .mm-hint {
+    @apply mt-1.5 text-xs leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-input {
+    @apply box-border block h-10 w-full rounded-md border border-mm-border-light bg-mm-surface px-3 text-sm leading-normal text-mm-ink shadow-mm-sm transition placeholder:text-mm-text-muted focus:border-mm-accent focus:outline-none focus:ring-2 focus:ring-mm-accent/20;
+  }
+
+  .mm-footer {
+    @apply flex items-center justify-between gap-2 border-t border-mm-border-light bg-mm-surface px-3 py-2;
+  }
+
+  .mm-badge {
+    @apply shrink-0 rounded-sm bg-mm-muted px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-mm-text-muted ring-1 ring-mm-border-light;
+  }
+}

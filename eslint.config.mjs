@@ -8,7 +8,17 @@ import tsConfig from './eslintrc/ts.mjs'
 
 export default [
   {
-    ignores: ['.next/**/*', '.husky/**/*', 'coverage/**/*', 'node_modules', 'preset/dist/**/*', 'test-results/**/*', 'playwright-report/**/*', 'blob-report/**/*'],
+    ignores: [
+      '.next/**/*',
+      '.husky/**/*',
+      'coverage/**/*',
+      'node_modules',
+      'preset/dist/**/*',
+      'extension/dist/**/*',
+      'test-results/**/*',
+      'playwright-report/**/*',
+      'blob-report/**/*',
+    ],
   },
   {
     languageOptions: {
@@ -57,6 +67,8 @@ export default [
             '**/__webtests__/**/*.ts',
             '**/vite.config.ts',
             '**/vite.ui.config.ts',
+            'extension/postcss.config.mjs',
+            'extension/tailwind.config.ts',
           ],
         },
       ],

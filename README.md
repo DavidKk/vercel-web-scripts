@@ -7,7 +7,7 @@ MagickMonkey is used to manage and deploy custom scripts on Vercel.
 ## Features
 
 - **Script Management**: Centrally manage private scripts, sync to multiple clients, and support online modification with instant synchronization. Since the content is stored in private GitHub Gist, it is not absolutely secure. Please do not store any sensitive information (such as API keys, passwords, etc.) and use it only for non-sensitive functional scripts.
-- **Script Packaging**: Automatically generate script entry, support multi-script packaging. (Currently only supports Tampermonkey)
+- **Script Packaging**: Automatically generate script entry, support multi-script packaging. Default: Tampermonkey launcher; optional [Chrome extension](./extension/README.md) subproject as an alternative shell.
 
 ## Security Notes
 

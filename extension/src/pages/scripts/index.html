@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MagickMonkey — Scripts</title>
+    <link rel="stylesheet" href="./shell.css" />
+  </head>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <mm-scripts-app>
+      <div class="mm-page mm-page-fill">
+        <header class="mm-page-header">
+          <img src="./icons/icon32.png" width="32" height="32" alt="" class="h-9 w-9 shrink-0 rounded-md shadow-mm-sm ring-1 ring-mm-border-light sm:h-10 sm:w-10" />
+          <div class="min-w-0 flex-1">
+            <h1 class="mm-page-header-title">Scripts</h1>
+            <p class="mm-page-header-subtitle">Enable or disable modules (global)</p>
+          </div>
+          <div class="mm-page-toolbar-inline !mb-0 shrink-0 border-0 pt-0">
+            <button type="button" data-action="sync" class="mm-secondary-btn">Sync rules</button>
+            <button type="button" data-action="editor" class="mm-primary-btn w-auto px-4">Open editor</button>
+          </div>
+        </header>
+
+        <div class="mm-page-body-fill">
+          <p class="mb-2 shrink-0 text-xs text-mm-text-muted sm:text-sm">Edit script source on the web editor. This page only controls whether a module runs.</p>
+          <p data-ref="list-meta" class="mb-2 shrink-0 text-[11px] tabular-nums text-mm-label"></p>
+          <p data-ref="status" class="mb-2 shrink-0 text-sm text-mm-text-muted"></p>
+
+          <div data-ref="empty" class="mm-scripts-empty hidden"></div>
+
+          <div data-ref="scroller" class="mm-virtual-scroll hidden">
+            <div data-ref="spacer" class="mm-virtual-spacer"></div>
+            <div data-ref="content" class="mm-virtual-content"></div>
+          </div>
+
+          <p data-ref="load-hint" class="mm-virtual-sentinel hidden">Scroll for more…</p>
+        </div>
+      </div>
+    </mm-scripts-app>
+    <script src="./scripts.js"></script>
+  </body>
+</html>
