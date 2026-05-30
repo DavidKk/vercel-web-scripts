@@ -1,4 +1,5 @@
 import {
+  applyExtensionServiceConfig,
   clearRuntimeModuleCache,
   countMatchingRules,
   getShellNetworkEnabled,
@@ -18,7 +19,7 @@ import {
   shouldInvalidateTabMatchCache,
   TAB_MATCH_CACHE_KEY,
 } from '@ext/shared/tab-match-cache'
-import { CONFIG_STORAGE_KEY, type ExtensionConfig } from '@ext/types'
+import { type ExtensionConfig } from '@ext/types'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import { initDevExtensionReload } from './dev-extension-reload'
@@ -72,10 +73,16 @@ async function handleWebConnect(details: Extract<ShellMessage, { type: 'WEB_CONN
     return { ok: false, error: 'Missing Server URL or Script Key.' }
   }
 
-  await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: nextConfig })
-  await invalidateTabMatchCache()
+  const { serviceChanged } = await applyExtensionServiceConfig(nextConfig)
   scheduleBadgeRefresh()
-  return { ok: true, status: await buildStatus(), message: 'Extension connected.' }
+  if (serviceChanged) {
+    await reloadTab(await getActiveTab())
+  }
+  return {
+    ok: true,
+    status: await buildStatus(),
+    message: serviceChanged ? 'Extension connected. Caches cleared and latest data fetched.' : 'Extension connected.',
+  }
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {

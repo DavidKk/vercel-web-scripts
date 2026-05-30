@@ -1,3 +1,4 @@
+import { applyExtensionServiceConfig } from '@ext/shared/extension-storage'
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, type ExtensionConfig } from '@ext/types'
 
 const STATUS_BASE = 'mm-options-status-pill'
@@ -97,13 +98,16 @@ export class MmOptionsApp extends HTMLElement {
     if (!this.validateConfig(config)) {
       return
     }
-    await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: config })
-    this.setStatus('Saved. Reload open tabs for changes to take effect.', 'ok')
+    const { serviceChanged } = await applyExtensionServiceConfig(config)
+    this.setStatus(
+      serviceChanged ? 'Saved. Service switched — caches cleared and latest data fetched. Reload open tabs.' : 'Saved. Reload open tabs for changes to take effect.',
+      'ok'
+    )
   }
 
   private async reset(): Promise<void> {
     this.applyConfig(DEFAULT_CONFIG)
-    await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: DEFAULT_CONFIG })
-    this.setStatus('Reset to defaults.', 'ok')
+    const { serviceChanged } = await applyExtensionServiceConfig(DEFAULT_CONFIG)
+    this.setStatus(serviceChanged ? 'Reset to defaults. Caches cleared.' : 'Reset to defaults.', 'ok')
   }
 }

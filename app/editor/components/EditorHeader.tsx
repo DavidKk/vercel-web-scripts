@@ -18,8 +18,12 @@ import { ShortcutsHelpModal } from './ShortcutsHelpModal'
 
 const iconBtnBase = 'p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
 const iconBtn = `${iconBtnBase} text-[#e6eaf0] hover:text-white hover:bg-[#2a303a]`
+/** Logo blue gradient — used for Push to Cloud */
+const iconBtnActiveBrand = `${iconBtnBase} bg-gradient-to-br from-[#1769fb] to-[#52acff] text-white hover:from-[#0f59e3] hover:to-[#3385fa] hover:text-white`
 const iconBtnActiveGreen = `${iconBtnBase} bg-[#22c55e] text-white hover:bg-[#16a34a] hover:text-white`
 const iconBtnActiveBlue = `${iconBtnBase} bg-[#3b82f6] text-white hover:bg-[#2563eb] hover:text-white`
+/** Connected extension — blue to purple gradient */
+const iconBtnActiveExtension = `${iconBtnBase} bg-gradient-to-br from-[#2563eb] to-[#8b5cf6] text-white hover:from-[#1d4ed8] hover:to-[#7c3aed] hover:text-white`
 const EXTENSION_WEB_SOURCE = 'magickmonkey-web'
 const EXTENSION_RESPONSE_SOURCE = 'magickmonkey-extension'
 
@@ -194,6 +198,12 @@ export default function EditorHeader({
     }
 
     if (extensionState === 'not_installed') {
+      const confirmed = window.confirm(
+        'MagickMonkey Chrome extension was not detected on this page.\n\nDownload the extension ZIP and install it manually (Load unpacked in chrome://extensions)?'
+      )
+      if (!confirmed) {
+        return
+      }
       const link = document.createElement('a')
       link.href = CHROME_EXTENSION_ZIP_PATH
       link.download = CHROME_EXTENSION_ZIP_FILENAME
@@ -298,7 +308,7 @@ export default function EditorHeader({
             type="button"
             onClick={handleConnectExtension}
             disabled={isSaving || extensionState === 'checking' || extensionState === 'connecting'}
-            className={extensionState === 'connected' ? iconBtnActiveGreen : extensionState === 'available' || extensionState === 'error' ? iconBtnActiveBlue : iconBtn}
+            className={extensionState === 'connected' ? iconBtnActiveExtension : iconBtn}
             aria-label={
               extensionState === 'connected'
                 ? 'Chrome extension connected — click to recheck'
@@ -317,8 +327,14 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
-        <Tooltip content="Install userscript" placement="bottom">
-          <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} aria-label="Install userscript">
+        <Tooltip content={isChecking ? 'Checking Tampermonkey userscript' : 'Install Tampermonkey userscript'} placement="bottom">
+          <button
+            type="button"
+            onClick={handleInstall}
+            disabled={isSaving || isChecking}
+            className={iconBtn}
+            aria-label={isChecking ? 'Checking Tampermonkey userscript' : 'Install Tampermonkey userscript'}
+          >
             {isChecking ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />
@@ -329,8 +345,8 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
-        <Tooltip content="Publish to Gist" placement="bottom">
-          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBlue} disabled:opacity-50`} aria-label="Publish to Gist">
+        <Tooltip content="Push to Cloud" placement="bottom">
+          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBrand} disabled:opacity-50`} aria-label="Push to Cloud">
             {isSaving ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />

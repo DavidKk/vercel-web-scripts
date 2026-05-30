@@ -361,6 +361,103 @@ export async function resetRuntimeState(config: ExtensionConfig): Promise<void> 
   await clearRuntimeModuleCache(config)
 }
 
+function normalizeExtensionServiceScope(config: ExtensionConfig): string {
+  return `${config.baseUrl.trim().replace(/\/+$/, '')}|${config.scriptKey.trim()}`
+}
+
+/**
+ * Whether two configs point at the same MagickMonkey service (baseUrl + scriptKey).
+ * @param a First config
+ * @param b Second config
+ * @returns True when the service scope matches
+ */
+export function isSameExtensionService(a: ExtensionConfig, b: ExtensionConfig): boolean {
+  return normalizeExtensionServiceScope(a) === normalizeExtensionServiceScope(b)
+}
+
+/**
+ * Clear rules, script list, runtime/module caches, and per-script toggles when switching service.
+ * Preserves shell network toggle preferences.
+ * @param previousConfig Prior service config used to drop scoped module cache keys
+ */
+export async function clearExtensionCachesForServiceSwitch(previousConfig?: ExtensionConfig): Promise<void> {
+  const all = await chrome.storage.local.get(null)
+  const network = all[gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]
+  const legacy = all[gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]
+
+  if (previousConfig?.baseUrl.trim() && previousConfig.scriptKey.trim()) {
+    await clearRuntimeModuleCache(previousConfig)
+  }
+  await clearRuntimeModuleCache({ baseUrl: '', scriptKey: '', developMode: true })
+
+  const toRemove: string[] = [RULES_STORAGE_KEY, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY]
+  for (const key of Object.keys(all)) {
+    if (key === CONFIG_STORAGE_KEY) {
+      continue
+    }
+    if (key.startsWith(SCRIPT_ENABLED_PREFIX) || key.startsWith(GM_STORAGE_PREFIX)) {
+      toRemove.push(key)
+      continue
+    }
+    if (key.startsWith(RUNTIME_STATE_KEY_PREFIX)) {
+      toRemove.push(key)
+    }
+  }
+
+  if (toRemove.length > 0) {
+    await chrome.storage.local.remove(toRemove)
+  }
+
+  await chrome.storage.local.set({
+    [gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]: network === true || network === false ? network : true,
+  })
+  if (legacy === true || legacy === false) {
+    await chrome.storage.local.set({ [gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]: legacy })
+  }
+
+  const { invalidateTabMatchCache } = await import('./tab-match-cache')
+  await invalidateTabMatchCache()
+}
+
+/**
+ * Pull fresh RULE and managed script list for the active service.
+ * @param config Extension connection config
+ */
+export async function refreshExtensionServiceData(config: ExtensionConfig): Promise<void> {
+  await syncRulesFromServer(config)
+  await fetchManagedScriptList(config)
+}
+
+/**
+ * Persist extension config; when baseUrl/scriptKey changes, wipe caches and refetch server data.
+ * @param nextConfig Config to save
+ * @returns Whether the service scope changed
+ */
+export async function applyExtensionServiceConfig(nextConfig: ExtensionConfig): Promise<{ serviceChanged: boolean }> {
+  const previous = await loadExtensionConfig()
+  const serviceChanged = !isSameExtensionService(previous, nextConfig)
+
+  await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: nextConfig })
+
+  if (!serviceChanged) {
+    return { serviceChanged: false }
+  }
+
+  const previousScoped = previous.baseUrl.trim() && previous.scriptKey.trim() ? previous : undefined
+  await clearExtensionCachesForServiceSwitch(previousScoped)
+
+  if (nextConfig.baseUrl && nextConfig.scriptKey) {
+    await clearRuntimeModuleCache(nextConfig)
+    try {
+      await refreshExtensionServiceData(nextConfig)
+    } catch {
+      // Config is saved; user can sync manually if the network request fails.
+    }
+  }
+
+  return { serviceChanged: true }
+}
+
 export async function syncRulesFromServer(config: ExtensionConfig): Promise<ExtensionRuleEntry[]> {
   const url = `${config.baseUrl}/api/tampermonkey/${encodeURIComponent(config.scriptKey)}/rule`
   const res = await fetch(url)
