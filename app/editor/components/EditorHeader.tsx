@@ -2,19 +2,24 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { FiChevronDown, FiDownload, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { FiChevronDown, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
+import { SiTampermonkey } from 'react-icons/si'
 
 import { Spinner } from '@/components/Spinner'
 import { Tooltip } from '@/components/Tooltip'
+import { CHROME_EXTENSION_ZIP_FILENAME, CHROME_EXTENSION_ZIP_PATH } from '@/shared/chrome-extension-download'
 
 import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
 
-const iconBtn = 'p-2 rounded text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const iconBtnBase = 'p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const iconBtn = `${iconBtnBase} text-[#e6eaf0] hover:text-white hover:bg-[#2a303a]`
+const iconBtnActiveGreen = `${iconBtnBase} bg-[#22c55e] text-white hover:bg-[#16a34a] hover:text-white`
+const iconBtnActiveBlue = `${iconBtnBase} bg-[#3b82f6] text-white hover:bg-[#2563eb] hover:text-white`
 const EXTENSION_WEB_SOURCE = 'magickmonkey-web'
 const EXTENSION_RESPONSE_SOURCE = 'magickmonkey-extension'
 
@@ -114,12 +119,11 @@ export default function EditorHeader({
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [userMenuOpen])
 
-  useEffect(() => {
-    let cancelled = false
+  const pingExtension = useCallback(() => {
+    setExtensionState((prev) => (prev === 'connecting' ? prev : 'checking'))
     const baseUrl = window.location.origin
     void requestExtensionBridge('MAGICKMONKEY_EXTENSION_PING', { baseUrl, scriptKey }, 900)
       .then((result) => {
-        if (cancelled) return
         if (result.connected) {
           setExtensionState('connected')
         } else if (result.installed) {
@@ -129,14 +133,36 @@ export default function EditorHeader({
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setExtensionState('not_installed')
-        }
+        setExtensionState((prev) => (prev === 'connecting' ? prev : 'not_installed'))
       })
-    return () => {
-      cancelled = true
-    }
   }, [scriptKey])
+
+  useEffect(() => {
+    let pingTimer: ReturnType<typeof setTimeout> | undefined
+
+    function scheduleExtensionPing() {
+      clearTimeout(pingTimer)
+      pingTimer = setTimeout(pingExtension, 80)
+    }
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        scheduleExtensionPing()
+      }
+    }
+
+    scheduleExtensionPing()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', scheduleExtensionPing)
+    window.addEventListener('pageshow', scheduleExtensionPing)
+
+    return () => {
+      clearTimeout(pingTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', scheduleExtensionPing)
+      window.removeEventListener('pageshow', scheduleExtensionPing)
+    }
+  }, [pingExtension])
 
   const handleInstall = async () => {
     if (isChecking || isSaving) return
@@ -158,11 +184,23 @@ export default function EditorHeader({
   }
 
   const handleConnectExtension = async () => {
-    if (isSaving || extensionState === 'connecting') return
+    if (isSaving || extensionState === 'checking' || extensionState === 'connecting') {
+      return
+    }
+
+    if (extensionState === 'connected') {
+      pingExtension()
+      return
+    }
+
     if (extensionState === 'not_installed') {
-      window.alert(
-        'MagickMonkey Chrome extension is not installed or this tab was opened before the extension loaded. Install/reload the extension, then refresh this editor page.'
-      )
+      const link = document.createElement('a')
+      link.href = CHROME_EXTENSION_ZIP_PATH
+      link.download = CHROME_EXTENSION_ZIP_FILENAME
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
       return
     }
 
@@ -177,21 +215,23 @@ export default function EditorHeader({
       }
       setExtensionState('connected')
     } catch (error) {
-      setExtensionState('not_installed')
+      setExtensionState('error')
       window.alert(error instanceof Error ? error.message : 'Could not connect the Chrome extension.')
     }
   }
 
   const extensionTooltip =
     extensionState === 'connected'
-      ? 'Chrome extension connected'
+      ? 'Chrome extension connected — click to recheck'
       : extensionState === 'checking'
         ? 'Checking Chrome extension'
         : extensionState === 'connecting'
           ? 'Connecting Chrome extension'
           : extensionState === 'not_installed'
-            ? 'Install/reload Chrome extension first'
-            : 'Connect Chrome extension'
+            ? 'Download Chrome extension (ZIP)'
+            : extensionState === 'error'
+              ? 'Connection failed — click to retry'
+              : 'Connect Chrome extension'
 
   const handleLogout = async () => {
     if (isSaving) return
@@ -225,13 +265,7 @@ export default function EditorHeader({
 
         {onToggleRules && (
           <Tooltip content={isRulesOpen ? 'Close URL rules' : 'URL rules'} placement="bottom">
-            <button
-              type="button"
-              onClick={onToggleRules}
-              disabled={isSaving}
-              className={`${iconBtn} ${isRulesOpen ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
-              aria-label="URL rules"
-            >
+            <button type="button" onClick={onToggleRules} disabled={isSaving} className={isRulesOpen ? iconBtnActiveBlue : iconBtn} aria-label="URL rules">
               <LuAsterisk className="w-4 h-4" />
             </button>
           </Tooltip>
@@ -239,26 +273,14 @@ export default function EditorHeader({
 
         {onToggleAI && (
           <Tooltip content={isAIOpen ? 'Close AI panel' : 'AI rewrite'} placement="bottom">
-            <button
-              type="button"
-              onClick={onToggleAI}
-              disabled={isSaving || isAIDisabled}
-              className={`${iconBtn} ${isAIOpen ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
-              aria-label="AI rewrite"
-            >
+            <button type="button" onClick={onToggleAI} disabled={isSaving || isAIDisabled} className={isAIOpen ? iconBtnActiveBlue : iconBtn} aria-label="AI rewrite">
               <FiZap className="w-4 h-4" />
             </button>
           </Tooltip>
         )}
 
         <Tooltip content={isCompiling ? 'Compiling' : isEditorDevMode ? 'Disable dev mode' : 'Editor dev mode'} placement="bottom">
-          <button
-            type="button"
-            onClick={onToggleEditorDevMode}
-            disabled={isCompiling}
-            className={`${iconBtn} ${isEditorDevMode ? 'bg-[#22c55e] text-white hover:bg-[#16a34a]' : ''}`}
-            aria-label="Editor dev mode"
-          >
+          <button type="button" onClick={onToggleEditorDevMode} disabled={isCompiling} className={isEditorDevMode ? iconBtnActiveGreen : iconBtn} aria-label="Editor dev mode">
             {isCompiling ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />
@@ -276,8 +298,14 @@ export default function EditorHeader({
             type="button"
             onClick={handleConnectExtension}
             disabled={isSaving || extensionState === 'checking' || extensionState === 'connecting'}
-            className={`${iconBtn} ${extensionState === 'connected' ? 'bg-[#22c55e] text-white hover:bg-[#16a34a]' : extensionState === 'available' ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
-            aria-label="Connect Chrome extension"
+            className={extensionState === 'connected' ? iconBtnActiveGreen : extensionState === 'available' || extensionState === 'error' ? iconBtnActiveBlue : iconBtn}
+            aria-label={
+              extensionState === 'connected'
+                ? 'Chrome extension connected — click to recheck'
+                : extensionState === 'not_installed'
+                  ? 'Download Chrome extension'
+                  : 'Connect Chrome extension'
+            }
           >
             {extensionState === 'checking' || extensionState === 'connecting' ? (
               <span className="w-4 h-4 flex items-center justify-center">
@@ -296,19 +324,13 @@ export default function EditorHeader({
                 <Spinner />
               </span>
             ) : (
-              <FiDownload className="w-4 h-4" />
+              <SiTampermonkey className="w-4 h-4" />
             )}
           </button>
         </Tooltip>
 
         <Tooltip content="Publish to Gist" placement="bottom">
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className={`${iconBtn} bg-[#3b82f6] text-white hover:bg-[#2563eb] disabled:opacity-50`}
-            aria-label="Publish to Gist"
-          >
+          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBlue} disabled:opacity-50`} aria-label="Publish to Gist">
             {isSaving ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />

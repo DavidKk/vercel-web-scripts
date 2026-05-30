@@ -37,6 +37,14 @@ extension/dist/
 pnpm build:extension
 ```
 
+Pack a ZIP for manual install (served at `/downloads/magickmonkey-chrome-extension.zip`):
+
+```bash
+pnpm pack:extension
+```
+
+Production `pnpm build` runs `pack:extension` automatically so the editor can offer the ZIP download.
+
 All UI uses **Tailwind CSS** only (`extension/src/ui/tailwind.css` inlined into Shadow DOM; `shell.css` for page layout). Built via `extension/vite.config.ts`.
 
 After rebuilding, reload the extension at `chrome://extensions` (not just the page tab).
@@ -77,9 +85,17 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 
 ## Install
 
+### Manual ZIP (not on Chrome Web Store)
+
+1. Download `/downloads/magickmonkey-chrome-extension.zip` from the web app (editor header when extension is not detected), or run `pnpm pack:extension` locally.
+2. Unzip, then Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → select the extracted folder (must contain `manifest.json`).
+3. Refresh the editor page; click the extension button to **Connect** (one-click link Server URL + Script Key).
+
+### Developer (unpacked from repo)
+
 1. `pnpm build:extension`
 2. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `extension/dist`
-3. **Options**: set Server URL + Script Key
+3. **Options**: set Server URL + Script Key (or use editor **Connect**)
 4. **Popup** → **Sync rules from server** (imports RULE for badge + script names)
 5. Visit a matching page; preset loads via content script
 

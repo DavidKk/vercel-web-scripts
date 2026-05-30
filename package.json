@@ -17,7 +17,7 @@
     "typecheck:preset": "cd preset && tsc --noEmit",
     "typecheck:extension": "cd extension && tsc --noEmit",
     "dev": "pnpm run build:preset && pnpm run build:extension:icons && concurrently -n next,preset,extension \"next dev --webpack\" \"pnpm run build:preset:dev\" \"pnpm run build:extension:dev\"",
-    "build": "pnpm run build:preset && next build --webpack",
+    "build": "pnpm run build:preset && pnpm run pack:extension && next build --webpack",
     "start": "next start",
     "test": "jest -c ./jest.config.ts --coverage --reporters=default --reporters=jest-junit --passWithNoTests",
     "test:watch": "jest --watch",
@@ -32,6 +32,7 @@
     "build:extension:icons": "node extension/scripts/build-icons.mjs",
     "build:extension": "pnpm run build:extension:icons && vite build --config extension/vite.config.ts",
     "build:extension:dev": "vite build --config extension/vite.config.ts --watch",
+    "pack:extension": "pnpm run build:extension && node extension/scripts/pack-extension-zip.mjs",
     "test:extension:static-watch": "node extension/scripts/verify-static-watch.mjs",
     "prepare": "husky"
   },
