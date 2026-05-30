@@ -4,7 +4,7 @@ export interface ExtensionConfig {
   baseUrl: string
   /** Script key from Gist / editor (same as tampermonkey route key) */
   scriptKey: string
-  /** When true, __IS_DEVELOP_MODE__ is injected for matching host */
+  /** Extension-only: watch build auto-reload (see dev-extension-reload.ts). Not passed to preset as __IS_DEVELOP_MODE__. */
   developMode: boolean
 }
 

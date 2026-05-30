@@ -1,3 +1,5 @@
+import { buildVwsConsoleLogArgs, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
+
 export type ExtensionLogLevel = 'debug' | 'info' | 'ok' | 'warn' | 'error'
 
 type ConsoleSink = (...args: unknown[]) => void
@@ -29,13 +31,13 @@ const LEVEL_SINK: Record<ExtensionLogLevel, ConsoleSink> = {
  * Scoped logger for MagickMonkey Chrome extension runtime (content, page, shell).
  */
 export class ExtensionLogger {
-  private readonly prefix: string
+  private readonly scope: string
 
   /**
    * @param scope Short scope label shown in log prefix, e.g. "Launcher" or "GM"
    */
   constructor(scope: string) {
-    this.prefix = `[VWS][${scope}]`
+    this.scope = scope
   }
 
   /**
@@ -79,7 +81,7 @@ export class ExtensionLogger {
   }
 
   private emit(level: ExtensionLogLevel, args: unknown[]): void {
-    LEVEL_SINK[level](this.prefix, ...args)
+    LEVEL_SINK[level](...buildVwsConsoleLogArgs(this.scope, level as VwsConsoleLogLevel, ...args))
   }
 }
 

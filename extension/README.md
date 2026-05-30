@@ -8,16 +8,17 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 
 ## MVP (current)
 
-| Feature                                                 | Status |
-| ------------------------------------------------------- | ------ |
-| Toolbar **popup** (fixed menu on every tab)             | ✅     |
-| **Badge** — rule match count on active tab              | ✅     |
-| **Background** — update / reset / network / open editor | ✅     |
-| **Scripts page** — enable/disable modules               | ✅     |
-| **Options** — `baseUrl`, `scriptKey`, develop mode      | ✅     |
-| **Sync rules** from server → badge + script list        | ✅     |
-| Content bootstrap → OTA preset (interim loader)         | ✅     |
-| Extension-native `module-loader` (replace TM port)      | 🔜     |
+| Feature                                                     | Status |
+| ----------------------------------------------------------- | ------ |
+| Toolbar **popup** (fixed menu on every tab)                 | ✅     |
+| **Badge** — rule match count on active tab                  | ✅     |
+| **Background** — update / reset / network / open editor     | ✅     |
+| **Scripts page** — enable/disable modules                   | ✅     |
+| **Options** — `baseUrl`, `scriptKey`, extension auto-reload | ✅     |
+| Preset dev mode from Server URL (`localhost` → dev)         | ✅     |
+| **Sync rules** from server → badge + script list            | ✅     |
+| Content bootstrap → OTA preset (interim loader)             | ✅     |
+| Extension-native `module-loader` (replace TM port)          | 🔜     |
 
 ## Architecture
 
@@ -96,6 +97,8 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 1. `pnpm build:extension`
 2. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `extension/dist`
 3. **Options**: set Server URL + Script Key (or use editor **Connect**)
+   - **Preset develop mode** follows Server URL: `localhost` / `127.0.0.1` → dev (like Tampermonkey dev launcher); any other origin → prod.
+   - **Extension auto-reload** (Options toggle) is separate — only for watch builds of the extension itself.
 4. **Popup** → **Sync rules from server** (imports RULE for badge + script names)
 5. Visit a matching page; preset loads via content script
 

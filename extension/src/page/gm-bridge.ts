@@ -227,7 +227,7 @@ export function installGmApiOnPage(): GMApi {
         })
     },
     GM_registerMenuCommand(caption: string, onClick: () => void): string {
-      gmLogger.info('Menu command registered:', caption, '(use extension popup / options; onClick stored on window)')
+      gmLogger.debug('Menu registered:', caption)
       const id = `menu-${++listenerSeq}`
       menuCommands.set(id, onClick)
       return id

@@ -2,6 +2,8 @@
 // Logging Functions
 // ============================================================================
 
+import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
+
 import { logStore } from '@/services/log-store'
 
 /**
@@ -110,25 +112,24 @@ function convertTagsToStyles(text: string): { text: string; styles: string[] } {
 
 /**
  * Process log contents to support %c styling like console.log and HTML-like tags
- * Merges prefix style with user-provided styles in contents
+ * Merges VWS prefix with user-provided styles in contents
  * Supports both %c syntax and HTML-like tags (<b>, <i>, <u>, <s>, <red>, etc.)
  * Can be used together: HTML tags are converted first, then %c syntax is processed
  * Note: For best results when mixing, place HTML tags before user %c in the string
- * @param prefixText Text prefix with %c placeholder (e.g., '%c✔ [OK]')
- * @param prefixStyle Style for the prefix
+ * @param scope Logger scope shown after the VWS badge (e.g. "Preset" or script name)
+ * @param level Log severity for the styled level label
  * @param contents User-provided contents (may contain %c, styles, or HTML-like tags)
  * @returns Array of processed arguments for console.log
  */
-function processLogContents(prefixText: string, prefixStyle: string, ...contents: any[]): any[] {
+function processLogContents(scope: string, level: VwsConsoleLogLevel, ...contents: any[]): any[] {
   if (contents.length === 0) {
-    return [prefixText, prefixStyle]
+    const { format, styles } = buildVwsConsolePrefix(scope, level)
+    return [format, ...styles]
   }
 
-  // Check if first content is a string
   const firstContent = contents[0]
   if (typeof firstContent !== 'string') {
-    // No %c in contents, just append contents after prefix
-    return [prefixText, prefixStyle, ...contents]
+    return buildVwsConsoleLogArgs(scope, level, ...contents)
   }
 
   // Step 1: Convert HTML-like tags to %c syntax first (if any)
@@ -174,21 +175,22 @@ function processLogContents(prefixText: string, prefixStyle: string, ...contents
     const allStyles = [...tagStyles, ...userStyles]
 
     // Combine prefix with processed text
+    const { format: prefixText, styles: prefixStyles } = buildVwsConsolePrefix(scope, level)
     const combinedString = `${prefixText} ${processedText}`
-    const combinedStyles = [prefixStyle, ...allStyles]
+    const combinedStyles = [...prefixStyles, ...allStyles]
 
     return [combinedString, ...combinedStyles, ...otherContents]
   }
 
   // If we have tagStyles but no %c in final text (shouldn't happen, but handle it)
   if (tagStyles.length > 0) {
+    const { format: prefixText, styles: prefixStyles } = buildVwsConsolePrefix(scope, level)
     const combinedString = `${prefixText} ${processedText}`
-    const combinedStyles = [prefixStyle, ...tagStyles]
+    const combinedStyles = [...prefixStyles, ...tagStyles]
     return [combinedString, ...combinedStyles, ...contents.slice(1)]
   }
 
-  // No %c or tags in contents, just append contents after prefix
-  return [prefixText, prefixStyle, ...contents]
+  return buildVwsConsoleLogArgs(scope, level, ...contents)
 }
 
 /**
@@ -198,7 +200,7 @@ function processLogContents(prefixText: string, prefixStyle: string, ...contents
  */
 
 export function createGMELogger(prefix?: string) {
-  const modulePrefix = prefix && prefix.trim() ? `[${prefix.trim()}]` : ''
+  const scope = prefix?.trim() || 'Preset'
 
   return {
     /**
@@ -211,7 +213,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_ok(...contents: any[]) {
-      const args = processLogContents(`%c✔ [OK]${modulePrefix}`, 'color:#28a745;font-weight:700;', ...contents)
+      const args = processLogContents(scope, 'ok', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
       pushToLogStore('ok', ...contents)
@@ -226,7 +228,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_info(...contents: any[]) {
-      const args = processLogContents(`%cℹ [INFO]${modulePrefix}`, 'color:#17a2b8;font-weight:700;', ...contents)
+      const args = processLogContents(scope, 'info', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
       pushToLogStore('info', ...contents)
@@ -241,7 +243,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_fail(...contents: any[]) {
-      const args = processLogContents(`%c✘ [FAIL]${modulePrefix}`, 'color:#dc3545;font-weight:700;', ...contents)
+      const args = processLogContents(scope, 'fail', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
       pushToLogStore('fail', ...contents)
@@ -256,7 +258,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_warn(...contents: any[]) {
-      const args = processLogContents(`%c⚠ [WARN]${modulePrefix}`, 'color:#ffc107;font-weight:700;', ...contents)
+      const args = processLogContents(scope, 'warn', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
       pushToLogStore('warn', ...contents)
@@ -272,7 +274,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_debug(...contents: any[]) {
-      const args = processLogContents(`%c🔍 [DEBUG]${modulePrefix}`, 'color:#6c757d;font-weight:700;', ...contents)
+      const args = processLogContents(scope, 'debug', ...contents)
       // eslint-disable-next-line no-console
       console.debug(...args)
       pushToLogStore('debug', ...contents)
@@ -290,7 +292,7 @@ export function createGMELogger(prefix?: string) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_ok(...contents: any[]) {
-  const args = processLogContents('%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
+  const args = processLogContents('Preset', 'ok', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
   pushToLogStore('ok', ...contents)
@@ -305,7 +307,7 @@ export function GME_ok(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_info(...contents: any[]) {
-  const args = processLogContents('%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
+  const args = processLogContents('Preset', 'info', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
   pushToLogStore('info', ...contents)
@@ -320,7 +322,7 @@ export function GME_info(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_fail(...contents: any[]) {
-  const args = processLogContents('%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
+  const args = processLogContents('Preset', 'fail', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
   pushToLogStore('fail', ...contents)
@@ -335,7 +337,7 @@ export function GME_fail(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_warn(...contents: any[]) {
-  const args = processLogContents('%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
+  const args = processLogContents('Preset', 'warn', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
   pushToLogStore('warn', ...contents)
@@ -351,7 +353,7 @@ export function GME_warn(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_debug(...contents: any[]) {
-  const args = processLogContents('%c🔍 [DEBUG]', 'color:#6c757d;font-weight:700;', ...contents)
+  const args = processLogContents('Preset', 'debug', ...contents)
   // eslint-disable-next-line no-console
   console.debug(...args)
   pushToLogStore('debug', ...contents)
@@ -401,22 +403,19 @@ class LogGroup implements GroupLogger {
     this.startTime = Date.now()
 
     // Immediately output start marker with script name
-    const startLabel = `%c📦 [${scriptName}] ${label}`
-    const startStyle = 'color: #6f42c1; font-weight: bold; font-size: 12px;'
     // eslint-disable-next-line no-console
-    console.log(startLabel, startStyle)
+    console.log(...buildVwsConsoleLogArgs(scriptName, 'info', `▶ ${label}`))
   }
 
   /**
    * Internal method to log and collect
    * @param type Console method type
-   * @param prefixText Prefix text with %c placeholder
-   * @param prefixStyle Style for the prefix
+   * @param level Styled VWS log level
    * @param contents Log contents
    * @returns This instance for chaining
    */
-  private log(type: 'log' | 'debug' | 'warn' | 'error', prefixText: string, prefixStyle: string, ...contents: any[]): GroupLogger {
-    const args = processLogContents(prefixText, prefixStyle, ...contents)
+  private log(type: 'log' | 'debug' | 'warn' | 'error', level: VwsConsoleLogLevel, ...contents: any[]): GroupLogger {
+    const args = processLogContents(this.scriptName, level, ...contents)
 
     // Immediately output (don't block)
     // eslint-disable-next-line no-console
@@ -434,7 +433,7 @@ class LogGroup implements GroupLogger {
    * @returns This instance for chaining
    */
   info(...contents: any[]): GroupLogger {
-    return this.log('log', '%cℹ [INFO]', 'color:#17a2b8;font-weight:700;', ...contents)
+    return this.log('log', 'info', ...contents)
   }
 
   /**
@@ -443,7 +442,7 @@ class LogGroup implements GroupLogger {
    * @returns This instance for chaining
    */
   ok(...contents: any[]): GroupLogger {
-    return this.log('log', '%c✔ [OK]', 'color:#28a745;font-weight:700;', ...contents)
+    return this.log('log', 'ok', ...contents)
   }
 
   /**
@@ -452,7 +451,7 @@ class LogGroup implements GroupLogger {
    * @returns This instance for chaining
    */
   warn(...contents: any[]): GroupLogger {
-    return this.log('warn', '%c⚠ [WARN]', 'color:#ffc107;font-weight:700;', ...contents)
+    return this.log('warn', 'warn', ...contents)
   }
 
   /**
@@ -461,7 +460,7 @@ class LogGroup implements GroupLogger {
    * @returns This instance for chaining
    */
   fail(...contents: any[]): GroupLogger {
-    return this.log('error', '%c✘ [FAIL]', 'color:#dc3545;font-weight:700;', ...contents)
+    return this.log('error', 'fail', ...contents)
   }
 
   /**
@@ -470,7 +469,7 @@ class LogGroup implements GroupLogger {
    * @returns This instance for chaining
    */
   debug(...contents: any[]): GroupLogger {
-    return this.log('debug', '%c🔍 [DEBUG]', 'color:#6c757d;font-weight:700;', ...contents)
+    return this.log('debug', 'debug', ...contents)
   }
 
   /**
@@ -481,12 +480,8 @@ class LogGroup implements GroupLogger {
     const duration = Date.now() - this.startTime
     const logCount = this.logs.length
 
-    // Output summary in a collapsible group
-    const summaryLabel = `%c📦 [${this.scriptName}] ${this.label} - ${logCount} logs in ${duration}ms`
-    const summaryStyle = 'color: #6f42c1; font-weight: bold;'
-
     // eslint-disable-next-line no-console
-    console.groupCollapsed(summaryLabel, summaryStyle)
+    console.groupCollapsed(...buildVwsConsoleLogArgs(this.scriptName, 'info', `${this.label} · ${logCount} logs · ${duration}ms`))
 
     // Replay all collected logs
     this.logs.forEach(({ type, args }) => {

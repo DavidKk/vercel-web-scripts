@@ -54,6 +54,21 @@ const EXTENSION_GRANTS = [
 const EXTENSION_GRANTS_STRING = EXTENSION_GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(', ')
 
 /**
+ * Tampermonkey sets __IS_DEVELOP_MODE__ from NODE_ENV at launcher generation time.
+ * Extension mirrors that from Server URL: local MagickMonkey → dev; remote origin → prod.
+ * @param baseUrl MagickMonkey server origin from Options
+ * @returns Whether preset should use dev-only paths on the server host
+ */
+export function isDevelopMagickMonkeyBase(baseUrl: string): boolean {
+  try {
+    const host = new URL(baseUrl.replace(/\/$/, '')).hostname
+    return host === 'localhost' || host === '127.0.0.1'
+  } catch {
+    return false
+  }
+}
+
+/**
  * Build preset / manifest / remote URLs and scoped storage keys from extension config.
  * @param config Extension options (baseUrl, scriptKey, developMode)
  * @returns URLs, scoped keys, and preset global assignments
@@ -88,8 +103,8 @@ export function buildLauncherUrls(config: ExtensionConfig): LauncherUrls {
     __EDITOR_URL__: `${baseUrl}/editor`,
     __HMK_URL__: `${wsProtocol}//${hostFromBase}/_next/webpack-hmr`,
     __SCRIPT_URL__: remoteScriptUrl,
-    __IS_DEVELOP_MODE__: config.developMode,
-    __HOSTNAME_PORT__: pageHost,
+    __IS_DEVELOP_MODE__: isDevelopMagickMonkeyBase(baseUrl),
+    __HOSTNAME_PORT__: hostFromBase,
     __GRANTS_STRING__: EXTENSION_GRANTS_STRING,
   }
 

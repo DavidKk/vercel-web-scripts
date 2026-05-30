@@ -51,7 +51,10 @@
                     <mm-input>
                       <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" autocomplete="url" />
                     </mm-input>
-                    <p class="mm-hint">Editor origin, for example <code>http://localhost:3000</code>.</p>
+                    <p class="mm-hint">
+                      Editor origin, for example <code>http://localhost:3000</code>. <code>localhost</code> / <code>127.0.0.1</code> enables preset develop mode (same as
+                      Tampermonkey dev launcher).
+                    </p>
                   </mm-field>
 
                   <mm-field class="mm-options-field">
@@ -72,8 +75,11 @@
 
                 <label class="mm-options-toggle-card">
                   <span class="mm-options-toggle-copy">
-                    <span class="mm-options-toggle-title">Develop mode</span>
-                    <span class="mm-options-toggle-text">Enable local dev flags and extension auto-reload support.</span>
+                    <span class="mm-options-toggle-title">Extension auto-reload</span>
+                    <span class="mm-options-toggle-text"
+                      >When using <code>pnpm run build:extension:dev</code>, reload the unpacked extension after rebuild. Does not change preset develop mode (that follows Server
+                      URL above).</span
+                    >
                   </span>
                   <span class="mm-switch-control">
                     <input type="checkbox" class="mm-switch-input" data-ref="develop-mode" checked />
