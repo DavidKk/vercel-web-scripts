@@ -437,15 +437,17 @@ describe('gist script token-efficient editing helpers', () => {
         keywords: ['CSV', '复制'],
       })
 
+      const expectedKeywords = ['CSV', '复制'].sort((a, b) => a.localeCompare(b))
+
       expect(updated).toMatchObject({
         filename: 'demo.ts',
         aliases: ['表格复制'],
-        keywords: ['CSV', '复制'],
+        keywords: expectedKeywords,
       })
       expect(getWrittenIndex().scripts[0]).toMatchObject({
         filename: 'demo.ts',
         aliases: ['表格复制'],
-        keywords: ['CSV', '复制'],
+        keywords: expectedKeywords,
       })
     })
   })

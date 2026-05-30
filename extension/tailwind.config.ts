@@ -5,31 +5,28 @@ import type { Config } from 'tailwindcss'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-/**
- * MagickMonkey extension UI palette (warm stone shell + indigo accent).
- * `canvas` vs `surface` must stay clearly distinct for card legibility.
- */
+/** MagickMonkey extension UI palette (clean admin shell + bright magic accents). */
 const mmPalette = {
-  /** Page / popup backdrop — warm greige, not blue-grey */
-  canvas: '#E8E4DE',
-  /** Cards, header, footer, inputs */
-  surface: '#FFFCF9',
-  /** Hover rows, section strips, badges */
-  muted: '#F3F0EB',
-  border: '#B8B0A6',
-  'border-light': '#D4CDC4',
-  /** Primary actions, switch on, focus rings */
-  accent: '#4F46E5',
-  'accent-hover': '#4338CA',
-  'accent-soft': '#EEF2FF',
-  ink: '#1C1917',
-  secondary: '#44403C',
-  'text-muted': '#78716C',
-  label: '#A8A29E',
-  icon: '#9C948A',
-  danger: '#DC2626',
-  'danger-soft': '#FEECEC',
-  success: '#047857',
+  canvas: '#F6F8FB',
+  surface: '#FFFFFF',
+  muted: '#EEF3F8',
+  border: '#B8C7D9',
+  'border-light': '#DCE5EF',
+  accent: '#2563EB',
+  'accent-hover': '#1D4ED8',
+  'accent-soft': '#EAF2FF',
+  magic: '#8B5CF6',
+  'magic-soft': '#F1ECFF',
+  cyan: '#06B6D4',
+  'cyan-soft': '#E6FAFD',
+  ink: '#162033',
+  secondary: '#334155',
+  'text-muted': '#687589',
+  label: '#8B9AAF',
+  icon: '#7B8CA3',
+  danger: '#EF4444',
+  'danger-soft': '#FFF1F1',
+  success: '#10B981',
   'success-soft': '#ECFDF5',
 } as const
 
@@ -44,8 +41,9 @@ export default {
         mm: { ...mmPalette },
       },
       boxShadow: {
-        mm: '0 1px 2px rgba(28, 25, 23, 0.06), 0 4px 14px rgba(28, 25, 23, 0.08)',
-        'mm-sm': '0 1px 3px rgba(28, 25, 23, 0.08)',
+        mm: '0 1px 2px rgba(22, 32, 51, 0.05), 0 10px 26px rgba(22, 32, 51, 0.08)',
+        'mm-sm': '0 1px 4px rgba(22, 32, 51, 0.09)',
+        'mm-glow': '0 0 0 1px rgba(139, 92, 246, 0.08), 0 12px 30px rgba(37, 99, 235, 0.16)',
       },
     },
   },

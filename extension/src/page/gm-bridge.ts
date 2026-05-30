@@ -9,13 +9,6 @@ import type { GMApi, GMRequestDetails, GMValue } from './gm-types'
 const REQUEST_EVENT = 'vws-gm-request'
 const RESPONSE_EVENT = 'vws-gm-response'
 
-declare global {
-  interface Window {
-    __VWS_GM_STORE__?: Record<string, GMValue>
-    __VWS_PAGE_CONFIG__?: { extensionVersion?: string }
-  }
-}
-
 let requestId = 0
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
 const changeListeners = new Map<string, Map<string, (name: string, oldValue: GMValue, newValue: GMValue) => void>>()

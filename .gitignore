@@ -4,6 +4,7 @@ next-env.d.ts
 coverage
 preset/dist
 extension/dist
+extension/preview-dist
 preset-vendor/dist
 # Generated from preset/src/editor-typings.d.ts by scripts/generate-editor-typings.mjs
 lib/tampermonkey-editor-typings.generated.ts

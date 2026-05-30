@@ -18,6 +18,6 @@
       "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "vite.config.ts", "tailwind.config.ts", "vite-plugins/**/*.ts", "../shared/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "scripts/**/*.d.mts", "vite.config.ts", "tailwind.config.ts", "vite-plugins/**/*.ts", "src/dev-build-stamp.ts", "../shared/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

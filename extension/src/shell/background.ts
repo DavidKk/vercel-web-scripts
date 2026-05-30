@@ -19,11 +19,32 @@ import {
   TAB_MATCH_CACHE_KEY,
 } from '@ext/shared/tab-match-cache'
 
+import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import { initDevExtensionReload } from './dev-extension-reload'
+
+void DEV_BUILD_STAMP
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
   return tabs[0]
+}
+
+/** http(s) pages and this extension's own pages (scripts/options) can be reloaded. */
+function isReloadableTabUrl(url: string | undefined): boolean {
+  if (!url) {
+    return false
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return true
+  }
+  return url.startsWith(chrome.runtime.getURL(''))
+}
+
+async function reloadTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
+  if (tab?.id == null || !isReloadableTabUrl(tab.url)) {
+    return
+  }
+  await chrome.tabs.reload(tab.id)
 }
 
 async function buildStatus(): Promise<ShellStatus> {
@@ -143,19 +164,13 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           }
           await clearRuntimeModuleCache(config)
           await invalidateTabMatchCache()
-          const tab = await getActiveTab()
-          if (tab?.id != null && tab.url?.startsWith('http')) {
-            await chrome.tabs.reload(tab.id)
-          }
+          await reloadTab(await getActiveTab())
           sendResponse({ ok: true, message: 'Runtime cache cleared.' } satisfies ShellResponse)
           return
         }
         case 'RESET_RUNTIME': {
           await resetRuntimeState(config)
-          const tab = await getActiveTab()
-          if (tab?.id != null && tab.url?.startsWith('http')) {
-            await chrome.tabs.reload(tab.id)
-          }
+          await reloadTab(await getActiveTab())
           sendResponse({ ok: true, message: 'Runtime state reset.' } satisfies ShellResponse)
           return
         }
@@ -184,12 +199,12 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
             sendResponse({ ok: false, error: 'No active tab.' } satisfies ShellResponse)
             return
           }
-          if (!tab.url?.startsWith('http')) {
-            sendResponse({ ok: false, error: 'Cannot reload this tab.' } satisfies ShellResponse)
+          if (!isReloadableTabUrl(tab.url)) {
+            sendResponse({ ok: false, error: 'Cannot reload this tab (system pages are not supported).' } satisfies ShellResponse)
             return
           }
           await chrome.tabs.reload(tab.id)
-          sendResponse({ ok: true } satisfies ShellResponse)
+          sendResponse({ ok: true, message: 'Tab reloaded.' } satisfies ShellResponse)
           return
         }
         case 'SYNC_RULES': {

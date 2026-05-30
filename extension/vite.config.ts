@@ -3,13 +3,17 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import Icons from 'unplugin-icons/vite'
-import { build, defineConfig, type Plugin, type UserConfig } from 'vite'
+import { build, defineConfig, type InlineConfig, type Plugin, type UserConfig } from 'vite'
 
 import pkg from '../package.json'
+import { createScriptLogger } from './scripts/logger.mjs'
+import { buildShellCss } from './vite-plugins/build-shell-css'
 import { ensureDevReloadSseServer } from './vite-plugins/dev-reload-sse'
+import { ensureDevBuildStamp, registerExtensionWatchFiles, touchDevBuildStamp, watchExtensionNewFiles } from './vite-plugins/extension-watch-files'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.resolve(__dirname, 'dist')
+const extensionLog = createScriptLogger('extension')
 
 const EXTENSION_ENTRIES = [
   { name: 'background', input: 'src/shell/background.ts' },
@@ -34,13 +38,15 @@ const sharedCss: UserConfig['css'] = {
 const extensionIconsPlugin = Icons({ compiler: 'raw', autoInstall: true })
 
 function copyToDist(from: string, to: string): void {
+  const target = path.join(distDir, to)
   if (!existsSync(from)) {
+    rmSync(target, { force: true })
     return
   }
-  cpSync(from, path.join(distDir, to))
+  cpSync(from, target)
 }
 
-function copyExtensionAssets(): void {
+function copyExtensionAssets(watchMode = false): void {
   if (!existsSync(distDir)) {
     mkdirSync(distDir, { recursive: true })
   }
@@ -55,43 +61,30 @@ function copyExtensionAssets(): void {
   copyToDist(path.join(__dirname, 'src/pages/scripts/index.html'), 'scripts.html')
 
   const iconsDir = path.join(__dirname, 'icons')
+  const distIconsDir = path.join(distDir, 'icons')
   if (existsSync(iconsDir)) {
-    cpSync(iconsDir, path.join(distDir, 'icons'), { recursive: true })
+    rmSync(distIconsDir, { recursive: true, force: true })
+    cpSync(iconsDir, distIconsDir, { recursive: true })
+  } else {
+    rmSync(distIconsDir, { recursive: true, force: true })
+  }
+
+  if (watchMode) {
+    extensionLog.info('copied HTML, manifest, icons → dist/')
   }
 }
 
 function assertNoModuleSyntax(): void {
   for (const entry of EXTENSION_ENTRIES) {
     const file = path.join(distDir, `${entry.name}.js`)
+    if (!existsSync(file)) {
+      throw new Error(`${entry.name}.js missing after extension build — dist is incomplete (watch rebuild race?)`)
+    }
     const code = readFileSync(file, 'utf-8')
     if (/^\s*import[\s{]/m.test(code) || /^\s*export[\s{]/m.test(code)) {
       throw new Error(`${entry.name}.js still contains import/export — extension bundles must be IIFE-only`)
     }
   }
-}
-
-/** Tailwind for extension HTML pages (shell.css). */
-async function buildDocumentCss(): Promise<void> {
-  await build({
-    configFile: false,
-    root: __dirname,
-    build: {
-      outDir: 'dist',
-      emptyOutDir: false,
-      rollupOptions: {
-        input: path.resolve(__dirname, 'src/ui/document-css-entry.ts'),
-        output: {
-          entryFileNames: '_document-css.js',
-          assetFileNames: 'shell.css',
-        },
-      },
-      target: 'esnext',
-      minify: false,
-    },
-    css: sharedCss,
-  })
-  rmSync(path.join(distDir, '_document-css.js'), { force: true })
-  rmSync(path.join(distDir, '_document-css.js.map'), { force: true })
 }
 
 function extensionDefine(devReloadSseUrl: string): UserConfig['define'] {
@@ -100,7 +93,7 @@ function extensionDefine(devReloadSseUrl: string): UserConfig['define'] {
   }
 }
 
-function createEntryConfig(entry: (typeof EXTENSION_ENTRIES)[number], emptyOutDir: boolean, devReloadSseUrl: string): UserConfig {
+function createEntryConfig(entry: (typeof EXTENSION_ENTRIES)[number], emptyOutDir: boolean, devReloadSseUrl: string): InlineConfig {
   return {
     configFile: false,
     root: __dirname,
@@ -113,7 +106,7 @@ function createEntryConfig(entry: (typeof EXTENSION_ENTRIES)[number], emptyOutDi
         output: {
           entryFileNames: `${entry.name}.js`,
           /** IIFE: no import/export — safe for content scripts, page inject, popup, and service worker */
-          format: 'iife',
+          format: 'iife' as const,
           inlineDynamicImports: true,
         },
       },
@@ -125,6 +118,12 @@ function createEntryConfig(entry: (typeof EXTENSION_ENTRIES)[number], emptyOutDi
     css: sharedCss,
     plugins: [extensionIconsPlugin],
   }
+}
+
+const primaryIifeOutput = {
+  entryFileNames: `${EXTENSION_ENTRIES[0].name}.js`,
+  format: 'iife' as const,
+  inlineDynamicImports: true,
 }
 
 /** Remove stale chunk output from older multi-input builds. */
@@ -142,45 +141,73 @@ function extensionCleanPlugin(): Plugin {
  * compile remaining entries in closeBundle (one IIFE per entry, deps inlined).
  * Nested builds use configFile:false so this plugin is not re-entered.
  */
+/** popup, scripts, options, content-bridge, page-launcher + shell.css (watch + closeBundle). */
+async function buildSecondaryExtensionEntries(devReloadSseUrl: string, watchMode: boolean): Promise<void> {
+  for (let i = 1; i < EXTENSION_ENTRIES.length; i++) {
+    await build(createEntryConfig(EXTENSION_ENTRIES[i], false, devReloadSseUrl))
+  }
+  await buildShellCss(__dirname, 'dist')
+  assertNoModuleSyntax()
+  copyExtensionAssets(watchMode)
+}
+
 function extensionMultiEntryPlugin(devReload: ReturnType<typeof ensureDevReloadSseServer> | undefined): Plugin {
-  let buildingRemaining = false
+  let closeBundleQueue: Promise<void> = Promise.resolve()
+  let closeNewFileWatcher: (() => void) | undefined
+  let touchStampTimer: ReturnType<typeof setTimeout> | undefined
   const devReloadSseUrl = devReload?.sseUrl ?? ''
 
   return {
     name: 'extension-multi-entry',
     apply: 'build',
     buildStart() {
-      if (this.meta.watchMode) {
-        for (const entry of EXTENSION_ENTRIES) {
-          this.addWatchFile(path.resolve(__dirname, entry.input))
-        }
-      }
-    },
-    async closeBundle() {
-      if (buildingRemaining) {
+      ensureDevBuildStamp(__dirname)
+      if (!this.meta.watchMode) {
         return
       }
-      buildingRemaining = true
-      try {
-        for (let i = 1; i < EXTENSION_ENTRIES.length; i++) {
-          await build(createEntryConfig(EXTENSION_ENTRIES[i], false, devReloadSseUrl))
-        }
-        await buildDocumentCss()
-        assertNoModuleSyntax()
-        copyExtensionAssets()
-        if (this.meta.watchMode && devReload) {
-          devReload.scheduleBroadcast()
-        }
-      } finally {
-        buildingRemaining = false
+      if (!closeNewFileWatcher) {
+        closeNewFileWatcher = watchExtensionNewFiles(__dirname, () => {
+          clearTimeout(touchStampTimer)
+          touchStampTimer = setTimeout(() => {
+            touchDevBuildStamp(__dirname)
+          }, 50)
+        })
       }
+      for (const entry of EXTENSION_ENTRIES) {
+        this.addWatchFile(path.resolve(__dirname, entry.input))
+      }
+      const staticPaths = registerExtensionWatchFiles(__dirname, (id) => {
+        this.addWatchFile(id)
+      })
+      extensionLog.info(`watch: ${EXTENSION_ENTRIES.length} entries + ${staticPaths.length} path(s) via addWatchFile (src glob each buildStart)`)
+    },
+    closeBundle() {
+      const watchMode = this.meta.watchMode
+      closeBundleQueue = closeBundleQueue
+        .then(() => buildSecondaryExtensionEntries(devReloadSseUrl, watchMode))
+        .then(() => {
+          if (watchMode && devReload) {
+            devReload.scheduleBroadcast()
+          }
+        })
+        .catch((err: unknown) => {
+          // eslint-disable-next-line no-console -- Vite build pipeline error surface
+          console.error('[extension] multi-entry build failed:', err)
+          throw err
+        })
+      return closeBundleQueue
+    },
+    closeWatcher() {
+      clearTimeout(touchStampTimer)
+      closeNewFileWatcher?.()
+      closeNewFileWatcher = undefined
     },
   }
 }
 
 const primaryEntry = EXTENSION_ENTRIES[0]
 
-export default defineConfig(() => {
+export default defineConfig((): UserConfig => {
   const isWatch = process.argv.includes('--watch')
   const devReload = isWatch ? ensureDevReloadSseServer() : undefined
   const devReloadSseUrl = devReload?.sseUrl ?? ''
@@ -191,16 +218,19 @@ export default defineConfig(() => {
     plugins: [extensionCleanPlugin(), extensionMultiEntryPlugin(devReload), extensionIconsPlugin],
     build: {
       outDir: 'dist',
-      emptyOutDir: true,
+      /** Watch: never empty dist mid-pipeline (closeBundle still writing popup/scripts/…). */
+      emptyOutDir: !isWatch,
       /** `build.watch` enables watch mode whenever set — only turn on with --watch */
-      ...(isWatch ? { watch: { exclude: ['dist/**'] } } : {}),
+      ...(isWatch
+        ? {
+            watch: {
+              exclude: ['dist/**', 'node_modules/**'],
+            },
+          }
+        : {}),
       rollupOptions: {
         input: path.resolve(__dirname, primaryEntry.input),
-        output: {
-          entryFileNames: `${primaryEntry.name}.js`,
-          format: 'iife',
-          inlineDynamicImports: true,
-        },
+        output: primaryIifeOutput,
       },
       target: 'esnext',
       minify: false,

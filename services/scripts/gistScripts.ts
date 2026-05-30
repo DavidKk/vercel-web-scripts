@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import * as ts from 'typescript'
 
-import { EXCLUDED_FILES, SCRIPT_INDEX_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { EXCLUDED_FILES, isManagedScriptFilename, SCRIPT_INDEX_FILE } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFiles } from '@/services/gist'
 
 /** Metadata for one script file in the backing Gist */
@@ -325,20 +325,7 @@ async function writeManagedScriptFilesWithIndex(
   })
 }
 
-/**
- * Whether a Gist filename is allowed for script integration (mutations).
- * @param filename Gist file name
- * @returns True when list/get/upsert/delete are permitted
- */
-export function isManagedScriptFilename(filename: string): boolean {
-  if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
-    return false
-  }
-  if (EXCLUDED_FILES.includes(filename)) {
-    return false
-  }
-  return SCRIPTS_FILE_EXTENSION.some((ext) => filename.endsWith(ext))
-}
+export { isManagedScriptFilename } from '@/constants/file'
 
 /**
  * List managed script files from the configured Gist.

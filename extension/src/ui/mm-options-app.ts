@@ -22,11 +22,18 @@ export class MmOptionsApp extends HTMLElement {
     this.querySelector('[data-action="save"]')?.addEventListener('click', () => {
       void this.save()
     })
+    this.querySelector('[data-action="reset"]')?.addEventListener('click', () => {
+      void this.reset()
+    })
   }
 
   private async load(): Promise<void> {
     const result = await chrome.storage.local.get(CONFIG_STORAGE_KEY)
     const config = (result[CONFIG_STORAGE_KEY] as ExtensionConfig | undefined) ?? DEFAULT_CONFIG
+    this.applyConfig(config)
+  }
+
+  private applyConfig(config: ExtensionConfig): void {
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = config.baseUrl
     ;(this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value = config.scriptKey
     ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = config.developMode !== false
@@ -53,5 +60,11 @@ export class MmOptionsApp extends HTMLElement {
     }
     await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: config })
     this.setStatus('Saved. Reload open tabs for changes to take effect.', 'ok')
+  }
+
+  private async reset(): Promise<void> {
+    this.applyConfig(DEFAULT_CONFIG)
+    await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: DEFAULT_CONFIG })
+    this.setStatus('Reset to defaults.', 'ok')
   }
 }

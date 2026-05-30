@@ -16,6 +16,12 @@ export function createScriptLogger(scope) {
     /**
      * @param {...unknown} args
      */
+    warn(...args) {
+      console.warn(prefix, ...args)
+    },
+    /**
+     * @param {...unknown} args
+     */
     error(...args) {
       console.error(prefix, ...args)
     },

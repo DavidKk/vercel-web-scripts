@@ -6,6 +6,7 @@
 declare const __EXTENSION_DEV_RELOAD_SSE__: string
 
 import { loadExtensionConfig } from '@ext/shared/extension-storage'
+import { CONFIG_STORAGE_KEY } from '@ext/types'
 
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 let eventSource: EventSource | undefined
@@ -35,16 +36,29 @@ async function connectDevReloadSse(url: string): Promise<void> {
 /**
  * Start SSE client when develop mode is on and watch build exposed a reload URL.
  */
+function startDevReloadClient(url: string): void {
+  void loadExtensionConfig().then((config) => {
+    if (!config.developMode) {
+      eventSource?.close()
+      eventSource = undefined
+      return
+    }
+    void connectDevReloadSse(url)
+  })
+}
+
 export function initDevExtensionReload(): void {
   const url = typeof __EXTENSION_DEV_RELOAD_SSE__ !== 'undefined' ? __EXTENSION_DEV_RELOAD_SSE__ : ''
   if (!url) {
     return
   }
 
-  void loadExtensionConfig().then((config) => {
-    if (!config.developMode) {
+  startDevReloadClient(url)
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes[CONFIG_STORAGE_KEY]) {
       return
     }
-    void connectDevReloadSse(url)
+    startDevReloadClient(url)
   })
 }

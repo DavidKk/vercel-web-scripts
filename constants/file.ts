@@ -1,10 +1,3 @@
-export const ENTRY_SCRIPT_FILE = 'tampermonkey.user.js'
+export { ENTRY_SCRIPT_FILE, ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, isManagedScriptFilename, SCRIPT_INDEX_FILE, SCRIPTS_FILE_EXTENSION } from '../shared/managed-script-files'
 
-export const ENTRY_SCRIPT_RULES_FILE = 'tampermonkey.rules.json'
-
-export const SCRIPT_INDEX_FILE = 'magickmonkey.scripts.index.json'
-
-export const EXCLUDED_FILES = [ENTRY_SCRIPT_FILE, ENTRY_SCRIPT_RULES_FILE]
-
-export const SCRIPTS_FILE_EXTENSION = ['.ts', '.js']
 export const EDITOR_SUPPORTED_EXTENSIONS = ['.ts', '.js', '.json']

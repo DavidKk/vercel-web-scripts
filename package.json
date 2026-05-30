@@ -8,10 +8,8 @@
   },
   "scripts": {
     "commit": "git-cz",
-    "ci:coverage": "pnpm test",
     "postinstall": "node --experimental-modules ./scripts/postinstall.mjs && node scripts/generate-editor-typings.mjs",
     "preinstall": "node --experimental-modules ./scripts/preinstall.mjs",
-    "clear": "rimraf --glob ./libs",
     "format": "prettier --config .prettierrc.js --write \"**/*.{js,jsx,ts,tsx,d.ts,vue,md,json,yml,yaml}\"",
     "lint": "pnpm lint:ts",
     "lint:ts": "eslint -c eslint.config.mjs --fix .",
@@ -34,6 +32,7 @@
     "build:extension:icons": "node extension/scripts/build-icons.mjs",
     "build:extension": "pnpm run build:extension:icons && vite build --config extension/vite.config.ts",
     "build:extension:dev": "vite build --config extension/vite.config.ts --watch",
+    "test:extension:static-watch": "node extension/scripts/verify-static-watch.mjs",
     "prepare": "husky"
   },
   "dependencies": {

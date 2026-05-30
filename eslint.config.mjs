@@ -67,6 +67,7 @@ export default [
             '**/__webtests__/**/*.ts',
             '**/vite.config.ts',
             '**/vite.ui.config.ts',
+            'extension/vite-plugins/**/*.ts',
             'extension/postcss.config.mjs',
             'extension/tailwind.config.ts',
           ],

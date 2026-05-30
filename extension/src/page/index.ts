@@ -8,17 +8,6 @@ import { buildLauncherUrls } from './config'
 import { installGmApiOnPage } from './gm-bridge'
 import { startLauncher } from './launcher-runtime'
 
-declare global {
-  interface Window {
-    __VWS_PAGE_CONFIG__?: {
-      baseUrl: string
-      scriptKey: string
-      developMode: boolean
-      extensionVersion?: string
-    }
-  }
-}
-
 function main(): void {
   const config = window.__VWS_PAGE_CONFIG__
   if (!config?.baseUrl || !config.scriptKey) {

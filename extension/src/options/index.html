@@ -8,68 +8,74 @@
   </head>
   <body class="m-0 h-full min-h-screen bg-mm-canvas p-0 antialiased">
     <mm-options-app>
-      <div class="mm-page">
-        <header class="mm-page-header">
-          <img
-            src="./icons/icon48.png"
-            width="48"
-            height="48"
-            alt="MagickMonkey logo"
-            class="h-11 w-11 shrink-0 rounded-lg shadow-mm-sm ring-1 ring-mm-border-light sm:h-12 sm:w-12"
-          />
-          <div class="min-w-0 flex-1">
-            <h1 class="mm-page-header-title">MagickMonkey Chrome Extension</h1>
-            <p class="mm-page-header-subtitle">Connection and develop settings</p>
+      <div class="mm-admin-page">
+        <header class="mm-admin-header">
+          <div class="mm-admin-brand">
+            <img src="./icons/icon32.png" width="32" height="32" alt="" aria-hidden="true" />
+            <span class="mm-admin-title">MagickMonkey</span>
           </div>
+          <nav class="mm-admin-nav" aria-label="Extension pages">
+            <a href="./options.html" class="mm-admin-nav-link" aria-current="page">Settings</a>
+            <a href="./scripts.html" class="mm-admin-nav-link">Scripts</a>
+          </nav>
         </header>
 
-        <main class="mm-page-main">
-          <p class="mb-6 text-sm leading-relaxed text-mm-text-muted sm:max-w-2xl">Native shell for MagickMonkey: loads preset and remote scripts from your server.</p>
+        <main class="mm-admin-main">
+          <section class="mm-settings-panel">
+            <div class="mm-settings-panel-header">
+              <h2 class="text-sm font-semibold text-mm-ink">Shell connection</h2>
+              <p class="mt-1 text-xs leading-relaxed text-mm-text-muted">Load preset and remote scripts from your MagickMonkey server.</p>
+            </div>
 
-          <div class="mm-card space-y-6 p-5 sm:p-6">
-            <div class="grid gap-6 sm:grid-cols-2">
-              <div class="mm-field sm:col-span-2">
+            <div class="mm-settings-panel-body">
+              <mm-field>
                 <label for="baseUrl" class="mm-label">Server URL (baseUrl)</label>
-                <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" class="mm-input" autocomplete="url" />
+                <mm-input>
+                  <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" autocomplete="url" />
+                </mm-input>
                 <p class="mm-hint">Same origin as the editor, e.g. http://localhost:3000 for local dev</p>
-              </div>
+              </mm-field>
 
-              <div class="mm-field sm:col-span-2">
+              <mm-field>
                 <label for="scriptKey" class="mm-label">Script Key</label>
-                <input id="scriptKey" type="text" data-ref="script-key" placeholder="Script key from Gist / editor" class="mm-input" autocomplete="off" spellcheck="false" />
+                <mm-input>
+                  <input id="scriptKey" type="text" data-ref="script-key" placeholder="Script key from Gist / editor" autocomplete="off" spellcheck="false" />
+                </mm-input>
                 <p class="mm-hint">
                   Same as the
                   <code class="rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary">[key]</code>
                   segment in
                   <code class="rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary">/static/[key]/</code>
                 </p>
-              </div>
+              </mm-field>
+
+              <mm-switch class="rounded-md border border-mm-border-light bg-mm-muted/70 px-3 py-2.5">
+                <span class="mm-switch-label">
+                  Develop mode
+                  <span class="block pt-0.5 text-xs text-mm-text-muted">
+                    Injects
+                    <code class="rounded bg-mm-surface px-1 py-0.5 font-mono text-[11px] ring-1 ring-mm-border-light">__IS_DEVELOP_MODE__</code>
+                    when enabled.
+                  </span>
+                </span>
+                <span class="mm-switch-control">
+                  <input type="checkbox" data-ref="develop-mode" checked />
+                  <span class="mm-switch-track" aria-hidden="true"></span>
+                  <span class="mm-switch-thumb" aria-hidden="true"></span>
+                </span>
+              </mm-switch>
             </div>
 
-            <p class="text-sm leading-relaxed text-mm-text-muted">
-              After saving, open the toolbar popup →
-              <strong class="font-medium text-mm-secondary">Sync rules from server</strong>
-              to populate script names.
-            </p>
-
-            <label class="mm-switch-row rounded-md border border-mm-border-light bg-mm-muted/70 px-3 py-3">
-              <span class="min-w-0 flex-1 text-sm leading-snug text-mm-secondary">
-                Develop mode (injects
-                <code class="rounded bg-mm-surface px-1 py-0.5 font-mono text-[11px] ring-1 ring-mm-border-light">__IS_DEVELOP_MODE__</code>
-                when enabled)
-              </span>
-              <span class="mm-switch">
-                <input type="checkbox" data-ref="develop-mode" class="mm-switch-input" role="switch" checked />
-                <span class="mm-switch-track" aria-hidden="true"></span>
-                <span class="mm-switch-thumb" aria-hidden="true"></span>
-              </span>
-            </label>
-
-            <div class="flex flex-wrap items-center gap-4 border-t border-mm-border-light pt-5">
-              <button type="button" data-action="save" class="mm-primary-btn w-full sm:w-auto sm:min-w-[10rem]">Save</button>
-              <p data-ref="status" class="text-sm text-mm-text-muted"></p>
+            <div class="mm-settings-panel-footer">
+              <p data-ref="status" class="mr-auto text-sm text-mm-text-muted"></p>
+              <mm-button variant="secondary" class="w-full sm:w-auto">
+                <button type="button" data-action="reset" class="w-full sm:min-w-28">Reset</button>
+              </mm-button>
+              <mm-button variant="primary" class="w-full sm:w-auto">
+                <button type="button" data-action="save" class="w-full sm:min-w-28">Save</button>
+              </mm-button>
             </div>
-          </div>
+          </section>
         </main>
       </div>
     </mm-options-app>
