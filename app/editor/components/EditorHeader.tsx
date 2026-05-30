@@ -2,19 +2,72 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FiChevronDown, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
+import { SiTampermonkey } from 'react-icons/si'
 
 import { Spinner } from '@/components/Spinner'
 import { Tooltip } from '@/components/Tooltip'
+import { CHROME_EXTENSION_ZIP_FILENAME, CHROME_EXTENSION_ZIP_PATH } from '@/shared/chrome-extension-download'
 
 import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
 
-const iconBtn = 'p-2 rounded text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const iconBtnBase = 'p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const iconBtn = `${iconBtnBase} text-[#e6eaf0] hover:text-white hover:bg-[#2a303a]`
+const iconBtnActiveGreen = `${iconBtnBase} bg-[#22c55e] text-white hover:bg-[#16a34a] hover:text-white`
+const iconBtnActiveBlue = `${iconBtnBase} bg-[#3b82f6] text-white hover:bg-[#2563eb] hover:text-white`
+const EXTENSION_WEB_SOURCE = 'magickmonkey-web'
+const EXTENSION_RESPONSE_SOURCE = 'magickmonkey-extension'
+
+type ExtensionConnectState = 'checking' | 'not_installed' | 'available' | 'connected' | 'connecting' | 'error'
+
+interface ExtensionBridgeResponse {
+  ok?: boolean
+  installed?: boolean
+  connected?: boolean
+  error?: string
+  extensionVersion?: string
+}
+
+function requestExtensionBridge(
+  type: 'MAGICKMONKEY_EXTENSION_PING' | 'MAGICKMONKEY_CONNECT_EXTENSION',
+  payload: { baseUrl: string; scriptKey: string; developMode?: boolean },
+  timeoutMs = 1200
+) {
+  return new Promise<ExtensionBridgeResponse>((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Browser window is unavailable.'))
+      return
+    }
+
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const expectedType = type === 'MAGICKMONKEY_EXTENSION_PING' ? 'MAGICKMONKEY_EXTENSION_PONG' : 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT'
+    const timer = window.setTimeout(() => {
+      window.removeEventListener('message', onMessage)
+      reject(new Error('MagickMonkey extension is not installed or not active on this page.'))
+    }, timeoutMs)
+
+    function onMessage(event: MessageEvent) {
+      if (event.source !== window || event.origin !== window.location.origin || !event.data || typeof event.data !== 'object') {
+        return
+      }
+      const data = event.data as { source?: unknown; type?: unknown; requestId?: unknown; payload?: unknown }
+      if (data.source !== EXTENSION_RESPONSE_SOURCE || data.type !== expectedType || data.requestId !== requestId) {
+        return
+      }
+      window.clearTimeout(timer)
+      window.removeEventListener('message', onMessage)
+      resolve((data.payload ?? {}) as ExtensionBridgeResponse)
+    }
+
+    window.addEventListener('message', onMessage)
+    window.postMessage({ source: EXTENSION_WEB_SOURCE, type, requestId, payload }, window.location.origin)
+  })
+}
 
 interface EditorHeaderProps {
   scriptKey: string
@@ -50,6 +103,7 @@ export default function EditorHeader({
 }: EditorHeaderProps) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
+  const [extensionState, setExtensionState] = useState<ExtensionConnectState>('checking')
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -64,6 +118,51 @@ export default function EditorHeader({
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [userMenuOpen])
+
+  const pingExtension = useCallback(() => {
+    setExtensionState((prev) => (prev === 'connecting' ? prev : 'checking'))
+    const baseUrl = window.location.origin
+    void requestExtensionBridge('MAGICKMONKEY_EXTENSION_PING', { baseUrl, scriptKey }, 900)
+      .then((result) => {
+        if (result.connected) {
+          setExtensionState('connected')
+        } else if (result.installed) {
+          setExtensionState('available')
+        } else {
+          setExtensionState('not_installed')
+        }
+      })
+      .catch(() => {
+        setExtensionState((prev) => (prev === 'connecting' ? prev : 'not_installed'))
+      })
+  }, [scriptKey])
+
+  useEffect(() => {
+    let pingTimer: ReturnType<typeof setTimeout> | undefined
+
+    function scheduleExtensionPing() {
+      clearTimeout(pingTimer)
+      pingTimer = setTimeout(pingExtension, 80)
+    }
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        scheduleExtensionPing()
+      }
+    }
+
+    scheduleExtensionPing()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', scheduleExtensionPing)
+    window.addEventListener('pageshow', scheduleExtensionPing)
+
+    return () => {
+      clearTimeout(pingTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', scheduleExtensionPing)
+      window.removeEventListener('pageshow', scheduleExtensionPing)
+    }
+  }, [pingExtension])
 
   const handleInstall = async () => {
     if (isChecking || isSaving) return
@@ -83,6 +182,56 @@ export default function EditorHeader({
       setIsChecking(false)
     }
   }
+
+  const handleConnectExtension = async () => {
+    if (isSaving || extensionState === 'checking' || extensionState === 'connecting') {
+      return
+    }
+
+    if (extensionState === 'connected') {
+      pingExtension()
+      return
+    }
+
+    if (extensionState === 'not_installed') {
+      const link = document.createElement('a')
+      link.href = CHROME_EXTENSION_ZIP_PATH
+      link.download = CHROME_EXTENSION_ZIP_FILENAME
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      return
+    }
+
+    setExtensionState('connecting')
+    const baseUrl = window.location.origin
+    try {
+      const result = await requestExtensionBridge('MAGICKMONKEY_CONNECT_EXTENSION', { baseUrl, scriptKey, developMode: true }, 3000)
+      if (!result.ok) {
+        setExtensionState('error')
+        window.alert(result.error || 'Could not connect the Chrome extension.')
+        return
+      }
+      setExtensionState('connected')
+    } catch (error) {
+      setExtensionState('error')
+      window.alert(error instanceof Error ? error.message : 'Could not connect the Chrome extension.')
+    }
+  }
+
+  const extensionTooltip =
+    extensionState === 'connected'
+      ? 'Chrome extension connected — click to recheck'
+      : extensionState === 'checking'
+        ? 'Checking Chrome extension'
+        : extensionState === 'connecting'
+          ? 'Connecting Chrome extension'
+          : extensionState === 'not_installed'
+            ? 'Download Chrome extension (ZIP)'
+            : extensionState === 'error'
+              ? 'Connection failed — click to retry'
+              : 'Connect Chrome extension'
 
   const handleLogout = async () => {
     if (isSaving) return
@@ -116,13 +265,7 @@ export default function EditorHeader({
 
         {onToggleRules && (
           <Tooltip content={isRulesOpen ? 'Close URL rules' : 'URL rules'} placement="bottom">
-            <button
-              type="button"
-              onClick={onToggleRules}
-              disabled={isSaving}
-              className={`${iconBtn} ${isRulesOpen ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
-              aria-label="URL rules"
-            >
+            <button type="button" onClick={onToggleRules} disabled={isSaving} className={isRulesOpen ? iconBtnActiveBlue : iconBtn} aria-label="URL rules">
               <LuAsterisk className="w-4 h-4" />
             </button>
           </Tooltip>
@@ -130,26 +273,14 @@ export default function EditorHeader({
 
         {onToggleAI && (
           <Tooltip content={isAIOpen ? 'Close AI panel' : 'AI rewrite'} placement="bottom">
-            <button
-              type="button"
-              onClick={onToggleAI}
-              disabled={isSaving || isAIDisabled}
-              className={`${iconBtn} ${isAIOpen ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
-              aria-label="AI rewrite"
-            >
+            <button type="button" onClick={onToggleAI} disabled={isSaving || isAIDisabled} className={isAIOpen ? iconBtnActiveBlue : iconBtn} aria-label="AI rewrite">
               <FiZap className="w-4 h-4" />
             </button>
           </Tooltip>
         )}
 
         <Tooltip content={isCompiling ? 'Compiling' : isEditorDevMode ? 'Disable dev mode' : 'Editor dev mode'} placement="bottom">
-          <button
-            type="button"
-            onClick={onToggleEditorDevMode}
-            disabled={isCompiling}
-            className={`${iconBtn} ${isEditorDevMode ? 'bg-[#22c55e] text-white hover:bg-[#16a34a]' : ''}`}
-            aria-label="Editor dev mode"
-          >
+          <button type="button" onClick={onToggleEditorDevMode} disabled={isCompiling} className={isEditorDevMode ? iconBtnActiveGreen : iconBtn} aria-label="Editor dev mode">
             {isCompiling ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />
@@ -162,9 +293,21 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
-        <Tooltip content="Install userscript" placement="bottom">
-          <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} aria-label="Install userscript">
-            {isChecking ? (
+        <Tooltip content={extensionTooltip} placement="bottom">
+          <button
+            type="button"
+            onClick={handleConnectExtension}
+            disabled={isSaving || extensionState === 'checking' || extensionState === 'connecting'}
+            className={extensionState === 'connected' ? iconBtnActiveGreen : extensionState === 'available' || extensionState === 'error' ? iconBtnActiveBlue : iconBtn}
+            aria-label={
+              extensionState === 'connected'
+                ? 'Chrome extension connected — click to recheck'
+                : extensionState === 'not_installed'
+                  ? 'Download Chrome extension'
+                  : 'Connect Chrome extension'
+            }
+          >
+            {extensionState === 'checking' || extensionState === 'connecting' ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />
               </span>
@@ -174,14 +317,20 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
+        <Tooltip content="Install userscript" placement="bottom">
+          <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} aria-label="Install userscript">
+            {isChecking ? (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+            ) : (
+              <SiTampermonkey className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
+
         <Tooltip content="Publish to Gist" placement="bottom">
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className={`${iconBtn} bg-[#3b82f6] text-white hover:bg-[#2563eb] disabled:opacity-50`}
-            aria-label="Publish to Gist"
-          >
+          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBlue} disabled:opacity-50`} aria-label="Publish to Gist">
             {isSaving ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />

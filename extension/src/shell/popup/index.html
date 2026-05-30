@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MagickMonkey</title>
+    <link rel="stylesheet" href="./shell.css" />
+  </head>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <mm-popup-app>
+      <div class="mm-shell w-[300px] overflow-hidden">
+        <header class="flex items-center gap-3 border-b border-mm-border-light bg-mm-surface px-3 py-3 shadow-mm-sm">
+          <img src="./icons/icon32.png" width="32" height="32" alt="" class="h-8 w-8 shrink-0 rounded-lg shadow-mm-sm ring-1 ring-mm-border-light" />
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold leading-tight tracking-tight text-mm-ink">MagickMonkey</div>
+            <div class="truncate text-xs text-mm-text-muted" data-ref="subtitle">Not configured</div>
+          </div>
+          <button type="button" data-action="options" title="Options" class="mm-icon-btn">
+            <span data-icon="settings" class="mm-icon-slot"></span>
+          </button>
+        </header>
+
+        <div class="space-y-2.5 p-3">
+          <button type="button" data-action="editor" class="mm-primary-btn">
+            <span data-icon="editor" class="mm-icon-slot text-white/90"></span>
+            Open editor
+          </button>
+
+          <div class="mm-card divide-y divide-mm-border-light">
+            <button type="button" data-action="update" class="mm-row-btn">
+              <span data-icon="refresh"></span>
+              <span>Update runtime</span>
+            </button>
+            <button type="button" data-action="reload" class="mm-row-btn">
+              <span data-icon="reload"></span>
+              <span>Reload active tab</span>
+            </button>
+            <button type="button" data-action="reset" class="mm-row-btn-danger">
+              <span data-icon="reset" class="mm-icon-slot mm-row-icon-danger"></span>
+              <span>Reset runtime state</span>
+            </button>
+          </div>
+
+          <div class="mm-card">
+            <label class="mm-switch-row">
+              <span class="flex min-w-0 items-center gap-2.5">
+                <span data-icon="network"></span>
+                <span class="text-[13px] text-mm-secondary">Shell network</span>
+              </span>
+              <span class="mm-switch">
+                <input type="checkbox" data-ref="network" class="mm-switch-input" role="switch" />
+                <span class="mm-switch-track" aria-hidden="true"></span>
+                <span class="mm-switch-thumb" aria-hidden="true"></span>
+              </span>
+            </label>
+          </div>
+
+          <div class="mm-card divide-y divide-mm-border-light">
+            <button type="button" data-action="scripts" class="mm-row-btn">
+              <span data-icon="scripts"></span>
+              <span>Manage scripts</span>
+            </button>
+            <button type="button" data-action="sync-rules" class="mm-row-btn">
+              <span data-icon="sync"></span>
+              <span>Sync rules from server</span>
+            </button>
+          </div>
+        </div>
+
+        <footer class="mm-footer">
+          <span class="truncate text-[11px] text-mm-text-muted" data-ref="match-hint">—</span>
+          <span class="mm-badge" data-ref="version"></span>
+        </footer>
+
+        <p data-ref="toast" class="mm-toast" role="status" aria-live="polite"></p>
+      </div>
+    </mm-popup-app>
+    <script src="./popup.js"></script>
+  </body>
+</html>

@@ -10,14 +10,21 @@ export interface Script {
   file: string
 }
 
-export async function getScripts() {
+export async function getScriptsGistUpdatedAt(): Promise<number> {
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
+  return new Date(gist.updated_at).getTime()
+}
 
-  return Array.from<Script>(
+export async function getScriptsWithMeta(): Promise<{ scripts: Script[]; gistUpdatedAt: number }> {
+  const { gistId, gistToken } = getGistInfo()
+  const gist = await fetchGist({ gistId, gistToken })
+  const gistUpdatedAt = new Date(gist.updated_at).getTime()
+
+  const scripts = Array.from<Script>(
     (function* () {
       for (const [file, info] of Object.entries(gist.files)) {
-        if (SCRIPTS_FILE_EXTENSION.some((ext) => !file.endsWith(ext)) || EXCLUDED_FILES.includes(file)) {
+        if (!SCRIPTS_FILE_EXTENSION.some((ext) => file.endsWith(ext)) || EXCLUDED_FILES.includes(file)) {
           continue
         }
 
@@ -27,6 +34,14 @@ export async function getScripts() {
       }
     })()
   )
+
+  return { scripts, gistUpdatedAt }
+}
+
+/** @deprecated Prefer {@link getScriptsWithMeta} */
+export async function getScripts(): Promise<Script[]> {
+  const { scripts } = await getScriptsWithMeta()
+  return scripts
 }
 
 export async function getRules(): Promise<RuleConfig[]> {

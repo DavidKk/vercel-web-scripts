@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MagickMonkey — Scripts</title>
+    <link rel="stylesheet" href="./shell.css" />
+  </head>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <mm-scripts-app data-loading>
+      <div class="mm-admin-page mm-page-fill">
+        <header class="mm-admin-header">
+          <div class="mm-admin-brand">
+            <img src="./icons/icon32.png" width="32" height="32" alt="" aria-hidden="true" />
+            <span class="mm-admin-title">MagickMonkey</span>
+          </div>
+          <nav class="mm-admin-nav" aria-label="Extension pages">
+            <a href="./options.html" class="mm-admin-nav-link">Settings</a>
+            <a href="./scripts.html" class="mm-admin-nav-link" aria-current="page">Scripts</a>
+          </nav>
+        </header>
+
+        <div class="mm-scripts-main">
+          <div class="mm-scripts-head">
+            <div class="mm-scripts-toolbar mm-scripts-toolbar-skeleton" data-ref="toolbar-skeleton" aria-hidden="true">
+              <span class="mm-skeleton mm-skeleton-status"></span>
+              <span class="mm-skeleton mm-skeleton-search"></span>
+              <span class="mm-skeleton mm-skeleton-filter"></span>
+              <span class="mm-skeleton mm-skeleton-action"></span>
+              <span class="mm-skeleton mm-skeleton-action"></span>
+            </div>
+            <div class="mm-scripts-toolbar" data-ref="toolbar">
+              <span data-ref="status" class="mm-scripts-status"></span>
+              <mm-input>
+                <span class="mm-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" fill="none">
+                    <path d="m14.1 14.1 3.4 3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                    <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.7" />
+                  </svg>
+                </span>
+                <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Search scripts" autocomplete="off" spellcheck="false" />
+              </mm-input>
+              <mm-select>
+                <input type="hidden" data-ref="filter" value="all" />
+                <button type="button" class="mm-select-trigger" data-ref="select-trigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="mm-select-leading" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none">
+                      <path d="M4 5.5h12M6.5 10h7M9 14.5h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                    </svg>
+                  </span>
+                  <span class="mm-select-value" data-ref="select-value">All scripts</span>
+                  <span class="mm-select-chevron" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none">
+                      <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+                <div class="mm-select-menu" role="listbox">
+                  <button type="button" class="mm-select-option" data-value="all" aria-selected="true">
+                    <span class="mm-select-option-icon" aria-hidden="true">
+                      <svg viewBox="0 0 20 20" fill="none">
+                        <path d="M5 6h10M5 10h10M5 14h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                      </svg>
+                    </span>
+                    All scripts
+                  </button>
+                  <button type="button" class="mm-select-option" data-value="enabled" aria-selected="false">
+                    <span class="mm-select-option-icon" aria-hidden="true">
+                      <svg viewBox="0 0 20 20" fill="none">
+                        <path d="m5 10.3 3 3 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </span>
+                    Enabled only
+                  </button>
+                  <button type="button" class="mm-select-option" data-value="disabled" aria-selected="false">
+                    <span class="mm-select-option-icon" aria-hidden="true">
+                      <svg viewBox="0 0 20 20" fill="none">
+                        <path d="M6.5 6.5 13.5 13.5M13.5 6.5 6.5 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                      </svg>
+                    </span>
+                    Disabled only
+                  </button>
+                </div>
+              </mm-select>
+              <mm-button variant="secondary">
+                <button type="button" data-action="sync">Sync rules</button>
+              </mm-button>
+              <mm-button variant="primary">
+                <button type="button" data-action="editor">Open editor</button>
+              </mm-button>
+            </div>
+          </div>
+
+          <div class="mm-scripts-body">
+            <div data-ref="empty" class="mm-scripts-empty hidden"></div>
+            <div data-ref="error" class="mm-scripts-error hidden" role="alert"></div>
+
+            <div data-ref="skeleton" class="mm-scripts-skeleton" aria-busy="true" aria-label="Loading scripts">
+              <div class="mm-scripts-table-head mm-scripts-skeleton-head" role="row">
+                <span class="mm-scripts-col-index" role="columnheader">#</span>
+                <span class="mm-scripts-col-name" role="columnheader">名称</span>
+                <span class="mm-scripts-col-file" role="columnheader">文件</span>
+                <span class="mm-scripts-col-switch" role="columnheader" aria-hidden="true"></span>
+              </div>
+              <div class="mm-scripts-skeleton-rows">
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+                <div class="mm-script-skeleton-row" aria-hidden="true">
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  ><span class="mm-skeleton mm-skeleton-switch"></span>
+                </div>
+              </div>
+            </div>
+
+            <div data-ref="list-head" class="mm-scripts-table-head hidden" role="row" aria-hidden="true">
+              <span class="mm-scripts-col-index" role="columnheader">#</span>
+              <span class="mm-scripts-col-name" role="columnheader">名称</span>
+              <span class="mm-scripts-col-file" role="columnheader">文件</span>
+              <span class="mm-scripts-col-switch" role="columnheader" aria-hidden="true"></span>
+            </div>
+
+            <div data-ref="scroll-shell" class="mm-scripts-table-scroll-shell hidden">
+              <div data-ref="scroller" class="mm-scripts-table-scroll">
+                <div data-ref="content" class="mm-scripts-list-content"></div>
+              </div>
+              <div data-ref="scrollbar" class="mm-scripts-scrollbar" aria-hidden="true">
+                <span data-ref="scrollbar-thumb" class="mm-scripts-scrollbar-thumb"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mm-scripts-app>
+    <mm-scripts-debug-panel></mm-scripts-debug-panel>
+    <script defer src="./scripts.js"></script>
+  </body>
+</html>

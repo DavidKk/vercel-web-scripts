@@ -49,12 +49,13 @@ Never commit the API key or paste it into user-visible pages.
 ## REST (OpenAPI)
 
 - Spec: `GET /api/v1/openapi.json` (authenticated).
-- List files: `GET /api/v1/scripts`
+- List files: `GET /api/v1/scripts` (returns filenames, byte lengths, and userscript metadata derived from headers plus preserved aliases/keywords when available).
 - Read file: `GET /api/v1/scripts/{filename}` (URL-encode `filename`)
 - Write file: `PUT /api/v1/scripts/{filename}` with JSON `{ "content": "..." }`
 - Delete file: `DELETE /api/v1/scripts/{filename}`
 
 Only `.ts` / `.js` files that are **not** the generated entry or rules JSON can be mutated.
+Natural-language metadata search and manual aliases/keywords maintenance are exposed through MCP tools, not REST endpoints.
 
 ## MCP (HTTP)
 
@@ -63,7 +64,9 @@ Only `.ts` / `.js` files that are **not** the generated entry or rules JSON can 
 Tools:
 
 - Baseline CRUD: `scripts_runtime_summary`, `scripts_list`, `scripts_get`, `scripts_upsert`, `scripts_delete`, `scripts_rename`.
-- Token-efficient reads/edits: `scripts_search`, `scripts_snippet`, `scripts_replace`, `scripts_patch`, `scripts_batch_patch`, `scripts_validate`.
+- Discovery/search: `scripts_find` for natural-language filename / `@name` / `@description` / aliases / keywords lookup, `scripts_search` for line-level full-content matches. If `scripts_find` reports a missing or unreadable index, call `scripts_index_rebuild` once and retry.
+- Index maintenance: `scripts_index_rebuild`, `scripts_index_update_metadata`.
+- Token-efficient reads/edits: `scripts_snippet`, `scripts_replace`, `scripts_patch`, `scripts_batch_patch`, `scripts_validate`.
 
 **End users do not “install” `/api/mcp`.** That URL is only for MCP clients (e.g. Cursor) that call JSON-RPC to edit **Gist files**. It does **not** run in the browser and does **not** load the preset.
 
@@ -165,7 +168,8 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
   - For TypeScript/JavaScript, run an additional syntax/transpile check when a local toolchain is available.
   - If you cannot run a check, inspect generated string escapes and state the residual risk.
 - Prefer token-efficient remote editing tools:
-  - Use `scripts_search` before `scripts_get` when locating code.
+  - Use `scripts_find` first when the exact filename is unknown and the user describes the script by purpose, name, or alias. If the persisted index is missing or unreadable, call `scripts_index_rebuild` and retry.
+  - Use `scripts_search` before `scripts_get` when locating code or when metadata search is not enough.
   - Use `scripts_snippet` to inspect bounded line ranges instead of full files.
   - Use `scripts_replace` for small exact replacements and set `expectedCount` whenever possible.
   - Use `scripts_patch` for structured local edits in one file.
@@ -176,7 +180,7 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 
 1. `scripts_runtime_summary` first (runtime APIs + constraints).
 2. `scripts_list` (or `GET /api/v1/scripts`) to see names.
-3. For updates, start with `scripts_search` / `scripts_snippet`; use `scripts_get` only when full-file context is needed.
+3. For updates, start with `scripts_find` when the filename is unknown; then use `scripts_search` / `scripts_snippet`; use `scripts_get` only when full-file context is needed.
 4. For new scripts, propose the userscript header metadata, especially activation mode, `@match`, and `@run-at`, and get user confirmation before drafting or writing content in most cases.
 5. Use the narrowest safe edit path: `scripts_replace` for simple replacements, `scripts_patch` for local edits, `scripts_batch_patch` for related multi-file edits, and `scripts_upsert` only for full rewrites.
 6. (optional) `scripts_rename` to change the managed filename before editing.

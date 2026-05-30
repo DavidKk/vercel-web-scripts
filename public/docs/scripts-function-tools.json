@@ -3,7 +3,7 @@
     "type": "function",
     "function": {
       "name": "scripts_list",
-      "description": "List MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script .ts/.js files in the Gist (excludes generated entry and rules JSON). Returns filenames and byte lengths.",
+      "description": "List MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script .ts/.js files in the Gist (excludes generated entry and rules JSON). Returns filenames, byte lengths, and indexed userscript metadata when available.",
       "parameters": {
         "type": "object",
         "properties": {},
@@ -55,6 +55,23 @@
           "caseSensitive": { "type": "boolean" },
           "contextLines": { "type": "integer", "minimum": 0, "maximum": 5 },
           "maxResults": { "type": "integer", "minimum": 1, "maximum": 200 }
+        },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_find",
+      "description": "Find MagickMonkey-managed userscript files by filename, userscript @name, @description, @match, and index aliases/keywords. Prefer this when the user describes a script naturally and the exact filename is unknown. Requires magickmonkey.scripts.index.json; if it is missing or unreadable, call scripts_index_rebuild and retry.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "caseSensitive": { "type": "boolean" },
+          "maxResults": { "type": "integer", "minimum": 1, "maximum": 100 }
         },
         "required": ["query"],
         "additionalProperties": false
@@ -201,6 +218,35 @@
         "type": "object",
         "properties": {
           "filename": { "type": "string" }
+        },
+        "required": ["filename"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_index_rebuild",
+      "description": "Rebuild and persist magickmonkey.scripts.index.json from current managed userscript files, preserving aliases/keywords already present in the index.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_index_update_metadata",
+      "description": "Update human-maintained search metadata for one managed userscript in magickmonkey.scripts.index.json. Derived fields such as @name, @description, @version, @match, and @run-at still come from the script file.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "keywords": { "type": "array", "items": { "type": "string" } }
         },
         "required": ["filename"],
         "additionalProperties": false

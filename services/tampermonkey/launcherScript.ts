@@ -9,30 +9,34 @@
  */
 
 import { PENDING_SEGMENT } from '@/services/runtime/contentAddressedAssets'
+import {
+  LEGACY_AUTO_UPDATE_SCRIPT_KEY,
+  MODULE_MANIFEST_ETAG_KEY,
+  PRESET_ACTIVATED_HASH_KEY,
+  PRESET_CACHE_KEY,
+  PRESET_ETAG_KEY,
+  PRESET_PREVIOUS_HASH_KEY,
+  PRESET_UPDATE_CHANNEL_KEY,
+  PRESET_UPDATED_NOTIFY_KEY,
+  SCRIPT_BUNDLE_URL_KEY,
+  SHELL_NETWORK_ENABLED_KEY,
+} from '@/shared/launcher-constants'
 
 import { buildPresetGlobalAssignments, PRESET_VAR_NAMES } from './gmCore'
 import { GRANTS } from './grant'
 
-/** GM_setValue key for cached preset script content */
-export const PRESET_CACHE_KEY = 'vws_preset_cache'
-/** GM_setValue key for preset response ETag (content hash); used for If-None-Match → 304. */
-export const PRESET_ETAG_KEY = 'vws_preset_etag'
-/** GM_setValue key for preset update push: set to any value to trigger launcher reload (e.g. dev server or helper page) */
-export const PRESET_UPDATE_CHANNEL_KEY = 'vws_preset_update'
-/** GM_setValue key: set before reload so preset shows "Preset updated" notification after reload (must match preset main.ts) */
-export const PRESET_UPDATED_NOTIFY_KEY = 'vws_preset_updated_notify'
-/** When not strictly true, launcher skips network for preset (must match preset SHELL_NETWORK_ENABLED_KEY) */
-export const SHELL_NETWORK_ENABLED_KEY = 'vws_shell_network_enabled'
-/** Legacy key from older "auto-update" toggle; if shell key unset, true here still allows network */
-export const LEGACY_AUTO_UPDATE_SCRIPT_KEY = 'vws_auto_update_script'
-/** Current activated preset hash for atomic switch lifecycle */
-export const PRESET_ACTIVATED_HASH_KEY = 'vws_preset_activated_hash'
-/** Previous activated preset hash for rollback lifecycle */
-export const PRESET_PREVIOUS_HASH_KEY = 'vws_preset_previous_hash'
-/** ETag of last successful module-manifest.json response; enables 304 on manifest before touching preset.js */
-export const MODULE_MANIFEST_ETAG_KEY = 'vws_module_manifest_etag'
-/** Last known script-bundle URL from manifest (versioned path); used when manifest returns 304 */
-export const SCRIPT_BUNDLE_URL_KEY = 'vws_script_bundle_url'
+export {
+  LEGACY_AUTO_UPDATE_SCRIPT_KEY,
+  MODULE_MANIFEST_ETAG_KEY,
+  PRESET_ACTIVATED_HASH_KEY,
+  PRESET_CACHE_KEY,
+  PRESET_ETAG_KEY,
+  PRESET_PREVIOUS_HASH_KEY,
+  PRESET_UPDATE_CHANNEL_KEY,
+  PRESET_UPDATED_NOTIFY_KEY,
+  SCRIPT_BUNDLE_URL_KEY,
+  SHELL_NETWORK_ENABLED_KEY,
+} from '@/shared/launcher-constants'
 
 export interface CreateLauncherScriptParams {
   /** Base URL (origin + path to app, e.g. https://example.com) */

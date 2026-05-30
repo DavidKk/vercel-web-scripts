@@ -1,0 +1,1103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  .hidden {
+    display: none !important;
+  }
+
+  /**
+   * Preflight is off (extension/tailwind.config.ts). Reset native control chrome here.
+   * UA defaults: input/select often `2px inset`, button `outset` — must clear before component styles.
+   */
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  ::file-selector-button {
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    border: none;
+    outline: none;
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+    -webkit-box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input[type='search'] {
+    border: none;
+    outline: none;
+    box-shadow: none;
+    -webkit-box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type='search']::-webkit-search-decoration,
+  input[type='search']::-webkit-search-cancel-button,
+  input[type='search']::-webkit-search-results-button,
+  input[type='search']::-webkit-search-results-decoration {
+    display: none;
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    @apply shrink-0;
+    -webkit-appearance: auto;
+    appearance: auto;
+  }
+}
+
+@layer components {
+  mm-field,
+  mm-input,
+  mm-select,
+  mm-button,
+  mm-switch {
+    @apply inline-flex shrink-0;
+  }
+
+  mm-options-app,
+  mm-scripts-app {
+    @apply block min-h-screen w-full;
+  }
+
+  mm-scripts-app[data-loading] {
+    @apply flex min-h-screen w-full flex-col;
+  }
+
+  mm-scripts-app[data-loading] .mm-admin-page {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app[data-loading] .mm-scripts-main {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app[data-loading] .mm-scripts-body {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app [data-ref='skeleton'] {
+    @apply hidden;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='skeleton'] {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app [data-ref='toolbar-skeleton'] {
+    @apply hidden;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='toolbar'] {
+    @apply hidden;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='toolbar-skeleton'] {
+    @apply flex;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='list-head'],
+  mm-scripts-app[data-loading] [data-ref='scroll-shell'],
+  mm-scripts-app[data-loading] [data-ref='empty'],
+  mm-scripts-app[data-loading] [data-ref='error'] {
+    @apply hidden;
+  }
+
+  .mm-shell {
+    @apply relative bg-mm-canvas font-sans text-sm text-mm-ink antialiased;
+  }
+
+  .mm-page {
+    @apply flex min-h-screen w-full flex-col bg-mm-canvas;
+  }
+
+  .mm-admin-page {
+    @apply flex min-h-screen w-full flex-col bg-mm-canvas;
+  }
+
+  .mm-page-header {
+    @apply relative flex shrink-0 items-center gap-3 border-b border-mm-border-light bg-mm-surface px-5 py-3 shadow-mm-sm;
+  }
+
+  .mm-admin-header {
+    @apply relative flex h-[60px] min-h-[60px] shrink-0 flex-row flex-nowrap items-center justify-between gap-4 border-b border-solid border-mm-border-light bg-mm-surface px-4;
+    border-bottom-width: 1px;
+  }
+
+  .mm-admin-brand {
+    @apply inline-flex min-w-0 shrink-0 flex-row flex-nowrap items-center gap-2.5 self-center;
+  }
+
+  .mm-admin-brand img {
+    @apply block h-8 w-8 shrink-0 self-center rounded-md shadow-mm-sm ring-1 ring-mm-border-light;
+  }
+
+  .mm-page-header-title {
+    @apply text-base font-semibold leading-tight tracking-normal text-mm-ink sm:text-lg;
+  }
+
+  .mm-page-header-subtitle {
+    @apply mt-0.5 text-xs text-mm-text-muted sm:text-sm;
+  }
+
+  .mm-page-main {
+    @apply flex flex-1 flex-col px-6 py-6 sm:px-8 sm:py-8;
+  }
+
+  .mm-admin-main {
+    @apply mx-auto flex w-full max-w-[720px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-5;
+  }
+
+  .mm-admin-main-wide {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3 sm:px-4;
+  }
+
+  .mm-scripts-main {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-scripts-head {
+    @apply flex shrink-0 justify-end bg-mm-surface px-3 py-2;
+  }
+
+  .mm-scripts-body {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .mm-scripts-toolbar {
+    @apply flex max-w-full flex-nowrap items-center justify-end gap-1.5;
+  }
+
+  .mm-scripts-status {
+    @apply hidden min-w-0 shrink truncate text-xs leading-none text-mm-text-muted;
+  }
+
+  .mm-scripts-status:not(:empty) {
+    @apply block max-w-[12rem];
+  }
+
+  .mm-scripts-status.text-mm-success:not(:empty),
+  .mm-scripts-status.text-mm-danger:not(:empty) {
+    @apply max-w-[16rem];
+  }
+
+  .mm-scripts-toolbar > mm-input {
+    @apply block w-36 shrink-0;
+  }
+
+  .mm-scripts-toolbar > mm-select {
+    @apply block w-32 shrink-0;
+  }
+
+  .mm-scripts-toolbar > mm-button {
+    @apply inline-flex shrink-0;
+  }
+
+  .mm-scripts-toolbar .mm-native-input,
+  .mm-scripts-toolbar .mm-native-select,
+  .mm-scripts-toolbar mm-input > input,
+  .mm-scripts-toolbar .mm-select-trigger,
+  .mm-scripts-toolbar .mm-button-native,
+  .mm-scripts-toolbar mm-button > button {
+    @apply box-border h-7 shrink-0 rounded px-2.5 text-xs leading-none;
+  }
+
+  .mm-scripts-toolbar .mm-input-with-icon .mm-native-input,
+  .mm-scripts-toolbar mm-input:has(.mm-input-icon) > input {
+    @apply pl-7;
+  }
+
+  .mm-scripts-toolbar .mm-input-icon {
+    @apply left-2 h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-input-icon svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-select-trigger {
+    @apply gap-1;
+  }
+
+  .mm-scripts-toolbar .mm-select-leading,
+  .mm-scripts-toolbar .mm-select-chevron {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-select-leading svg,
+  .mm-scripts-toolbar .mm-select-chevron svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-button-native,
+  .mm-scripts-toolbar mm-button > button {
+    @apply font-medium;
+  }
+
+  .mm-scripts-toolbar-skeleton {
+    @apply pointer-events-none;
+  }
+
+  .mm-page-fill {
+    @apply flex h-screen min-h-screen flex-col overflow-hidden;
+  }
+
+  .mm-page-body-fill {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-5;
+  }
+
+  .mm-admin-title {
+    @apply m-0 shrink-0 self-center whitespace-nowrap text-sm font-semibold leading-none tracking-normal text-mm-ink;
+  }
+
+  .mm-admin-kicker {
+    @apply mt-0.5 text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-admin-toolbar {
+    @apply ml-auto flex shrink-0 items-center gap-2 md:ml-0;
+  }
+
+  .mm-admin-nav {
+    @apply ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-mm-border-light/90 bg-mm-muted/60 p-1;
+  }
+
+  .mm-admin-nav-link {
+    @apply cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted no-underline transition hover:text-mm-ink;
+  }
+
+  .mm-admin-nav-link[aria-current='page'] {
+    @apply bg-mm-surface text-mm-ink shadow-mm-sm;
+  }
+
+  .mm-admin-nav-link:not([aria-current='page']):hover {
+    @apply bg-mm-surface/60;
+  }
+
+  .mm-admin-meta {
+    @apply ml-auto hidden min-w-0 items-center gap-2 truncate text-xs text-mm-text-muted md:flex;
+  }
+
+  .mm-admin-meta > span {
+    @apply truncate;
+  }
+
+  .mm-admin-meta > span:empty {
+    @apply hidden;
+  }
+
+  .mm-admin-meta > span + span:not(:empty)::before {
+    @apply pr-2 text-mm-label;
+    content: '/';
+  }
+
+  .mm-content-bar {
+    @apply mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2;
+  }
+
+  .mm-content-title {
+    @apply text-sm font-semibold leading-tight text-mm-ink;
+  }
+
+  .mm-content-meta {
+    @apply mt-0.5 flex min-h-4 flex-wrap items-center gap-2 text-xs leading-none text-mm-text-muted;
+  }
+
+  .mm-content-meta > span:empty {
+    @apply hidden;
+  }
+
+  .mm-content-meta > span + span:not(:empty)::before {
+    @apply pr-2 text-mm-label;
+    content: '/';
+  }
+
+  .mm-content-actions {
+    @apply ml-auto flex shrink-0 items-center gap-2;
+  }
+
+  .mm-settings-panel {
+    @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface;
+  }
+
+  .mm-settings-panel-header {
+    @apply border-b border-mm-border-light px-4 py-3;
+  }
+
+  .mm-settings-panel-body {
+    @apply grid gap-4 px-4 py-4;
+  }
+
+  .mm-settings-panel-footer {
+    @apply flex flex-wrap items-center justify-end gap-2.5 border-t border-mm-border-light bg-mm-muted/50 px-4 py-3;
+  }
+
+  .mm-options-main {
+    @apply mx-auto flex w-full max-w-[860px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-6;
+  }
+
+  .mm-options-panel {
+    @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface shadow-mm-sm;
+  }
+
+  .mm-options-panel-header {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-mm-border-light bg-mm-surface px-4 py-4 sm:px-5;
+  }
+
+  .mm-options-panel-heading {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .mm-options-panel-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded bg-mm-accent-soft text-mm-accent ring-1 ring-mm-border-light;
+  }
+
+  .mm-options-panel-icon svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-options-title {
+    @apply m-0 truncate text-base font-semibold leading-tight text-mm-ink;
+  }
+
+  .mm-options-subtitle {
+    @apply mt-0.5 text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-status-pill {
+    @apply min-h-7 max-w-full truncate rounded-full bg-mm-muted px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-status-pill.text-mm-success {
+    @apply bg-mm-success-soft ring-1;
+    color: #10b981;
+    --tw-ring-color: rgb(16 185 129 / 0.16);
+  }
+
+  .mm-options-status-pill.text-mm-danger {
+    @apply bg-mm-danger-soft ring-1;
+    color: #ef4444;
+    --tw-ring-color: rgb(239 68 68 / 0.16);
+  }
+
+  .mm-options-panel-body {
+    @apply grid gap-0 divide-y divide-mm-border-light;
+  }
+
+  .mm-options-section {
+    @apply grid gap-4 px-4 py-4 sm:px-5 sm:py-5;
+  }
+
+  .mm-options-section-head {
+    @apply flex items-center justify-between gap-3;
+  }
+
+  .mm-options-section-title {
+    @apply m-0 text-sm font-semibold leading-none text-mm-ink;
+  }
+
+  .mm-options-section-meta {
+    @apply rounded-full bg-mm-muted px-2 py-1 text-[11px] font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-field-grid {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+
+  .mm-options-field {
+    @apply min-w-0;
+  }
+
+  .mm-options-field .mm-native-input,
+  .mm-options-field mm-input > input {
+    @apply h-10 rounded-md bg-mm-canvas/40;
+  }
+
+  .mm-options-field code,
+  .mm-options-toggle-card code {
+    @apply rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary;
+  }
+
+  .mm-options-toggle-card {
+    @apply flex cursor-pointer items-center justify-between gap-4 rounded-md border border-mm-border-light bg-mm-canvas/40 px-4 py-3 transition hover:bg-mm-accent-soft/40;
+  }
+
+  .mm-options-toggle-copy {
+    @apply min-w-0 flex-1;
+  }
+
+  .mm-options-toggle-title {
+    @apply block text-sm font-semibold leading-tight text-mm-secondary;
+  }
+
+  .mm-options-toggle-text {
+    @apply mt-1 block text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-panel-footer {
+    @apply flex flex-col-reverse gap-2.5 border-t border-mm-border-light bg-mm-muted/40 px-4 py-3 sm:flex-row sm:justify-end sm:px-5;
+  }
+
+  .mm-page-toolbar {
+    @apply mt-auto flex shrink-0 flex-wrap items-center gap-3 border-t border-mm-border-light pt-6;
+  }
+
+  .mm-page-toolbar-inline {
+    @apply mb-3 flex shrink-0 flex-wrap items-center gap-3;
+  }
+
+  .mm-scripts-table-scroll-shell {
+    @apply relative min-h-0 flex-1 bg-mm-surface;
+  }
+
+  .mm-scripts-table-scroll {
+    @apply h-full min-h-0 overflow-y-auto overflow-x-hidden bg-mm-surface;
+    scrollbar-width: none;
+  }
+
+  .mm-scripts-table-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .mm-scripts-scrollbar {
+    @apply pointer-events-none absolute bottom-2 right-1 top-2 w-0.5 overflow-hidden rounded-full bg-transparent;
+  }
+
+  .mm-scripts-scrollbar-thumb {
+    @apply absolute left-0 top-0 block w-full rounded-full bg-mm-secondary/35;
+    transition:
+      height 120ms ease,
+      transform 80ms linear,
+      opacity 160ms ease;
+  }
+
+  .mm-scripts-list-content {
+    @apply w-full;
+  }
+
+  .mm-scripts-empty {
+    @apply flex flex-1 items-center justify-center bg-mm-surface px-6 py-12 text-center text-sm leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-scripts-error {
+    @apply flex flex-1 items-center justify-center bg-mm-surface px-6 py-12 text-center text-sm leading-relaxed text-mm-danger;
+  }
+
+  mm-scripts-debug-panel {
+    @apply fixed bottom-24 right-2.5 z-[9999] block;
+  }
+
+  mm-scripts-debug-panel.hidden {
+    display: none !important;
+  }
+
+  .mm-debug-panel-root {
+    @apply flex flex-col items-end gap-2;
+  }
+
+  .mm-debug-panel-sheet {
+    @apply min-w-[260px] rounded-lg border border-mm-border-light bg-mm-surface p-3 text-mm-ink shadow-mm-sm;
+  }
+
+  .mm-debug-panel-sheet[hidden] {
+    display: none !important;
+  }
+
+  .mm-debug-panel-title {
+    @apply mb-2 text-xs font-semibold uppercase tracking-wide text-mm-text-muted;
+  }
+
+  .mm-debug-panel-row {
+    @apply mb-2 flex cursor-pointer items-center gap-2 text-sm text-mm-secondary;
+  }
+
+  .mm-debug-panel-row input[type='checkbox'] {
+    @apply h-4 w-4 shrink-0 cursor-pointer border border-mm-border-light accent-mm-accent;
+    appearance: auto;
+  }
+
+  .mm-debug-panel-input {
+    @apply mb-2 w-full rounded border border-mm-border-light px-2 py-1 text-xs text-mm-ink;
+  }
+
+  .mm-debug-panel-reset {
+    @apply mt-1 w-full rounded border-0 bg-mm-muted px-2 py-1.5 text-xs font-medium text-mm-secondary transition hover:bg-mm-accent-soft;
+  }
+
+  .mm-debug-panel-trigger {
+    @apply relative flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-full border border-mm-border-light bg-mm-surface text-mm-secondary shadow-mm-sm transition-opacity hover:opacity-90 active:cursor-grabbing;
+  }
+
+  .mm-debug-panel-trigger-icon {
+    @apply h-5 w-5;
+  }
+
+  .mm-debug-panel-trigger-dot {
+    @apply absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500;
+  }
+
+  .mm-list-toolbar {
+    @apply flex shrink-0 flex-wrap items-center gap-2;
+  }
+
+  .mm-list-toolbar mm-input {
+    @apply w-full max-w-72 sm:w-72;
+  }
+
+  .mm-list-toolbar mm-select {
+    @apply w-full sm:w-44;
+  }
+
+  /* Text fields: 1px ring (same as select trigger). Do not @apply shadow-none/transition — Tailwind injects --tw-shadow layers. */
+  .mm-input,
+  .mm-native-input,
+  .mm-native-select {
+    @apply box-border block h-9 w-full rounded border-0 bg-mm-surface px-3 text-sm leading-normal text-mm-ink placeholder:text-mm-text-muted;
+    outline: none;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  .mm-native-input:hover,
+  .mm-native-select:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  .mm-native-input:focus,
+  .mm-native-select:focus {
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  /* Buttons (mm-button, select trigger, menu options): no border — use ring or fill only. */
+  .mm-button-native,
+  .mm-select-trigger,
+  .mm-select-option,
+  .mm-row-btn,
+  .mm-row-btn-danger,
+  .mm-primary-btn,
+  .mm-secondary-btn,
+  .mm-icon-btn {
+    border: none;
+    box-shadow: none;
+    -webkit-box-shadow: none;
+    background-image: none;
+  }
+
+  .mm-native-input,
+  .mm-native-select,
+  .mm-select-trigger,
+  .mm-button-native {
+    transition-property: color, background-color, opacity, transform, filter;
+  }
+
+  .mm-list-row {
+    @apply flex w-full items-center justify-between gap-2.5 px-3 py-2 transition-colors hover:bg-mm-accent-soft/60;
+  }
+
+  .mm-scripts-table-head,
+  .mm-script-row {
+    box-sizing: border-box;
+    display: grid;
+    width: 100%;
+    align-items: center;
+    column-gap: 0.625rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    grid-template-columns: var(--mm-script-grid-cols, 2rem minmax(8rem, 0.42fr) minmax(0, 1fr) 2.25rem);
+  }
+
+  .mm-scripts-table-head {
+    @apply h-11 shrink-0 border-b border-solid border-mm-border-light bg-mm-muted/40 text-[11px] font-medium leading-none text-mm-text-muted;
+    border-bottom-width: 1px;
+  }
+
+  .mm-scripts-col-index {
+    @apply text-left tabular-nums;
+  }
+
+  .mm-scripts-col-name {
+    @apply min-w-0 truncate text-left;
+  }
+
+  .mm-scripts-col-file {
+    @apply min-w-0 truncate text-left;
+  }
+
+  .mm-scripts-col-switch {
+    @apply justify-self-end;
+  }
+
+  .mm-scripts-table-body {
+    @apply min-h-0 flex-1;
+  }
+
+  .mm-scripts-skeleton {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-scripts-skeleton-head {
+    @apply pointer-events-none;
+  }
+
+  .mm-scripts-skeleton-rows {
+    @apply min-h-0 flex-1 overflow-hidden;
+  }
+
+  .mm-script-skeleton-row {
+    box-sizing: border-box;
+    display: grid;
+    width: 100%;
+    height: 2.75rem;
+    align-items: center;
+    column-gap: 0.625rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    grid-template-columns: var(--mm-script-grid-cols, 2rem minmax(8rem, 0.42fr) minmax(0, 1fr) 2.25rem);
+  }
+
+  .mm-skeleton {
+    @apply block min-h-[0.75rem] rounded-md bg-mm-border-light/70;
+    background-image: linear-gradient(90deg, rgb(238 243 248 / 1) 0%, rgb(220 229 239 / 1) 45%, rgb(238 243 248 / 1) 90%);
+    background-size: 200% 100%;
+    animation: mm-skeleton-shimmer 1.1s ease-in-out infinite;
+  }
+
+  .mm-skeleton-index {
+    @apply h-3 w-4;
+  }
+
+  .mm-skeleton-name {
+    @apply h-3.5 w-[min(100%,10rem)];
+  }
+
+  .mm-skeleton-file {
+    @apply h-3.5 w-[min(100%,16rem)];
+  }
+
+  .mm-skeleton-switch {
+    @apply h-5 w-9 justify-self-end;
+    border-radius: 9999px;
+  }
+
+  .mm-skeleton-status {
+    @apply h-3 w-24;
+  }
+
+  .mm-skeleton-search {
+    @apply h-7 w-36;
+  }
+
+  .mm-skeleton-filter {
+    @apply h-7 w-32;
+  }
+
+  .mm-skeleton-action {
+    @apply h-7 w-20;
+  }
+
+  @keyframes mm-skeleton-shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+
+  .mm-script-row {
+    @apply h-11 cursor-pointer select-none overflow-hidden border-b border-solid border-mm-border-light/40;
+  }
+
+  .mm-script-row:hover {
+    @apply bg-mm-muted/45;
+  }
+
+  .mm-script-index {
+    @apply text-left text-[11px] font-normal tabular-nums leading-none text-mm-label;
+  }
+
+  .mm-script-name {
+    @apply min-w-0 truncate text-left text-[13px] font-medium leading-snug text-mm-secondary;
+  }
+
+  .mm-script-file {
+    @apply min-w-0 truncate text-left font-mono text-[12px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-script-row .mm-switch {
+    @apply shrink-0 justify-self-end;
+  }
+
+  .mm-page-list {
+    @apply mb-4 min-h-[12rem] flex-1;
+  }
+
+  /* Overlay toast — does not affect popup document height (Chrome popup won't shrink after grow). */
+  .mm-toast {
+    @apply pointer-events-none absolute inset-x-0 bottom-0 z-10 border-t px-3 py-2 text-xs opacity-0 shadow-mm transition-opacity duration-200;
+  }
+
+  .mm-toast-visible {
+    @apply pointer-events-auto opacity-100;
+  }
+
+  .mm-toast-success {
+    @apply border-mm-success/30 bg-mm-success-soft text-mm-success;
+  }
+
+  .mm-toast-error {
+    @apply border-mm-danger/30 bg-mm-danger-soft text-mm-danger;
+  }
+
+  .mm-card {
+    @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface;
+  }
+
+  .mm-section-title {
+    @apply border-b border-mm-border-light bg-mm-muted px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-mm-label;
+  }
+
+  .mm-row-btn {
+    @apply flex w-full items-center gap-2.5 border-0 bg-transparent px-3 py-2.5 text-left text-[13px] leading-none text-mm-secondary outline-none transition-colors hover:bg-mm-muted active:bg-mm-canvas/60;
+  }
+
+  .mm-row-btn-danger {
+    @apply flex w-full items-center gap-2.5 border-0 bg-transparent px-3 py-2.5 text-left text-[13px] leading-none font-medium text-mm-danger outline-none transition-colors hover:bg-mm-danger-soft active:bg-mm-danger-soft;
+  }
+
+  .mm-icon-slot {
+    @apply inline-flex h-4 w-4 shrink-0 items-center justify-center leading-none;
+  }
+
+  .mm-icon-slot svg {
+    @apply block h-4 w-4 shrink-0;
+  }
+
+  .mm-icon-spin svg {
+    animation: mm-spin 0.75s linear infinite;
+  }
+
+  @keyframes mm-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .mm-row-btn:disabled,
+  .mm-row-btn-danger:disabled,
+  .mm-primary-btn:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .mm-row-icon {
+    @apply text-mm-icon;
+  }
+
+  .mm-row-icon-danger {
+    @apply text-mm-danger/70;
+  }
+
+  .mm-switch-row {
+    @apply flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-mm-accent-soft/60;
+  }
+
+  .mm-switch {
+    @apply relative inline-block h-5 w-9 shrink-0;
+  }
+
+  .mm-switch-input {
+    @apply sr-only;
+  }
+
+  .mm-switch-track {
+    @apply block h-5 w-9 rounded-full bg-mm-border transition-colors;
+  }
+
+  .mm-switch-input:checked + .mm-switch-track {
+    background: linear-gradient(90deg, #2563eb, #8b5cf6);
+  }
+
+  .mm-switch-thumb {
+    @apply pointer-events-none absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-mm-surface shadow-mm-sm ring-1 ring-mm-border-light/80 transition-transform;
+  }
+
+  .mm-switch-input:checked ~ .mm-switch-thumb {
+    transform: translateX(1rem);
+  }
+
+  .mm-primary-btn {
+    @apply flex w-full items-center justify-center gap-2 rounded bg-mm-accent px-3 py-2.5 text-sm font-semibold leading-none text-white transition hover:bg-mm-accent-hover active:brightness-95;
+  }
+
+  .mm-secondary-btn {
+    @apply rounded bg-mm-surface px-4 py-2 text-sm font-medium text-mm-secondary transition hover:bg-mm-accent-soft active:bg-mm-canvas/50;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  .mm-icon-btn {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary;
+  }
+
+  .mm-field {
+    @apply block;
+  }
+
+  .mm-field-component {
+    @apply grid gap-1;
+  }
+
+  .mm-label {
+    @apply mb-1 block text-[13px] font-semibold text-mm-secondary;
+  }
+
+  .mm-field-component > .mm-label {
+    @apply mb-0;
+  }
+
+  .mm-hint {
+    @apply mt-1 text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-field-component > .mm-hint {
+    @apply mt-0;
+  }
+
+  .mm-input-icon {
+    @apply pointer-events-none absolute left-3 top-1/2 z-10 flex h-4 w-4 -translate-y-1/2 items-center justify-center text-mm-icon transition-colors;
+  }
+
+  .mm-input-icon svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-input-component:focus-within .mm-native-input,
+  mm-input:focus-within > input {
+    @apply bg-mm-surface;
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  .mm-native-select {
+    @apply cursor-pointer pr-9;
+  }
+
+  .mm-select-trigger {
+    @apply flex h-9 w-full items-center gap-2 rounded border-0 bg-mm-surface px-3 text-left text-sm font-medium text-mm-secondary outline-none transition hover:bg-mm-accent-soft/60 focus:outline-none;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  .mm-select-trigger:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  .mm-select-trigger:focus-visible {
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  .mm-select-component[open] .mm-select-trigger,
+  mm-select[open] .mm-select-trigger {
+    @apply bg-mm-surface;
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  .mm-select-leading,
+  .mm-select-chevron,
+  .mm-select-option-icon {
+    @apply flex h-4 w-4 shrink-0 items-center justify-center text-mm-icon;
+  }
+
+  .mm-select-leading svg,
+  .mm-select-chevron svg,
+  .mm-select-option-icon svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-select-value {
+    @apply min-w-0 flex-1 truncate;
+  }
+
+  .mm-select-chevron {
+    @apply transition-transform;
+  }
+
+  .mm-select-component[open] .mm-select-chevron,
+  mm-select[open] .mm-select-chevron {
+    transform: rotate(180deg);
+  }
+
+  .mm-select-menu {
+    @apply pointer-events-none absolute right-0 top-[calc(100%+0.25rem)] z-30 grid w-max min-w-full translate-y-1 gap-1 rounded border border-mm-border-light bg-mm-surface p-1 opacity-0 shadow-mm-sm transition;
+  }
+
+  .mm-select-component[open] .mm-select-menu,
+  mm-select[open] .mm-select-menu {
+    @apply pointer-events-auto translate-y-0 opacity-100;
+  }
+
+  .mm-select-option {
+    @apply flex h-8 w-full flex-nowrap items-center gap-2 whitespace-nowrap rounded border-0 bg-transparent px-2.5 text-left text-[13px] font-medium leading-none text-mm-secondary shadow-none outline-none transition hover:bg-mm-accent-soft hover:text-mm-accent focus:bg-mm-accent-soft focus:text-mm-accent focus:outline-none;
+  }
+
+  .mm-select-option[aria-selected='true'] {
+    @apply bg-mm-magic-soft text-mm-magic;
+  }
+
+  .mm-select-option[aria-selected='true'] .mm-select-option-icon {
+    @apply text-mm-magic;
+  }
+
+  /* Buttons: match light DOM in HTML before scripts.js adds component classes */
+  mm-button,
+  .mm-button-component {
+    @apply inline-flex;
+  }
+
+  mm-button[block],
+  .mm-button-component[block] {
+    @apply flex w-full;
+  }
+
+  mm-button > button,
+  .mm-button-native {
+    @apply flex h-8 items-center justify-center gap-2 rounded px-3 text-[13px] font-semibold leading-none transition active:brightness-95;
+    border: none;
+    box-shadow: none;
+    background-image: none;
+  }
+
+  mm-button[variant='primary'] > button,
+  .mm-button-component[variant='primary'] .mm-button-native {
+    @apply bg-mm-accent text-white hover:bg-mm-accent-hover;
+  }
+
+  mm-button[variant='secondary'] > button,
+  .mm-button-component[variant='secondary'] .mm-button-native {
+    @apply bg-mm-surface text-mm-secondary hover:bg-mm-accent-soft;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  mm-button[variant='secondary'] > button:hover,
+  .mm-button-component[variant='secondary'] .mm-button-native:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  mm-button[variant='ghost'] > button,
+  .mm-button-component[variant='ghost'] .mm-button-native {
+    @apply text-mm-secondary shadow-none hover:bg-mm-muted;
+  }
+
+  mm-button[variant='danger'] > button,
+  .mm-button-component[variant='danger'] .mm-button-native {
+    @apply bg-mm-danger text-white hover:brightness-95;
+  }
+
+  mm-button[block] > button,
+  .mm-button-component[block] .mm-button-native {
+    @apply w-full;
+  }
+
+  mm-button > button:disabled,
+  .mm-button-native:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  mm-input,
+  .mm-input-component {
+    @apply relative block;
+  }
+
+  mm-input:has(.mm-input-icon) > input,
+  .mm-input-with-icon .mm-native-input {
+    @apply pl-9;
+  }
+
+  mm-input > input {
+    @apply box-border block h-9 w-full rounded border-0 bg-mm-surface px-3 text-sm leading-normal text-mm-ink placeholder:text-mm-text-muted;
+    outline: none;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  mm-input > input:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  mm-input > input:focus {
+    @apply bg-mm-surface;
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  mm-input:focus-within .mm-input-icon,
+  .mm-input-component:focus-within .mm-input-icon {
+    @apply text-mm-accent;
+  }
+
+  mm-select,
+  .mm-select-component {
+    @apply relative block;
+  }
+
+  .mm-switch-component {
+    @apply inline-flex cursor-pointer items-center gap-3;
+  }
+
+  .mm-switch-control {
+    @apply relative inline-block h-5 w-9 shrink-0;
+  }
+
+  .mm-switch-component .mm-switch-input {
+    @apply sr-only;
+  }
+
+  .mm-switch-component .mm-switch-track {
+    @apply block h-5 w-9 rounded-full bg-mm-border transition-colors;
+  }
+
+  .mm-switch-component .mm-switch-input:checked + .mm-switch-track {
+    background: linear-gradient(90deg, #2563eb, #8b5cf6);
+  }
+
+  .mm-switch-component .mm-switch-thumb {
+    @apply pointer-events-none absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-mm-surface shadow-mm-sm ring-1 ring-mm-border-light/80 transition-transform;
+  }
+
+  .mm-switch-component .mm-switch-input:checked ~ .mm-switch-thumb {
+    transform: translateX(1rem);
+  }
+
+  .mm-switch-label {
+    @apply min-w-0 flex-1 text-sm leading-snug text-mm-secondary;
+  }
+
+  .mm-footer {
+    @apply flex items-center justify-between gap-2 border-t border-mm-border-light bg-mm-surface px-3 py-2;
+  }
+
+  .mm-badge {
+    @apply shrink-0 rounded-sm bg-mm-muted px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-mm-text-muted ring-1 ring-mm-border-light;
+  }
+}
