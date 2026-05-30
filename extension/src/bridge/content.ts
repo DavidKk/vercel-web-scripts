@@ -2,19 +2,29 @@
  * Isolated content script: storage/XHR bridge + inject page-world launcher.
  */
 
-import { loadExtensionRules, shouldInjectOnUrl } from '@ext/shared/extension-storage'
-
 import type { GMRequestDetails } from '../page/gm-types'
+import type { ShellResponse } from '../shared/messages'
 import type { ExtensionConfig, PageBootstrapConfig } from '../types'
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from '../types'
 
 const REQUEST_EVENT = 'vws-gm-request'
 const RESPONSE_EVENT = 'vws-gm-response'
 const STORAGE_CHANGED_EVENT = 'vws-gm-storage-changed'
+const BRIDGE_MESSAGE_SOURCE = 'vws-extension-bridge'
 const GM_STORAGE_PREFIX = 'vws_gm_'
+const BOOTSTRAP_DATA_PREFIX = 'vws-bootstrap-data-'
+const LAUNCHER_SCRIPT_PREFIX = 'vws-page-launcher-'
 
 function storageKey(key: string): string {
   return `${GM_STORAGE_PREFIX}${key}`
+}
+
+function getRuntimeId(): string | null {
+  try {
+    return chrome.runtime?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 async function loadConfig(): Promise<ExtensionConfig> {
@@ -38,96 +48,160 @@ async function loadGmStore(): Promise<Record<string, unknown>> {
 }
 
 function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>): void {
-  const inline = document.createElement('script')
-  inline.textContent = `window.__VWS_PAGE_CONFIG__ = ${JSON.stringify(config)}; window.__VWS_GM_STORE__ = ${JSON.stringify(gmStore)};`
-  ;(document.documentElement || document.head || document.body).appendChild(inline)
-  inline.remove()
+  const runtimeId = getRuntimeId()
+  if (!runtimeId) {
+    return
+  }
+  const bootstrapId = `${BOOTSTRAP_DATA_PREFIX}${runtimeId}`
+  const launcherId = `${LAUNCHER_SCRIPT_PREFIX}${runtimeId}`
+  if (document.getElementById(launcherId)) {
+    return
+  }
+
+  const existing = document.getElementById(bootstrapId)
+  if (existing) {
+    existing.remove()
+  }
+
+  const data = document.createElement('template')
+  data.id = bootstrapId
+  data.textContent = JSON.stringify({ config, gmStore })
+  ;(document.documentElement || document.head || document.body).appendChild(data)
 
   const script = document.createElement('script')
+  script.id = launcherId
   script.src = chrome.runtime.getURL('page-launcher.js')
   script.async = false
+  script.dataset.vwsBootstrapId = bootstrapId
   ;(document.documentElement || document.head || document.body).appendChild(script)
 }
 
-async function handleXhr(details: GMRequestDetails): Promise<{ status: number; responseText: string; responseHeaders?: string }> {
-  const method = (details.method ?? 'GET').toUpperCase()
-  const headers = new Headers(details.headers ?? {})
-  const res = await fetch(details.url, {
-    method,
-    headers,
-    body: method === 'GET' || method === 'HEAD' ? undefined : details.data,
-    credentials: 'omit',
+function waitForDocumentBody(): Promise<void> {
+  if (document.body) {
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (!document.body) {
+        return
+      }
+      observer.disconnect()
+      resolve()
+    })
+    observer.observe(document.documentElement || document, { childList: true, subtree: true })
   })
-  const responseText = await res.text()
-  const responseHeaders = Array.from(res.headers.entries())
-    .map(([k, v]) => `${k}: ${v}`)
-    .join('\r\n')
-  return { status: res.status, responseText, responseHeaders }
+}
+
+async function handleXhr(details: GMRequestDetails): Promise<{ status: number; responseText: string; responseHeaders?: string }> {
+  const response = (await chrome.runtime.sendMessage({
+    type: 'GM_XHR',
+    details: {
+      method: details.method,
+      url: details.url,
+      headers: details.headers,
+      data: details.data,
+      timeout: details.timeout,
+      responseType: details.responseType,
+    },
+  })) as ShellResponse
+  if (!response?.ok || !('xhr' in response)) {
+    throw new Error(response?.ok === false ? response.error : 'GM_XHR failed')
+  }
+  return response.xhr
 }
 
 function respond(id: number, result?: unknown, error?: string): void {
-  window.dispatchEvent(new CustomEvent(RESPONSE_EVENT, { detail: { id, result, error } }))
+  window.postMessage({ source: BRIDGE_MESSAGE_SOURCE, type: RESPONSE_EVENT, payload: { id, result, error } }, '*')
+}
+
+function postStorageChanged(key: string, oldValue: unknown, newValue: unknown): void {
+  window.postMessage({ source: BRIDGE_MESSAGE_SOURCE, type: STORAGE_CHANGED_EVENT, payload: { key, oldValue, newValue } }, '*')
+}
+
+function isRequestDetail(value: unknown): value is { id: number; method: string; args: unknown[] } {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { id?: unknown }).id === 'number' &&
+    typeof (value as { method?: unknown }).method === 'string' &&
+    Array.isArray((value as { args?: unknown }).args)
+  )
+}
+
+function handleBridgeRequest(value: unknown): void {
+  if (!isRequestDetail(value)) {
+    return
+  }
+  const { id, method, args } = value
+  void (async () => {
+    try {
+      if (method === 'setValue') {
+        const [key, value] = args as [string, unknown]
+        await chrome.storage.local.set({ [storageKey(key)]: value })
+        respond(id, true)
+        return
+      }
+      if (method === 'deleteValue') {
+        const [key] = args as [string]
+        await chrome.storage.local.remove(storageKey(key))
+        respond(id, true)
+        return
+      }
+      if (method === 'xhr') {
+        const [details] = args as [GMRequestDetails]
+        const result = await handleXhr(details)
+        respond(id, result)
+        return
+      }
+      respond(id, undefined, `Unknown method: ${method}`)
+    } catch (e) {
+      respond(id, undefined, e instanceof Error ? e.message : String(e))
+    }
+  })()
 }
 
 async function bootstrap(): Promise<void> {
+  if (!getRuntimeId()) {
+    return
+  }
   const url = typeof location !== 'undefined' ? location.href : ''
-  const rules = await loadExtensionRules()
-  if (!shouldInjectOnUrl(rules, url)) {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return
   }
 
   const [config, gmStore] = await Promise.all([loadConfig(), loadGmStore()])
   const manifest = chrome.runtime.getManifest()
-
-  injectPageScript(
-    {
-      ...config,
-      extensionVersion: manifest.version ?? '0.0.0',
-    },
-    gmStore
-  )
+  const bootstrapConfig = {
+    ...config,
+    extensionVersion: manifest.version ?? '0.0.0',
+  }
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return
     for (const [fullKey, change] of Object.entries(changes)) {
       if (!fullKey.startsWith(GM_STORAGE_PREFIX)) continue
       const key = fullKey.slice(GM_STORAGE_PREFIX.length)
-      window.dispatchEvent(
-        new CustomEvent(STORAGE_CHANGED_EVENT, {
-          detail: { key, oldValue: change.oldValue, newValue: change.newValue },
-        })
-      )
+      postStorageChanged(key, change.oldValue, change.newValue)
     }
   })
 
   window.addEventListener(REQUEST_EVENT, ((event: CustomEvent<{ id: number; method: string; args: unknown[] }>) => {
-    const { id, method, args } = event.detail
-    void (async () => {
-      try {
-        if (method === 'setValue') {
-          const [key, value] = args as [string, unknown]
-          await chrome.storage.local.set({ [storageKey(key)]: value })
-          respond(id, true)
-          return
-        }
-        if (method === 'deleteValue') {
-          const [key] = args as [string]
-          await chrome.storage.local.remove(storageKey(key))
-          respond(id, true)
-          return
-        }
-        if (method === 'xhr') {
-          const [details] = args as [GMRequestDetails]
-          const result = await handleXhr(details)
-          respond(id, result)
-          return
-        }
-        respond(id, undefined, `Unknown method: ${method}`)
-      } catch (e) {
-        respond(id, undefined, e instanceof Error ? e.message : String(e))
-      }
-    })()
+    handleBridgeRequest(event.detail)
   }) as EventListener)
+
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || !event.data || typeof event.data !== 'object') {
+      return
+    }
+    const { source, type, payload } = event.data as { source?: unknown; type?: unknown; payload?: unknown }
+    if (source !== BRIDGE_MESSAGE_SOURCE || type !== REQUEST_EVENT) {
+      return
+    }
+    handleBridgeRequest(payload)
+  })
+
+  await waitForDocumentBody()
+  injectPageScript(bootstrapConfig, gmStore)
 }
 
 void bootstrap()

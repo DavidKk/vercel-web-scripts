@@ -1,6 +1,6 @@
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, type ExtensionConfig } from '@ext/types'
 
-const STATUS_BASE = 'text-sm'
+const STATUS_BASE = 'mm-options-status-pill'
 
 /**
  * Options page controller — light DOM only.
@@ -25,6 +25,9 @@ export class MmOptionsApp extends HTMLElement {
     this.querySelector('[data-action="reset"]')?.addEventListener('click', () => {
       void this.reset()
     })
+    this.querySelector('[data-action="test"]')?.addEventListener('click', () => {
+      void this.testConnection()
+    })
   }
 
   private async load(): Promise<void> {
@@ -48,14 +51,50 @@ export class MmOptionsApp extends HTMLElement {
     statusEl.className = variant === 'error' ? `${STATUS_BASE} text-mm-danger` : variant === 'ok' ? `${STATUS_BASE} text-mm-success` : `${STATUS_BASE} text-mm-text-muted`
   }
 
-  private async save(): Promise<void> {
-    const config: ExtensionConfig = {
+  private readFormConfig(): ExtensionConfig {
+    return {
       baseUrl: (this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value.trim().replace(/\/$/, ''),
       scriptKey: (this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value.trim(),
       developMode: (this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked,
     }
+  }
+
+  private validateConfig(config: ExtensionConfig): boolean {
     if (!config.baseUrl || !config.scriptKey) {
       this.setStatus('Please enter Server URL and Script Key.', 'error')
+      return false
+    }
+    return true
+  }
+
+  private async testConnection(): Promise<void> {
+    const config = this.readFormConfig()
+    if (!this.validateConfig(config)) {
+      return
+    }
+
+    this.setStatus('Testing connection…')
+    try {
+      const url = `${config.baseUrl}/api/tampermonkey/${encodeURIComponent(config.scriptKey)}/scripts/version`
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) {
+        this.setStatus(`Connection failed: HTTP ${res.status}`, 'error')
+        return
+      }
+      const body = (await res.json()) as { code?: number; data?: { gistUpdatedAt?: number } }
+      if (body.code !== 0 || typeof body.data?.gistUpdatedAt !== 'number') {
+        this.setStatus('Connection failed: invalid response.', 'error')
+        return
+      }
+      this.setStatus('Connection OK.', 'ok')
+    } catch (error) {
+      this.setStatus(error instanceof Error ? `Connection failed: ${error.message}` : 'Connection failed.', 'error')
+    }
+  }
+
+  private async save(): Promise<void> {
+    const config = this.readFormConfig()
+    if (!this.validateConfig(config)) {
       return
     }
     await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: config })

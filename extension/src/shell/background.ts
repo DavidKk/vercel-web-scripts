@@ -24,6 +24,39 @@ import { initDevExtensionReload } from './dev-extension-reload'
 
 void DEV_BUILD_STAMP
 
+async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }>['details']): Promise<ShellResponse> {
+  const method = (details.method ?? 'GET').toUpperCase()
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined
+  const timeout = typeof details.timeout === 'number' && details.timeout > 0 ? details.timeout : 0
+  const timer = timeout && controller ? setTimeout(() => controller.abort(), timeout) : undefined
+  const res = await fetch(details.url, {
+    method,
+    headers: details.headers,
+    body: method === 'GET' || method === 'HEAD' ? undefined : details.data,
+    credentials: 'omit',
+    signal: controller?.signal,
+  }).finally(() => {
+    if (timer) {
+      clearTimeout(timer)
+    }
+  })
+  const responseText = await res.text()
+  const responseHeaders = Array.from(res.headers.entries())
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\r\n')
+
+  return {
+    ok: true,
+    xhr: {
+      status: res.status,
+      statusText: res.statusText,
+      responseText,
+      responseHeaders,
+      finalUrl: res.url || details.url,
+    },
+  }
+}
+
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
   return tabs[0]
@@ -148,6 +181,10 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
       const config = await loadExtensionConfig()
 
       switch (message.type) {
+        case 'GM_XHR': {
+          sendResponse(await handleBridgeXhr(message.details))
+          return
+        }
         case 'GET_STATUS': {
           sendResponse({ ok: true, status: await buildStatus() } satisfies ShellResponse)
           return

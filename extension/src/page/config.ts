@@ -28,6 +28,31 @@ export interface LauncherUrls {
   globals: Record<string, string | boolean>
 }
 
+const EXTENSION_GRANTS = [
+  'GM_addElement',
+  'GM_addStyle',
+  'GM_log',
+  'GM_notification',
+  'GM_openInTab',
+  'GM_setClipboard',
+  'GM_getValue',
+  'GM_setValue',
+  'GM_deleteValue',
+  'GM_listValues',
+  'GM_setValues',
+  'GM_getValues',
+  'GM_deleteValues',
+  'GM_addValueChangeListener',
+  'GM_removeValueChangeListener',
+  'GM_xmlhttpRequest',
+  'GM_registerMenuCommand',
+  'GM_unregisterMenuCommand',
+  'GM_info',
+  'unsafeWindow',
+] as const
+
+const EXTENSION_GRANTS_STRING = EXTENSION_GRANTS.map((grant) => `...(typeof ${grant} !== 'undefined' ? { ${grant} } : {})`).join(', ')
+
 /**
  * Build preset / manifest / remote URLs and scoped storage keys from extension config.
  * @param config Extension options (baseUrl, scriptKey, developMode)
@@ -65,7 +90,7 @@ export function buildLauncherUrls(config: ExtensionConfig): LauncherUrls {
     __SCRIPT_URL__: remoteScriptUrl,
     __IS_DEVELOP_MODE__: config.developMode,
     __HOSTNAME_PORT__: pageHost,
-    __GRANTS_STRING__: '{}',
+    __GRANTS_STRING__: EXTENSION_GRANTS_STRING,
   }
 
   return {

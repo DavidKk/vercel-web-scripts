@@ -354,6 +354,112 @@
     @apply flex flex-wrap items-center justify-end gap-2.5 border-t border-mm-border-light bg-mm-muted/50 px-4 py-3;
   }
 
+  .mm-options-main {
+    @apply mx-auto flex w-full max-w-[860px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-6;
+  }
+
+  .mm-options-panel {
+    @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface shadow-mm-sm;
+  }
+
+  .mm-options-panel-header {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-mm-border-light bg-mm-surface px-4 py-4 sm:px-5;
+  }
+
+  .mm-options-panel-heading {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .mm-options-panel-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded bg-mm-accent-soft text-mm-accent ring-1 ring-mm-border-light;
+  }
+
+  .mm-options-panel-icon svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-options-title {
+    @apply m-0 truncate text-base font-semibold leading-tight text-mm-ink;
+  }
+
+  .mm-options-subtitle {
+    @apply mt-0.5 text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-status-pill {
+    @apply min-h-7 max-w-full truncate rounded-full bg-mm-muted px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-status-pill.text-mm-success {
+    @apply bg-mm-success-soft ring-1;
+    color: #10b981;
+    --tw-ring-color: rgb(16 185 129 / 0.16);
+  }
+
+  .mm-options-status-pill.text-mm-danger {
+    @apply bg-mm-danger-soft ring-1;
+    color: #ef4444;
+    --tw-ring-color: rgb(239 68 68 / 0.16);
+  }
+
+  .mm-options-panel-body {
+    @apply grid gap-0 divide-y divide-mm-border-light;
+  }
+
+  .mm-options-section {
+    @apply grid gap-4 px-4 py-4 sm:px-5 sm:py-5;
+  }
+
+  .mm-options-section-head {
+    @apply flex items-center justify-between gap-3;
+  }
+
+  .mm-options-section-title {
+    @apply m-0 text-sm font-semibold leading-none text-mm-ink;
+  }
+
+  .mm-options-section-meta {
+    @apply rounded-full bg-mm-muted px-2 py-1 text-[11px] font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-field-grid {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+
+  .mm-options-field {
+    @apply min-w-0;
+  }
+
+  .mm-options-field .mm-native-input,
+  .mm-options-field mm-input > input {
+    @apply h-10 rounded-md bg-mm-canvas/40;
+  }
+
+  .mm-options-field code,
+  .mm-options-toggle-card code {
+    @apply rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary;
+  }
+
+  .mm-options-toggle-card {
+    @apply flex cursor-pointer items-center justify-between gap-4 rounded-md border border-mm-border-light bg-mm-canvas/40 px-4 py-3 transition hover:bg-mm-accent-soft/40;
+  }
+
+  .mm-options-toggle-copy {
+    @apply min-w-0 flex-1;
+  }
+
+  .mm-options-toggle-title {
+    @apply block text-sm font-semibold leading-tight text-mm-secondary;
+  }
+
+  .mm-options-toggle-text {
+    @apply mt-1 block text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-panel-footer {
+    @apply flex flex-col-reverse gap-2.5 border-t border-mm-border-light bg-mm-muted/40 px-4 py-3 sm:flex-row sm:justify-end sm:px-5;
+  }
+
   .mm-page-toolbar {
     @apply mt-auto flex shrink-0 flex-wrap items-center gap-3 border-t border-mm-border-light pt-6;
   }
