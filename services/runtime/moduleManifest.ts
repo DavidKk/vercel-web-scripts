@@ -125,9 +125,14 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
 
 /**
  * Build deterministic ETag for module manifest response.
+ * Excludes `generatedAt` so conditional GET (If-None-Match) works across requests.
  * @param manifest Runtime module manifest payload
  * @returns SHA-1 ETag hash string
  */
 export function buildRuntimeModuleManifestEtag(manifest: RuntimeModuleManifest): string {
-  return createHash('sha1').update(JSON.stringify(manifest), 'utf8').digest('hex')
+  const stable = {
+    manifestVersion: manifest.manifestVersion,
+    modules: manifest.modules,
+  }
+  return createHash('sha1').update(JSON.stringify(stable), 'utf8').digest('hex')
 }

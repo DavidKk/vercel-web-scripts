@@ -1,3 +1,6 @@
+import { formatCacheInventory, parseRulesCacheStats } from '@shared/cache-debug'
+
+import { GME_debug, GME_fail } from '@/helpers/logger'
 import { isShellNetworkEffectivelyEnabled } from '@/services/shell-network-settings'
 
 const RULE_CACHE_KEY = '#RuleCache@WebScripts'
@@ -9,6 +12,26 @@ export function matchUrl(pattern: string, url = window.location.href) {
   const regexPattern = pattern.replace(/([\.\?])/g, '\\$1').replace(/\*/g, '.*')
   const regex = new RegExp(`^${regexPattern}$`)
   return regex.test(url)
+}
+
+/**
+ * Read RULE cache stats from GM storage (for debug logging).
+ * @returns Rule count and unique script names in cache
+ */
+export function getRulesCacheStats(): ReturnType<typeof parseRulesCacheStats> {
+  const cached = GM_getValue(RULE_CACHE_KEY)
+  return parseRulesCacheStats(typeof cached === 'string' ? cached : null)
+}
+
+function logRulesCacheDebug(source: 'hit' | 'miss' | 'network'): void {
+  const stats = getRulesCacheStats()
+  GME_debug(
+    `[Rules] cache:${source} ${formatCacheInventory({
+      rules: stats.ruleCount,
+      scripts: stats.scriptCount,
+      names: stats.scriptNames.slice(0, 8).join(',') || '(none)',
+    })}`
+  )
 }
 
 /**
@@ -68,9 +91,17 @@ async function fetchRules() {
 }
 
 export async function fetchAndCacheRules() {
+  GME_debug('[Rules] fetch:network start')
   const rules = await fetchRules()
   try {
     GM_setValue(RULE_CACHE_KEY, JSON.stringify(rules))
+    const stats = parseRulesCacheStats(JSON.stringify(rules))
+    GME_debug(
+      `[Rules] fetch:network cached ${formatCacheInventory({
+        rules: stats.ruleCount,
+        scripts: stats.scriptCount,
+      })}`
+    )
   } catch (error) {
     const finalError = error instanceof Error ? error : typeof error === 'string' ? new Error(error) : new Error('Unknown error')
     GME_fail('Caching rules:', finalError.message)
@@ -83,7 +114,9 @@ export async function fetchRulesFromCache(refetch = false) {
   const allowNetwork = isShellNetworkEffectivelyEnabled()
   const cached = GM_getValue(RULE_CACHE_KEY)
   if (cached) {
+    logRulesCacheDebug('hit')
     if (refetch && allowNetwork) {
+      GME_debug('[Rules] cache:hit background refetch scheduled')
       fetchAndCacheRules()
     }
 
@@ -95,7 +128,9 @@ export async function fetchRulesFromCache(refetch = false) {
     }
   }
 
+  logRulesCacheDebug('miss')
   if (!allowNetwork) {
+    GME_debug('[Rules] cache:miss network=off return empty rules')
     return []
   }
 

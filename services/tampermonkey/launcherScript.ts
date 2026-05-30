@@ -18,6 +18,8 @@ import {
   PRESET_PREVIOUS_HASH_KEY,
   PRESET_UPDATE_CHANNEL_KEY,
   PRESET_UPDATED_NOTIFY_KEY,
+  REMOTE_SCRIPT_CACHE_KEY,
+  REMOTE_SCRIPT_ETAG_KEY,
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@/shared/launcher-constants'
@@ -34,6 +36,8 @@ export {
   PRESET_PREVIOUS_HASH_KEY,
   PRESET_UPDATE_CHANNEL_KEY,
   PRESET_UPDATED_NOTIFY_KEY,
+  REMOTE_SCRIPT_CACHE_KEY,
+  REMOTE_SCRIPT_ETAG_KEY,
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@/shared/launcher-constants'
@@ -68,6 +72,8 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
   const scopedPresetPreviousHashKey = `${PRESET_PREVIOUS_HASH_KEY}:${cacheScope}`
   const scopedModuleManifestEtagKey = `${MODULE_MANIFEST_ETAG_KEY}:${cacheScope}`
   const scopedScriptBundleUrlKey = `${SCRIPT_BUNDLE_URL_KEY}:${cacheScope}`
+  const scopedRemoteCacheKey = `${REMOTE_SCRIPT_CACHE_KEY}:${cacheScope}`
+  const scopedRemoteEtagKey = `${REMOTE_SCRIPT_ETAG_KEY}:${cacheScope}`
 
   const uri = new URL(launcherScriptUrl)
   const { protocol, hostname, port } = uri
@@ -135,6 +141,8 @@ ${grantLines}
   const PRESET_PREVIOUS_HASH_KEY_SCOPED = ${JSON.stringify(scopedPresetPreviousHashKey)};
   const MODULE_MANIFEST_ETAG_KEY_SCOPED = ${JSON.stringify(scopedModuleManifestEtagKey)};
   const SCRIPT_BUNDLE_URL_KEY_SCOPED = ${JSON.stringify(scopedScriptBundleUrlKey)};
+  const REMOTE_SCRIPT_CACHE_KEY_SCOPED = ${JSON.stringify(scopedRemoteCacheKey)};
+  const REMOTE_SCRIPT_ETAG_KEY_SCOPED = ${JSON.stringify(scopedRemoteEtagKey)};
   var DEFAULT_SCRIPT_URL = ${JSON.stringify(remoteScriptUrl)};
   var runtimeScriptUrl = DEFAULT_SCRIPT_URL;
   const MODULE_LOG_PREFIX = '[ModuleLoad][preset-core]';
@@ -145,6 +153,49 @@ ${grantLines}
   function shortHash(h) {
     if (!h || typeof h !== 'string' || h.length === 0) return '(none)';
     return h.length > 16 ? h.slice(0, 16) + '...' : h;
+  }
+  function countRemoteModules(text) {
+    if (!text || typeof text !== 'string') return 0;
+    var matches = text.match(/^\\s*\\/\\/\\s+[\\w./-]+\\.(?:js|ts)\\s*$/gm);
+    return matches ? matches.length : 0;
+  }
+  function countGmRuntimeKeys() {
+    try {
+      return GM_listValues().filter(function (key) {
+        return typeof key === 'string' && (key.indexOf('vws_') === 0 || key.indexOf('#Rule') === 0);
+      }).length;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function logCacheInventory(presetCode, localHash, manifestEtag) {
+    var remoteBody = readScopedValue(REMOTE_SCRIPT_CACHE_KEY_SCOPED, ${JSON.stringify(REMOTE_SCRIPT_CACHE_KEY)}, '');
+    var remoteEtag = normalizeEtag(readScopedValue(REMOTE_SCRIPT_ETAG_KEY_SCOPED, ${JSON.stringify(REMOTE_SCRIPT_ETAG_KEY)}, ''));
+    var bundleUrl = readScopedValue(SCRIPT_BUNDLE_URL_KEY_SCOPED, ${JSON.stringify(SCRIPT_BUNDLE_URL_KEY)}, '');
+    bootLog(
+      'info',
+      MODULE_LOG_PREFIX,
+      'cache:inventory presetHit=' +
+        !!presetCode +
+        ' presetBytes=' +
+        (presetCode && presetCode.length ? presetCode.length : 0) +
+        ' presetHash=' +
+        shortHash(localHash || '') +
+        ' manifestEtag=' +
+        shortHash(manifestEtag || '') +
+        ' remoteHit=' +
+        !!remoteBody +
+        ' remoteBytes=' +
+        (remoteBody && remoteBody.length ? remoteBody.length : 0) +
+        ' remoteModules=' +
+        countRemoteModules(remoteBody) +
+        ' remoteEtag=' +
+        shortHash(remoteEtag || '') +
+        ' bundleUrl=' +
+        (bundleUrl ? 'yes' : 'no') +
+        ' gmKeys=' +
+        countGmRuntimeKeys()
+    );
   }
   function bootLog(level) {
     var parts = Array.prototype.slice.call(arguments, 1);
@@ -349,15 +400,25 @@ ${grantLines}
 
   // Only persist latest manifest etag after preset apply/execute succeeds.
   var pendingManifestEtag = '';
+  var skipPresetExecute = false;
+
+  function reloadIfTabActive(reason) {
+    bootLog('info', MODULE_LOG_PREFIX, reason);
+    if (isTabActive()) {
+      setTimeout(function () {
+        location.reload();
+      }, 50);
+    }
+  }
 
   function applyPresetWithAtomicSwitch(presetText, normalizedHash) {
     var activeHash = readScopedValue(PRESET_ACTIVATED_HASH_KEY_SCOPED, ${JSON.stringify(PRESET_ACTIVATED_HASH_KEY)}, '');
     var nextH = normalizedHash || '';
-    var needUpdate = !nextH || !activeHash || activeHash !== nextH;
+    var contentChanged = !!(nextH && activeHash && activeHash !== nextH);
     bootLog(
       'info',
       MODULE_LOG_PREFIX,
-      'activate:start module=preset-core activatedHash=' + shortHash(activeHash) + ' incomingContentHash=' + shortHash(nextH) + ' needContentUpdate=' + needUpdate
+      'activate:start module=preset-core activatedHash=' + shortHash(activeHash) + ' incomingContentHash=' + shortHash(nextH) + ' needContentUpdate=' + contentChanged
     );
     if (activeHash && normalizedHash && activeHash !== normalizedHash) {
       writeScopedAndLegacy(PRESET_PREVIOUS_HASH_KEY_SCOPED, ${JSON.stringify(PRESET_PREVIOUS_HASH_KEY)}, activeHash);
@@ -378,10 +439,20 @@ ${grantLines}
       MODULE_LOG_PREFIX,
       'activate:success module=preset-core hash ' + shortHash(activeHash) + ' -> ' + shortHash(displayNewHash) + ' (cache+etag written, then execute)'
     );
+    if (skipPresetExecute) {
+      if (contentChanged) {
+        reloadIfTabActive('refresh:preset-changed reload');
+      }
+      return;
+    }
     runPreset(presetText);
   }
 
   function tryRollbackPreset() {
+    if (skipPresetExecute) {
+      bootLog('warn', MODULE_LOG_PREFIX, 'rollback:skipped already running from cache');
+      return true;
+    }
     var cached = readScopedValue(PRESET_CACHE_KEY_SCOPED, ${JSON.stringify(PRESET_CACHE_KEY)}, '');
     if (cached) {
       bootLog('warn', MODULE_LOG_PREFIX, 'rollback:using-cached-preset bytes=' + (cached.length || 0));
@@ -406,6 +477,7 @@ ${grantLines}
 
   function loadAndRun(skipConditionalRequest) {
     pendingManifestEtag = '';
+    skipPresetExecute = false;
     var presetCode0 = readScopedValue(PRESET_CACHE_KEY_SCOPED, ${JSON.stringify(PRESET_CACHE_KEY)}, '');
     var localH0 = normalizeEtag(readScopedValue(PRESET_ETAG_KEY_SCOPED, ${JSON.stringify(PRESET_ETAG_KEY)}, ''));
     var manE0 = normalizeEtag(readScopedValue(MODULE_MANIFEST_ETAG_KEY_SCOPED, ${JSON.stringify(MODULE_MANIFEST_ETAG_KEY)}, ''));
@@ -414,6 +486,7 @@ ${grantLines}
       MODULE_LOG_PREFIX,
       'load:start network=' + (shellNetworkOn() ? 'on' : 'off') + ' skipConditional=' + !!skipConditionalRequest + ' localPresetHash=' + shortHash(localH0) + ' storedManifestEtag=' + shortHash(manE0) + ' cachedPresetBytes=' + (presetCode0 && presetCode0.length ? presetCode0.length : 0)
     );
+    logCacheInventory(presetCode0, localH0, manE0);
     if (!shellNetworkOn()) {
       bootLog('warn', MODULE_LOG_PREFIX, 'load:skip:network-off using cache only');
       var cachedOnly = readScopedValue(PRESET_CACHE_KEY_SCOPED, ${JSON.stringify(PRESET_CACHE_KEY)}, '');
@@ -435,6 +508,14 @@ ${grantLines}
     var localPresetHash = localH0;
     var manifestEtagStored = manE0;
 
+    if (presetCode) {
+      bootLog('info', MODULE_LOG_PREFIX, 'load:cache-first bytes=' + presetCode.length);
+      runPreset(presetCode);
+      skipPresetExecute = true;
+    } else {
+      bootLog('info', MODULE_LOG_PREFIX, 'load:remote-first no local preset cache — fetch from server before execute');
+    }
+
     function requestPreset(fetchUrl, expectedHash, forceFullFetch) {
       var url = fetchUrl && typeof fetchUrl === 'string' ? fetchUrl : PRESET_URL;
       var hdrs = {};
@@ -446,7 +527,7 @@ ${grantLines}
       bootLog(
         'info',
         MODULE_LOG_PREFIX,
-        'preset-core:fetch:start url=' + (url.length > 120 ? url.slice(0, 120) + '...' : url) + ' expectContentHash=' + shortHash(expectedHash || '') + ' ifNoneMatch=' + (hdrs['If-None-Match'] ? shortHash(hdrs['If-None-Match']) : '(none)') + ' forceFull=' + !!forceFullFetch
+        'preset-core:fetch:start phase=' + (skipPresetExecute ? 'refresh' : 'load') + ' url=' + (url.length > 120 ? url.slice(0, 120) + '...' : url) + ' expectContentHash=' + shortHash(expectedHash || '') + ' ifNoneMatch=' + (hdrs['If-None-Match'] ? shortHash(hdrs['If-None-Match']) : '(none)') + ' forceFull=' + !!forceFullFetch
       );
       GM_xmlhttpRequest({
         method: 'GET',
@@ -482,6 +563,10 @@ ${grantLines}
             if (pendingManifestEtag) {
               persistManifestEtag(pendingManifestEtag);
               pendingManifestEtag = '';
+            }
+            if (skipPresetExecute) {
+              bootLog('info', MODULE_LOG_PREFIX, 'refresh:not-modified preset-core');
+              return;
             }
             if (presetCode) {
               runPreset(presetCode);
@@ -572,6 +657,10 @@ ${grantLines}
       if (mres.notModified) {
         applyScriptBundleUrlFromManifest(null, true);
         pendingManifestEtag = '';
+        if (skipPresetExecute) {
+          bootLog('info', MODULE_LOG_PREFIX, 'refresh:not-modified manifest');
+          return;
+        }
         bootLog(
           'info',
           MODULE_LOG_PREFIX,
@@ -596,6 +685,10 @@ ${grantLines}
         if (pendingManifestEtag) {
           persistManifestEtag(pendingManifestEtag);
           pendingManifestEtag = '';
+        }
+        if (skipPresetExecute) {
+          bootLog('info', MODULE_LOG_PREFIX, 'refresh:not-modified preset-core hash');
+          return;
         }
         bootLog(
           'info',

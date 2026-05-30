@@ -228,7 +228,7 @@ async function main(): Promise<void> {
   GME_debug('[Main] Fetching rules and setting up matchRule function')
   const rules = await fetchRulesFromCache()
   setGlobalRules(rules)
-  GME_debug('[Main] Rules fetched, count: ' + rules.length)
+  GME_debug(`[Main] Rules active count=${rules.length} url=${typeof window !== 'undefined' ? window.location.href.slice(0, 120) : '(n/a)'}`)
 
   function executeGistScripts(): void {
     // @ts-expect-error - Placeholder will be replaced with actual GIST scripts code at runtime

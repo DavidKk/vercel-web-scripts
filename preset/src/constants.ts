@@ -27,6 +27,8 @@ export const SHELL_NETWORK_ENABLED_KEY = 'vws_shell_network_enabled'
 
 /** GM_setValue key: cached tampermonkey-remote.js body for offline shell */
 export const REMOTE_SCRIPT_CACHE_KEY = 'vws_remote_script_cache'
+/** GM_setValue key: remote script response ETag for conditional GET */
+export const REMOTE_SCRIPT_ETAG_KEY = 'vws_remote_script_etag'
 
 /** Reconnect delay (ms) when preset-built SSE connection closes or errors */
 export const PRESET_BUILT_SSE_RECONNECT_MS = 2000

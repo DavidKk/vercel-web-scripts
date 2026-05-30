@@ -23,6 +23,11 @@ export const MODULE_MANIFEST_ETAG_KEY = 'vws_module_manifest_etag'
 /** Last known script-bundle URL from manifest */
 export const SCRIPT_BUNDLE_URL_KEY = 'vws_script_bundle_url'
 
+/** GM_setValue key: cached tampermonkey-remote.js body for offline shell */
+export const REMOTE_SCRIPT_CACHE_KEY = 'vws_remote_script_cache'
+/** GM_setValue key: remote script response ETag for conditional GET */
+export const REMOTE_SCRIPT_ETAG_KEY = 'vws_remote_script_etag'
+
 /** Prefix for runtime state keys cleared on "Reset Runtime State" */
 export const RUNTIME_STATE_KEY_PREFIX = 'vws_'
 

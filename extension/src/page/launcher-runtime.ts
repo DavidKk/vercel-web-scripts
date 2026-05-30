@@ -3,6 +3,7 @@
  */
 
 import { launcherLogger } from '@ext/shared/logger'
+import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
 import {
   BOOT_LOG_KEY,
   BOOT_LOG_MAX,
@@ -15,6 +16,8 @@ import {
   PRESET_PREVIOUS_HASH_KEY,
   PRESET_UPDATE_CHANNEL_KEY,
   PRESET_UPDATED_NOTIFY_KEY,
+  REMOTE_SCRIPT_CACHE_KEY,
+  REMOTE_SCRIPT_ETAG_KEY,
   RUNTIME_STATE_KEY_PREFIX,
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
@@ -43,6 +46,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
   const {
     presetUrl,
     moduleManifestUrl,
+    cacheScope,
     scopedPresetCacheKey,
     scopedPresetEtagKey,
     scopedPresetUpdatedNotifyKey,
@@ -55,10 +59,69 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
 
   let runtimeScriptUrl = globals.__SCRIPT_URL__ as string
   let pendingManifestEtag = ''
+  let skipPresetExecute = false
+
+  function reloadIfTabActive(reason: string): void {
+    bootLog('info', MODULE_LOG_PREFIX, reason)
+    if (isTabActive()) {
+      setTimeout(() => location.reload(), 50)
+    }
+  }
 
   function shortHash(h: string): string {
     if (!h || typeof h !== 'string' || h.length === 0) return '(none)'
     return h.length > 16 ? `${h.slice(0, 16)}...` : h
+  }
+
+  function bootDebug(...parts: unknown[]): void {
+    const msg = parts
+      .map((x) => (x === undefined || x === null ? '' : String(x)))
+      .join(' ')
+      .trim()
+    launcherLogger.debug(msg)
+    try {
+      const root = globalThis as Record<string, unknown>
+      if (!Array.isArray(root[BOOT_LOG_KEY])) {
+        root[BOOT_LOG_KEY] = []
+      }
+      const arr = root[BOOT_LOG_KEY] as { t: number; level: string; message: string }[]
+      if (arr.length >= BOOT_LOG_MAX) arr.shift()
+      arr.push({ t: Date.now(), level: 'debug', message: msg })
+    } catch {
+      // ignore
+    }
+  }
+
+  function countGmRuntimeKeys(): number {
+    try {
+      return gm.GM_listValues().filter((key) => typeof key === 'string' && (key.startsWith('vws_') || key.startsWith('#Rule'))).length
+    } catch {
+      return 0
+    }
+  }
+
+  function logLauncherCacheInventory(presetCode: string, localPresetHash: string, manifestEtagStored: string): void {
+    const remoteCacheKey = `${REMOTE_SCRIPT_CACHE_KEY}:${cacheScope}`
+    const remoteEtagKey = `${REMOTE_SCRIPT_ETAG_KEY}:${cacheScope}`
+    const remoteBody = String(readScopedValue(remoteCacheKey, REMOTE_SCRIPT_CACHE_KEY, '') || '')
+    const remoteEtag = normalizeEtag(String(readScopedValue(remoteEtagKey, REMOTE_SCRIPT_ETAG_KEY, '') || ''))
+    const bundleUrl = String(readScopedValue(scopedScriptBundleUrlKey, SCRIPT_BUNDLE_URL_KEY, '') || '')
+    bootLog(
+      'info',
+      MODULE_LOG_PREFIX,
+      `cache:inventory ${formatCacheInventory({
+        presetHit: Boolean(presetCode),
+        presetBytes: presetCode.length,
+        presetHash: shortCacheLabel(localPresetHash),
+        manifestEtag: shortCacheLabel(manifestEtagStored),
+        remoteHit: Boolean(remoteBody),
+        remoteBytes: remoteBody.length,
+        remoteModules: countCompiledRemoteModules(remoteBody),
+        remoteEtag: shortCacheLabel(remoteEtag),
+        bundleUrl: bundleUrl ? 'yes' : 'no',
+        gmKeys: countGmRuntimeKeys(),
+      })}`
+    )
   }
 
   function bootLog(level: 'info' | 'warn' | 'fail' | 'ok', ...parts: unknown[]): void {
@@ -195,7 +258,9 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
       if (res.status === 200 && res.responseText) {
         const data = JSON.parse(res.responseText) as ModuleManifest
         const etag = normalizeEtag(getResponseHeader(res, 'etag') ?? '')
-        bootLog('info', MODULE_LOG_PREFIX, `manifest:fetch:success responseEtag=${shortHash(etag)}`)
+        const presetMod = extractPresetCoreModule(data)
+        const remoteHash = hashFromPresetCoreModule(presetMod)
+        bootLog('info', MODULE_LOG_PREFIX, `manifest:fetch:success responseEtag=${shortHash(etag)} presetHash=${shortHash(remoteHash)}`)
         return { notModified: false as const, data, etag }
       }
       throw new Error(`manifest HTTP ${res.status}`)
@@ -230,7 +295,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
     runtimeScriptUrl = storedBundleUrl
   }
 
-  function applyPresetWithAtomicSwitch(presetText: string, normalizedHash: string): void {
+  function persistPresetCache(presetText: string, normalizedHash: string): void {
     const activeHash = readScopedValue(scopedPresetActivatedHashKey, PRESET_ACTIVATED_HASH_KEY, '') as string
     const nextH = normalizedHash || ''
     if (activeHash && normalizedHash && activeHash !== normalizedHash) {
@@ -246,10 +311,27 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
       pendingManifestEtag = ''
     }
     bootLog('ok', MODULE_LOG_PREFIX, `activate:success hash ${shortHash(activeHash)} -> ${shortHash(nextH || activeHash)}`)
+    bootDebug(MODULE_LOG_PREFIX, `cache:write presetBytes=${presetText.length} hash=${shortHash(normalizedHash)}`)
+  }
+
+  function applyPresetWithAtomicSwitch(presetText: string, normalizedHash: string): void {
+    const activeHash = readScopedValue(scopedPresetActivatedHashKey, PRESET_ACTIVATED_HASH_KEY, '') as string
+    const contentChanged = Boolean(normalizedHash && activeHash && activeHash !== normalizedHash)
+    persistPresetCache(presetText, normalizedHash)
+    if (skipPresetExecute) {
+      if (contentChanged) {
+        reloadIfTabActive('refresh:preset-changed reload')
+      }
+      return
+    }
     runPreset(presetText)
   }
 
   function tryRollbackPreset(): boolean {
+    if (skipPresetExecute) {
+      bootLog('warn', MODULE_LOG_PREFIX, 'rollback:skipped already running from cache')
+      return true
+    }
     const cached = readScopedValue(scopedPresetCacheKey, PRESET_CACHE_KEY, '') as string
     if (cached) {
       bootLog('warn', MODULE_LOG_PREFIX, `rollback:using-cached-preset bytes=${cached.length}`)
@@ -267,13 +349,14 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
     return gm.GM_getValue(LEGACY_AUTO_UPDATE_SCRIPT_KEY) === true
   }
 
-  function requestPreset(fetchUrl: string, expectedHash: string, forceFullFetch: boolean, presetCode: string, localPresetHash: string): void {
+  function requestPreset(fetchUrl: string, expectedHash: string, forceFullFetch: boolean, presetCode: string, localPresetHash: string, skipConditionalRequest: boolean): void {
     const url = fetchUrl || presetUrl
     const hdrs: Record<string, string> = {}
-    if (!forceFullFetch && localPresetHash) {
+    if (!forceFullFetch && !skipConditionalRequest && localPresetHash) {
       hdrs['If-None-Match'] = localPresetHash
     }
-    bootLog('info', MODULE_LOG_PREFIX, `preset-core:fetch:start url=${url.slice(0, 120)}`)
+    const phase = skipPresetExecute ? 'refresh' : 'load'
+    bootLog('info', MODULE_LOG_PREFIX, `preset-core:fetch:start phase=${phase} url=${url.slice(0, 120)}`)
 
     gm.GM_xmlhttpRequest({
       method: 'GET',
@@ -284,6 +367,10 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
           if (pendingManifestEtag) {
             persistManifestEtag(pendingManifestEtag)
             pendingManifestEtag = ''
+          }
+          if (skipPresetExecute) {
+            bootLog('info', MODULE_LOG_PREFIX, 'refresh:not-modified preset-core')
+            return
           }
           if (presetCode) {
             runPreset(presetCode)
@@ -301,6 +388,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
         }
         if (res.status === 200 && res.responseText) {
           const normalizedEtag = normalizeEtag(getResponseHeader(res, 'etag') ?? '')
+          bootDebug(MODULE_LOG_PREFIX, `preset-core:fetch:200 phase=${phase} bytes=${res.responseText.length} etag=${shortHash(normalizedEtag)}`)
           if (expectedHash && normalizedEtag && expectedHash !== normalizedEtag) {
             pendingManifestEtag = ''
             if (!tryRollbackPreset()) {
@@ -325,23 +413,8 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
     })
   }
 
-  function loadAndRun(skipConditionalRequest = false): void {
-    pendingManifestEtag = ''
-    let presetCode = readScopedValue(scopedPresetCacheKey, PRESET_CACHE_KEY, '') as string
-    const localPresetHash = normalizeEtag(readScopedValue(scopedPresetEtagKey, PRESET_ETAG_KEY, '') as string)
-    const manifestEtagStored = normalizeEtag(readScopedValue(scopedModuleManifestEtagKey, MODULE_MANIFEST_ETAG_KEY, '') as string)
-
-    bootLog('info', MODULE_LOG_PREFIX, `load:start network=${shellNetworkOn() ? 'on' : 'off'} localPresetHash=${shortHash(localPresetHash)}`)
-
-    if (!shellNetworkOn()) {
-      if (presetCode) {
-        runPreset(presetCode)
-      } else {
-        requestPreset(presetUrl, '', true, presetCode, localPresetHash)
-      }
-      return
-    }
-
+  function refreshPresetFromNetwork(skipConditionalRequest: boolean, presetCode: string, localPresetHash: string, manifestEtagStored: string): void {
+    bootDebug(MODULE_LOG_PREFIX, `refresh:start phase=${skipPresetExecute ? 'background' : 'blocking'} skipConditional=${skipConditionalRequest}`)
     if (skipConditionalRequest) {
       void fetchModuleManifestWithConditional('', true)
         .then((mres) => {
@@ -356,10 +429,10 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
             applyScriptBundleUrlFromManifest(null, true)
           }
           const presetFetchUrl = presetMod?.url ?? presetUrl
-          requestPreset(presetFetchUrl, expectedHash, true, presetCode, localPresetHash)
+          requestPreset(presetFetchUrl, expectedHash, true, presetCode, localPresetHash, true)
         })
         .catch(() => {
-          requestPreset(presetUrl, localPresetHash, !localPresetHash, presetCode, localPresetHash)
+          requestPreset(presetUrl, localPresetHash, !localPresetHash, presetCode, localPresetHash, skipConditionalRequest)
         })
       return
     }
@@ -369,10 +442,14 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
         if (mres.notModified) {
           applyScriptBundleUrlFromManifest(null, true)
           pendingManifestEtag = ''
+          if (skipPresetExecute) {
+            bootLog('info', MODULE_LOG_PREFIX, 'refresh:not-modified manifest')
+            return
+          }
           if (presetCode) {
             runPreset(presetCode)
           } else {
-            requestPreset(presetUrl, localPresetHash, true, presetCode, localPresetHash)
+            requestPreset(presetUrl, localPresetHash, true, presetCode, localPresetHash, true)
           }
           return
         }
@@ -386,16 +463,55 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
             persistManifestEtag(pendingManifestEtag)
             pendingManifestEtag = ''
           }
+          if (skipPresetExecute) {
+            bootLog('info', MODULE_LOG_PREFIX, 'refresh:not-modified preset-core hash')
+            return
+          }
           runPreset(presetCode)
           return
         }
-        requestPreset(presetFetchUrl, remoteHash || localPresetHash, false, presetCode, localPresetHash)
+        requestPreset(presetFetchUrl, remoteHash || localPresetHash, false, presetCode, localPresetHash, false)
       })
       .catch((err: Error) => {
         applyScriptBundleUrlFromManifest(null, true)
         bootLog('warn', MODULE_LOG_PREFIX, `manifest:fetch:failed ${err.message}`)
-        requestPreset(presetUrl, localPresetHash, !localPresetHash, presetCode, localPresetHash)
+        requestPreset(presetUrl, localPresetHash, !localPresetHash, presetCode, localPresetHash, false)
       })
+  }
+
+  function loadAndRun(skipConditionalRequest = false): void {
+    pendingManifestEtag = ''
+    skipPresetExecute = false
+    const presetCode = readScopedValue(scopedPresetCacheKey, PRESET_CACHE_KEY, '') as string
+    const localPresetHash = normalizeEtag(readScopedValue(scopedPresetEtagKey, PRESET_ETAG_KEY, '') as string)
+    const manifestEtagStored = normalizeEtag(readScopedValue(scopedModuleManifestEtagKey, MODULE_MANIFEST_ETAG_KEY, '') as string)
+
+    bootLog(
+      'info',
+      MODULE_LOG_PREFIX,
+      `load:start network=${shellNetworkOn() ? 'on' : 'off'} localPresetHash=${shortHash(localPresetHash)} cachedPresetBytes=${presetCode?.length ?? 0}`
+    )
+    logLauncherCacheInventory(presetCode, localPresetHash, manifestEtagStored)
+
+    if (!shellNetworkOn()) {
+      if (presetCode) {
+        runPreset(presetCode)
+      } else {
+        bootLog('warn', MODULE_LOG_PREFIX, 'load:cache-miss no preset body — bootstrap fetch from network')
+        requestPreset(presetUrl, '', true, presetCode, localPresetHash, true)
+      }
+      return
+    }
+
+    if (presetCode) {
+      bootLog('info', MODULE_LOG_PREFIX, `load:cache-first bytes=${presetCode.length}`)
+      runPreset(presetCode)
+      skipPresetExecute = true
+    } else {
+      bootLog('info', MODULE_LOG_PREFIX, 'load:remote-first no local preset cache — fetch from server before execute')
+    }
+
+    refreshPresetFromNetwork(skipConditionalRequest, presetCode, localPresetHash, manifestEtagStored)
   }
 
   function resetRuntimeState(): void {
