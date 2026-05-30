@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { FiChevronDown, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
+import { FiChevronDown, FiDownload, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
@@ -15,6 +15,54 @@ import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
 
 const iconBtn = 'p-2 rounded text-[#e6eaf0] hover:text-white hover:bg-[#2a303a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const EXTENSION_WEB_SOURCE = 'magickmonkey-web'
+const EXTENSION_RESPONSE_SOURCE = 'magickmonkey-extension'
+
+type ExtensionConnectState = 'checking' | 'not_installed' | 'available' | 'connected' | 'connecting' | 'error'
+
+interface ExtensionBridgeResponse {
+  ok?: boolean
+  installed?: boolean
+  connected?: boolean
+  error?: string
+  extensionVersion?: string
+}
+
+function requestExtensionBridge(
+  type: 'MAGICKMONKEY_EXTENSION_PING' | 'MAGICKMONKEY_CONNECT_EXTENSION',
+  payload: { baseUrl: string; scriptKey: string; developMode?: boolean },
+  timeoutMs = 1200
+) {
+  return new Promise<ExtensionBridgeResponse>((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Browser window is unavailable.'))
+      return
+    }
+
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const expectedType = type === 'MAGICKMONKEY_EXTENSION_PING' ? 'MAGICKMONKEY_EXTENSION_PONG' : 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT'
+    const timer = window.setTimeout(() => {
+      window.removeEventListener('message', onMessage)
+      reject(new Error('MagickMonkey extension is not installed or not active on this page.'))
+    }, timeoutMs)
+
+    function onMessage(event: MessageEvent) {
+      if (event.source !== window || event.origin !== window.location.origin || !event.data || typeof event.data !== 'object') {
+        return
+      }
+      const data = event.data as { source?: unknown; type?: unknown; requestId?: unknown; payload?: unknown }
+      if (data.source !== EXTENSION_RESPONSE_SOURCE || data.type !== expectedType || data.requestId !== requestId) {
+        return
+      }
+      window.clearTimeout(timer)
+      window.removeEventListener('message', onMessage)
+      resolve((data.payload ?? {}) as ExtensionBridgeResponse)
+    }
+
+    window.addEventListener('message', onMessage)
+    window.postMessage({ source: EXTENSION_WEB_SOURCE, type, requestId, payload }, window.location.origin)
+  })
+}
 
 interface EditorHeaderProps {
   scriptKey: string
@@ -50,6 +98,7 @@ export default function EditorHeader({
 }: EditorHeaderProps) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(false)
+  const [extensionState, setExtensionState] = useState<ExtensionConnectState>('checking')
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -64,6 +113,30 @@ export default function EditorHeader({
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [userMenuOpen])
+
+  useEffect(() => {
+    let cancelled = false
+    const baseUrl = window.location.origin
+    void requestExtensionBridge('MAGICKMONKEY_EXTENSION_PING', { baseUrl, scriptKey }, 900)
+      .then((result) => {
+        if (cancelled) return
+        if (result.connected) {
+          setExtensionState('connected')
+        } else if (result.installed) {
+          setExtensionState('available')
+        } else {
+          setExtensionState('not_installed')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setExtensionState('not_installed')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [scriptKey])
 
   const handleInstall = async () => {
     if (isChecking || isSaving) return
@@ -83,6 +156,42 @@ export default function EditorHeader({
       setIsChecking(false)
     }
   }
+
+  const handleConnectExtension = async () => {
+    if (isSaving || extensionState === 'connecting') return
+    if (extensionState === 'not_installed') {
+      window.alert(
+        'MagickMonkey Chrome extension is not installed or this tab was opened before the extension loaded. Install/reload the extension, then refresh this editor page.'
+      )
+      return
+    }
+
+    setExtensionState('connecting')
+    const baseUrl = window.location.origin
+    try {
+      const result = await requestExtensionBridge('MAGICKMONKEY_CONNECT_EXTENSION', { baseUrl, scriptKey, developMode: true }, 3000)
+      if (!result.ok) {
+        setExtensionState('error')
+        window.alert(result.error || 'Could not connect the Chrome extension.')
+        return
+      }
+      setExtensionState('connected')
+    } catch (error) {
+      setExtensionState('not_installed')
+      window.alert(error instanceof Error ? error.message : 'Could not connect the Chrome extension.')
+    }
+  }
+
+  const extensionTooltip =
+    extensionState === 'connected'
+      ? 'Chrome extension connected'
+      : extensionState === 'checking'
+        ? 'Checking Chrome extension'
+        : extensionState === 'connecting'
+          ? 'Connecting Chrome extension'
+          : extensionState === 'not_installed'
+            ? 'Install/reload Chrome extension first'
+            : 'Connect Chrome extension'
 
   const handleLogout = async () => {
     if (isSaving) return
@@ -162,6 +271,24 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
+        <Tooltip content={extensionTooltip} placement="bottom">
+          <button
+            type="button"
+            onClick={handleConnectExtension}
+            disabled={isSaving || extensionState === 'checking' || extensionState === 'connecting'}
+            className={`${iconBtn} ${extensionState === 'connected' ? 'bg-[#22c55e] text-white hover:bg-[#16a34a]' : extensionState === 'available' ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]' : ''}`}
+            aria-label="Connect Chrome extension"
+          >
+            {extensionState === 'checking' || extensionState === 'connecting' ? (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <Spinner />
+              </span>
+            ) : (
+              <IoExtensionPuzzleOutline className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
+
         <Tooltip content="Install userscript" placement="bottom">
           <button type="button" onClick={handleInstall} disabled={isSaving || isChecking} className={iconBtn} aria-label="Install userscript">
             {isChecking ? (
@@ -169,7 +296,7 @@ export default function EditorHeader({
                 <Spinner />
               </span>
             ) : (
-              <IoExtensionPuzzleOutline className="w-4 h-4" />
+              <FiDownload className="w-4 h-4" />
             )}
           </button>
         </Tooltip>

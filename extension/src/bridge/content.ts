@@ -11,9 +11,25 @@ const REQUEST_EVENT = 'vws-gm-request'
 const RESPONSE_EVENT = 'vws-gm-response'
 const STORAGE_CHANGED_EVENT = 'vws-gm-storage-changed'
 const BRIDGE_MESSAGE_SOURCE = 'vws-extension-bridge'
+const WEB_MESSAGE_SOURCE = 'magickmonkey-web'
+const WEB_RESPONSE_SOURCE = 'magickmonkey-extension'
 const GM_STORAGE_PREFIX = 'vws_gm_'
 const BOOTSTRAP_DATA_PREFIX = 'vws-bootstrap-data-'
 const LAUNCHER_SCRIPT_PREFIX = 'vws-page-launcher-'
+
+type WebInstallMessage =
+  | {
+      source: typeof WEB_MESSAGE_SOURCE
+      type: 'MAGICKMONKEY_EXTENSION_PING'
+      requestId?: string
+      payload?: { baseUrl?: string; scriptKey?: string }
+    }
+  | {
+      source: typeof WEB_MESSAGE_SOURCE
+      type: 'MAGICKMONKEY_CONNECT_EXTENSION'
+      requestId?: string
+      payload?: { baseUrl?: string; scriptKey?: string; developMode?: boolean }
+    }
 
 function storageKey(key: string): string {
   return `${GM_STORAGE_PREFIX}${key}`
@@ -128,6 +144,77 @@ function isRequestDetail(value: unknown): value is { id: number; method: string;
   )
 }
 
+function normalizeBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, '')
+}
+
+function isSameOriginBaseUrl(baseUrl: string, origin: string): boolean {
+  try {
+    return new URL(baseUrl).origin === origin
+  } catch {
+    return false
+  }
+}
+
+function postWebResponse(event: MessageEvent, type: string, requestId: string | undefined, payload: Record<string, unknown>): void {
+  window.postMessage({ source: WEB_RESPONSE_SOURCE, type, requestId, payload }, event.origin)
+}
+
+async function handleWebInstallMessage(event: MessageEvent, data: WebInstallMessage): Promise<void> {
+  const payload = data.payload ?? {}
+  const baseUrl = typeof payload.baseUrl === 'string' ? normalizeBaseUrl(payload.baseUrl) : event.origin
+  const scriptKey = typeof payload.scriptKey === 'string' ? payload.scriptKey.trim() : ''
+  const manifest = chrome.runtime.getManifest()
+
+  if (!isSameOriginBaseUrl(baseUrl, event.origin)) {
+    const responseType = data.type === 'MAGICKMONKEY_EXTENSION_PING' ? 'MAGICKMONKEY_EXTENSION_PONG' : 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT'
+    postWebResponse(event, responseType, data.requestId, {
+      ok: false,
+      installed: true,
+      error: 'Server URL must match current page origin.',
+      extensionVersion: manifest.version ?? '0.0.0',
+    })
+    return
+  }
+
+  if (data.type === 'MAGICKMONKEY_EXTENSION_PING') {
+    const config = await loadConfig()
+    postWebResponse(event, 'MAGICKMONKEY_EXTENSION_PONG', data.requestId, {
+      ok: true,
+      installed: true,
+      connected: Boolean(scriptKey && normalizeBaseUrl(config.baseUrl) === baseUrl && config.scriptKey === scriptKey),
+      extensionVersion: manifest.version ?? '0.0.0',
+    })
+    return
+  }
+
+  if (!scriptKey) {
+    postWebResponse(event, 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT', data.requestId, {
+      ok: false,
+      installed: true,
+      error: 'Missing Script Key.',
+      extensionVersion: manifest.version ?? '0.0.0',
+    })
+    return
+  }
+
+  const response = (await chrome.runtime.sendMessage({
+    type: 'WEB_CONNECT_EXTENSION',
+    details: {
+      baseUrl,
+      scriptKey,
+      developMode: 'developMode' in payload ? payload.developMode !== false : true,
+    },
+  })) as ShellResponse
+  postWebResponse(event, 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT', data.requestId, {
+    ok: response?.ok === true,
+    installed: true,
+    connected: response?.ok === true,
+    error: response?.ok === false ? response.error : undefined,
+    extensionVersion: manifest.version ?? '0.0.0',
+  })
+}
+
 function handleBridgeRequest(value: unknown): void {
   if (!isRequestDetail(value)) {
     return
@@ -190,10 +277,14 @@ async function bootstrap(): Promise<void> {
   }) as EventListener)
 
   window.addEventListener('message', (event: MessageEvent) => {
-    if (event.source !== window || !event.data || typeof event.data !== 'object') {
+    if (event.source !== window || event.origin !== window.location.origin || !event.data || typeof event.data !== 'object') {
       return
     }
     const { source, type, payload } = event.data as { source?: unknown; type?: unknown; payload?: unknown }
+    if (source === WEB_MESSAGE_SOURCE && (type === 'MAGICKMONKEY_EXTENSION_PING' || type === 'MAGICKMONKEY_CONNECT_EXTENSION')) {
+      void handleWebInstallMessage(event, event.data as WebInstallMessage)
+      return
+    }
     if (source !== BRIDGE_MESSAGE_SOURCE || type !== REQUEST_EVENT) {
       return
     }

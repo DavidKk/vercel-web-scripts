@@ -18,6 +18,7 @@ import {
   shouldInvalidateTabMatchCache,
   TAB_MATCH_CACHE_KEY,
 } from '@ext/shared/tab-match-cache'
+import { CONFIG_STORAGE_KEY, type ExtensionConfig } from '@ext/types'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import { initDevExtensionReload } from './dev-extension-reload'
@@ -55,6 +56,26 @@ async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }
       finalUrl: res.url || details.url,
     },
   }
+}
+
+function normalizeWebConnectConfig(details: Extract<ShellMessage, { type: 'WEB_CONNECT_EXTENSION' }>['details']): ExtensionConfig {
+  return {
+    baseUrl: details.baseUrl.trim().replace(/\/+$/, ''),
+    scriptKey: details.scriptKey.trim(),
+    developMode: details.developMode !== false,
+  }
+}
+
+async function handleWebConnect(details: Extract<ShellMessage, { type: 'WEB_CONNECT_EXTENSION' }>['details']): Promise<ShellResponse> {
+  const nextConfig = normalizeWebConnectConfig(details)
+  if (!nextConfig.baseUrl || !nextConfig.scriptKey) {
+    return { ok: false, error: 'Missing Server URL or Script Key.' }
+  }
+
+  await chrome.storage.local.set({ [CONFIG_STORAGE_KEY]: nextConfig })
+  await invalidateTabMatchCache()
+  scheduleBadgeRefresh()
+  return { ok: true, status: await buildStatus(), message: 'Extension connected.' }
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
@@ -183,6 +204,10 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
       switch (message.type) {
         case 'GM_XHR': {
           sendResponse(await handleBridgeXhr(message.details))
+          return
+        }
+        case 'WEB_CONNECT_EXTENSION': {
+          sendResponse(await handleWebConnect(message.details))
           return
         }
         case 'GET_STATUS': {

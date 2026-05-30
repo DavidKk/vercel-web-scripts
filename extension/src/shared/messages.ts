@@ -16,6 +16,12 @@ export interface BridgeXhrResponse {
   finalUrl?: string
 }
 
+export interface WebConnectDetails {
+  baseUrl: string
+  scriptKey: string
+  developMode?: boolean
+}
+
 export type ShellMessage =
   | { type: 'GET_STATUS' }
   | { type: 'SET_NETWORK'; enabled: boolean }
@@ -27,6 +33,7 @@ export type ShellMessage =
   | { type: 'RELOAD_ACTIVE_TAB' }
   | { type: 'SYNC_RULES' }
   | { type: 'GM_XHR'; details: BridgeXhrDetails }
+  | { type: 'WEB_CONNECT_EXTENSION'; details: WebConnectDetails }
 
 export interface ShellStatus {
   configured: boolean
