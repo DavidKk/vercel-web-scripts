@@ -120,3 +120,13 @@ Global enable/disable per script name (`vws_script_enabled:*`). Does not edit so
 | Shell UI    | TM menu             | Popup + scripts page      |
 | Loader      | `launcherScript.ts` | `extension/src/` (native) |
 | OTA modules | Same server URLs    | Same server URLs          |
+
+## SPA / client-side routing (same as Tampermonkey)
+
+The shell does **not** treat CSR URL changes specially:
+
+- **Launcher + preset + remote bundle** run once per full page load (no re-inject on `pushState` / `replaceState`).
+- **Badge** updates on normal tab navigation (`tabs.onUpdated` / tab switch), not on dedicated SPA hooks.
+- **Match count** uses tab URL at query time; CSR sub-routes are the script author’s concern.
+
+For SPA sites (e.g. Douyin): use a **root `@match`** (e.g. `*://www.douyin.com/*`) and handle route/slide changes inside the script (DOM observers, `location`, optional Tampermonkey `window.onurlchange`). This matches Tampermonkey’s model and keeps the extension shell simple and predictable.

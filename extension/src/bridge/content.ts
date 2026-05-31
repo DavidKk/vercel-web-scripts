@@ -17,6 +17,9 @@ const GM_STORAGE_PREFIX = 'vws_gm_'
 const BOOTSTRAP_DATA_PREFIX = 'vws-bootstrap-data-'
 const LAUNCHER_SCRIPT_PREFIX = 'vws-page-launcher-'
 
+/** Set after first invalidated chrome.* call — old content script survives extension reload until tab refresh. */
+let extensionContextDead = false
+
 type WebInstallMessage =
   | {
       source: typeof WEB_MESSAGE_SOURCE
@@ -35,32 +38,87 @@ function storageKey(key: string): string {
   return `${GM_STORAGE_PREFIX}${key}`
 }
 
+function markExtensionContextDead(): void {
+  extensionContextDead = true
+}
+
+function isExtensionContextInvalidated(error: unknown): boolean {
+  if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+    markExtensionContextDead()
+    return true
+  }
+  return false
+}
+
 function getRuntimeId(): string | null {
+  if (extensionContextDead) {
+    return null
+  }
   try {
-    return chrome.runtime?.id ?? null
+    const id = chrome.runtime?.id ?? null
+    if (!id) {
+      return null
+    }
+    // `runtime.id` alone can still be truthy after reload; getManifest confirms the context.
+    chrome.runtime.getManifest()
+    return id
+  } catch {
+    markExtensionContextDead()
+    return null
+  }
+}
+
+function getExtensionVersion(): string {
+  if (extensionContextDead) {
+    return '0.0.0'
+  }
+  try {
+    return chrome.runtime.getManifest().version ?? '0.0.0'
+  } catch {
+    markExtensionContextDead()
+    return '0.0.0'
+  }
+}
+
+function getExtensionResourceUrl(path: string): string | null {
+  try {
+    if (!getRuntimeId()) {
+      return null
+    }
+    return chrome.runtime.getURL(path)
   } catch {
     return null
   }
 }
 
 async function loadConfig(): Promise<ExtensionConfig> {
-  const result = await chrome.storage.local.get(CONFIG_STORAGE_KEY)
-  const raw = result[CONFIG_STORAGE_KEY] as ExtensionConfig | undefined
-  if (raw?.baseUrl && raw?.scriptKey) {
-    return raw
+  try {
+    const result = await chrome.storage.local.get(CONFIG_STORAGE_KEY)
+    const raw = result[CONFIG_STORAGE_KEY] as ExtensionConfig | undefined
+    if (raw?.baseUrl && raw?.scriptKey) {
+      return raw
+    }
+    return DEFAULT_CONFIG
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+    throw error
   }
-  return DEFAULT_CONFIG
 }
 
 async function loadGmStore(): Promise<Record<string, unknown>> {
-  const all = await chrome.storage.local.get(null)
-  const store: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(all)) {
-    if (k.startsWith(GM_STORAGE_PREFIX)) {
-      store[k.slice(GM_STORAGE_PREFIX.length)] = v
+  try {
+    const all = await chrome.storage.local.get(null)
+    const store: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(all)) {
+      if (k.startsWith(GM_STORAGE_PREFIX)) {
+        store[k.slice(GM_STORAGE_PREFIX.length)] = v
+      }
     }
+    return store
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+    throw error
   }
-  return store
 }
 
 function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>): void {
@@ -86,7 +144,11 @@ function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, u
 
   const script = document.createElement('script')
   script.id = launcherId
-  script.src = chrome.runtime.getURL('page-launcher.js')
+  const launcherUrl = getExtensionResourceUrl('page-launcher.js')
+  if (!launcherUrl) {
+    return
+  }
+  script.src = launcherUrl
   script.async = false
   script.dataset.vwsBootstrapId = bootstrapId
   ;(document.documentElement || document.head || document.body).appendChild(script)
@@ -160,59 +222,88 @@ function postWebResponse(event: MessageEvent, type: string, requestId: string | 
   window.postMessage({ source: WEB_RESPONSE_SOURCE, type, requestId, payload }, event.origin)
 }
 
+function postWebInstallFailure(event: MessageEvent, data: WebInstallMessage, payload: { ok: false; installed: boolean; error: string; extensionVersion: string }): void {
+  const type = data.type === 'MAGICKMONKEY_EXTENSION_PING' ? 'MAGICKMONKEY_EXTENSION_PONG' : 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT'
+  postWebResponse(event, type, data.requestId, payload)
+}
+
 async function handleWebInstallMessage(event: MessageEvent, data: WebInstallMessage): Promise<void> {
-  const payload = data.payload ?? {}
-  const baseUrl = typeof payload.baseUrl === 'string' ? normalizeBaseUrl(payload.baseUrl) : event.origin
-  const scriptKey = typeof payload.scriptKey === 'string' ? payload.scriptKey.trim() : ''
-  const manifest = chrome.runtime.getManifest()
-
-  if (!isSameOriginBaseUrl(baseUrl, event.origin)) {
-    const responseType = data.type === 'MAGICKMONKEY_EXTENSION_PING' ? 'MAGICKMONKEY_EXTENSION_PONG' : 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT'
-    postWebResponse(event, responseType, data.requestId, {
-      ok: false,
-      installed: true,
-      error: 'Server URL must match current page origin.',
-      extensionVersion: manifest.version ?? '0.0.0',
-    })
-    return
+  const extensionVersion = getExtensionVersion()
+  const reloadedPayload = {
+    ok: false as const,
+    installed: false,
+    error: 'Extension was reloaded — refresh this page and try again.',
+    extensionVersion,
   }
 
-  if (data.type === 'MAGICKMONKEY_EXTENSION_PING') {
-    const config = await loadConfig()
-    postWebResponse(event, 'MAGICKMONKEY_EXTENSION_PONG', data.requestId, {
-      ok: true,
-      installed: true,
-      connected: Boolean(scriptKey && normalizeBaseUrl(config.baseUrl) === baseUrl && config.scriptKey === scriptKey),
-      extensionVersion: manifest.version ?? '0.0.0',
-    })
-    return
-  }
+  try {
+    const payload = data.payload ?? {}
+    const baseUrl = typeof payload.baseUrl === 'string' ? normalizeBaseUrl(payload.baseUrl) : event.origin
+    const scriptKey = typeof payload.scriptKey === 'string' ? payload.scriptKey.trim() : ''
 
-  if (!scriptKey) {
+    if (!getRuntimeId()) {
+      postWebInstallFailure(event, data, reloadedPayload)
+      return
+    }
+
+    if (!isSameOriginBaseUrl(baseUrl, event.origin)) {
+      postWebInstallFailure(event, data, {
+        ok: false,
+        installed: true,
+        error: 'Server URL must match current page origin.',
+        extensionVersion,
+      })
+      return
+    }
+
+    if (data.type === 'MAGICKMONKEY_EXTENSION_PING') {
+      const config = await loadConfig()
+      postWebResponse(event, 'MAGICKMONKEY_EXTENSION_PONG', data.requestId, {
+        ok: true,
+        installed: true,
+        connected: Boolean(scriptKey && normalizeBaseUrl(config.baseUrl) === baseUrl && config.scriptKey === scriptKey),
+        extensionVersion,
+      })
+      return
+    }
+
+    if (!scriptKey) {
+      postWebResponse(event, 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT', data.requestId, {
+        ok: false,
+        installed: true,
+        error: 'Missing Script Key.',
+        extensionVersion,
+      })
+      return
+    }
+
+    const response = (await chrome.runtime.sendMessage({
+      type: 'WEB_CONNECT_EXTENSION',
+      details: {
+        baseUrl,
+        scriptKey,
+        developMode: 'developMode' in payload ? payload.developMode !== false : true,
+      },
+    })) as ShellResponse
     postWebResponse(event, 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT', data.requestId, {
+      ok: response?.ok === true,
+      installed: true,
+      connected: response?.ok === true,
+      error: response?.ok === false ? response.error : undefined,
+      extensionVersion,
+    })
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      postWebInstallFailure(event, data, reloadedPayload)
+      return
+    }
+    postWebInstallFailure(event, data, {
       ok: false,
       installed: true,
-      error: 'Missing Script Key.',
-      extensionVersion: manifest.version ?? '0.0.0',
+      error: error instanceof Error ? error.message : String(error),
+      extensionVersion,
     })
-    return
   }
-
-  const response = (await chrome.runtime.sendMessage({
-    type: 'WEB_CONNECT_EXTENSION',
-    details: {
-      baseUrl,
-      scriptKey,
-      developMode: 'developMode' in payload ? payload.developMode !== false : true,
-    },
-  })) as ShellResponse
-  postWebResponse(event, 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT', data.requestId, {
-    ok: response?.ok === true,
-    installed: true,
-    connected: response?.ok === true,
-    error: response?.ok === false ? response.error : undefined,
-    extensionVersion: manifest.version ?? '0.0.0',
-  })
 }
 
 function handleBridgeRequest(value: unknown): void {
@@ -256,21 +347,39 @@ async function bootstrap(): Promise<void> {
     return
   }
 
-  const [config, gmStore] = await Promise.all([loadConfig(), loadGmStore()])
-  const manifest = chrome.runtime.getManifest()
-  const bootstrapConfig = {
-    ...config,
-    extensionVersion: manifest.version ?? '0.0.0',
+  let config: ExtensionConfig
+  let gmStore: Record<string, unknown>
+  let extensionVersion: string
+  try {
+    ;[config, gmStore] = await Promise.all([loadConfig(), loadGmStore()])
+    extensionVersion = getExtensionVersion()
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      return
+    }
+    throw error
   }
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return
-    for (const [fullKey, change] of Object.entries(changes)) {
-      if (!fullKey.startsWith(GM_STORAGE_PREFIX)) continue
-      const key = fullKey.slice(GM_STORAGE_PREFIX.length)
-      postStorageChanged(key, change.oldValue, change.newValue)
+  const bootstrapConfig = {
+    ...config,
+    extensionVersion,
+  }
+
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return
+      for (const [fullKey, change] of Object.entries(changes)) {
+        if (!fullKey.startsWith(GM_STORAGE_PREFIX)) continue
+        const key = fullKey.slice(GM_STORAGE_PREFIX.length)
+        postStorageChanged(key, change.oldValue, change.newValue)
+      }
+    })
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      return
     }
-  })
+    throw error
+  }
 
   window.addEventListener(REQUEST_EVENT, ((event: CustomEvent<{ id: number; method: string; args: unknown[] }>) => {
     handleBridgeRequest(event.detail)
@@ -282,7 +391,7 @@ async function bootstrap(): Promise<void> {
     }
     const { source, type, payload } = event.data as { source?: unknown; type?: unknown; payload?: unknown }
     if (source === WEB_MESSAGE_SOURCE && (type === 'MAGICKMONKEY_EXTENSION_PING' || type === 'MAGICKMONKEY_CONNECT_EXTENSION')) {
-      void handleWebInstallMessage(event, event.data as WebInstallMessage)
+      void handleWebInstallMessage(event, event.data as WebInstallMessage).catch(() => undefined)
       return
     }
     if (source !== BRIDGE_MESSAGE_SOURCE || type !== REQUEST_EVENT) {
@@ -295,4 +404,4 @@ async function bootstrap(): Promise<void> {
   injectPageScript(bootstrapConfig, gmStore)
 }
 
-void bootstrap()
+void bootstrap().catch(() => undefined)

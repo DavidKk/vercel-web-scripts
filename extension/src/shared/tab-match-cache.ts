@@ -95,18 +95,6 @@ export async function readTabMatchCountFromCache(config: ExtensionConfig, url: s
   return entry?.count
 }
 
-/**
- * Badge / tab switch: cache or local URL rules — never hits tab-match API.
- */
-export async function getTabMatchCountForBadge(config: ExtensionConfig, url: string): Promise<number> {
-  const cached = await readTabMatchCountFromCache(config, url)
-  if (cached !== undefined) {
-    return cached
-  }
-  const rules = await loadExtensionRules()
-  return countMatchingRules(rules, url)
-}
-
 async function fetchTabMatchFromApi(config: ExtensionConfig, url: string): Promise<number> {
   const apiUrl = `${config.baseUrl}/api/tampermonkey/${encodeURIComponent(config.scriptKey)}/tab-match?url=${encodeURIComponent(url)}`
   const res = await fetch(apiUrl)
@@ -176,6 +164,14 @@ export async function getTabMatchCountImmediate(config: ExtensionConfig, url: st
   scheduleTabMatchRefresh(config, url)
   const rules = await loadExtensionRules()
   return countMatchingRules(rules, url)
+}
+
+/**
+ * Badge and popup: cache-first; schedule tab-match API when missing/stale; RULE fallback while loading.
+ * Same model as Tampermonkey — no special CSR / SPA handling at the shell layer.
+ */
+export async function getTabMatchCountForBadge(config: ExtensionConfig, url: string): Promise<number> {
+  return getTabMatchCountImmediate(config, url)
 }
 
 /** @deprecated Use getTabMatchCountImmediate */
