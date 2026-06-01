@@ -8,17 +8,17 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 
 ## MVP (current)
 
-| Feature                                                     | Status |
-| ----------------------------------------------------------- | ------ |
-| Toolbar **popup** (fixed menu on every tab)                 | ✅     |
-| **Badge** — rule match count on active tab                  | ✅     |
-| **Background** — update / reset / network / open editor     | ✅     |
-| **Scripts page** — enable/disable modules                   | ✅     |
-| **Options** — `baseUrl`, `scriptKey`, extension auto-reload | ✅     |
-| Preset dev mode from Server URL (`localhost` → dev)         | ✅     |
-| **Sync rules** from server → badge + script list            | ✅     |
-| Content bootstrap → OTA preset (interim loader)             | ✅     |
-| Extension-native `module-loader` (replace TM port)          | 🔜     |
+| Feature                                                                          | Status |
+| -------------------------------------------------------------------------------- | ------ |
+| Toolbar **popup** (fixed menu on every tab)                                      | ✅     |
+| **Badge** — real trigger count; red background if any script failed on this load | ✅     |
+| **Background** — update / reset / network / open editor                          | ✅     |
+| **Scripts page** — enable/disable modules                                        | ✅     |
+| **Options** — `baseUrl`, `scriptKey`, extension auto-reload                      | ✅     |
+| Preset dev mode from Server URL (`localhost` → dev)                              | ✅     |
+| **Sync rules** from server → badge + script list                                 | ✅     |
+| Content bootstrap → OTA preset (interim loader)                                  | ✅     |
+| Extension-native `module-loader` (replace TM port)                               | 🔜     |
 
 ## Architecture
 
@@ -127,6 +127,10 @@ The shell does **not** treat CSR URL changes specially:
 
 - **Launcher + preset + remote bundle** run once per full page load (no re-inject on `pushState` / `replaceState`).
 - **Badge** updates on normal tab navigation (`tabs.onUpdated` / tab switch), not on dedicated SPA hooks.
-- **Match count** uses tab URL at query time; CSR sub-routes are the script author’s concern.
+- **Badge count** (`triggeredCountOnActiveTab`) increments once per GIST module that actually runs (`GME_ok` “Executing script …” line). Different `@run-at` timings on the same page load can increase the count at different times.
+- **Badge background** is blue by default; turns **red** if any GIST module logs `GME_fail` “Executing script … failed:” on this page load (count and text unchanged).
+- Count resets on each top-level page load (including same-URL refresh), when the content script starts. URL-only changes without a new document (typical SPA) do not reset.
+- **Update runtime** / **Reset runtime** also clears counts before reload.
+- Counts are stored in `chrome.storage.session` so a short MV3 service-worker sleep does not zero the badge while you stay on the same URL.
 
 For SPA sites (e.g. Douyin): use a **root `@match`** (e.g. `*://www.douyin.com/*`) and handle route/slide changes inside the script (DOM observers, `location`, optional Tampermonkey `window.onurlchange`). This matches Tampermonkey’s model and keeps the extension shell simple and predictable.

@@ -167,7 +167,8 @@ export async function getTabMatchCountImmediate(config: ExtensionConfig, url: st
 }
 
 /**
- * Badge and popup: cache-first; schedule tab-match API when missing/stale; RULE fallback while loading.
+ * Popup/scripts: cache-first tab-match for RULE diagnostics; schedule API when missing/stale.
+ * Extension toolbar badge uses real script triggers (see tab-trigger-badge.ts), not this cache.
  * Same model as Tampermonkey — no special CSR / SPA handling at the shell layer.
  */
 export async function getTabMatchCountForBadge(config: ExtensionConfig, url: string): Promise<number> {

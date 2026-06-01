@@ -22,6 +22,12 @@ export interface WebConnectDetails {
   developMode?: boolean
 }
 
+export interface ScriptTriggeredDetails {
+  file: string
+  runAt: string
+  url: string
+}
+
 export type ShellMessage =
   | { type: 'GET_STATUS' }
   | { type: 'SET_NETWORK'; enabled: boolean }
@@ -34,13 +40,17 @@ export type ShellMessage =
   | { type: 'SYNC_RULES' }
   | { type: 'GM_XHR'; details: BridgeXhrDetails }
   | { type: 'WEB_CONNECT_EXTENSION'; details: WebConnectDetails }
+  | { type: 'TAB_PAGE_LOAD'; details: { url: string } }
+  | { type: 'SCRIPT_TRIGGERED'; details: ScriptTriggeredDetails }
+  | { type: 'SCRIPT_FAILED'; details: ScriptTriggeredDetails }
 
 export interface ShellStatus {
   configured: boolean
   baseUrl: string
   scriptKey: string
   networkEnabled: boolean
-  matchCountOnActiveTab: number
+  /** Scripts that actually executed on the active tab for the current URL (not RULE match count). */
+  triggeredCountOnActiveTab: number
   activeTabUrl: string
   extensionVersion: string
 }

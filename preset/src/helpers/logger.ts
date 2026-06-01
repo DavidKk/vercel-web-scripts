@@ -2,9 +2,63 @@
 // Logging Functions
 // ============================================================================
 
+import { EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_FAILED_MESSAGE_TYPE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
+import { parseScriptExecutingFailureLog, parseScriptExecutingLog } from '@shared/script-trigger-log'
 import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
 import { logStore } from '@/services/log-store'
+
+function notifyExtensionScriptTriggered(contents: unknown[]): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  const pageConfig = (window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__
+  if (!pageConfig) {
+    return
+  }
+  const file = parseScriptExecutingLog(contents[0])
+  if (!file) {
+    return
+  }
+  try {
+    window.postMessage(
+      {
+        source: EXTENSION_BRIDGE_MESSAGE_SOURCE,
+        type: SCRIPT_TRIGGERED_MESSAGE_TYPE,
+        payload: { file, runAt: 'executed' },
+      },
+      '*'
+    )
+  } catch {
+    // ignore bridge errors
+  }
+}
+
+function notifyExtensionScriptFailed(contents: unknown[]): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  const pageConfig = (window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__
+  if (!pageConfig) {
+    return
+  }
+  const file = parseScriptExecutingFailureLog(contents[0])
+  if (!file) {
+    return
+  }
+  try {
+    window.postMessage(
+      {
+        source: EXTENSION_BRIDGE_MESSAGE_SOURCE,
+        type: SCRIPT_FAILED_MESSAGE_TYPE,
+        payload: { file, runAt: 'failed' },
+      },
+      '*'
+    )
+  } catch {
+    // ignore bridge errors
+  }
+}
 
 /**
  * Format log contents to a plain string for log store (strip %c, styles, HTML-like tags)
@@ -213,6 +267,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_ok(...contents: any[]) {
+      notifyExtensionScriptTriggered(contents)
       const args = processLogContents(scope, 'ok', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
@@ -243,6 +298,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_fail(...contents: any[]) {
+      notifyExtensionScriptFailed(contents)
       const args = processLogContents(scope, 'fail', ...contents)
       // eslint-disable-next-line no-console
       console.log(...args)
@@ -292,6 +348,7 @@ export function createGMELogger(prefix?: string) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_ok(...contents: any[]) {
+  notifyExtensionScriptTriggered(contents)
   const args = processLogContents('Preset', 'ok', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)
@@ -322,6 +379,7 @@ export function GME_info(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_fail(...contents: any[]) {
+  notifyExtensionScriptFailed(contents)
   const args = processLogContents('Preset', 'fail', ...contents)
   // eslint-disable-next-line no-console
   console.log(...args)

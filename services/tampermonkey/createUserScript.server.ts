@@ -4,6 +4,7 @@ import * as prettier from 'prettier'
 import * as ts from 'typescript'
 
 import { EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { formatScriptExecutingFailureLog, formatScriptExecutingLog } from '@/shared/script-trigger-log'
 
 import { createBanner } from './createBanner'
 import { clearMeta, extractMeta } from './meta'
@@ -245,12 +246,12 @@ function getExecutionWrapper(runAt: string, moduleName: string, match: string[],
         const { GME_ok, GME_info, GME_fail, GME_warn } = createGMELogger(${JSON.stringify(moduleName)})
         try {
           if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
-            GME_ok('Executing script \`${file}\` (built ${builtAtDisplay})');
+            GME_ok(${JSON.stringify(formatScriptExecutingLog(file, builtAtDisplay))});
             ${compiledContent}
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
-          GME_fail('Executing script \`${file}\` failed:', message)
+          GME_fail(${JSON.stringify(formatScriptExecutingFailureLog(file))}, message)
         }
       `
 

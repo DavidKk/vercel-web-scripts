@@ -137,10 +137,14 @@ export class MmPopupApp extends HTMLElement {
     if (network) {
       network.checked = s.networkEnabled
     }
-    const matchHint = this.querySelector('[data-ref="match-hint"]')
-    if (matchHint) {
-      matchHint.textContent =
-        s.matchCountOnActiveTab > 0 ? `${s.matchCountOnActiveTab} script(s) match this tab` : s.configured ? 'No scripts match this tab' : 'Configure in Options to see matches'
+    const triggerHint = this.querySelector('[data-ref="trigger-hint"]')
+    if (triggerHint) {
+      triggerHint.textContent =
+        s.triggeredCountOnActiveTab > 0
+          ? `${s.triggeredCountOnActiveTab} script trigger(s) on this page load`
+          : s.configured
+            ? 'No scripts triggered on this page load'
+            : 'Configure in Options to track script triggers'
     }
     const version = this.querySelector('[data-ref="version"]')
     if (version) {

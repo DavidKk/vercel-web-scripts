@@ -36,3 +36,10 @@ export const BOOT_LOG_KEY = '__VWS_BOOT_LOG__'
 export const BOOT_LOG_MAX = 200
 
 export const MODULE_LOG_PREFIX = '[ModuleLoad][preset-core]'
+
+/** Page world → extension content bridge (`window.postMessage`). */
+export const EXTENSION_BRIDGE_MESSAGE_SOURCE = 'vws-extension-bridge'
+/** Remote GIST script actually entered its execution branch (badge +1). */
+export const SCRIPT_TRIGGERED_MESSAGE_TYPE = 'vws-script-triggered'
+/** Remote GIST script threw during execution (badge error background). */
+export const SCRIPT_FAILED_MESSAGE_TYPE = 'vws-script-failed'

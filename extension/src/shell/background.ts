@@ -1,24 +1,26 @@
 import {
   applyExtensionServiceConfig,
   clearRuntimeModuleCache,
-  countMatchingRules,
   getShellNetworkEnabled,
   loadExtensionConfig,
-  loadExtensionRules,
   resetRuntimeState,
   setShellNetworkEnabled,
   syncRulesFromServer,
 } from '@ext/shared/extension-storage'
 import { focusOrOpenExtensionPage, focusOrOpenTab } from '@ext/shared/focus-or-open-tab'
 import type { ShellMessage, ShellResponse, ShellStatus } from '@ext/shared/messages'
+import { invalidateTabMatchCache, scheduleTabMatchRefresh, shouldInvalidateTabMatchCache } from '@ext/shared/tab-match-cache'
 import {
-  getTabMatchCountForBadge,
-  getTabMatchCountImmediate,
-  invalidateTabMatchCache,
-  scheduleTabMatchRefresh,
-  shouldInvalidateTabMatchCache,
-  TAB_MATCH_CACHE_KEY,
-} from '@ext/shared/tab-match-cache'
+  clearAllTabTriggerCounts,
+  clearTabTriggerState,
+  getTabTriggerCount,
+  getTabTriggerHasError,
+  hydrateTabTriggerCounts,
+  incrementTabTriggerCount,
+  markTabTriggerError,
+  resetTabTriggerCountsForNavigation,
+  resetTabTriggerCountsForPageLoad,
+} from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
@@ -74,7 +76,6 @@ async function handleWebConnect(details: Extract<ShellMessage, { type: 'WEB_CONN
   }
 
   const { serviceChanged } = await applyExtensionServiceConfig(nextConfig)
-  scheduleBadgeRefresh()
   if (serviceChanged) {
     await reloadTab(await getActiveTab())
   }
@@ -112,20 +113,14 @@ async function buildStatus(): Promise<ShellStatus> {
   const [config, tab, networkEnabled] = await Promise.all([loadExtensionConfig(), getActiveTab(), getShellNetworkEnabled()])
   const url = tab?.url ?? ''
   const configured = Boolean(config.baseUrl && config.scriptKey)
-  let matchCountOnActiveTab = 0
-  if (url && configured) {
-    matchCountOnActiveTab = await getTabMatchCountImmediate(config, url)
-  } else if (url) {
-    const rules = await loadExtensionRules()
-    matchCountOnActiveTab = countMatchingRules(rules, url)
-  }
+  const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
   const manifest = chrome.runtime.getManifest()
   return {
     configured,
     baseUrl: config.baseUrl,
     scriptKey: config.scriptKey,
     networkEnabled,
-    matchCountOnActiveTab,
+    triggeredCountOnActiveTab,
     activeTabUrl: url,
     extensionVersion: manifest.version ?? '0.0.0',
   }
@@ -133,12 +128,13 @@ async function buildStatus(): Promise<ShellStatus> {
 
 /** Chrome accepts hex or RGBA; RGBA is more reliable for badge text on macOS. */
 const BADGE_BACKGROUND = '#3b82f6'
+const BADGE_BACKGROUND_ERROR = '#dc2626'
 const BADGE_TEXT_RGBA: [number, number, number, number] = [255, 255, 255, 255]
 
 type BadgeTarget = { tabId: number } | Record<string, never>
 
-async function applyBadgeColors(target: BadgeTarget): Promise<void> {
-  await chrome.action.setBadgeBackgroundColor({ ...target, color: BADGE_BACKGROUND })
+async function applyBadgeColors(target: BadgeTarget, hasError = false): Promise<void> {
+  await chrome.action.setBadgeBackgroundColor({ ...target, color: hasError ? BADGE_BACKGROUND_ERROR : BADGE_BACKGROUND })
   // Must run after setBadgeText — Chrome otherwise keeps default black text.
   await chrome.action.setBadgeTextColor({ ...target, color: BADGE_TEXT_RGBA })
 }
@@ -146,33 +142,26 @@ async function applyBadgeColors(target: BadgeTarget): Promise<void> {
 async function updateBadgeForTab(tabId: number, url?: string): Promise<void> {
   const target: BadgeTarget = { tabId }
   if (!url) {
+    clearTabTriggerState(tabId)
     await chrome.action.setBadgeText({ tabId, text: '' })
     await applyBadgeColors(target)
     return
   }
-  const config = await loadExtensionConfig()
-  const n = config.baseUrl && config.scriptKey ? await getTabMatchCountForBadge(config, url) : countMatchingRules(await loadExtensionRules(), url)
+  const n = getTabTriggerCount(tabId)
+  const hasError = getTabTriggerHasError(tabId)
   const text = n > 0 ? String(Math.min(n, 99)) : ''
-  await chrome.action.setBadgeBackgroundColor({ tabId, color: BADGE_BACKGROUND })
+  await chrome.action.setBadgeBackgroundColor({ tabId, color: hasError ? BADGE_BACKGROUND_ERROR : BADGE_BACKGROUND })
   await chrome.action.setBadgeText({ tabId, text })
   await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_RGBA })
 }
-
-let badgeRefreshTimer: ReturnType<typeof setTimeout> | undefined
 
 async function refreshAllBadges(): Promise<void> {
   const tabs = await chrome.tabs.query({})
   await Promise.all(tabs.map((t) => (t.id != null ? updateBadgeForTab(t.id, t.url) : Promise.resolve())))
 }
 
-function scheduleBadgeRefresh(): void {
-  clearTimeout(badgeRefreshTimer)
-  badgeRefreshTimer = setTimeout(() => {
-    void refreshAllBadges()
-  }, 200)
-}
-
-function initBadgeDefaults(): void {
+async function initBadgeDefaults(): Promise<void> {
+  await hydrateTabTriggerCounts()
   void applyBadgeColors({})
   void refreshAllBadges()
 }
@@ -185,21 +174,24 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 })
 
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  if (info.url) {
+    resetTabTriggerCountsForNavigation(tabId, tab.url)
+  }
   if (info.url || info.status === 'complete') {
     void updateBadgeForTab(tabId, tab.url)
   }
+})
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  clearTabTriggerState(tabId)
 })
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') {
     return
   }
-  if (changes[TAB_MATCH_CACHE_KEY]) {
-    scheduleBadgeRefresh()
-    return
-  }
   if (shouldInvalidateTabMatchCache(changes)) {
-    void invalidateTabMatchCache().then(() => scheduleBadgeRefresh())
+    void invalidateTabMatchCache()
   }
 })
 
@@ -233,13 +225,23 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           }
           await clearRuntimeModuleCache(config)
           await invalidateTabMatchCache()
-          await reloadTab(await getActiveTab())
+          await clearAllTabTriggerCounts()
+          const activeAfterUpdate = await getActiveTab()
+          if (activeAfterUpdate?.id != null) {
+            await updateBadgeForTab(activeAfterUpdate.id, activeAfterUpdate.url)
+          }
+          await reloadTab(activeAfterUpdate)
           sendResponse({ ok: true, message: 'Runtime cache cleared.' } satisfies ShellResponse)
           return
         }
         case 'RESET_RUNTIME': {
           await resetRuntimeState(config)
-          await reloadTab(await getActiveTab())
+          await clearAllTabTriggerCounts()
+          const activeAfterReset = await getActiveTab()
+          if (activeAfterReset?.id != null) {
+            await updateBadgeForTab(activeAfterReset.id, activeAfterReset.url)
+          }
+          await reloadTab(activeAfterReset)
           sendResponse({ ok: true, message: 'Runtime state reset.' } satisfies ShellResponse)
           return
         }
@@ -286,8 +288,41 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           if (tab?.url?.startsWith('http')) {
             scheduleTabMatchRefresh(config, tab.url)
           }
-          scheduleBadgeRefresh()
           sendResponse({ ok: true, message: `Synced ${rules.length} rule(s).` } satisfies ShellResponse)
+          return
+        }
+        case 'TAB_PAGE_LOAD': {
+          const tab = _sender?.tab
+          if (tab?.id == null) {
+            sendResponse({ ok: true } satisfies ShellResponse)
+            return
+          }
+          const url = tab.url ?? message.details.url
+          resetTabTriggerCountsForPageLoad(tab.id, url)
+          await updateBadgeForTab(tab.id, url)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'SCRIPT_TRIGGERED': {
+          const tab = _sender?.tab
+          if (tab?.id == null) {
+            sendResponse({ ok: true } satisfies ShellResponse)
+            return
+          }
+          incrementTabTriggerCount(tab.id, tab.url)
+          await updateBadgeForTab(tab.id, tab.url)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'SCRIPT_FAILED': {
+          const tab = _sender?.tab
+          if (tab?.id == null) {
+            sendResponse({ ok: true } satisfies ShellResponse)
+            return
+          }
+          markTabTriggerError(tab.id, tab.url)
+          await updateBadgeForTab(tab.id, tab.url)
+          sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
         default:
