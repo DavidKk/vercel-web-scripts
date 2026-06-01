@@ -79,7 +79,7 @@
 
   mm-options-app,
   mm-scripts-app {
-    @apply block min-h-screen w-full;
+    @apply block h-full min-h-0 w-full;
   }
 
   mm-scripts-app[data-loading] {
@@ -176,6 +176,109 @@
 
   .mm-scripts-main {
     @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-servers-main {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-servers-head {
+    @apply flex shrink-0 justify-end border-b border-mm-border-light bg-mm-surface px-3 py-2;
+  }
+
+  .mm-servers-toolbar {
+    @apply flex max-w-full flex-nowrap items-center justify-end gap-1.5;
+  }
+
+  .mm-servers-status {
+    @apply mr-auto hidden min-w-0 shrink truncate text-xs leading-none text-mm-text-muted;
+  }
+
+  .mm-servers-status:not(:empty) {
+    @apply block max-w-[min(100%,20rem)] sm:max-w-md;
+  }
+
+  .mm-servers-status.text-mm-success:not(:empty),
+  .mm-servers-status.text-mm-danger:not(:empty) {
+    @apply max-w-[min(100%,24rem)] sm:max-w-lg;
+  }
+
+  .mm-servers-toolbar > mm-button {
+    @apply inline-flex shrink-0;
+  }
+
+  .mm-servers-toolbar .mm-button-native,
+  .mm-servers-toolbar mm-button > button {
+    @apply h-8 whitespace-nowrap px-3 text-xs;
+  }
+
+  .mm-servers-test-btn {
+    @apply inline-flex min-w-[5.5rem] items-center justify-center gap-1.5;
+  }
+
+  .mm-servers-test-btn.is-ok {
+    @apply text-mm-success;
+  }
+
+  .mm-servers-test-btn.is-error {
+    @apply text-mm-danger;
+  }
+
+  .mm-servers-body {
+    @apply grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)];
+  }
+
+  .mm-servers-list-pane {
+    @apply flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-mm-border-light bg-mm-canvas/30 md:border-b-0 md:border-r;
+  }
+
+  .mm-servers-list-head {
+    @apply shrink-0 border-b border-mm-border-light px-4 py-3;
+  }
+
+  .mm-servers-list-head-row {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  .mm-servers-list-title {
+    @apply m-0 min-w-0 flex-1 text-sm font-semibold text-mm-ink;
+  }
+
+  .mm-servers-list-hint {
+    @apply m-0 mt-1 text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-servers-list-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto px-3 py-3;
+  }
+
+  .mm-servers-detail-pane {
+    @apply flex min-h-0 min-w-0 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-servers-detail-form {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .mm-servers-detail-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto;
+  }
+
+  .mm-servers-form-actions {
+    @apply flex shrink-0 justify-end gap-2 border-t border-mm-border-light bg-mm-surface px-4 py-3 sm:px-5;
+  }
+
+  .mm-servers-form-actions > mm-button {
+    @apply inline-flex shrink-0;
+  }
+
+  .mm-servers-form-actions .mm-button-native,
+  .mm-servers-form-actions mm-button > button {
+    @apply h-8 whitespace-nowrap px-4 text-xs;
+  }
+
+  .mm-options-detail-toolbar {
+    @apply flex shrink-0 flex-col gap-2 border-t border-mm-border-light px-4 py-4 sm:flex-row sm:px-5;
   }
 
   .mm-scripts-head {
@@ -355,9 +458,10 @@
   }
 
   .mm-options-main {
-    @apply mx-auto flex w-full max-w-[860px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-6;
+    @apply mx-auto flex w-full max-w-[1024px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-6;
   }
 
+  /* Legacy card layout — servers page now uses mm-servers-* wide layout */
   .mm-options-panel {
     @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface shadow-mm-sm;
   }
@@ -458,6 +562,82 @@
 
   .mm-options-panel-footer {
     @apply flex flex-col-reverse gap-2.5 border-t border-mm-border-light bg-mm-muted/40 px-4 py-3 sm:flex-row sm:justify-end sm:px-5;
+  }
+
+  .mm-options-layout {
+    @apply grid min-h-[420px] lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] lg:divide-x lg:divide-mm-border-light;
+  }
+
+  .mm-options-service-list {
+    @apply flex flex-col gap-3 border-b border-mm-border-light p-4 sm:p-5 lg:border-b-0;
+  }
+
+  .mm-options-service-list-head {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  .mm-options-service-list-title {
+    @apply m-0 text-sm font-semibold text-mm-ink;
+  }
+
+  .mm-options-add-btn {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .mm-options-service-items {
+    @apply m-0 flex list-none flex-col gap-1.5 p-0;
+  }
+
+  .mm-options-service-item {
+    @apply w-full cursor-pointer rounded-md border border-transparent px-3 py-2.5 text-left transition hover:bg-mm-accent-soft/50;
+  }
+
+  .mm-options-service-item[aria-selected='true'] {
+    @apply border-mm-accent/30 bg-mm-accent-soft ring-1 ring-mm-accent/20;
+  }
+
+  .mm-options-service-item-label {
+    @apply block truncate text-sm font-semibold text-mm-ink;
+  }
+
+  .mm-options-service-item-meta {
+    @apply mt-0.5 block truncate font-mono text-[11px] text-mm-text-muted;
+  }
+
+  .mm-options-service-item-badges {
+    @apply mt-1.5 flex flex-wrap gap-1;
+  }
+
+  .mm-options-service-badge {
+    @apply rounded-full bg-mm-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-service-badge.is-off {
+    @apply bg-mm-danger-soft text-mm-danger;
+  }
+
+  .mm-options-service-badge.is-shared {
+    @apply bg-mm-accent-soft text-mm-accent;
+  }
+
+  .mm-options-service-list-empty {
+    @apply m-0 px-1 py-2 text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-service-detail {
+    @apply min-w-0 p-0;
+  }
+
+  .mm-options-detail-empty {
+    @apply m-0 flex flex-1 items-center justify-center px-6 py-10 text-center text-sm text-mm-text-muted;
+  }
+
+  .mm-options-detail-form {
+    @apply grid gap-0 divide-y divide-mm-border-light;
+  }
+
+  .mm-options-field-grid-single {
+    @apply sm:grid-cols-1;
   }
 
   .mm-page-toolbar {
@@ -749,6 +929,54 @@
 
   .mm-script-row .mm-switch {
     @apply shrink-0 justify-self-end;
+  }
+
+  .mm-script-row--inactive {
+    @apply cursor-default opacity-60;
+  }
+
+  .mm-script-row--inactive:hover {
+    @apply bg-transparent;
+  }
+
+  .mm-scripts-group {
+    @apply border-b border-solid border-mm-border-light/60;
+  }
+
+  .mm-scripts-group--inactive {
+    @apply opacity-70;
+  }
+
+  .mm-scripts-group-head {
+    @apply flex items-center justify-between gap-3 border-b border-solid border-mm-border-light/50 bg-mm-muted/30 px-4 py-2;
+  }
+
+  .mm-scripts-group-title {
+    @apply flex min-w-0 flex-col gap-0.5;
+  }
+
+  .mm-scripts-group-key {
+    @apply truncate font-mono text-[11px] leading-none text-mm-secondary;
+  }
+
+  .mm-scripts-group-labels {
+    @apply truncate text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-scripts-group-actions {
+    @apply flex shrink-0 items-center gap-2;
+  }
+
+  .mm-scripts-group-editor {
+    @apply rounded-md border border-solid border-mm-border-light bg-mm-surface px-2 py-1 text-[11px] font-medium text-mm-secondary transition-colors hover:bg-mm-muted/60;
+  }
+
+  .mm-scripts-group-badge {
+    @apply rounded-full bg-mm-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-mm-text-muted;
+  }
+
+  .mm-scripts-group-rows {
+    @apply flex flex-col;
   }
 
   .mm-page-list {

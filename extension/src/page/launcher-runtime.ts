@@ -25,7 +25,16 @@ import {
 
 import type { LauncherUrls } from './config'
 import { PRESET_VAR_NAMES } from './config'
+import { setActiveGmScope } from './gm-bridge'
 import type { GMApi, GMRequestDetails } from './gm-types'
+
+export interface LauncherStartOptions {
+  scriptKey: string
+  gmScope: string
+  enabledScripts?: Record<string, boolean>
+  /** Override boot log prefix (defaults to MODULE_LOG_PREFIX). */
+  logPrefix?: string
+}
 
 interface ManifestModule {
   id?: string
@@ -41,8 +50,13 @@ interface ModuleManifest {
  * Start preset load pipeline (manifest → preset → execute).
  * @param urls Resolved launcher URLs and globals
  * @param gm GM API on globalThis
+ * @param options Per-scriptKey launcher context
  */
-export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
+export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherStartOptions): void {
+  const logPrefix = options.logPrefix ?? MODULE_LOG_PREFIX
+  const { scriptKey, gmScope, enabledScripts = {} } = options
+  setActiveGmScope(gmScope)
+  ;(globalThis as Record<string, unknown>).__VWS_SCRIPT_KEY__ = scriptKey
   const {
     presetUrl,
     moduleManifestUrl,
@@ -129,14 +143,15 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
       .map((x) => (x === undefined || x === null ? '' : String(x)))
       .join(' ')
       .trim()
+    const labeled = msg.startsWith('[') ? msg : `${logPrefix} ${msg}`
     if (level === 'fail') {
-      launcherLogger.error(msg)
+      launcherLogger.error(labeled)
     } else if (level === 'warn') {
-      launcherLogger.warn(msg)
+      launcherLogger.warn(labeled)
     } else if (level === 'ok') {
-      launcherLogger.ok(msg)
+      launcherLogger.ok(labeled)
     } else {
-      launcherLogger.info(msg)
+      launcherLogger.info(labeled)
     }
     try {
       const root = globalThis as Record<string, unknown>
@@ -145,7 +160,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
       }
       const arr = root[BOOT_LOG_KEY] as { t: number; level: string; message: string }[]
       if (arr.length >= BOOT_LOG_MAX) arr.shift()
-      arr.push({ t: Date.now(), level, message: msg })
+      arr.push({ t: Date.now(), level, message: labeled })
     } catch {
       // ignore
     }
@@ -167,20 +182,23 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi): void {
 
   function runPreset(presetCode: string): void {
     const bytes = presetCode?.length ?? 0
-    bootLog('info', MODULE_LOG_PREFIX, `execute:start bytes=${bytes}`)
+    bootLog('info', `execute:start bytes=${bytes}`)
     const g = globalThis as Record<string, unknown>
     assignGlobals(g)
     g.__GLOBAL__ = g
+    g.__VWS_SCRIPT_KEY__ = scriptKey
+    g.__VWS_ENABLED_SCRIPTS__ = enabledScripts
+    setActiveGmScope(gmScope)
     try {
       const decls = PRESET_VAR_NAMES.map((n) => `var ${n} = g.${n};`).join('\n')
       const body = `with(g) {\n${decls}\n${presetCode}\n}`
 
       new Function('g', body)(g)
-      bootLog('ok', MODULE_LOG_PREFIX, `execute:success bytes=${bytes}`)
+      bootLog('ok', `execute:success bytes=${bytes}`)
     } catch (e) {
       const em = e instanceof Error ? e.message : String(e)
-      bootLog('fail', MODULE_LOG_PREFIX, 'execute:failed', em)
-      launcherLogger.error('preset run failed:', em, e)
+      bootLog('fail', 'execute:failed', em)
+      launcherLogger.error(`[${scriptKey}] preset run failed:`, em, e)
     }
   }
 

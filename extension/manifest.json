@@ -19,7 +19,7 @@
     }
   },
   "options_ui": {
-    "page": "options.html",
+    "page": "servers.html",
     "open_in_tab": true
   },
   "content_scripts": [

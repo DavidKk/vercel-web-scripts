@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MagickMonkey Servers</title>
+    <link rel="stylesheet" href="./shell.css" />
+  </head>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <mm-options-app>
+      <div class="mm-admin-page mm-page-fill">
+        <header class="mm-admin-header">
+          <div class="mm-admin-brand">
+            <img src="./icons/icon32.png" width="32" height="32" alt="" aria-hidden="true" />
+            <span class="mm-admin-title">MagickMonkey</span>
+          </div>
+          <nav class="mm-admin-nav" aria-label="Extension pages">
+            <a href="./servers.html" class="mm-admin-nav-link" aria-current="page">Servers</a>
+            <a href="./scripts.html" class="mm-admin-nav-link">Scripts</a>
+          </nav>
+        </header>
+
+        <div class="mm-servers-main">
+          <div class="mm-servers-head">
+            <div class="mm-servers-toolbar">
+              <span data-ref="status" class="mm-servers-status">Ready</span>
+              <mm-button variant="secondary">
+                <button type="button" data-action="test" class="mm-servers-test-btn">
+                  <span data-ref="test-icon" data-icon="network" class="mm-icon-slot" aria-hidden="true"></span>
+                  <span data-ref="test-label">Test</span>
+                </button>
+              </mm-button>
+            </div>
+          </div>
+
+          <div class="mm-servers-body">
+            <aside class="mm-servers-list-pane" aria-label="Services">
+              <div class="mm-servers-list-head">
+                <div class="mm-servers-list-head-row">
+                  <h2 class="mm-servers-list-title">Services</h2>
+                  <button type="button" data-action="add-service" class="mm-icon-btn" title="Add service" aria-label="Add service">
+                    <span data-icon="plus" class="mm-icon-slot"></span>
+                  </button>
+                </div>
+                <p class="mm-servers-list-hint">Top row wins OTA for the same script key.</p>
+              </div>
+              <div class="mm-servers-list-scroll">
+                <ul class="mm-options-service-items" data-ref="service-list" role="listbox" aria-label="Service list"></ul>
+                <p class="mm-options-service-list-empty hidden" data-ref="service-list-empty">No services yet. Add one or connect from the web editor.</p>
+              </div>
+            </aside>
+
+            <div class="mm-servers-detail-pane" data-ref="service-detail">
+              <p class="mm-options-detail-empty" data-ref="detail-empty">Select a service or add a new connection.</p>
+
+              <div class="mm-servers-detail-form hidden" data-ref="detail-form">
+                <div class="mm-servers-detail-scroll">
+                  <section class="mm-options-section" aria-labelledby="service-title">
+                    <div class="mm-options-section-head">
+                      <h2 id="service-title" class="mm-options-section-title">Service</h2>
+                      <span class="mm-options-section-meta" data-ref="scriptkey-badge"></span>
+                    </div>
+
+                    <div class="mm-options-field-grid mm-options-field-grid-single">
+                      <mm-field class="mm-options-field">
+                        <label for="serviceLabel" class="mm-label">Label</label>
+                        <mm-input>
+                          <input id="serviceLabel" type="text" data-ref="label" placeholder="Production" autocomplete="off" />
+                        </mm-input>
+                      </mm-field>
+                    </div>
+
+                    <label class="mm-options-toggle-card">
+                      <span class="mm-options-toggle-copy">
+                        <span class="mm-options-toggle-title">Enabled</span>
+                        <span class="mm-options-toggle-text">Disabled services are skipped for OTA and editor defaults.</span>
+                      </span>
+                      <span class="mm-switch-control">
+                        <input type="checkbox" class="mm-switch-input" data-ref="enabled" checked />
+                        <span class="mm-switch-track" aria-hidden="true"></span>
+                        <span class="mm-switch-thumb" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                  </section>
+
+                  <section class="mm-options-section" aria-labelledby="connection-title">
+                    <div class="mm-options-section-head">
+                      <h2 id="connection-title" class="mm-options-section-title">Connection</h2>
+                      <span class="mm-options-section-meta">Required</span>
+                    </div>
+
+                    <div class="mm-options-field-grid">
+                      <mm-field class="mm-options-field">
+                        <label for="baseUrl" class="mm-label">Server URL</label>
+                        <mm-input>
+                          <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" autocomplete="url" />
+                        </mm-input>
+                        <p class="mm-hint">Editor origin, e.g. <code>http://localhost:3000</code>.</p>
+                      </mm-field>
+
+                      <mm-field class="mm-options-field">
+                        <label for="scriptKey" class="mm-label">Script key</label>
+                        <mm-input>
+                          <input id="scriptKey" type="text" data-ref="script-key" placeholder="64-char SHA-256 hex" autocomplete="off" spellcheck="false" />
+                        </mm-input>
+                        <p class="mm-hint" data-ref="script-key-hint">Matches <code>/static/[key]/</code>.</p>
+                      </mm-field>
+                    </div>
+                  </section>
+
+                  <section class="mm-options-section" aria-labelledby="capability-title">
+                    <div class="mm-options-section-head">
+                      <h2 id="capability-title" class="mm-options-section-title">Script key scope</h2>
+                      <span class="mm-options-section-meta">Shared</span>
+                    </div>
+
+                    <div class="mm-options-field-grid mm-options-field-grid-single">
+                      <mm-field class="mm-options-field">
+                        <label for="gmScope" class="mm-label">GM scope</label>
+                        <mm-input>
+                          <input id="gmScope" type="text" data-ref="gm-scope" placeholder="A" autocomplete="off" spellcheck="false" />
+                        </mm-input>
+                        <p class="mm-hint">Prefix for GM storage keys, e.g. <code>A_A</code>. Same script key on multiple services shares one scope.</p>
+                      </mm-field>
+                    </div>
+                  </section>
+
+                  <section class="mm-options-section" aria-labelledby="runtime-title">
+                    <div class="mm-options-section-head">
+                      <h2 id="runtime-title" class="mm-options-section-title">Development</h2>
+                      <span class="mm-options-section-meta">Per service</span>
+                    </div>
+
+                    <label class="mm-options-toggle-card">
+                      <span class="mm-options-toggle-copy">
+                        <span class="mm-options-toggle-title">Extension auto-reload</span>
+                        <span class="mm-options-toggle-text"
+                          >When using <code>pnpm run build:extension:dev</code>, reload the unpacked extension after rebuild. First enabled service with this flag wins.</span
+                        >
+                      </span>
+                      <span class="mm-switch-control">
+                        <input type="checkbox" class="mm-switch-input" data-ref="develop-mode" />
+                        <span class="mm-switch-track" aria-hidden="true"></span>
+                        <span class="mm-switch-thumb" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                  </section>
+                </div>
+
+                <div class="mm-options-detail-toolbar">
+                  <mm-button variant="secondary" class="w-full sm:w-auto">
+                    <button type="button" data-action="move-up" class="w-full sm:min-w-24">Move up</button>
+                  </mm-button>
+                  <mm-button variant="secondary" class="w-full sm:w-auto">
+                    <button type="button" data-action="move-down" class="w-full sm:min-w-24">Move down</button>
+                  </mm-button>
+                  <mm-button variant="secondary" class="w-full sm:w-auto">
+                    <button type="button" data-action="delete-service" class="w-full text-mm-danger sm:min-w-24">Delete</button>
+                  </mm-button>
+                </div>
+
+                <div class="mm-servers-form-actions">
+                  <mm-button variant="secondary">
+                    <button type="button" data-action="reset">Reset all</button>
+                  </mm-button>
+                  <mm-button variant="primary">
+                    <button type="button" data-action="save">Save</button>
+                  </mm-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mm-options-app>
+    <script defer src="./servers.js"></script>
+  </body>
+</html>

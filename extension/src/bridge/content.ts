@@ -5,9 +5,9 @@
 import { EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_FAILED_MESSAGE_TYPE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
 
 import type { GMRequestDetails } from '../page/gm-types'
+import { buildPageBootstrapConfig, ensureExtensionServicesState } from '../shared/extension-storage'
 import type { ShellResponse } from '../shared/messages'
-import type { ExtensionConfig, PageBootstrapConfig } from '../types'
-import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from '../types'
+import type { PageBootstrapConfig } from '../types'
 
 const REQUEST_EVENT = 'vws-gm-request'
 const RESPONSE_EVENT = 'vws-gm-response'
@@ -93,18 +93,11 @@ function getExtensionResourceUrl(path: string): string | null {
   }
 }
 
-async function loadConfig(): Promise<ExtensionConfig> {
-  try {
-    const result = await chrome.storage.local.get(CONFIG_STORAGE_KEY)
-    const raw = result[CONFIG_STORAGE_KEY] as ExtensionConfig | undefined
-    if (raw?.baseUrl && raw?.scriptKey) {
-      return raw
-    }
-    return DEFAULT_CONFIG
-  } catch (error) {
-    isExtensionContextInvalidated(error)
-    throw error
-  }
+async function isServiceConnected(baseUrl: string, scriptKey: string): Promise<boolean> {
+  const state = await ensureExtensionServicesState()
+  const normalizedBase = baseUrl.trim().replace(/\/+$/, '')
+  const normalizedKey = scriptKey.trim()
+  return state.services.some((service) => service.enabled !== false && service.baseUrl.trim().replace(/\/+$/, '') === normalizedBase && service.scriptKey.trim() === normalizedKey)
 }
 
 async function loadGmStore(): Promise<Record<string, unknown>> {
@@ -208,7 +201,7 @@ function isRequestDetail(value: unknown): value is { id: number; method: string;
   )
 }
 
-function isScriptTriggeredDetail(value: unknown): value is { file: string; runAt: string } {
+function isScriptTriggeredDetail(value: unknown): value is { file: string; runAt: string; scriptKey?: string } {
   return !!value && typeof value === 'object' && typeof (value as { file?: unknown }).file === 'string' && typeof (value as { runAt?: unknown }).runAt === 'string'
 }
 
@@ -263,11 +256,11 @@ async function handleWebInstallMessage(event: MessageEvent, data: WebInstallMess
     }
 
     if (data.type === 'MAGICKMONKEY_EXTENSION_PING') {
-      const config = await loadConfig()
+      const connected = scriptKey ? await isServiceConnected(baseUrl, scriptKey) : false
       postWebResponse(event, 'MAGICKMONKEY_EXTENSION_PONG', data.requestId, {
         ok: true,
         installed: true,
-        connected: Boolean(scriptKey && normalizeBaseUrl(config.baseUrl) === baseUrl && config.scriptKey === scriptKey),
+        connected,
         extensionVersion,
       })
       return
@@ -333,13 +326,13 @@ function reportScriptFailed(file: string, runAt: string): void {
     })
 }
 
-function reportScriptTriggered(file: string, runAt: string): void {
+function reportScriptTriggered(file: string, runAt: string, scriptKey?: string): void {
   const href = window.location.href
   if (href !== scriptTriggerPageUrl) {
     scriptTriggerPageUrl = href
     scriptTriggerDedupe.clear()
   }
-  const dedupeKey = `${file}|${runAt}`
+  const dedupeKey = `${scriptKey ?? ''}|${file}|${runAt}`
   if (scriptTriggerDedupe.has(dedupeKey)) {
     return
   }
@@ -355,6 +348,7 @@ function reportScriptTriggered(file: string, runAt: string): void {
         file,
         runAt,
         url: window.location.href,
+        scriptKey,
       },
     })
     .catch((error) => {
@@ -380,7 +374,7 @@ function handlePageBridgeMessage(event: MessageEvent): void {
 
   if (type === SCRIPT_TRIGGERED_MESSAGE_TYPE) {
     if (isScriptTriggeredDetail(payload)) {
-      reportScriptTriggered(payload.file, payload.runAt)
+      reportScriptTriggered(payload.file, payload.runAt, payload.scriptKey)
     }
     return
   }
@@ -453,12 +447,11 @@ async function bootstrap(): Promise<void> {
     return
   }
 
-  let config: ExtensionConfig
+  let bootstrapConfig: PageBootstrapConfig | null
   let gmStore: Record<string, unknown>
-  let extensionVersion: string
   try {
-    ;[config, gmStore] = await Promise.all([loadConfig(), loadGmStore()])
-    extensionVersion = getExtensionVersion()
+    const extensionVersion = getExtensionVersion()
+    ;[bootstrapConfig, gmStore] = await Promise.all([buildPageBootstrapConfig(extensionVersion), loadGmStore()])
   } catch (error) {
     if (isExtensionContextInvalidated(error)) {
       return
@@ -466,9 +459,8 @@ async function bootstrap(): Promise<void> {
     throw error
   }
 
-  const bootstrapConfig = {
-    ...config,
-    extensionVersion,
+  if (!bootstrapConfig) {
+    return
   }
 
   try {

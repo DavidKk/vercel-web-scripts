@@ -3,6 +3,7 @@
  */
 
 import { extensionLogger } from '@ext/shared/logger'
+import type { PageBootstrapConfig, ScriptKeyBootstrapEntry } from '@ext/types'
 
 import { buildLauncherUrls } from './config'
 import { installGmApiOnPage } from './gm-bridge'
@@ -26,7 +27,7 @@ function loadBootstrapData(): void {
 
   try {
     const parsed = JSON.parse(data.textContent) as {
-      config?: Window['__VWS_PAGE_CONFIG__']
+      config?: PageBootstrapConfig
       gmStore?: Window['__VWS_GM_STORE__']
     }
     window.__VWS_PAGE_CONFIG__ = parsed.config
@@ -38,29 +39,67 @@ function loadBootstrapData(): void {
   }
 }
 
-function main(): void {
-  if (window.__VWS_PAGE_LAUNCHER_STARTED__) {
-    extensionLogger.debug('Page launcher already started, skipping duplicate injection.')
-    return
+function resolveBootstrapEntries(config: PageBootstrapConfig): ScriptKeyBootstrapEntry[] {
+  if (config.scriptKeys?.length) {
+    return config.scriptKeys
   }
-  window.__VWS_PAGE_LAUNCHER_STARTED__ = true
+  if (config.baseUrl && config.scriptKey) {
+    return [
+      {
+        scriptKey: config.scriptKey,
+        baseUrl: config.baseUrl,
+        gmScope: config.scriptKey.slice(0, 8),
+        developMode: config.developMode !== false,
+        enabledScripts: {},
+      },
+    ]
+  }
+  return []
+}
 
+function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<typeof installGmApiOnPage>): void {
+  const shortKey = entry.scriptKey.length > 8 ? `${entry.scriptKey.slice(0, 8)}…` : entry.scriptKey
+  const urls = buildLauncherUrls({
+    baseUrl: entry.baseUrl,
+    scriptKey: entry.scriptKey,
+    developMode: entry.developMode,
+  })
+  startLauncher(urls, gm, {
+    scriptKey: entry.scriptKey,
+    gmScope: entry.gmScope,
+    enabledScripts: entry.enabledScripts,
+    logPrefix: `[ModuleLoad][${shortKey}]`,
+  })
+}
+
+function main(): void {
   loadBootstrapData()
 
   const config = window.__VWS_PAGE_CONFIG__
-  if (!config?.baseUrl || !config.scriptKey) {
-    window.__VWS_PAGE_LAUNCHER_STARTED__ = false
-    extensionLogger.warn('Missing __VWS_PAGE_CONFIG__ (baseUrl / scriptKey). Open extension options.')
+  const entries = config ? resolveBootstrapEntries(config) : []
+  if (entries.length === 0) {
+    extensionLogger.warn('Missing __VWS_PAGE_CONFIG__ scriptKeys. Configure Servers and reload.')
     return
   }
 
+  window.__VWS_STARTED_SCRIPT_KEYS__ ??= []
+  const started = window.__VWS_STARTED_SCRIPT_KEYS__
+
   const gm = installGmApiOnPage()
-  const urls = buildLauncherUrls({
-    baseUrl: config.baseUrl,
-    scriptKey: config.scriptKey,
-    developMode: config.developMode !== false,
-  })
-  startLauncher(urls, gm)
+
+  for (const entry of entries) {
+    if (started.includes(entry.scriptKey)) {
+      extensionLogger.debug(`Launcher already started for scriptKey ${entry.scriptKey}, skipping duplicate.`)
+      continue
+    }
+    started.push(entry.scriptKey)
+
+    try {
+      startLauncherForEntry(entry, gm)
+    } catch (error) {
+      extensionLogger.error(`Failed to start launcher for scriptKey ${entry.scriptKey}:`, error)
+    }
+  }
 }
 
 main()

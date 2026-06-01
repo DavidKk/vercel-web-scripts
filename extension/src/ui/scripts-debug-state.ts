@@ -5,6 +5,8 @@ export type ScriptsDebugOverrides = {
   forceLoading: boolean
   forceError: string | null
   forceEmpty: boolean
+  /** Gray out all scriptKey groups (inactive server mock). */
+  forceInactiveGroups: boolean
   errorMessage: string
 }
 
@@ -14,6 +16,7 @@ let overrides: ScriptsDebugOverrides = {
   forceLoading: false,
   forceError: null,
   forceEmpty: false,
+  forceInactiveGroups: false,
   errorMessage: DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE,
 }
 
@@ -21,7 +24,7 @@ let overrides: ScriptsDebugOverrides = {
  * @returns Whether any debug override is active.
  */
 export function isScriptsDebugActive(): boolean {
-  return overrides.forceLoading || overrides.forceError !== null || overrides.forceEmpty
+  return overrides.forceLoading || overrides.forceError !== null || overrides.forceEmpty || overrides.forceInactiveGroups
 }
 
 export function getScriptsDebugOverrides(): Readonly<ScriptsDebugOverrides> {

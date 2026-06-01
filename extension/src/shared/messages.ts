@@ -26,6 +26,8 @@ export interface ScriptTriggeredDetails {
   file: string
   runAt: string
   url: string
+  /** Capability scriptKey; used for multi-scriptKey dedupe. */
+  scriptKey?: string
 }
 
 export type ShellMessage =
@@ -46,8 +48,14 @@ export type ShellMessage =
 
 export interface ShellStatus {
   configured: boolean
+  /** Primary OTA representative baseUrl (legacy popup field). */
   baseUrl: string
+  /** Primary enabled scriptKey (legacy popup field). */
   scriptKey: string
+  enabledServiceCount: number
+  enabledScriptKeyCount: number
+  /** Label of active Service row in Options, when set. */
+  activeServiceLabel: string
   networkEnabled: boolean
   /** Scripts that actually executed on the active tab for the current URL (not RULE match count). */
   triggeredCountOnActiveTab: number

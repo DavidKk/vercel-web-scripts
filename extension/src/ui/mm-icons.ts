@@ -4,6 +4,7 @@ import iconCog from '~icons/mdi/cog?raw'
 import iconDelete from '~icons/mdi/delete-outline?raw'
 import iconLoading from '~icons/mdi/loading?raw'
 import iconPencil from '~icons/mdi/pencil?raw'
+import iconPlus from '~icons/mdi/plus?raw'
 import iconRefresh from '~icons/mdi/refresh?raw'
 import iconReload from '~icons/mdi/reload?raw'
 import iconWeb from '~icons/mdi/web?raw'
@@ -18,6 +19,7 @@ export const mmPopupIcons = {
   editor: iconPencil,
   settings: iconCog,
   network: iconWeb,
+  plus: iconPlus,
 } as const
 
 /**

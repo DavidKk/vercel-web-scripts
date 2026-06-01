@@ -16,6 +16,38 @@ let requestId = 0
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
 const changeListeners = new Map<string, Map<string, (name: string, oldValue: GMValue, newValue: GMValue) => void>>()
 let listenerSeq = 0
+let activeGmScope: string | null = null
+
+/**
+ * Set GM namespace for the current launcher execution (`{gmScope}_{key}` in storage).
+ * @param gmScope Scope prefix or null for legacy unscoped keys
+ */
+export function setActiveGmScope(gmScope: string | null): void {
+  activeGmScope = gmScope?.trim() ? gmScope.trim() : null
+}
+
+function physicalGmKey(key: string): string {
+  if (!activeGmScope) {
+    return key
+  }
+  const prefix = `${activeGmScope}_`
+  return key.startsWith(prefix) ? key : `${prefix}${key}`
+}
+
+function logicalGmKeys(): string[] {
+  const store = getStore()
+  if (!activeGmScope) {
+    return Object.keys(store)
+  }
+  const prefix = `${activeGmScope}_`
+  const keys: string[] = []
+  for (const key of Object.keys(store)) {
+    if (key.startsWith(prefix)) {
+      keys.push(key.slice(prefix.length))
+    }
+  }
+  return keys
+}
 
 function getStore(): Record<string, GMValue> {
   if (!window.__VWS_GM_STORE__) {
@@ -65,12 +97,13 @@ function handleStorageChanged(payload: unknown): void {
     return
   }
   const store = getStore()
+  const logicalKey = activeGmScope && key.startsWith(`${activeGmScope}_`) ? key.slice(activeGmScope.length + 1) : key
   if (newValue === undefined) {
     delete store[key]
   } else {
     store[key] = newValue
   }
-  notifyValueChange(key, oldValue, newValue)
+  notifyValueChange(logicalKey, oldValue, newValue)
 }
 
 function notifyValueChange(key: string, oldValue: GMValue, newValue: GMValue): void {
@@ -155,26 +188,35 @@ export function installGmApiOnPage(): GMApi {
 
   const api: GMApi = {
     GM_getValue<T = GMValue>(key: string, defaultValue?: T): T {
-      return (key in store ? store[key] : defaultValue) as T
+      const physical = physicalGmKey(key)
+      if (physical in store) {
+        return store[physical] as T
+      }
+      if (!activeGmScope && key in store) {
+        return store[key] as T
+      }
+      return defaultValue as T
     },
     GM_setValue(key: string, value: GMValue): void {
-      const oldValue = store[key]
-      store[key] = value
-      void sendRequest('setValue', [key, value]).catch((e) => {
+      const physical = physicalGmKey(key)
+      const oldValue = store[physical]
+      store[physical] = value
+      void sendRequest('setValue', [physical, value]).catch((e) => {
         gmLogger.error('setValue failed:', e)
       })
       notifyValueChange(key, oldValue, value)
     },
     GM_deleteValue(key: string): void {
-      const oldValue = store[key]
-      delete store[key]
-      void sendRequest('deleteValue', [key]).catch((e) => {
+      const physical = physicalGmKey(key)
+      const oldValue = store[physical]
+      delete store[physical]
+      void sendRequest('deleteValue', [physical]).catch((e) => {
         gmLogger.error('deleteValue failed:', e)
       })
       notifyValueChange(key, oldValue, undefined)
     },
     GM_listValues(): string[] {
-      return Object.keys(store)
+      return logicalGmKeys()
     },
     GM_setValues(values: Record<string, GMValue>): void {
       for (const [key, value] of Object.entries(values)) {

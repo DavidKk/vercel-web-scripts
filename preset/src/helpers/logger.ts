@@ -8,11 +8,22 @@ import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel 
 
 import { logStore } from '@/services/log-store'
 
+function readActiveScriptKey(pageConfig: { scriptKey?: string } | undefined): string | undefined {
+  const runtimeKey = (globalThis as { __VWS_SCRIPT_KEY__?: unknown }).__VWS_SCRIPT_KEY__
+  if (typeof runtimeKey === 'string' && runtimeKey.trim()) {
+    return runtimeKey.trim()
+  }
+  if (typeof pageConfig?.scriptKey === 'string' && pageConfig.scriptKey.trim()) {
+    return pageConfig.scriptKey.trim()
+  }
+  return undefined
+}
+
 function notifyExtensionScriptTriggered(contents: unknown[]): void {
   if (typeof window === 'undefined') {
     return
   }
-  const pageConfig = (window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__
+  const pageConfig = (window as Window & { __VWS_PAGE_CONFIG__?: { scriptKey?: string } }).__VWS_PAGE_CONFIG__
   if (!pageConfig) {
     return
   }
@@ -20,12 +31,13 @@ function notifyExtensionScriptTriggered(contents: unknown[]): void {
   if (!file) {
     return
   }
+  const scriptKey = readActiveScriptKey(pageConfig)
   try {
     window.postMessage(
       {
         source: EXTENSION_BRIDGE_MESSAGE_SOURCE,
         type: SCRIPT_TRIGGERED_MESSAGE_TYPE,
-        payload: { file, runAt: 'executed' },
+        payload: { file, runAt: 'executed', scriptKey },
       },
       '*'
     )

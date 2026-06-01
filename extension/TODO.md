@@ -1,5 +1,7 @@
 # MagickMonkey Chrome Extension — Product Review & TODO
 
+> **Multi-service implementation:** see **[docs/multi-service-tasks.md](./docs/multi-service-tasks.md)** for architecture, storage keys, migration, and manual QA checklist (Phases 0–7).
+
 ## 0. Product positioning (confirmed)
 
 | Principle                          | Decision                                                                                                                                                                                        |

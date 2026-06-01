@@ -6,6 +6,8 @@ export interface TabTriggerState {
   count: number
   /** Any GIST script failed on this page load (badge red background). */
   hasError?: boolean
+  /** Dedupe keys for multi-scriptKey triggers (`scriptKey|file|runAt`). */
+  dedupeKeys?: string[]
 }
 
 const tabTriggerState = new Map<number, TabTriggerState>()
@@ -35,6 +37,7 @@ export async function hydrateTabTriggerCounts(): Promise<void> {
         url: typeof state.url === 'string' ? state.url : '',
         count: Math.max(0, state.count),
         hasError: state.hasError === true,
+        dedupeKeys: Array.isArray(state.dedupeKeys) ? state.dedupeKeys.filter((k): k is string => typeof k === 'string') : undefined,
       })
     }
   } catch {
@@ -92,7 +95,7 @@ export function resetTabTriggerCountsForPageLoad(tabId: number, url: string | un
     clearTabTriggerState(tabId)
     return
   }
-  tabTriggerState.set(tabId, { url, count: 0, hasError: false })
+  tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [] })
   void persistTabTriggerCounts()
 }
 
@@ -124,13 +127,21 @@ export function markTabTriggerError(tabId: number, url: string | undefined): voi
  * Increment trigger count for a tab and persist.
  * @param tabId Chrome tab id
  * @param url Tab URL at trigger time
+ * @param dedupeKey Optional dedupe key (`scriptKey|file|runAt`)
  * @returns New count after increment
  */
-export function incrementTabTriggerCount(tabId: number, url: string | undefined): number {
+export function incrementTabTriggerCount(tabId: number, url: string | undefined, dedupeKey?: string): number {
   const href = url ?? ''
   let state = tabTriggerState.get(tabId)
   if (!state || state.url !== href) {
-    state = { url: href, count: 0, hasError: false }
+    state = { url: href, count: 0, hasError: false, dedupeKeys: [] }
+  }
+  if (dedupeKey) {
+    const keys = state.dedupeKeys ?? []
+    if (keys.includes(dedupeKey)) {
+      return state.count
+    }
+    state.dedupeKeys = [...keys, dedupeKey]
   }
   state.count += 1
   tabTriggerState.set(tabId, state)

@@ -1,15 +1,19 @@
 import {
-  applyExtensionServiceConfig,
-  clearRuntimeModuleCache,
+  clearRuntimeModuleCachesForEnabledScriptKeys,
+  ensureExtensionServicesState,
+  getEnabledScriptKeys,
   getShellNetworkEnabled,
   loadExtensionConfig,
-  resetRuntimeState,
+  resetRuntimeStateForEnabledScriptKeys,
+  resolveEditorServiceConfig,
   setShellNetworkEnabled,
+  syncRulesForEnabledScriptKeys,
   syncRulesFromServer,
+  upsertService,
 } from '@ext/shared/extension-storage'
 import { focusOrOpenExtensionPage, focusOrOpenTab } from '@ext/shared/focus-or-open-tab'
 import type { ShellMessage, ShellResponse, ShellStatus } from '@ext/shared/messages'
-import { invalidateTabMatchCache, scheduleTabMatchRefresh, shouldInvalidateTabMatchCache } from '@ext/shared/tab-match-cache'
+import { invalidateTabMatchCache, scheduleTabMatchRefreshForEnabledScriptKeys, shouldInvalidateTabMatchCache } from '@ext/shared/tab-match-cache'
 import {
   clearAllTabTriggerCounts,
   clearTabTriggerState,
@@ -75,14 +79,26 @@ async function handleWebConnect(details: Extract<ShellMessage, { type: 'WEB_CONN
     return { ok: false, error: 'Missing Server URL or Script Key.' }
   }
 
-  const { serviceChanged } = await applyExtensionServiceConfig(nextConfig)
-  if (serviceChanged) {
+  const { created, service } = await upsertService({
+    baseUrl: nextConfig.baseUrl,
+    scriptKey: nextConfig.scriptKey,
+    developMode: nextConfig.developMode,
+    enabled: true,
+  })
+
+  if (created) {
+    try {
+      await syncRulesFromServer({ baseUrl: service.baseUrl, scriptKey: service.scriptKey, developMode: nextConfig.developMode })
+    } catch {
+      // Connected; user can sync manually.
+    }
     await reloadTab(await getActiveTab())
   }
+
   return {
     ok: true,
     status: await buildStatus(),
-    message: serviceChanged ? 'Extension connected. Caches cleared and latest data fetched.' : 'Extension connected.',
+    message: created ? 'Extension connected.' : 'Service updated.',
   }
 }
 
@@ -91,7 +107,7 @@ async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   return tabs[0]
 }
 
-/** http(s) pages and this extension's own pages (scripts/options) can be reloaded. */
+/** http(s) pages and this extension's own pages (scripts/servers) can be reloaded. */
 function isReloadableTabUrl(url: string | undefined): boolean {
   if (!url) {
     return false
@@ -110,15 +126,21 @@ async function reloadTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
 }
 
 async function buildStatus(): Promise<ShellStatus> {
-  const [config, tab, networkEnabled] = await Promise.all([loadExtensionConfig(), getActiveTab(), getShellNetworkEnabled()])
+  const [config, servicesState, tab, networkEnabled] = await Promise.all([loadExtensionConfig(), ensureExtensionServicesState(), getActiveTab(), getShellNetworkEnabled()])
   const url = tab?.url ?? ''
-  const configured = Boolean(config.baseUrl && config.scriptKey)
+  const enabledServices = servicesState.services.filter((service) => service.enabled !== false)
+  const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
+  const activeService = servicesState.services.find((service) => service.id === servicesState.activeServiceId) ?? enabledServices[0]
+  const configured = enabledScriptKeys.length > 0
   const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
   const manifest = chrome.runtime.getManifest()
   return {
     configured,
     baseUrl: config.baseUrl,
     scriptKey: config.scriptKey,
+    enabledServiceCount: enabledServices.length,
+    enabledScriptKeyCount: enabledScriptKeys.length,
+    activeServiceLabel: activeService?.label?.trim() ?? '',
     networkEnabled,
     triggeredCountOnActiveTab,
     activeTabUrl: url,
@@ -198,8 +220,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendResponse) => {
   void (async (): Promise<void> => {
     try {
-      const config = await loadExtensionConfig()
-
       switch (message.type) {
         case 'GM_XHR': {
           sendResponse(await handleBridgeXhr(message.details))
@@ -219,11 +239,12 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           return
         }
         case 'UPDATE_RUNTIME': {
-          if (!config.scriptKey) {
-            sendResponse({ ok: false, error: 'Configure script key in Options first.' } satisfies ShellResponse)
+          const enabledKeys = getEnabledScriptKeys((await ensureExtensionServicesState()).services)
+          if (enabledKeys.length === 0) {
+            sendResponse({ ok: false, error: 'Configure at least one enabled service first.' } satisfies ShellResponse)
             return
           }
-          await clearRuntimeModuleCache(config)
+          const cleared = await clearRuntimeModuleCachesForEnabledScriptKeys()
           await invalidateTabMatchCache()
           await clearAllTabTriggerCounts()
           const activeAfterUpdate = await getActiveTab()
@@ -231,26 +252,39 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
             await updateBadgeForTab(activeAfterUpdate.id, activeAfterUpdate.url)
           }
           await reloadTab(activeAfterUpdate)
-          sendResponse({ ok: true, message: 'Runtime cache cleared.' } satisfies ShellResponse)
+          sendResponse({
+            ok: true,
+            message: cleared > 1 ? `Runtime cache cleared for ${cleared} script keys.` : 'Runtime cache cleared.',
+          } satisfies ShellResponse)
           return
         }
         case 'RESET_RUNTIME': {
-          await resetRuntimeState(config)
+          const enabledKeys = getEnabledScriptKeys((await ensureExtensionServicesState()).services)
+          if (enabledKeys.length === 0) {
+            sendResponse({ ok: false, error: 'Configure at least one enabled service first.' } satisfies ShellResponse)
+            return
+          }
+          await resetRuntimeStateForEnabledScriptKeys()
+          await invalidateTabMatchCache()
           await clearAllTabTriggerCounts()
           const activeAfterReset = await getActiveTab()
           if (activeAfterReset?.id != null) {
             await updateBadgeForTab(activeAfterReset.id, activeAfterReset.url)
           }
           await reloadTab(activeAfterReset)
-          sendResponse({ ok: true, message: 'Runtime state reset.' } satisfies ShellResponse)
+          sendResponse({
+            ok: true,
+            message: enabledKeys.length > 1 ? `Runtime state reset for ${enabledKeys.length} script keys.` : 'Runtime state reset.',
+          } satisfies ShellResponse)
           return
         }
         case 'OPEN_EDITOR': {
-          if (!config.baseUrl) {
-            sendResponse({ ok: false, error: 'Configure server URL in Options first.' } satisfies ShellResponse)
+          const editorConfig = await resolveEditorServiceConfig()
+          if (!editorConfig?.baseUrl) {
+            sendResponse({ ok: false, error: 'Configure at least one enabled service first.' } satisfies ShellResponse)
             return
           }
-          await focusOrOpenTab(`${config.baseUrl.replace(/\/$/, '')}/editor`)
+          await focusOrOpenTab(`${editorConfig.baseUrl.replace(/\/$/, '')}/editor`)
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
@@ -260,7 +294,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           return
         }
         case 'OPEN_OPTIONS': {
-          await focusOrOpenExtensionPage('options.html')
+          await focusOrOpenExtensionPage('servers.html')
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
@@ -279,16 +313,21 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           return
         }
         case 'SYNC_RULES': {
-          if (!config.scriptKey) {
-            sendResponse({ ok: false, error: 'Configure script key in Options first.' } satisfies ShellResponse)
+          const enabledKeys = getEnabledScriptKeys((await ensureExtensionServicesState()).services)
+          if (enabledKeys.length === 0) {
+            sendResponse({ ok: false, error: 'Configure at least one enabled service first.' } satisfies ShellResponse)
             return
           }
-          const rules = await syncRulesFromServer(config)
+          const results = await syncRulesForEnabledScriptKeys()
+          const total = results.reduce((sum, row) => sum + row.count, 0)
           const tab = await getActiveTab()
           if (tab?.url?.startsWith('http')) {
-            scheduleTabMatchRefresh(config, tab.url)
+            await scheduleTabMatchRefreshForEnabledScriptKeys(tab.url)
           }
-          sendResponse({ ok: true, message: `Synced ${rules.length} rule(s).` } satisfies ShellResponse)
+          sendResponse({
+            ok: true,
+            message: results.length > 1 ? `Synced ${total} rule(s) across ${results.length} script keys.` : `Synced ${total} rule(s).`,
+          } satisfies ShellResponse)
           return
         }
         case 'TAB_PAGE_LOAD': {
@@ -309,7 +348,9 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
             sendResponse({ ok: true } satisfies ShellResponse)
             return
           }
-          incrementTabTriggerCount(tab.id, tab.url)
+          const { file, runAt, scriptKey } = message.details
+          const dedupeKey = `${scriptKey ?? ''}|${file}|${runAt}`
+          incrementTabTriggerCount(tab.id, tab.url, dedupeKey)
           await updateBadgeForTab(tab.id, tab.url)
           sendResponse({ ok: true } satisfies ShellResponse)
           return
