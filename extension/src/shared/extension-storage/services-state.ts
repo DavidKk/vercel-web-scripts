@@ -9,6 +9,7 @@ import {
 } from '../extension-multi-service-pure'
 import {
   createServiceId,
+  defaultDevelopModeForBaseUrl,
   defaultGmScopeFromLabel,
   defaultLabelFromBaseUrl,
   ensureScriptKeyMetaEntry,
@@ -80,7 +81,7 @@ async function migrateLegacyExtensionConfigIfNeeded(): Promise<ExtensionServices
       baseUrl,
       scriptKey,
       enabled: true,
-      developMode: legacyConfig.developMode !== false,
+      developMode: defaultDevelopModeForBaseUrl(baseUrl) && legacyConfig.developMode !== false,
       createdAt: now,
       updatedAt: now,
     })
@@ -175,7 +176,7 @@ export function serviceProfileToExtensionConfig(service: ServiceProfile): Extens
   return {
     baseUrl: service.baseUrl,
     scriptKey: service.scriptKey,
-    developMode: service.developMode !== false,
+    developMode: service.developMode === true,
   }
 }
 

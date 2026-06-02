@@ -3,6 +3,8 @@ import iconSuccess from '~icons/mdi/check-circle?raw'
 import iconError from '~icons/mdi/close-circle?raw'
 import iconInfo from '~icons/mdi/information?raw'
 
+import { mmIcon } from '../mm-icons'
+
 export type MmNotificationType = 'success' | 'error' | 'info' | 'warn'
 
 const HOST_TAG = 'mm-notification-host'
@@ -13,6 +15,8 @@ const TYPE_ICONS: Record<MmNotificationType, string> = {
   info: iconInfo,
   warn: iconWarn,
 }
+
+const TYPE_ICON_CLASS = 'mm-notification-icon-svg'
 
 function notificationId(): string {
   return `mm-n-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -52,7 +56,7 @@ class MmNotificationHost extends HTMLElement {
     const iconWrap = document.createElement('span')
     iconWrap.className = 'mm-notification-icon'
     iconWrap.setAttribute('aria-hidden', 'true')
-    iconWrap.innerHTML = TYPE_ICONS[type]
+    iconWrap.innerHTML = mmIcon(TYPE_ICONS[type], TYPE_ICON_CLASS)
 
     const text = document.createElement('p')
     text.className = 'mm-notification-message'

@@ -27,15 +27,6 @@ const iconBtnActiveExtension = `${iconBtnBase} bg-gradient-to-br from-[#2563eb] 
 const EXTENSION_WEB_SOURCE = 'magickmonkey-web'
 const EXTENSION_RESPONSE_SOURCE = 'magickmonkey-extension'
 
-function isLocalMagickMonkeyOrigin(origin: string): boolean {
-  try {
-    const host = new URL(origin).hostname
-    return host === 'localhost' || host === '127.0.0.1'
-  } catch {
-    return false
-  }
-}
-
 type ExtensionConnectState = 'checking' | 'not_installed' | 'available' | 'connected' | 'connecting' | 'error'
 
 interface ExtensionBridgeResponse {
@@ -226,7 +217,7 @@ export default function EditorHeader({
     setExtensionState('connecting')
     const baseUrl = window.location.origin
     try {
-      const result = await requestExtensionBridge('MAGICKMONKEY_CONNECT_EXTENSION', { baseUrl, scriptKey, developMode: isLocalMagickMonkeyOrigin(baseUrl) }, 3000)
+      const result = await requestExtensionBridge('MAGICKMONKEY_CONNECT_EXTENSION', { baseUrl, scriptKey }, 3000)
       if (!result.ok) {
         setExtensionState('error')
         window.alert(result.error || 'Could not connect the Chrome extension.')

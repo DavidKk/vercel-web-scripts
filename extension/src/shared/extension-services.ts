@@ -16,10 +16,18 @@ export function normalizeBaseUrl(baseUrl: string): string {
 export function isLocalMagickMonkeyBase(baseUrl: string): boolean {
   try {
     const host = new URL(normalizeBaseUrl(baseUrl)).hostname
-    return host === 'localhost' || host === '127.0.0.1'
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]'
   } catch {
     return false
   }
+}
+
+/**
+ * Default per-service Extension auto-reload: on for local dev hosts only.
+ * @param baseUrl MagickMonkey server URL
+ */
+export function defaultDevelopModeForBaseUrl(baseUrl: string): boolean {
+  return isLocalMagickMonkeyBase(baseUrl)
 }
 
 /**

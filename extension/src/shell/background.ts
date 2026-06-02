@@ -1,4 +1,4 @@
-import { isLocalMagickMonkeyBase } from '@ext/shared/extension-services'
+import { defaultDevelopModeForBaseUrl } from '@ext/shared/extension-services'
 import {
   addScriptKeyRule,
   clearRuntimeModuleCachesForEnabledScriptKeys,
@@ -74,11 +74,10 @@ async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }
 
 function normalizeWebConnectConfig(details: Extract<ShellMessage, { type: 'WEB_CONNECT_EXTENSION' }>['details']): ExtensionConfig {
   const baseUrl = details.baseUrl.trim().replace(/\/+$/, '')
-  const developMode = typeof details.developMode === 'boolean' ? details.developMode : isLocalMagickMonkeyBase(baseUrl)
   return {
     baseUrl,
     scriptKey: details.scriptKey.trim(),
-    developMode,
+    developMode: defaultDevelopModeForBaseUrl(baseUrl),
   }
 }
 

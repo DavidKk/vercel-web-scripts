@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '../../types'
 import {
   countServiceRefs,
   createServiceId,
+  defaultDevelopModeForBaseUrl,
   defaultLabelFromBaseUrl,
   ensureScriptKeyMetaEntry,
   findServiceByEndpoint,
@@ -36,7 +37,7 @@ export async function upsertService(input: UpsertServiceInput): Promise<{ create
       ...existing,
       label: input.label?.trim() || existing.label,
       enabled: input.enabled ?? existing.enabled,
-      developMode: input.developMode ?? existing.developMode,
+      developMode: input.developMode ?? defaultDevelopModeForBaseUrl(baseUrl),
       updatedAt: now,
     }
     state.services = state.services.map((s) => (s.id === existing.id ? updated : s))
@@ -52,7 +53,7 @@ export async function upsertService(input: UpsertServiceInput): Promise<{ create
     baseUrl,
     scriptKey,
     enabled: input.enabled ?? true,
-    developMode: input.developMode ?? false,
+    developMode: input.developMode ?? defaultDevelopModeForBaseUrl(baseUrl),
     createdAt: now,
     updatedAt: now,
   }
@@ -225,7 +226,7 @@ export async function saveActiveServiceFromOptions(input: SaveOptionsServiceInpu
     baseUrl,
     scriptKey,
     enabled: input.enabled,
-    developMode: input.developMode,
+    developMode: input.developMode ?? defaultDevelopModeForBaseUrl(baseUrl),
     updatedAt: Date.now(),
   }
   state.services = state.services.map((s) => (s.id === active.id ? updated : s))
@@ -273,7 +274,7 @@ export async function createServiceFromOptions(input: Omit<SaveOptionsServiceInp
     baseUrl,
     scriptKey,
     enabled: input.enabled,
-    developMode: input.developMode,
+    developMode: input.developMode ?? defaultDevelopModeForBaseUrl(baseUrl),
     createdAt: now,
     updatedAt: now,
   }

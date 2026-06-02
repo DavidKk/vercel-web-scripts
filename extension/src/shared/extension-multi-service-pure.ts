@@ -100,7 +100,7 @@ export function buildScriptKeyBootstrapEntriesFromState(
       scriptKey: normalized,
       baseUrl: endpoint.baseUrl,
       gmScope: getGmScopeForScriptKey(normalized, state.scriptKeyMeta, endpoint.label, endpoint.baseUrl),
-      developMode: endpoint.developMode !== false,
+      developMode: endpoint.developMode === true,
       enabledScripts,
     })
   }

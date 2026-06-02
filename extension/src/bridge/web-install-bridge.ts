@@ -1,4 +1,3 @@
-import { isLocalMagickMonkeyBase } from '../shared/extension-services'
 import { ensureExtensionServicesState } from '../shared/extension-storage'
 import type { ShellResponse } from '../shared/messages'
 import { WEB_MESSAGE_SOURCE, WEB_RESPONSE_SOURCE } from './constants'
@@ -109,7 +108,6 @@ export async function handleWebInstallMessage(event: MessageEvent, data: WebInst
       details: {
         baseUrl,
         scriptKey,
-        developMode: 'developMode' in payload ? payload.developMode !== false : isLocalMagickMonkeyBase(baseUrl),
       },
     })) as ShellResponse
     postWebResponse(event, 'MAGICKMONKEY_CONNECT_EXTENSION_RESULT', data.requestId, {

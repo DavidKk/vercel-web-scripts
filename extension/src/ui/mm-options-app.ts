@@ -1,4 +1,5 @@
 import {
+  defaultDevelopModeForBaseUrl,
   defaultLabelFromBaseUrl,
   formatScriptKeyMasked,
   formatScriptKeyShort,
@@ -74,6 +75,7 @@ export class MmOptionsApp extends HTMLElement {
   private scriptKeyMeta: ScriptKeyMeta[] = []
   private gmScopeTouched = false
   private labelTouched = false
+  private developModeTouched = false
   private listDragBound = false
   private detailFormBaseline: DetailFormBaseline | null = null
   private unsubscribeAdminView: (() => void) | undefined
@@ -191,6 +193,9 @@ export class MmOptionsApp extends HTMLElement {
     })
     this.querySelector('[data-ref="gm-scope"]')?.addEventListener('input', () => {
       this.gmScopeTouched = true
+    })
+    this.querySelector('[data-ref="develop-mode"]')?.addEventListener('change', () => {
+      this.developModeTouched = true
     })
   }
 
@@ -597,12 +602,13 @@ export class MmOptionsApp extends HTMLElement {
     this.setDetailTestState('idle')
     this.labelTouched = false
     this.gmScopeTouched = false
+    this.developModeTouched = false
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = ''
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = DEFAULT_CONFIG.baseUrl
     this.scriptKeyStored = ''
     this.scriptKeyRevealed = true
     ;(this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked = true
-    ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = false
+    ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = defaultDevelopModeForBaseUrl(DEFAULT_CONFIG.baseUrl)
     this.setScriptKeyBadge(0)
     this.updateSuggestedServiceFields()
     this.syncScriptKeyFieldDisplay()
@@ -617,13 +623,14 @@ export class MmOptionsApp extends HTMLElement {
     }
     this.labelTouched = false
     this.gmScopeTouched = false
+    this.developModeTouched = false
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = service.label
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = service.baseUrl
     this.scriptKeyStored = service.scriptKey
     this.scriptKeyRevealed = false
     ;(this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value = gmScope
     ;(this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked = service.enabled
-    ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = service.developMode === true
+    ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = defaultDevelopModeForBaseUrl(service.baseUrl)
     this.setScriptKeyBadge(scriptKeyRefCount)
     this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
@@ -654,6 +661,21 @@ export class MmOptionsApp extends HTMLElement {
     }
 
     gmScopeEl.value = getGmScopeForScriptKey(scriptKey, this.scriptKeyMeta, labelEl.value, baseUrl)
+    this.syncDevelopModeDefaultFromBaseUrl()
+  }
+
+  /** Keep Extension auto-reload aligned with the service Server URL until the user toggles it. */
+  private syncDevelopModeDefaultFromBaseUrl(): void {
+    if (this.developModeTouched) {
+      return
+    }
+    const baseUrlEl = this.querySelector('[data-ref="base-url"]') as HTMLInputElement | null
+    const developEl = this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement | null
+    if (!baseUrlEl || !developEl) {
+      return
+    }
+    const baseUrl = baseUrlEl.value.trim().replace(/\/$/, '')
+    developEl.checked = baseUrl ? defaultDevelopModeForBaseUrl(baseUrl) : false
   }
 
   private setScriptKeyBadge(refCount: number): void {
@@ -1385,7 +1407,7 @@ export class MmOptionsApp extends HTMLElement {
           baseUrl: input.baseUrl,
           scriptKey: input.scriptKey,
           enabled: input.enabled,
-          developMode: input.developMode,
+          developMode: this.developModeTouched ? input.developMode : defaultDevelopModeForBaseUrl(input.baseUrl),
           gmScope: input.gmScope,
         })
         showMmNotification(existingScriptKey ? 'Service created (shared script key).' : 'Service created.', 'success')
@@ -1405,6 +1427,7 @@ export class MmOptionsApp extends HTMLElement {
       await saveActiveServiceFromOptions({
         serviceId: this.activeServiceId,
         ...input,
+        developMode: this.developModeTouched ? input.developMode : defaultDevelopModeForBaseUrl(input.baseUrl),
       })
       showMmNotification('Saved.', 'success')
       if (!isValidScriptKeyFormat(input.scriptKey)) {

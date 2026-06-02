@@ -2016,7 +2016,7 @@
   }
 
   .mm-notification {
-    @apply pointer-events-auto flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm leading-snug shadow-mm opacity-0 transition-all duration-300 ease-out;
+    @apply pointer-events-auto flex items-center gap-2.5 rounded-lg border bg-white px-3 py-2.5 text-sm leading-snug text-mm-ink shadow-mm opacity-0 transition-all duration-300 ease-out;
     transform: translateY(-0.35rem);
   }
 
@@ -2026,11 +2026,15 @@
   }
 
   .mm-notification-icon {
-    @apply mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center;
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center;
   }
 
-  .mm-notification-icon svg {
-    @apply h-5 w-5 fill-current;
+  .mm-notification-icon-svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-notification-icon-svg path {
+    fill: currentColor;
   }
 
   .mm-notification-message {
@@ -2038,18 +2042,34 @@
   }
 
   .mm-notification-success {
-    @apply border-mm-success/35 bg-mm-success-soft text-mm-success;
+    @apply border-mm-success/35;
+  }
+
+  .mm-notification-success .mm-notification-icon-svg {
+    @apply text-mm-success;
   }
 
   .mm-notification-error {
-    @apply border-mm-danger/35 bg-mm-danger-soft text-mm-danger;
+    @apply border-mm-danger/35;
+  }
+
+  .mm-notification-error .mm-notification-icon-svg {
+    @apply text-mm-danger;
   }
 
   .mm-notification-info {
-    @apply border-mm-border bg-mm-surface text-mm-secondary;
+    @apply border-mm-accent/35;
+  }
+
+  .mm-notification-info .mm-notification-icon-svg {
+    @apply text-mm-accent;
   }
 
   .mm-notification-warn {
-    @apply border-amber-300/80 bg-amber-50 text-amber-950;
+    @apply border-mm-warn/45;
+  }
+
+  .mm-notification-warn .mm-notification-icon-svg {
+    @apply text-mm-warn;
   }
 }

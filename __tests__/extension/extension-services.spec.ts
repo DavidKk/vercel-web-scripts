@@ -1,5 +1,6 @@
 import {
   countServiceRefs,
+  defaultDevelopModeForBaseUrl,
   defaultGmScopeFromLabel,
   defaultLabelFromBaseUrl,
   ensureUniqueGmScope,
@@ -7,6 +8,7 @@ import {
   formatScriptKeyMasked,
   getEnabledScriptKeys,
   getGmScopeForScriptKey,
+  isLocalMagickMonkeyBase,
   isValidScriptKeyFormat,
   normalizeBaseUrl,
   resolveDevelopService,
@@ -124,6 +126,16 @@ describe('extension-services', () => {
 
     it('should use hostname for remote hosts', () => {
       expect(defaultLabelFromBaseUrl('https://vercel-web-scripts.vercel.app')).toBe('vercel-web-scripts.vercel.app')
+    })
+  })
+
+  describe('defaultDevelopModeForBaseUrl', () => {
+    it('should enable develop mode for local dev hosts only', () => {
+      expect(isLocalMagickMonkeyBase('http://localhost:3000')).toBe(true)
+      expect(isLocalMagickMonkeyBase('http://127.0.0.1:5173')).toBe(true)
+      expect(isLocalMagickMonkeyBase('http://[::1]:3000')).toBe(true)
+      expect(defaultDevelopModeForBaseUrl('http://localhost:3000/')).toBe(true)
+      expect(defaultDevelopModeForBaseUrl('https://webscripts.example.com')).toBe(false)
     })
   })
 
