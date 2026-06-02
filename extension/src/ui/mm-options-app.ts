@@ -48,6 +48,7 @@ export class MmOptionsApp extends HTMLElement {
   /** Set on drag-handle mousedown; cleared on mouseup/dragend. Gates row dragstart. */
   private listDragRowId: string | null = null
   private dropPlaceholderEl: HTMLElement | null = null
+  private scriptKeyRefCount = 0
   private listDragBound = false
   private disposeAdminNavIndicator: (() => void) | undefined
 
@@ -588,15 +589,8 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   private setScriptKeyBadge(refCount: number): void {
-    const desc = this.querySelector('[data-ref="detail-pane-desc"]') as HTMLElement | null
-    if (!desc || this.createMode) {
-      return
-    }
-    if (refCount > 1) {
-      desc.textContent = 'Shared capability layer with other services using this script key.'
-      return
-    }
-    desc.textContent = refCount === 1 ? 'Single endpoint for this script key.' : ''
+    this.scriptKeyRefCount = refCount
+    this.updateScriptKeyHint()
   }
 
   private setDetailMode(mode: DetailMode): void {
@@ -606,7 +600,6 @@ export class MmOptionsApp extends HTMLElement {
     emptyEl?.classList.toggle('hidden', mode !== 'empty')
     formEl?.classList.toggle('hidden', mode === 'empty')
     bodyEl?.classList.toggle('is-empty', mode === 'empty')
-    this.setDetailPaneTitle(mode)
     const canDelete = mode === 'edit' && Boolean(this.activeServiceId)
     const deleteBtn = this.querySelector('[data-action="delete-service"]') as HTMLButtonElement | null
     if (deleteBtn) {
@@ -618,35 +611,6 @@ export class MmOptionsApp extends HTMLElement {
     const testConnBtn = this.querySelector('[data-action="test-connection"]') as HTMLButtonElement | null
     if (testConnBtn) {
       testConnBtn.disabled = mode === 'empty' || this.testAllRunning
-    }
-  }
-
-  private setDetailPaneTitle(mode: DetailMode): void {
-    const titleEl = this.querySelector('[data-ref="detail-pane-title"]') as HTMLElement | null
-    const descEl = this.querySelector('[data-ref="detail-pane-desc"]') as HTMLElement | null
-    if (!titleEl) {
-      return
-    }
-
-    if (mode === 'empty') {
-      titleEl.textContent = 'Service'
-      if (descEl) {
-        descEl.textContent = 'Select a service from the list or add a new connection.'
-      }
-      return
-    }
-
-    if (mode === 'create') {
-      titleEl.textContent = 'New service'
-      if (descEl) {
-        descEl.textContent = 'Draft — save to add this connection.'
-      }
-      return
-    }
-
-    titleEl.textContent = 'Edit service'
-    if (descEl && !descEl.textContent) {
-      descEl.textContent = 'Update connection details and save.'
     }
   }
 
@@ -680,6 +644,10 @@ export class MmOptionsApp extends HTMLElement {
     const hint = this.querySelector('[data-ref="script-key-hint"]') as HTMLElement | null
     const scriptKey = (this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value.trim()
     if (!hint) {
+      return
+    }
+    if (!this.createMode && this.scriptKeyRefCount > 1) {
+      hint.textContent = 'Shared capability layer with other services using this script key.'
       return
     }
     if (!scriptKey) {

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" class="h-full">
-<%- include('../partials/document-head', { title: 'MagickMonkey Servers' }) %>
+<%- include('../partials/document-head', { title: 'MagickMonkey — Servers' }) %>
   <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
     <mm-options-app>
       <div class="mm-admin-page mm-page-fill">
@@ -11,8 +11,8 @@
             <aside class="mm-servers-list-pane" aria-label="Services">
               <div class="mm-servers-pane-head">
                 <div class="mm-servers-pane-head-copy">
-                  <h2 class="mm-servers-pane-title">Services</h2>
-                  <p class="mm-servers-pane-desc">Top row wins OTA for the same script key.</p>
+                  <h2 class="mm-servers-pane-title">Servers</h2>
+                  <p class="mm-servers-pane-desc">Manage MagickMonkey connections. Top row wins OTA for the same script key.</p>
                 </div>
                 <div class="mm-servers-pane-head-actions">
                   <button
@@ -41,16 +41,16 @@
             <div class="mm-servers-detail-pane" data-ref="service-detail">
               <div class="mm-servers-pane-head">
                 <div class="mm-servers-pane-head-copy">
-                  <h2 id="service-title" class="mm-servers-pane-title" data-ref="detail-pane-title">Service</h2>
-                  <p class="mm-servers-pane-desc" data-ref="detail-pane-desc"></p>
+                  <h2 id="service-title" class="mm-servers-pane-title" data-ref="detail-pane-title">Server Editor</h2>
+                  <p class="mm-servers-pane-desc" data-ref="detail-pane-desc">Configure connection details for the selected server.</p>
                 </div>
               </div>
 
               <div class="mm-servers-detail-body is-empty" data-ref="detail-body">
 <%- include('../partials/nodata-empty', {
   dataRef: 'detail-empty',
-  title: 'No service selected',
-  hint: 'Select a service from the list, or use <strong class="font-medium text-mm-secondary">+</strong> to add a connection.',
+  title: 'No server selected',
+  hint: 'Select a server from the list, or use <strong class="font-medium text-mm-secondary">+</strong> to add a connection.',
 }) %>
 
                 <div class="mm-servers-detail-form hidden" data-ref="detail-form">
