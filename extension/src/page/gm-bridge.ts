@@ -3,6 +3,7 @@
  */
 
 import { gmLogger } from '@ext/shared/logger'
+import { LEGACY_AUTO_UPDATE_SCRIPT_KEY, SHELL_NETWORK_ENABLED_KEY } from '@shared/launcher-constants'
 
 import type { GMApi, GMRequestDetails, GMResponse, GMValue } from './gm-types'
 
@@ -17,6 +18,7 @@ const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Err
 const changeListeners = new Map<string, Map<string, (name: string, oldValue: GMValue, newValue: GMValue) => void>>()
 let listenerSeq = 0
 let activeGmScope: string | null = null
+const GM_GLOBAL_KEYS = new Set<string>([SHELL_NETWORK_ENABLED_KEY, LEGACY_AUTO_UPDATE_SCRIPT_KEY])
 
 /**
  * Set GM namespace for the current launcher execution (`{gmScope}_{key}` in storage).
@@ -27,6 +29,9 @@ export function setActiveGmScope(gmScope: string | null): void {
 }
 
 function physicalGmKey(key: string): string {
+  if (GM_GLOBAL_KEYS.has(key)) {
+    return key
+  }
   if (!activeGmScope) {
     return key
   }
@@ -40,13 +45,17 @@ function logicalGmKeys(): string[] {
     return Object.keys(store)
   }
   const prefix = `${activeGmScope}_`
-  const keys: string[] = []
+  const keys = new Set<string>()
   for (const key of Object.keys(store)) {
     if (key.startsWith(prefix)) {
-      keys.push(key.slice(prefix.length))
+      keys.add(key.slice(prefix.length))
+      continue
+    }
+    if (GM_GLOBAL_KEYS.has(key)) {
+      keys.add(key)
     }
   }
-  return keys
+  return [...keys]
 }
 
 function getStore(): Record<string, GMValue> {

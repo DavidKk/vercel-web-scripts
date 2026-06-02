@@ -28,6 +28,7 @@ import {
 import { type ExtensionConfig } from '@ext/types'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
+import { extensionLogger } from '../shared/logger'
 import { initDevExtensionReload } from './dev-extension-reload'
 
 void DEV_BUILD_STAMP
@@ -234,7 +235,10 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           return
         }
         case 'SET_NETWORK': {
+          const previous = await getShellNetworkEnabled()
           await setShellNetworkEnabled(message.enabled)
+          const next = await getShellNetworkEnabled()
+          extensionLogger.debug(`[Shell network] toggle requested=${message.enabled} previous=${previous} next=${next}`)
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }

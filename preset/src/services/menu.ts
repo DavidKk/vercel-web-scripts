@@ -25,8 +25,10 @@ function registerShellNetworkMenuItem(): void {
   const enabled = isShellNetworkEnabled()
   const label = `Shell network: ${enabled ? 'On' : 'Off'}`
   shellNetworkMenuCmdId = GM_registerMenuCommand(label, () => {
-    const next = !isShellNetworkEnabled()
+    const previous = isShellNetworkEnabled()
+    const next = !previous
     setShellNetworkEnabled(next)
+    GME_debug(`[Shell network] toggle previous=${previous} requested=${next} persisted=${isShellNetworkEnabled()}`)
     GME_notification(
       next ? 'Shell network on (preset/rules/remote can load from server)' : 'Shell network off (cached preset & remote only; GIST scripts may still request)',
       next ? 'success' : 'info',
