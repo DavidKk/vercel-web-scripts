@@ -6,7 +6,7 @@
 declare const __EXTENSION_DEV_RELOAD_SSE__: string
 
 import { loadExtensionConfig } from '@ext/shared/extension-storage'
-import { CONFIG_STORAGE_KEY } from '@ext/types'
+import { CONFIG_STORAGE_KEY, SERVICES_STORAGE_KEY } from '@ext/types'
 
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 let eventSource: EventSource | undefined
@@ -56,9 +56,11 @@ export function initDevExtensionReload(): void {
   startDevReloadClient(url)
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local' || !changes[CONFIG_STORAGE_KEY]) {
+    if (area !== 'local') {
       return
     }
-    startDevReloadClient(url)
+    if (changes[SERVICES_STORAGE_KEY] || changes[CONFIG_STORAGE_KEY]) {
+      startDevReloadClient(url)
+    }
   })
 }

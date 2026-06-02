@@ -130,7 +130,13 @@ export class MmPopupApp extends HTMLElement {
 
     const subtitle = this.querySelector('[data-ref="subtitle"]')
     if (subtitle) {
-      subtitle.textContent = s.configured ? s.baseUrl : 'Configure in Options'
+      if (!s.configured) {
+        subtitle.textContent = 'Configure in Servers'
+      } else if (s.activeServiceLabel) {
+        subtitle.textContent = `${s.activeServiceLabel} · ${s.enabledServiceCount} server(s) · ${s.enabledScriptKeyCount} script key(s)`
+      } else {
+        subtitle.textContent = `${s.enabledServiceCount} server(s) · ${s.enabledScriptKeyCount} script key(s)`
+      }
     }
 
     const network = this.querySelector('[data-ref="network"]') as HTMLInputElement | null
@@ -144,7 +150,7 @@ export class MmPopupApp extends HTMLElement {
           ? `${s.triggeredCountOnActiveTab} script trigger(s) on this page load`
           : s.configured
             ? 'No scripts triggered on this page load'
-            : 'Configure in Options to track script triggers'
+            : 'Configure Servers to track script triggers'
     }
     const version = this.querySelector('[data-ref="version"]')
     if (version) {

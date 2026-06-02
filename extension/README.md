@@ -14,10 +14,11 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 | **Badge** — real trigger count; red background if any script failed on this load | ✅     |
 | **Background** — update / reset / network / open editor                          | ✅     |
 | **Scripts page** — enable/disable modules                                        | ✅     |
-| **Options** — `baseUrl`, `scriptKey`, extension auto-reload                      | ✅     |
+| **Servers** — multi-service connections, OTA priority, develop flags             | ✅     |
 | Preset dev mode from Server URL (`localhost` → dev)                              | ✅     |
 | **Sync rules** from server → badge + script list                                 | ✅     |
 | Content bootstrap → OTA preset (interim loader)                                  | ✅     |
+| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅     |
 | Extension-native `module-loader` (replace TM port)                               | 🔜     |
 
 ## Architecture
@@ -27,7 +28,7 @@ extension/dist/
 ├── background.js      # badge, shell commands
 ├── popup.html/js      # compact shell menu
 ├── scripts.html/js    # script enable/disable
-├── options.html/js    # connection config
+├── servers.html/js    # server / connection management
 ├── content-bridge.js  # inject preset when RULE allows
 └── page-launcher.js   # interim OTA bootstrap (to be replaced)
 ```
@@ -58,7 +59,7 @@ Rebuild `dist/` and reload the extension after pulling changes.
 
 ### Dev watch (HTML / Tailwind / manifest / new files)
 
-`pnpm run build:extension:dev` uses [**build watch**](https://vite.dev/guide/build#build-watch). The primary Rollup graph is only `background.ts`; popup/scripts/options/bridge/launcher are built in `closeBundle`. Anything not in that graph is registered with [`addWatchFile`](https://rollupjs.org/plugin/typescript/#plugin-context) on **every** `buildStart` (including a fresh `src/**/*.{ts,tsx,html,css}` scan). Newly created files are detected by a small dev watcher that touches `src/dev-build-stamp.ts`, which wakes the primary Rollup graph and lets the next `buildStart` register the new path.
+`pnpm run build:extension:dev` uses [**build watch**](https://vite.dev/guide/build#build-watch). The primary Rollup graph is only `background.ts`; popup/scripts/servers/bridge/launcher are built in `closeBundle`. Anything not in that graph is registered with [`addWatchFile`](https://rollupjs.org/plugin/typescript/#plugin-context) on **every** `buildStart` (including a fresh `src/**/*.{ts,tsx,html,css}` scan). Newly created files are detected by a small dev watcher that touches `src/dev-build-stamp.ts`, which wakes the primary Rollup graph and lets the next `buildStart` register the new path.
 
 On change, Rollup re-runs and `closeBundle` rebuilds secondary IIFEs, `shell.css`, and copies HTML into `dist/`. Look for:
 
@@ -90,27 +91,45 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 
 1. Download `/downloads/magickmonkey-chrome-extension.zip` from the web app (editor header when extension is not detected), or run `pnpm pack:extension` locally.
 2. Unzip, then Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → select the extracted folder (must contain `manifest.json`).
-3. Refresh the editor page; click the extension button to **Connect** (one-click link Server URL + Script Key).
+3. Refresh the editor page; click the extension button to **Connect** (upserts a Service row for this page’s origin + Script Key — existing Services are kept).
 
 ### Developer (unpacked from repo)
 
 1. `pnpm build:extension`
 2. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `extension/dist`
-3. **Options**: set Server URL + Script Key (or use editor **Connect**)
-   - **Preset develop mode** follows Server URL: `localhost` / `127.0.0.1` → dev (like Tampermonkey dev launcher); any other origin → prod.
-   - **Extension auto-reload** (Options toggle) is separate — only for watch builds of the extension itself.
-4. **Popup** → **Sync rules from server** (imports RULE for badge + script names)
-5. Visit a matching page; preset loads via content script
+3. **Servers** (`servers.html`): manage one or more **Service** rows (label, Server URL, Script Key, enabled, developMode, gmScope)
+   - **List order = OTA priority** for the same scriptKey (top enabled row is the OTA representative).
+   - **Same scriptKey, different baseUrl** → shared Scripts toggles / RULE bucket; separate OTA cache per `(baseUrl|scriptKey)`.
+   - **Editor Connect** upserts `(baseUrl, scriptKey)`; duplicate endpoints update the existing row.
+   - **Preset develop mode** follows Server URL: `localhost` / `127.0.0.1` → dev paths on that host; remote origins → prod.
+   - **Extension watch reload** is per-Service `developMode` (first enabled + developMode row); not a global toggle.
+4. **Popup** → **Sync rules from server** (imports RULE per enabled scriptKey)
+5. Visit a matching page; one launcher per enabled scriptKey loads OTA modules
+
+## Multi-service model
+
+| Concept                        | Behavior                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Service**                    | One connection row: label + baseUrl + scriptKey + enabled (+ developMode)                            |
+| **scriptKey capability layer** | Shared RULE, script list cache, per-file toggles for the same scriptKey                              |
+| **OTA**                        | One fetch per enabled scriptKey; endpoint = first **enabled** row for that scriptKey in Servers list |
+| **GM storage**                 | Physical keys `{gmScope}_{key}`; gmScope is per scriptKey (Servers → gmScope field)                  |
+| **Badge**                      | Sum of `SCRIPT_TRIGGERED` executions on this page load (not RULE match count)                        |
+
+**Upgrade from single config:** on first run, legacy `vws_extension_config` migrates to one default Service; `vws_extension_rules` → `vws_scriptkey_rules:{scriptKey}`; `vws_script_enabled:{file}` → `vws_script_enabled:{scriptKey}:{file}`.
+
+Design notes and task checklist: **[docs/multi-service-tasks.md](./docs/multi-service-tasks.md)**.
 
 ## Popup (same on every tab)
 
-- Open editor · Update runtime · Reload tab · Reset state
+- Subtitle: active Service label + enabled server / scriptKey counts
+- Open editor (active Service, or first enabled) · Update runtime (all enabled scriptKeys) · Reload tab · Reset state (all enabled scriptKeys)
 - Shell network toggle
-- Manage scripts (opens `scripts.html`) · Sync rules
+- Manage scripts (opens `scripts.html`, grouped by scriptKey) · Sync rules (all enabled scriptKeys)
 
 ## Scripts page
 
-Global enable/disable per script name (`vws_script_enabled:*`). Does not edit source — use the web editor.
+Per-script enable/disable scoped by scriptKey (`vws_script_enabled:{scriptKey}:{file}`). Same scriptKey across multiple Services shares one toggle group. Does not edit source — use the web editor.
 
 ## Tampermonkey vs extension
 

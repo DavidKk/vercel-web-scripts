@@ -52,6 +52,10 @@ export class MmScriptsDebugPanel extends HTMLElement {
             <input type="checkbox" data-ref="force-empty" />
             <span>Force empty (no data)</span>
           </label>
+          <label class="mm-debug-panel-row">
+            <input type="checkbox" data-ref="force-inactive-groups" />
+            <span>Mock inactive scriptKey groups</span>
+          </label>
           <button type="button" class="mm-debug-panel-reset" data-ref="reset">Reset overrides</button>
         </div>
         <button type="button" class="mm-debug-panel-trigger" data-ref="trigger" aria-label="Debug panel" aria-expanded="false">
@@ -136,11 +140,17 @@ export class MmScriptsDebugPanel extends HTMLElement {
       }
     })
 
+    this.querySelector('[data-ref="force-inactive-groups"]')?.addEventListener('change', (e) => {
+      const checked = (e.target as HTMLInputElement).checked
+      setScriptsDebugOverrides({ forceInactiveGroups: checked })
+    })
+
     this.querySelector('[data-ref="reset"]')?.addEventListener('click', () => {
       setScriptsDebugOverrides({
         forceLoading: false,
         forceError: null,
         forceEmpty: false,
+        forceInactiveGroups: false,
         errorMessage: DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE,
       })
     })
@@ -158,10 +168,11 @@ export class MmScriptsDebugPanel extends HTMLElement {
   }
 
   private syncControls(): void {
-    const { forceLoading, forceError, forceEmpty, errorMessage } = getScriptsDebugOverrides()
+    const { forceLoading, forceError, forceEmpty, forceInactiveGroups, errorMessage } = getScriptsDebugOverrides()
     const loadingEl = this.querySelector('[data-ref="force-loading"]') as HTMLInputElement | null
     const errorEl = this.querySelector('[data-ref="force-error"]') as HTMLInputElement | null
     const emptyEl = this.querySelector('[data-ref="force-empty"]') as HTMLInputElement | null
+    const inactiveEl = this.querySelector('[data-ref="force-inactive-groups"]') as HTMLInputElement | null
     const messageEl = this.querySelector('[data-ref="error-message"]') as HTMLInputElement | null
     const dot = this.querySelector('[data-ref="dot"]') as HTMLElement | null
 
@@ -173,6 +184,9 @@ export class MmScriptsDebugPanel extends HTMLElement {
     }
     if (emptyEl) {
       emptyEl.checked = forceEmpty
+    }
+    if (inactiveEl) {
+      inactiveEl.checked = forceInactiveGroups
     }
     if (messageEl) {
       messageEl.value = errorMessage

@@ -19,7 +19,7 @@ const EXTENSION_ENTRIES = [
   { name: 'background', input: 'src/shell/background.ts' },
   { name: 'popup', input: 'src/shell/popup/popup.ts' },
   { name: 'scripts', input: 'src/pages/scripts/scripts.ts' },
-  { name: 'options', input: 'src/options/options.ts' },
+  { name: 'servers', input: 'src/servers/servers.ts' },
   { name: 'content-bridge', input: 'src/bridge/content.ts' },
   { name: 'page-launcher', input: 'src/page/index.ts' },
 ] as const
@@ -56,7 +56,7 @@ function copyExtensionAssets(watchMode = false): void {
   manifest = manifest.replace('__VERSION__', version)
   writeFileSync(path.join(distDir, 'manifest.json'), manifest, 'utf-8')
 
-  copyToDist(path.join(__dirname, 'src/options/index.html'), 'options.html')
+  copyToDist(path.join(__dirname, 'src/servers/index.html'), 'servers.html')
   copyToDist(path.join(__dirname, 'src/shell/popup/index.html'), 'popup.html')
   copyToDist(path.join(__dirname, 'src/pages/scripts/index.html'), 'scripts.html')
 
@@ -141,7 +141,7 @@ function extensionCleanPlugin(): Plugin {
  * compile remaining entries in closeBundle (one IIFE per entry, deps inlined).
  * Nested builds use configFile:false so this plugin is not re-entered.
  */
-/** popup, scripts, options, content-bridge, page-launcher + shell.css (watch + closeBundle). */
+/** popup, scripts, servers, content-bridge, page-launcher + shell.css (watch + closeBundle). */
 async function buildSecondaryExtensionEntries(devReloadSseUrl: string, watchMode: boolean): Promise<void> {
   for (let i = 1; i < EXTENSION_ENTRIES.length; i++) {
     await build(createEntryConfig(EXTENSION_ENTRIES[i], false, devReloadSseUrl))

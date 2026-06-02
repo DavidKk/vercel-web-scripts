@@ -26,6 +26,9 @@ const mmPalette = {
   icon: '#7B8CA3',
   danger: '#EF4444',
   'danger-soft': '#FFF1F1',
+  warn: '#F59E0B',
+  'warn-hover': '#D97706',
+  'warn-soft': '#FFFBEB',
   success: '#10B981',
   'success-soft': '#ECFDF5',
 } as const

@@ -1,9 +1,16 @@
+import iconCheck from '~icons/mdi/check?raw'
+import iconCheckAll from '~icons/mdi/check-all?raw'
+import iconClose from '~icons/mdi/close?raw'
 import iconCloudDownload from '~icons/mdi/cloud-download?raw'
 import iconCodeTags from '~icons/mdi/code-tags?raw'
 import iconCog from '~icons/mdi/cog?raw'
 import iconDelete from '~icons/mdi/delete-outline?raw'
+import iconDragVertical from '~icons/mdi/drag-vertical?raw'
+import iconInboxOutline from '~icons/mdi/inbox-outline?raw'
+import iconLanCheck from '~icons/mdi/lan-check?raw'
 import iconLoading from '~icons/mdi/loading?raw'
 import iconPencil from '~icons/mdi/pencil?raw'
+import iconPlus from '~icons/mdi/plus?raw'
 import iconRefresh from '~icons/mdi/refresh?raw'
 import iconReload from '~icons/mdi/reload?raw'
 import iconWeb from '~icons/mdi/web?raw'
@@ -18,6 +25,14 @@ export const mmPopupIcons = {
   editor: iconPencil,
   settings: iconCog,
   network: iconWeb,
+  plus: iconPlus,
+  drag: iconDragVertical,
+  test: iconLanCheck,
+  check: iconCheck,
+  close: iconClose,
+  testAll: iconCheckAll,
+  delete: iconDelete,
+  nodata: iconInboxOutline,
 } as const
 
 /**
@@ -55,6 +70,13 @@ export function hydrateMmIcons(root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('[data-icon]').forEach((el) => {
     hydrateIconSlot(el)
   })
+}
+
+/** Set icon slot to a known MDI key (clears loading spinner). */
+export function setIconSlotKey(el: HTMLElement, key: keyof typeof mmPopupIcons): void {
+  el.setAttribute('data-icon', key)
+  el.classList.remove('mm-icon-spin')
+  hydrateIconSlot(el)
 }
 
 /** Show MDI loading spinner in an icon slot; restores `data-icon` when done. */

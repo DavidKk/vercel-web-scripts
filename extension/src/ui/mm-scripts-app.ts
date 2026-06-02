@@ -1,14 +1,17 @@
 import {
-  loadExtensionConfig,
-  loadManagedScriptListFromCache,
-  loadScriptEnabledMap,
+  loadActiveServiceDetail,
+  loadScriptEnabledMapForScriptKey,
+  loadScriptKeyScriptsGroupsFromCache,
+  parseScriptEnabledStorageKey,
   SCRIPT_ENABLED_PREFIX,
-  SCRIPT_LIST_CACHE_KEY,
+  SCRIPTKEY_LIST_CACHE_PREFIX,
+  type ScriptKeyScriptsGroupView,
   setScriptEnabled,
-  syncManagedScriptListIfNeeded,
+  syncScriptKeyScriptsListIfNeeded,
 } from '@ext/shared/extension-storage'
 import { focusOrOpenTab } from '@ext/shared/focus-or-open-tab'
 import { sendShellMessage } from '@ext/shared/messages'
+import { SERVICES_STORAGE_KEY } from '@ext/types'
 
 import { createMmSwitch } from './mm-switch'
 import { getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
@@ -16,19 +19,25 @@ import { getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug
 const STATUS_BASE = 'mm-scripts-status text-xs'
 
 type ScriptRow = {
+  scriptKey: string
   file: string
   label: string
   enabled: boolean
+  groupActive: boolean
+}
+
+type ScriptKeyGroupView = ScriptKeyScriptsGroupView & {
+  rows: ScriptRow[]
 }
 
 /**
- * Scripts page — full-height plain scroll list.
+ * Scripts page — scriptKey-grouped scroll list.
  */
 export class MmScriptsApp extends HTMLElement {
   private bound = false
   private storageListener: ((changes: Record<string, chrome.storage.StorageChange>, area: string) => void) | undefined
-  private enabledByName = new Map<string, boolean>()
-  private rows: ScriptRow[] = []
+  private enabledByKey = new Map<string, boolean>()
+  private groups: ScriptKeyGroupView[] = []
   private unsubscribeDebug: (() => void) | undefined
   private scrollResizeObserver: ResizeObserver | undefined
   private reloadToken = 0
@@ -59,18 +68,27 @@ export class MmScriptsApp extends HTMLElement {
       const onlyEnabledToggles = keys.every((k) => k.startsWith(SCRIPT_ENABLED_PREFIX))
       if (onlyEnabledToggles) {
         for (const key of keys) {
-          const file = key.slice(SCRIPT_ENABLED_PREFIX.length)
-          const row = this.rows.find((r) => r.file === file)
+          const parsed = parseScriptEnabledStorageKey(key)
+          if (!parsed) {
+            continue
+          }
           const enabled = changes[key].newValue !== false
-          this.enabledByName.set(file, enabled)
-          if (row) {
-            row.enabled = enabled
+          const mapKey = parsed.scriptKey ? `${parsed.scriptKey}:${parsed.file}` : parsed.file
+          this.enabledByKey.set(mapKey, enabled)
+          for (const group of this.groups) {
+            if (parsed.scriptKey && group.scriptKey !== parsed.scriptKey) {
+              continue
+            }
+            const row = group.rows.find((r) => r.file === parsed.file)
+            if (row) {
+              row.enabled = enabled
+            }
           }
         }
         this.applyFilters()
         return
       }
-      if (keys.includes(SCRIPT_LIST_CACHE_KEY)) {
+      if (keys.some((k) => k.startsWith(SCRIPTKEY_LIST_CACHE_PREFIX) || k === SERVICES_STORAGE_KEY)) {
         void this.reloadList({ showShell: true })
       }
     }
@@ -87,9 +105,16 @@ export class MmScriptsApp extends HTMLElement {
     this.scrollResizeObserver?.disconnect()
   }
 
+  private enabledMapKey(scriptKey: string, file: string): string {
+    return `${scriptKey}:${file}`
+  }
+
   private renderRow(item: ScriptRow, index: number): HTMLElement {
     const row = document.createElement('div')
     row.className = 'mm-script-row'
+    if (!item.groupActive) {
+      row.classList.add('mm-script-row--inactive')
+    }
 
     const indexEl = document.createElement('span')
     indexEl.className = 'mm-script-index'
@@ -103,31 +128,95 @@ export class MmScriptsApp extends HTMLElement {
     fileEl.className = 'mm-script-file'
     fileEl.textContent = item.file
 
-    const { root: switchRoot, input } = createMmSwitch({ checked: item.enabled })
+    const { root: switchRoot, input } = createMmSwitch({ checked: item.enabled, disabled: !item.groupActive })
     row.append(indexEl, nameEl, fileEl, switchRoot)
 
-    const applyToggle = (): void => {
-      void (async () => {
-        const enabled = input.checked
-        await setScriptEnabled(item.file, enabled)
-        this.enabledByName.set(item.file, enabled)
-        item.enabled = enabled
-        this.applyFilters()
-        this.setStatus(enabled ? `Enabled ${item.file}` : `Disabled ${item.file}`, 'ok')
-      })()
+    if (item.groupActive) {
+      const applyToggle = (): void => {
+        void (async () => {
+          const enabled = input.checked
+          await setScriptEnabled(item.scriptKey, item.file, enabled)
+          this.enabledByKey.set(this.enabledMapKey(item.scriptKey, item.file), enabled)
+          item.enabled = enabled
+          this.applyFilters()
+          this.setStatus(enabled ? `Enabled ${item.file}` : `Disabled ${item.file}`, 'ok')
+        })()
+      }
+
+      input.addEventListener('change', applyToggle)
+      switchRoot.addEventListener('click', (event) => {
+        event.stopPropagation()
+      })
+
+      row.addEventListener('click', () => {
+        input.checked = !input.checked
+        applyToggle()
+      })
     }
 
-    input.addEventListener('change', applyToggle)
-    switchRoot.addEventListener('click', (event) => {
-      event.stopPropagation()
-    })
-
-    row.addEventListener('click', () => {
-      input.checked = !input.checked
-      applyToggle()
-    })
-
     return row
+  }
+
+  private renderGroup(group: ScriptKeyGroupView, rows: ScriptRow[], startIndex: number): HTMLElement {
+    const debug = getScriptsDebugOverrides()
+    const inactive = !group.active || debug.forceInactiveGroups
+
+    const section = document.createElement('section')
+    section.className = 'mm-scripts-group'
+    if (inactive) {
+      section.classList.add('mm-scripts-group--inactive')
+    }
+    section.dataset.scriptKey = group.scriptKey
+
+    const head = document.createElement('div')
+    head.className = 'mm-scripts-group-head'
+
+    const titleWrap = document.createElement('div')
+    titleWrap.className = 'mm-scripts-group-title'
+
+    const keyEl = document.createElement('span')
+    keyEl.className = 'mm-scripts-group-key'
+    keyEl.textContent = group.scriptKey
+    keyEl.title = group.scriptKey
+
+    const labelsEl = document.createElement('span')
+    labelsEl.className = 'mm-scripts-group-labels'
+    labelsEl.textContent = group.serviceLabels.join(' · ')
+
+    titleWrap.append(keyEl, labelsEl)
+
+    const headActions = document.createElement('div')
+    headActions.className = 'mm-scripts-group-actions'
+
+    if (group.editorBaseUrl && group.active && !debug.forceInactiveGroups) {
+      const editorBtn = document.createElement('button')
+      editorBtn.type = 'button'
+      editorBtn.className = 'mm-scripts-group-editor'
+      editorBtn.textContent = 'Editor'
+      editorBtn.addEventListener('click', (event) => {
+        event.stopPropagation()
+        void focusOrOpenTab(`${group.editorBaseUrl.replace(/\/$/, '')}/editor`)
+      })
+      headActions.appendChild(editorBtn)
+    }
+
+    if (inactive) {
+      const badge = document.createElement('span')
+      badge.className = 'mm-scripts-group-badge'
+      badge.textContent = 'No enabled server'
+      headActions.appendChild(badge)
+    }
+
+    head.append(titleWrap, headActions)
+
+    const body = document.createElement('div')
+    body.className = 'mm-scripts-group-rows'
+    rows.forEach((row, offset) => {
+      body.appendChild(this.renderRow(row, startIndex + offset))
+    })
+
+    section.append(head, body)
+    return section
   }
 
   private bindEvents(): void {
@@ -142,9 +231,10 @@ export class MmScriptsApp extends HTMLElement {
     })
     this.querySelector('[data-action="editor"]')?.addEventListener('click', () => {
       void (async () => {
-        const config = await loadExtensionConfig()
-        if (config.baseUrl) {
-          await focusOrOpenTab(`${config.baseUrl.replace(/\/$/, '')}/editor`)
+        const { service } = await loadActiveServiceDetail()
+        const baseUrl = service?.baseUrl
+        if (baseUrl) {
+          await focusOrOpenTab(`${baseUrl.replace(/\/$/, '')}/editor`)
         }
       })()
     })
@@ -213,11 +303,11 @@ export class MmScriptsApp extends HTMLElement {
   private presentError(message: string): void {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
-    this.rows = []
+    this.groups = []
     this.setLoading(false)
     emptyEl?.classList.add('hidden')
     this.setListVisible(false)
-    this.renderRows([])
+    this.renderGroups([])
     if (errorEl) {
       errorEl.textContent = message
       errorEl.classList.remove('hidden')
@@ -227,11 +317,11 @@ export class MmScriptsApp extends HTMLElement {
   private presentEmpty(html: string): void {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
-    this.rows = []
+    this.groups = []
     this.setLoading(false)
     errorEl?.classList.add('hidden')
     this.setListVisible(false)
-    this.renderRows([])
+    this.renderGroups([])
     if (emptyEl) {
       emptyEl.innerHTML = html
       emptyEl.classList.remove('hidden')
@@ -264,7 +354,6 @@ export class MmScriptsApp extends HTMLElement {
       return
     }
 
-    const config = await loadExtensionConfig()
     if (token !== this.reloadToken) {
       return
     }
@@ -274,73 +363,91 @@ export class MmScriptsApp extends HTMLElement {
       return
     }
 
-    if (debug.forceEmpty) {
-      const hint =
-        config.baseUrl && config.scriptKey
-          ? 'No script files on the server. Add <code class="font-mono text-[11px]">.js</code> / <code class="font-mono text-[11px]">.ts</code> files in the editor (rules JSON is not listed here).'
-          : 'Configure <strong class="font-medium text-mm-secondary">Options</strong> (server URL and script key), then reload this page.'
-      this.presentEmpty(hint)
-      return
-    }
-
-    const cachedScripts = await loadManagedScriptListFromCache(config)
+    const cachedGroups = await loadScriptKeyScriptsGroupsFromCache()
     if (token !== this.reloadToken) {
       return
     }
 
-    if (cachedScripts.length > 0) {
-      const enabledByName = await loadScriptEnabledMap(cachedScripts.map((s) => s.file))
-      if (token !== this.reloadToken) {
-        return
-      }
-      await this.applyScriptRows(cachedScripts, emptyEl, enabledByName)
+    if (debug.forceEmpty) {
+      const hasServices = cachedGroups.length > 0
+      const hint = hasServices
+        ? 'No script files on the server. Add <code class="font-mono text-[11px]">.js</code> / <code class="font-mono text-[11px]">.ts</code> files in the editor (rules JSON is not listed here).'
+        : 'Configure <strong class="font-medium text-mm-secondary">Servers</strong> (server URL and script key), then reload this page.'
+      this.presentEmpty(hint)
+      return
+    }
+
+    const hasAnyScripts = cachedGroups.some((g) => g.scripts.length > 0)
+    if (cachedGroups.length > 0 && hasAnyScripts) {
+      await this.applyScriptGroups(cachedGroups, emptyEl)
       this.setLoading(false)
     } else if (options?.showShell) {
       this.showLoadingShell()
     }
 
-    const fresh = await syncManagedScriptListIfNeeded(config)
-    if (token !== this.reloadToken) {
-      return
-    }
-
-    if (fresh && fresh.length > 0) {
-      const enabledByName = await loadScriptEnabledMap(fresh.map((s) => s.file))
+    for (const group of cachedGroups) {
+      if (!group.active) {
+        continue
+      }
+      const fresh = await syncScriptKeyScriptsListIfNeeded(group.scriptKey)
       if (token !== this.reloadToken) {
         return
       }
-      await this.applyScriptRows(fresh, emptyEl, enabledByName)
-      this.setLoading(false)
+      if (fresh && fresh.length > 0) {
+        const nextGroups = cachedGroups.map((g) => (g.scriptKey === group.scriptKey ? { ...g, scripts: fresh } : g))
+        await this.applyScriptGroups(nextGroups, emptyEl)
+        this.setLoading(false)
+      }
+    }
+
+    if (cachedGroups.length === 0) {
+      this.presentEmpty('Configure <strong class="font-medium text-mm-secondary">Servers</strong> (server URL and script key), then reload this page.')
       return
     }
 
-    if (cachedScripts.length === 0) {
-      const hint =
-        config.baseUrl && config.scriptKey
-          ? 'No script files on the server. Add <code class="font-mono text-[11px]">.js</code> / <code class="font-mono text-[11px]">.ts</code> files in the editor (rules JSON is not listed here).'
-          : 'Configure <strong class="font-medium text-mm-secondary">Options</strong> (server URL and script key), then reload this page.'
-      this.presentEmpty(hint)
+    if (!hasAnyScripts) {
+      this.presentEmpty(
+        'No script files on the server. Add <code class="font-mono text-[11px]">.js</code> / <code class="font-mono text-[11px]">.ts</code> files in the editor (rules JSON is not listed here).'
+      )
     }
   }
 
-  private async applyScriptRows(scripts: { file: string; name: string }[], emptyEl: HTMLElement, enabledByName: Map<string, boolean>): Promise<void> {
-    if (scripts.length === 0) {
-      this.rows = []
+  private async applyScriptGroups(groups: ScriptKeyScriptsGroupView[], emptyEl: HTMLElement): Promise<void> {
+    const debug = getScriptsDebugOverrides()
+    const totalScripts = groups.reduce((sum, g) => sum + g.scripts.length, 0)
+    if (totalScripts === 0) {
+      this.groups = []
       this.setListVisible(false)
-      this.renderRows([])
+      this.renderGroups([])
       return
     }
 
     emptyEl.classList.add('hidden')
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
     errorEl?.classList.add('hidden')
-    this.enabledByName = enabledByName
-    const rows: ScriptRow[] = scripts.map((s) => ({
-      file: s.file,
-      label: s.name,
-      enabled: this.enabledByName.get(s.file) !== false,
-    }))
-    this.rows = rows
+
+    const nextGroups: ScriptKeyGroupView[] = []
+    for (const group of groups) {
+      const groupActive = group.active && !debug.forceInactiveGroups
+      const enabledByName = await loadScriptEnabledMapForScriptKey(
+        group.scriptKey,
+        group.scripts.map((s) => s.file)
+      )
+      const rows: ScriptRow[] = group.scripts.map((s) => {
+        const enabled = enabledByName.get(s.file) !== false
+        this.enabledByKey.set(this.enabledMapKey(group.scriptKey, s.file), enabled)
+        return {
+          scriptKey: group.scriptKey,
+          file: s.file,
+          label: s.name,
+          enabled,
+          groupActive,
+        }
+      })
+      nextGroups.push({ ...group, rows })
+    }
+
+    this.groups = nextGroups
     this.setListVisible(true)
     this.applyFilters()
   }
@@ -348,44 +455,58 @@ export class MmScriptsApp extends HTMLElement {
   private applyFilters(): void {
     const search = ((this.querySelector('[data-ref="search"]') as HTMLInputElement | null)?.value ?? '').trim().toLowerCase()
     const filter = ((this.querySelector('[data-ref="filter"]') as HTMLSelectElement | null)?.value ?? 'all') as 'all' | 'enabled' | 'disabled'
-    const rows = this.rows.filter((row) => {
-      if (search && !row.file.toLowerCase().includes(search) && !row.label.toLowerCase().includes(search)) {
-        return false
+
+    const filteredGroups: Array<{ group: ScriptKeyGroupView; rows: ScriptRow[] }> = []
+    let totalRows = 0
+    let visibleRows = 0
+
+    for (const group of this.groups) {
+      totalRows += group.rows.length
+      const rows = group.rows.filter((row) => {
+        if (search && !row.file.toLowerCase().includes(search) && !row.label.toLowerCase().includes(search)) {
+          return false
+        }
+        if (filter === 'enabled') {
+          return row.enabled
+        }
+        if (filter === 'disabled') {
+          return !row.enabled
+        }
+        return true
+      })
+      visibleRows += rows.length
+      if (rows.length > 0) {
+        filteredGroups.push({ group, rows })
       }
-      if (filter === 'enabled') {
-        return row.enabled
-      }
-      if (filter === 'disabled') {
-        return !row.enabled
-      }
-      return true
-    })
+    }
 
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
-    if (rows.length === 0 && this.rows.length > 0 && emptyEl) {
+    if (visibleRows === 0 && totalRows > 0 && emptyEl) {
       errorEl?.classList.add('hidden')
       emptyEl.classList.remove('hidden')
       emptyEl.textContent = 'No scripts match the current filter.'
       this.setListVisible(false)
-    } else if (this.rows.length > 0 && emptyEl) {
+    } else if (totalRows > 0 && emptyEl) {
       emptyEl.classList.add('hidden')
       errorEl?.classList.add('hidden')
       this.setListVisible(true)
     }
 
-    this.renderRows(rows)
+    this.renderGroups(filteredGroups)
   }
 
-  private renderRows(rows: ScriptRow[]): void {
+  private renderGroups(filtered: Array<{ group: ScriptKeyGroupView; rows: ScriptRow[] }>): void {
     const content = this.querySelector('[data-ref="content"]') as HTMLElement | null
     if (!content) {
       return
     }
     const fragment = document.createDocumentFragment()
-    rows.forEach((row, index) => {
-      fragment.appendChild(this.renderRow(row, index))
-    })
+    let index = 0
+    for (const { group, rows } of filtered) {
+      fragment.appendChild(this.renderGroup(group, rows, index))
+      index += rows.length
+    }
     content.replaceChildren(fragment)
     this.updateScrollIndicator()
   }
