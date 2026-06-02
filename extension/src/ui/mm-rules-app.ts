@@ -2,6 +2,7 @@ import { buildQuickRuleScriptSelectOptions } from '@ext/shared/extension-storage
 import { sendShellMessage } from '@ext/shared/messages'
 
 import { buildAdminHash, parseAdminHash } from './mm-admin-hash'
+import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
 import { hydrateMmIcons } from './mm-icons'
 import { type RulesHashRoute } from './mm-rules-hash'
 import { MmToast } from './mm-toast'
@@ -37,6 +38,7 @@ export class MmRulesApp extends HTMLElement {
   private lastRulesList: LocalRuleRow[] = []
   private scriptSelectOptions: SearchSelectOption[] = []
   private suppressHashRoute = false
+  private unsubscribeAdminView: (() => void) | undefined
   private readonly toast = new MmToast(document)
   private readonly onHashChange = (): void => {
     if (this.suppressHashRoute) {
@@ -49,11 +51,15 @@ export class MmRulesApp extends HTMLElement {
     initMmTooltipDelegation(this)
     hydrateMmIcons(this)
     this.bindEvents()
-    void this.reload()
+    this.unsubscribeAdminView = subscribeAdminViewActivated('rules', () => {
+      void this.reload()
+    })
   }
 
   disconnectedCallback(): void {
     window.removeEventListener('hashchange', this.onHashChange)
+    this.unsubscribeAdminView?.()
+    this.unsubscribeAdminView = undefined
   }
 
   private bindEvents(): void {

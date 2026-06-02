@@ -11,6 +11,7 @@ import {
 import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
 
+import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
 import type { MmSearchSelect } from './mm-form-components/mm-search-select'
 import { hydrateMmIcons } from './mm-icons'
 import { buildRulesPageScriptUrl } from './mm-rules-hash'
@@ -44,6 +45,7 @@ export class MmScriptsApp extends HTMLElement {
   private unsubscribeDebug: (() => void) | undefined
   private scrollResizeObserver: ResizeObserver | undefined
   private reloadToken = 0
+  private unsubscribeAdminView: (() => void) | undefined
   private readonly handleListScroll = (): void => this.updateScrollIndicator()
   private readonly toast = new MmToast(document)
 
@@ -57,7 +59,9 @@ export class MmScriptsApp extends HTMLElement {
     this.bindEvents()
     this.syncServiceFilterOptions()
     this.bindScrollIndicator()
-    void this.reloadList()
+    this.unsubscribeAdminView = subscribeAdminViewActivated('scripts', () => {
+      void this.reloadList({ showShell: true })
+    })
 
     this.unsubscribeDebug = subscribeScriptsDebug(() => {
       void this.reloadList({ showShell: true })
@@ -106,6 +110,8 @@ export class MmScriptsApp extends HTMLElement {
       chrome.storage.onChanged.removeListener(this.storageListener)
     }
     this.unsubscribeDebug?.()
+    this.unsubscribeAdminView?.()
+    this.unsubscribeAdminView = undefined
     const scroller = this.querySelector('[data-ref="scroller"]') as HTMLElement | null
     scroller?.removeEventListener('scroll', this.handleListScroll)
     this.scrollResizeObserver?.disconnect()

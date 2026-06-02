@@ -18,6 +18,7 @@ import {
 } from '@ext/shared/extension-storage'
 import { DEFAULT_CONFIG, type ScriptKeyMeta, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
 
+import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
 import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from './mm-icons'
 import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
 
@@ -74,6 +75,7 @@ export class MmOptionsApp extends HTMLElement {
   private labelTouched = false
   private listDragBound = false
   private detailFormBaseline: DetailFormBaseline | null = null
+  private unsubscribeAdminView: (() => void) | undefined
 
   connectedCallback(): void {
     if (this.bound) {
@@ -83,7 +85,9 @@ export class MmOptionsApp extends HTMLElement {
     hydrateMmIcons(this)
     initMmTooltipDelegation(this)
     this.bindEvents()
-    void this.reload()
+    this.unsubscribeAdminView = subscribeAdminViewActivated('servers', () => {
+      void this.reload()
+    })
 
     this.storageListener = (changes, area) => {
       if (area === 'local' && changes[SERVICES_STORAGE_KEY]) {
@@ -107,6 +111,8 @@ export class MmOptionsApp extends HTMLElement {
       chrome.storage.onChanged.removeListener(this.storageListener)
       this.storageListener = undefined
     }
+    this.unsubscribeAdminView?.()
+    this.unsubscribeAdminView = undefined
   }
 
   private bindEvents(): void {
