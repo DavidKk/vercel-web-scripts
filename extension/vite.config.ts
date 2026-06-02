@@ -6,6 +6,7 @@ import Icons from 'unplugin-icons/vite'
 import { build, defineConfig, type InlineConfig, type Plugin, type UserConfig } from 'vite'
 
 import pkg from '../package.json'
+import { compileExtensionHtml, listExtensionHtmlSources } from './scripts/compile-extension-html.mjs'
 import { createScriptLogger } from './scripts/logger.mjs'
 import { buildShellCss } from './vite-plugins/build-shell-css'
 import { ensureDevReloadSseServer } from './vite-plugins/dev-reload-sse'
@@ -19,6 +20,7 @@ const EXTENSION_ENTRIES = [
   { name: 'background', input: 'src/shell/background.ts' },
   { name: 'popup', input: 'src/shell/popup/popup.ts' },
   { name: 'scripts', input: 'src/pages/scripts/scripts.ts' },
+  { name: 'rules', input: 'src/pages/rules/rules.ts' },
   { name: 'servers', input: 'src/servers/servers.ts' },
   { name: 'content-bridge', input: 'src/bridge/content.ts' },
   { name: 'page-launcher', input: 'src/page/index.ts' },
@@ -37,15 +39,6 @@ const sharedCss: UserConfig['css'] = {
 
 const extensionIconsPlugin = Icons({ compiler: 'raw', autoInstall: true })
 
-function copyToDist(from: string, to: string): void {
-  const target = path.join(distDir, to)
-  if (!existsSync(from)) {
-    rmSync(target, { force: true })
-    return
-  }
-  cpSync(from, target)
-}
-
 function copyExtensionAssets(watchMode = false): void {
   if (!existsSync(distDir)) {
     mkdirSync(distDir, { recursive: true })
@@ -56,9 +49,7 @@ function copyExtensionAssets(watchMode = false): void {
   manifest = manifest.replace('__VERSION__', version)
   writeFileSync(path.join(distDir, 'manifest.json'), manifest, 'utf-8')
 
-  copyToDist(path.join(__dirname, 'src/servers/index.html'), 'servers.html')
-  copyToDist(path.join(__dirname, 'src/shell/popup/index.html'), 'popup.html')
-  copyToDist(path.join(__dirname, 'src/pages/scripts/index.html'), 'scripts.html')
+  compileExtensionHtml(__dirname, distDir)
 
   const iconsDir = path.join(__dirname, 'icons')
   const distIconsDir = path.join(distDir, 'icons')
@@ -70,7 +61,7 @@ function copyExtensionAssets(watchMode = false): void {
   }
 
   if (watchMode) {
-    extensionLog.info('copied HTML, manifest, icons → dist/')
+    extensionLog.info('compiled HTML, manifest, icons → dist/')
   }
 }
 
@@ -124,6 +115,19 @@ const primaryIifeOutput = {
   entryFileNames: `${EXTENSION_ENTRIES[0].name}.js`,
   format: 'iife' as const,
   inlineDynamicImports: true,
+}
+
+/** Explicit watch list for EJS pages/partials (include graph is invisible to Rollup). */
+function extensionHtmlWatchPlugin(): Plugin {
+  return {
+    name: 'extension-html-watch',
+    apply: 'build',
+    buildStart() {
+      for (const rel of listExtensionHtmlSources(__dirname)) {
+        this.addWatchFile(path.join(__dirname, rel))
+      }
+    },
+  }
 }
 
 /** Remove stale chunk output from older multi-input builds. */
@@ -215,7 +219,7 @@ export default defineConfig((): UserConfig => {
   return {
     root: __dirname,
     define: extensionDefine(devReloadSseUrl),
-    plugins: [extensionCleanPlugin(), extensionMultiEntryPlugin(devReload), extensionIconsPlugin],
+    plugins: [extensionCleanPlugin(), extensionHtmlWatchPlugin(), extensionMultiEntryPlugin(devReload), extensionIconsPlugin],
     build: {
       outDir: 'dist',
       /** Watch: never empty dist mid-pipeline (closeBundle still writing popup/scripts/…). */

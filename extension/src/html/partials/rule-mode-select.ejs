@@ -1,0 +1,23 @@
+<%
+  const ref = typeof dataRef !== 'undefined' ? dataRef : 'mode';
+  const isField = typeof variant !== 'undefined' && variant === 'field';
+%>
+<% if (isField) { %>
+                        <mm-field class="mm-options-field">
+                          <label<% if (typeof id !== 'undefined' && id) { %> for="<%= id %>"<% } %> class="mm-label"><%= label || 'Rule mode' %></label>
+<% } %>
+                          <mm-select<% if (typeof id !== 'undefined' && id) { %> id="<%= id %>"<% } %>>
+                            <input type="hidden" data-ref="<%= ref %>" value="include" />
+                            <button type="button" class="mm-select-trigger" data-ref="select-trigger" aria-haspopup="listbox" aria-expanded="false">
+                              <span class="mm-select-value" data-ref="select-value">Include</span>
+                              <%- include('mm-select-chevron') %>
+                            </button>
+                            <div class="mm-select-menu" role="listbox">
+                              <button type="button" class="mm-select-option" data-value="include" aria-selected="true">Include</button>
+                              <button type="button" class="mm-select-option" data-value="exclude" aria-selected="false">Exclude</button>
+                            </div>
+                          </mm-select>
+<% if (isField && typeof hint !== 'undefined' && hint) { %>
+                          <p class="mm-hint"><%= hint %></p>
+                        </mm-field>
+<% } %>

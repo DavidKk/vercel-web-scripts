@@ -1,33 +1,41 @@
+import iconAsterisk from '~icons/mdi/asterisk?raw'
 import iconCheck from '~icons/mdi/check?raw'
 import iconCheckAll from '~icons/mdi/check-all?raw'
 import iconClose from '~icons/mdi/close?raw'
-import iconCloudDownload from '~icons/mdi/cloud-download?raw'
+import iconCloudDownloadOutline from '~icons/mdi/cloud-download-outline?raw'
 import iconCodeTags from '~icons/mdi/code-tags?raw'
 import iconCog from '~icons/mdi/cog?raw'
+import iconCpu64Bit from '~icons/mdi/cpu-64-bit?raw'
 import iconDelete from '~icons/mdi/delete-outline?raw'
 import iconDragVertical from '~icons/mdi/drag-vertical?raw'
 import iconInboxOutline from '~icons/mdi/inbox-outline?raw'
 import iconLanCheck from '~icons/mdi/lan-check?raw'
+import iconLightningBoltOutline from '~icons/mdi/lightning-bolt-outline?raw'
 import iconLoading from '~icons/mdi/loading?raw'
+import iconMinus from '~icons/mdi/minus?raw'
 import iconPencil from '~icons/mdi/pencil?raw'
 import iconPlus from '~icons/mdi/plus?raw'
 import iconPower from '~icons/mdi/power?raw'
 import iconPowerOff from '~icons/mdi/power-off?raw'
-import iconRefresh from '~icons/mdi/refresh?raw'
 import iconReload from '~icons/mdi/reload?raw'
+import iconShieldOutline from '~icons/mdi/shield-outline?raw'
 import iconWeb from '~icons/mdi/web?raw'
 
 /** Popup menu icons (MDI via unplugin-icons). */
 export const mmPopupIcons = {
-  refresh: iconRefresh,
+  refresh: iconCpu64Bit,
   reload: iconReload,
   reset: iconDelete,
   scripts: iconCodeTags,
-  sync: iconCloudDownload,
+  sync: iconCloudDownloadOutline,
   editor: iconPencil,
   settings: iconCog,
+  rulesManage: iconShieldOutline,
   network: iconWeb,
+  quickRules: iconLightningBoltOutline,
   plus: iconPlus,
+  minus: iconMinus,
+  wildcard: iconAsterisk,
   drag: iconDragVertical,
   test: iconLanCheck,
   check: iconCheck,
@@ -39,19 +47,11 @@ export const mmPopupIcons = {
   nodata: iconInboxOutline,
 } as const
 
-/**
- * Inject Tailwind classes into a raw SVG string from unplugin-icons.
- * @param raw - Raw SVG markup
- * @param className - CSS classes for the svg element
- */
+/** Inject Tailwind classes into a raw SVG string from unplugin-icons. */
 export function mmIcon(raw: string, className = 'mm-row-icon'): string {
   return raw.replace('<svg', `<svg class="${className}" aria-hidden="true"`)
 }
 
-/**
- * Fill `[data-icon]` placeholders with MDI SVG (class from the element).
- * @param root - Container to search within
- */
 function iconClassForSlot(el: HTMLElement): string {
   if (!el.classList.contains('mm-icon-slot')) {
     el.classList.add('mm-icon-slot')

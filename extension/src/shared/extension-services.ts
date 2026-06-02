@@ -209,6 +209,37 @@ export function isValidScriptKeyFormat(scriptKey: string): boolean {
 }
 
 /**
+ * Compact scriptKey for UI labels (Git-style short hash).
+ * @param scriptKey Raw script key
+ * @returns Short display form when key is long
+ */
+export function formatScriptKeyShort(scriptKey: string): string {
+  const trimmed = normalizeScriptKey(scriptKey)
+  if (!trimmed) {
+    return '—'
+  }
+  if (trimmed.length <= 12) {
+    return trimmed
+  }
+  return `${trimmed.slice(0, 8)}…`
+}
+
+/**
+ * Label for script picker entries (local rules / quick add).
+ * @param scriptDisplayName Script name or file
+ * @param scriptKey Script key scope
+ * @param showScriptKeySuffix Whether multiple enabled script keys exist
+ * @returns Display label without service origin
+ */
+export function formatScriptSelectLabel(scriptDisplayName: string, scriptKey: string, showScriptKeySuffix: boolean): string {
+  const name = scriptDisplayName.trim() || scriptKey
+  if (!showScriptKeySuffix) {
+    return name
+  }
+  return `${name} (${formatScriptKeyShort(scriptKey)})`
+}
+
+/**
  * Create a new service id.
  * @returns Unique service id string
  */

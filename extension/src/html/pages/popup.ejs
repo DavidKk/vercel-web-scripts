@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<%- include('../partials/document-head', { title: 'MagickMonkey' }) %>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <mm-popup-app>
+      <div class="mm-shell w-[300px] overflow-hidden" data-ref="popup-shell">
+        <div data-ref="main-view">
+          <header class="flex items-center gap-3 border-b border-mm-border-light bg-mm-surface px-3 py-3 shadow-mm-sm">
+            <img src="./icons/icon32.png" width="32" height="32" alt="" class="h-8 w-8 shrink-0 rounded-lg shadow-mm-sm ring-1 ring-mm-border-light" />
+            <div class="min-w-0 flex-1">
+              <div class="font-semibold leading-tight tracking-tight text-mm-ink">MagickMonkey</div>
+              <div class="truncate text-xs text-mm-text-muted" data-ref="subtitle">Not configured</div>
+            </div>
+            <button type="button" data-action="options" title="Servers" class="mm-icon-btn">
+              <span data-icon="settings" class="mm-icon-slot"></span>
+            </button>
+          </header>
+
+          <div class="space-y-2.5 p-3">
+            <div class="mm-card divide-y divide-mm-border-light">
+              <button type="button" data-action="update" class="mm-row-btn">
+                <span data-icon="refresh"></span>
+                <span>Update runtime</span>
+              </button>
+              <button type="button" data-action="sync-rules" class="mm-row-btn">
+                <span data-icon="sync"></span>
+                <span>Sync rules from server</span>
+              </button>
+              <div class="h-px bg-mm-canvas" aria-hidden="true"></div>
+              <button type="button" data-action="reset" class="mm-row-btn-danger">
+                <span data-icon="reset" class="mm-icon-slot mm-row-icon-danger"></span>
+                <span>Reset runtime state</span>
+              </button>
+            </div>
+
+            <div class="mm-card">
+              <label class="mm-switch-row">
+                <span class="flex min-w-0 items-center gap-2.5">
+                  <span data-icon="network"></span>
+                  <span class="text-[13px] text-mm-secondary">Shell network</span>
+                </span>
+                <span class="mm-switch">
+                  <input type="checkbox" data-ref="network" class="mm-switch-input" role="switch" />
+                  <span class="mm-switch-track" aria-hidden="true"></span>
+                  <span class="mm-switch-thumb" aria-hidden="true"></span>
+                </span>
+              </label>
+            </div>
+
+            <div class="mm-card divide-y divide-mm-border-light">
+              <button type="button" data-action="scripts" class="mm-row-btn">
+                <span data-icon="scripts"></span>
+                <span>Manage scripts</span>
+              </button>
+              <button type="button" data-action="rules-page" class="mm-row-btn">
+                <span data-icon="rulesManage"></span>
+                <span>Manage local rules</span>
+              </button>
+              <div class="h-px bg-mm-canvas" aria-hidden="true"></div>
+              <button type="button" data-action="rules" class="mm-row-btn">
+                <span data-icon="quickRules"></span>
+                <span>Quick add local rule</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div data-ref="rules-view" class="hidden flex h-full min-h-0 flex-col bg-white">
+          <header class="flex items-center gap-2 border-b border-mm-border-light bg-mm-surface px-2 py-2 shadow-mm-sm">
+            <button type="button" data-action="rules-back" class="mm-icon-btn" title="Back">
+              <span data-icon="close" class="mm-icon-slot"></span>
+            </button>
+            <div class="text-sm font-semibold text-mm-ink">Quick add local rule</div>
+          </header>
+          <div class="flex flex-1 min-h-0 flex-col p-2.5">
+            <div class="space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+<%- include('../partials/rule-mode-select', { variant: 'inline', dataRef: 'quick-mode' }) %>
+<%- include('../partials/rule-template-select', { variant: 'inline', dataRef: 'quick-template' }) %>
+              </div>
+              <mm-input><input data-ref="quick-pattern" type="text" placeholder="*://example.com/*" /></mm-input>
+              <mm-search-select data-ref="quick-script"></mm-search-select>
+            </div>
+            <div class="mt-auto pt-2">
+              <button type="button" data-action="quick-add-rule" class="mm-primary-btn">Add local rule</button>
+            </div>
+          </div>
+        </div>
+
+        <p data-ref="toast" class="mm-toast" role="status" aria-live="polite"></p>
+      </div>
+    </mm-popup-app>
+    <script src="./popup.js"></script>
+  </body>
+</html>

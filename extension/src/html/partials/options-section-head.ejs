@@ -1,0 +1,7 @@
+                      <div class="mm-options-section-head">
+                        <div class="mm-options-section-head-main">
+                          <h2<% if (typeof headingId !== 'undefined' && headingId) { %> id="<%= headingId %>"<% } %> class="mm-options-section-title"><%= title %></h2>
+                          <% if (typeof meta !== 'undefined' && meta) { %><span class="mm-options-section-meta"><%= meta %></span><% } %>
+                        </div>
+                        <% if (typeof trailing !== 'undefined' && trailing) { %><%- trailing %><% } %>
+                      </div>

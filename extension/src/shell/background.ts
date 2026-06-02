@@ -1,9 +1,13 @@
 import {
+  addScriptKeyRule,
   clearRuntimeModuleCachesForEnabledScriptKeys,
   ensureExtensionServicesState,
   getEnabledScriptKeys,
   getShellNetworkEnabled,
   loadExtensionConfig,
+  loadLocalRulesForEnabledScriptKeys,
+  loadQuickAddRuleContext,
+  removeScriptKeyRule,
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
   setShellNetworkEnabled,
@@ -297,6 +301,11 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
+        case 'OPEN_RULES_PAGE': {
+          await focusOrOpenExtensionPage('rules.html')
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
         case 'OPEN_OPTIONS': {
           await focusOrOpenExtensionPage('servers.html')
           sendResponse({ ok: true } satisfies ShellResponse)
@@ -331,6 +340,53 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           sendResponse({
             ok: true,
             message: results.length > 1 ? `Synced ${total} rule(s) across ${results.length} script keys.` : `Synced ${total} rule(s).`,
+          } satisfies ShellResponse)
+          return
+        }
+        case 'GET_QUICK_ADD_RULE_CONTEXT': {
+          const tab = await getActiveTab()
+          const activeTabUrl = tab?.url ?? ''
+          const items = await loadQuickAddRuleContext(activeTabUrl)
+          sendResponse({
+            ok: true,
+            quickAddRuleContext: {
+              activeTabUrl,
+              items,
+            },
+          } satisfies ShellResponse)
+          return
+        }
+        case 'GET_LOCAL_RULES': {
+          const localRules = await loadLocalRulesForEnabledScriptKeys()
+          sendResponse({
+            ok: true,
+            localRules,
+          } satisfies ShellResponse)
+          return
+        }
+        case 'ADD_LOCAL_RULE': {
+          const created = await addScriptKeyRule(message.details.scriptKey, message.details.script, message.details.wildcard, message.details.mode)
+          const tab = await getActiveTab()
+          if (tab?.url?.startsWith('http')) {
+            await scheduleTabMatchRefreshForEnabledScriptKeys(tab.url)
+          }
+          sendResponse({
+            ok: true,
+            message: created ? 'Local rule added.' : 'Local rule already exists.',
+            ruleMutation: { created },
+          } satisfies ShellResponse)
+          return
+        }
+        case 'REMOVE_LOCAL_RULE': {
+          const removed = await removeScriptKeyRule(message.details.scriptKey, message.details.script, message.details.wildcard, message.details.mode)
+          const tab = await getActiveTab()
+          if (tab?.url?.startsWith('http')) {
+            await scheduleTabMatchRefreshForEnabledScriptKeys(tab.url)
+          }
+          sendResponse({
+            ok: true,
+            message: removed ? 'Local rule removed.' : 'Local rule not found.',
+            ruleMutation: { removed },
           } satisfies ShellResponse)
           return
         }

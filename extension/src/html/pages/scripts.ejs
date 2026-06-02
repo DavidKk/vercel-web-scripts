@@ -1,24 +1,10 @@
 <!doctype html>
 <html lang="en" class="h-full">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MagickMonkey — Scripts</title>
-    <link rel="stylesheet" href="./shell.css" />
-  </head>
+<%- include('../partials/document-head', { title: 'MagickMonkey — Scripts' }) %>
   <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
     <mm-scripts-app data-loading>
       <div class="mm-admin-page mm-page-fill">
-        <header class="mm-admin-header">
-          <div class="mm-admin-brand">
-            <img src="./icons/icon32.png" width="32" height="32" alt="" aria-hidden="true" />
-            <span class="mm-admin-title">MagickMonkey</span>
-          </div>
-          <nav class="mm-admin-nav" aria-label="Extension pages">
-            <a href="./servers.html" class="mm-admin-nav-link">Servers</a>
-            <a href="./scripts.html" class="mm-admin-nav-link" aria-current="page">Scripts</a>
-          </nav>
-        </header>
+<%- include('../partials/admin-header', { currentTab: 'scripts' }) %>
 
         <div class="mm-scripts-main">
           <div class="mm-scripts-head">
@@ -26,11 +12,9 @@
               <span class="mm-skeleton mm-skeleton-status"></span>
               <span class="mm-skeleton mm-skeleton-search"></span>
               <span class="mm-skeleton mm-skeleton-filter"></span>
-              <span class="mm-skeleton mm-skeleton-action"></span>
-              <span class="mm-skeleton mm-skeleton-action"></span>
+              <span class="mm-skeleton mm-skeleton-filter"></span>
             </div>
             <div class="mm-scripts-toolbar" data-ref="toolbar">
-              <span data-ref="status" class="mm-scripts-status"></span>
               <mm-input>
                 <span class="mm-input-icon" aria-hidden="true">
                   <svg viewBox="0 0 20 20" fill="none">
@@ -49,11 +33,7 @@
                     </svg>
                   </span>
                   <span class="mm-select-value" data-ref="select-value">All scripts</span>
-                  <span class="mm-select-chevron" aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none">
-                      <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </span>
+                  <%- include('../partials/mm-select-chevron') %>
                 </button>
                 <div class="mm-select-menu" role="listbox">
                   <button type="button" class="mm-select-option" data-value="all" aria-selected="true">
@@ -82,12 +62,12 @@
                   </button>
                 </div>
               </mm-select>
-              <mm-button variant="secondary">
-                <button type="button" data-action="sync">Sync rules</button>
-              </mm-button>
-              <mm-button variant="primary">
-                <button type="button" data-action="editor">Open editor</button>
-              </mm-button>
+              <mm-search-select
+                class="mm-scripts-service-filter"
+                data-ref="service-select"
+                placeholder="All services"
+                search-placeholder="Search services..."
+              ></mm-search-select>
             </div>
           </div>
 
@@ -98,49 +78,61 @@
             <div data-ref="skeleton" class="mm-scripts-skeleton" aria-busy="true" aria-label="Loading scripts">
               <div class="mm-scripts-table-head mm-scripts-skeleton-head" role="row">
                 <span class="mm-scripts-col-index" role="columnheader">#</span>
-                <span class="mm-scripts-col-name" role="columnheader">名称</span>
-                <span class="mm-scripts-col-file" role="columnheader">文件</span>
+                <span class="mm-scripts-col-name" role="columnheader">Name</span>
+                <span class="mm-scripts-col-file" role="columnheader">File</span>
+                <span class="mm-scripts-col-service" role="columnheader">Service</span>
+                <span class="mm-scripts-col-rules" role="columnheader" aria-hidden="true"></span>
                 <span class="mm-scripts-col-switch" role="columnheader" aria-hidden="true"></span>
               </div>
               <div class="mm-scripts-skeleton-rows">
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
                 <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span
+                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
+                  ><span class="mm-skeleton mm-skeleton-rules"></span
                   ><span class="mm-skeleton mm-skeleton-switch"></span>
                 </div>
               </div>
@@ -148,8 +140,10 @@
 
             <div data-ref="list-head" class="mm-scripts-table-head hidden" role="row" aria-hidden="true">
               <span class="mm-scripts-col-index" role="columnheader">#</span>
-              <span class="mm-scripts-col-name" role="columnheader">名称</span>
-              <span class="mm-scripts-col-file" role="columnheader">文件</span>
+              <span class="mm-scripts-col-name" role="columnheader">Name</span>
+              <span class="mm-scripts-col-file" role="columnheader">File</span>
+              <span class="mm-scripts-col-service" role="columnheader">Service</span>
+              <span class="mm-scripts-col-rules" role="columnheader" aria-hidden="true"></span>
               <span class="mm-scripts-col-switch" role="columnheader" aria-hidden="true"></span>
             </div>
 

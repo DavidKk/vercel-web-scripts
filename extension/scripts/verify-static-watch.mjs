@@ -15,7 +15,8 @@ const log = createScriptLogger('verify-static-watch')
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const repoRoot = path.resolve(root, '..')
 
-const htmlSrc = path.join(root, 'src/pages/scripts/index.html')
+const htmlSrc = path.join(root, 'src/html/pages/scripts.ejs')
+const partialSrc = path.join(root, 'src/html/partials/admin-header.ejs')
 const htmlDist = path.join(root, 'dist/scripts.html')
 const stampSrc = path.join(root, 'src/dev-build-stamp.ts')
 const testAssetRel = '__watch-static-test.txt'
@@ -110,25 +111,30 @@ const child = spawn('pnpm', ['exec', 'vite', 'build', '--config', 'extension/vit
   cwd: repoRoot,
   stdio: ['ignore', 'pipe', 'pipe'],
   shell: false,
+  env: {
+    ...process.env,
+    EXTENSION_DEV_RELOAD_PORT: process.env.EXTENSION_DEV_RELOAD_PORT ?? '5184',
+  },
 })
 
 child.stdout?.on('data', (chunk) => {
   const text = chunk.toString()
   process.stdout.write(text)
-  if (text.includes('[extension] copied HTML, manifest, icons')) {
+  if (text.includes('[extension] compiled HTML, manifest, icons')) {
     notifyBuildComplete()
   }
 })
 child.stderr?.on('data', (chunk) => {
   const text = chunk.toString()
   process.stderr.write(text)
-  if (text.includes('[extension] copied HTML, manifest, icons')) {
+  if (text.includes('[extension] compiled HTML, manifest, icons')) {
     notifyBuildComplete()
   }
 })
 
 let exitCode = 1
 const originalHtml = existsSync(htmlSrc) ? readFileSync(htmlSrc, 'utf-8') : undefined
+const originalPartial = existsSync(partialSrc) ? readFileSync(partialSrc, 'utf-8') : undefined
 const originalStamp = existsSync(stampSrc) ? readFileSync(stampSrc, 'utf-8') : undefined
 const originalAsset = existsSync(testAssetSrc) ? readFileSync(testAssetSrc, 'utf-8') : undefined
 
@@ -141,9 +147,18 @@ try {
     if (originalHtml == null) {
       throw new Error(`${htmlSrc} is missing before test`)
     }
-    writeFileSync(htmlSrc, originalHtml.replace('</head>', `  <!-- ${htmlMarker} -->\n  </head>`), 'utf-8')
+    writeFileSync(htmlSrc, originalHtml.replace('<mm-scripts-app data-loading>', `<mm-scripts-app data-loading>\n      <!-- ${htmlMarker} -->`), 'utf-8')
   }, 'HTML update')
   assertFileContains(htmlDist, htmlMarker)
+
+  const partialMarker = `watch-partial-${Date.now()}`
+  await waitForBuildAfter(() => {
+    if (originalPartial == null) {
+      throw new Error(`${partialSrc} is missing before test`)
+    }
+    writeFileSync(partialSrc, originalPartial.replace('MagickMonkey', `MagickMonkey ${partialMarker}`), 'utf-8')
+  }, 'EJS partial update')
+  assertFileContains(htmlDist, partialMarker)
 
   await waitForBuildAfter(() => {
     rmSync(htmlSrc, { force: true })
@@ -179,6 +194,7 @@ try {
   log.error('FAIL:', e instanceof Error ? e.message : e)
 } finally {
   restoreFile(htmlSrc, originalHtml)
+  restoreFile(partialSrc, originalPartial)
   restoreFile(stampSrc, originalStamp)
   restoreFile(testAssetSrc, originalAsset)
   child.kill('SIGTERM')

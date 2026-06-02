@@ -43,6 +43,8 @@ export interface ScriptKeyGroupMeta {
   scriptKey: string
   active: boolean
   serviceLabels: string[]
+  /** First enabled service label for this scriptKey (OTA representative); falls back to first related service. */
+  primaryServiceLabel: string
   editorBaseUrl: string
 }
 
@@ -62,11 +64,14 @@ export function buildScriptKeyGroupMetaFromState(state: ExtensionServicesState):
     const active = related.some((s) => s.enabled !== false)
     const ota = resolveOtaEndpoint(scriptKey, state.services)
     const editorBaseUrl = ota?.baseUrl ?? related[0]?.baseUrl ?? ''
+    const displayService = ota ?? related[0]
+    const primaryServiceLabel = displayService ? displayService.label.trim() || defaultLabelFromBaseUrl(displayService.baseUrl) : ''
 
     groups.push({
       scriptKey,
       active,
       serviceLabels: related.map((s) => s.label.trim() || defaultLabelFromBaseUrl(s.baseUrl)),
+      primaryServiceLabel,
       editorBaseUrl,
     })
   }

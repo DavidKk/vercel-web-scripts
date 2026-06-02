@@ -42,9 +42,9 @@ async function loadRulesWithFallback() {
 }
 
 export default async function Home() {
-  try {
-    await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
+  await checkAccess({ isApiRouter: false, redirectUrl: '/editor' })
 
+  try {
     const scriptKey = getTampermonkeyScriptKey()
     const { files, updatedAt } = await loadEditorFilesWithFallback()
     const tampermonkeyTypings = loadTampermonkeyTypings()

@@ -1,4 +1,4 @@
-import { isValidScriptKeyFormat, resolveOtaEndpoint } from '@ext/shared/extension-services'
+import { formatScriptKeyShort, isValidScriptKeyFormat, resolveOtaEndpoint } from '@ext/shared/extension-services'
 import {
   clearActiveServiceId,
   createServiceFromOptions,
@@ -12,6 +12,7 @@ import {
 } from '@ext/shared/extension-storage'
 import { DEFAULT_CONFIG, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
 
+import { initAdminNavIndicator } from './mm-admin-nav'
 import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from './mm-icons'
 import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
 
@@ -48,12 +49,14 @@ export class MmOptionsApp extends HTMLElement {
   private listDragRowId: string | null = null
   private dropPlaceholderEl: HTMLElement | null = null
   private listDragBound = false
+  private disposeAdminNavIndicator: (() => void) | undefined
 
   connectedCallback(): void {
     if (this.bound) {
       return
     }
     this.bound = true
+    this.disposeAdminNavIndicator = initAdminNavIndicator(this)
     hydrateMmIcons(this)
     initMmTooltipDelegation(this)
     this.bindEvents()
@@ -68,6 +71,8 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   disconnectedCallback(): void {
+    this.disposeAdminNavIndicator?.()
+    this.disposeAdminNavIndicator = undefined
     for (const timer of this.serviceTestTimers.values()) {
       clearTimeout(timer)
     }
@@ -232,7 +237,7 @@ export class MmOptionsApp extends HTMLElement {
 
       const meta = document.createElement('span')
       meta.className = 'mm-options-service-item-meta'
-      meta.textContent = `${service.baseUrl} · ${this.shortScriptKey(service.scriptKey)}`
+      meta.textContent = `${service.baseUrl} · ${formatScriptKeyShort(service.scriptKey)}`
 
       const badges = document.createElement('span')
       badges.className = 'mm-options-service-item-badges'
@@ -1174,7 +1179,7 @@ export class MmOptionsApp extends HTMLElement {
   private confirmDeleteService(service: ServiceProfile): boolean {
     const name = service.label.trim() || service.baseUrl
     return window.confirm(
-      `Delete “${name}”?\n\n${service.baseUrl} · ${this.shortScriptKey(service.scriptKey)}\n\nOTA cache for this endpoint will be cleared. This cannot be undone.`
+      `Delete “${name}”?\n\n${service.baseUrl} · ${formatScriptKeyShort(service.scriptKey)}\n\nOTA cache for this endpoint will be cleared. This cannot be undone.`
     )
   }
 
@@ -1200,13 +1205,5 @@ export class MmOptionsApp extends HTMLElement {
       return
     }
     await this.deleteServiceById(this.activeServiceId)
-  }
-
-  private shortScriptKey(scriptKey: string): string {
-    const trimmed = scriptKey.trim()
-    if (trimmed.length <= 12) {
-      return trimmed || '—'
-    }
-    return `${trimmed.slice(0, 8)}…`
   }
 }

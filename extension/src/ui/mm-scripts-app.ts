@@ -1,5 +1,4 @@
 import {
-  loadActiveServiceDetail,
   loadScriptEnabledMapForScriptKey,
   loadScriptKeyScriptsGroupsFromCache,
   parseScriptEnabledStorageKey,
@@ -9,19 +8,24 @@ import {
   setScriptEnabled,
   syncScriptKeyScriptsListIfNeeded,
 } from '@ext/shared/extension-storage'
-import { focusOrOpenTab } from '@ext/shared/focus-or-open-tab'
-import { sendShellMessage } from '@ext/shared/messages'
+import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
 
+import { initAdminNavIndicator } from './mm-admin-nav'
+import type { MmSearchSelect } from './mm-form-components/mm-search-select'
+import { hydrateMmIcons } from './mm-icons'
+import { buildRulesPageScriptUrl } from './mm-rules-hash'
 import { createMmSwitch } from './mm-switch'
+import { MmToast } from './mm-toast'
+import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
 import { getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
-
-const STATUS_BASE = 'mm-scripts-status text-xs'
 
 type ScriptRow = {
   scriptKey: string
   file: string
   label: string
+  serviceLabel: string
+  serviceUrl: string
   enabled: boolean
   groupActive: boolean
 }
@@ -42,14 +46,19 @@ export class MmScriptsApp extends HTMLElement {
   private scrollResizeObserver: ResizeObserver | undefined
   private reloadToken = 0
   private readonly handleListScroll = (): void => this.updateScrollIndicator()
+  private readonly toast = new MmToast(document)
+  private disposeAdminNavIndicator: (() => void) | undefined
 
   connectedCallback(): void {
     if (this.bound) {
       return
     }
     this.bound = true
+    this.disposeAdminNavIndicator = initAdminNavIndicator(this)
+    initMmTooltipDelegation(this)
     this.prepareInitialLoadingShell()
     this.bindEvents()
+    this.syncServiceFilterOptions()
     this.bindScrollIndicator()
     void this.reloadList()
 
@@ -96,6 +105,8 @@ export class MmScriptsApp extends HTMLElement {
   }
 
   disconnectedCallback(): void {
+    this.disposeAdminNavIndicator?.()
+    this.disposeAdminNavIndicator = undefined
     if (this.storageListener) {
       chrome.storage.onChanged.removeListener(this.storageListener)
     }
@@ -120,16 +131,37 @@ export class MmScriptsApp extends HTMLElement {
     indexEl.className = 'mm-script-index'
     indexEl.textContent = String(index + 1)
 
+    const serviceEl = this.renderServiceCell(item)
+
     const nameEl = document.createElement('span')
     nameEl.className = 'mm-script-name'
-    nameEl.textContent = item.label || item.file
+    const nameText = item.label || item.file
+    nameEl.textContent = nameText
+    this.setFullTextTooltip(nameEl, nameText)
 
     const fileEl = document.createElement('span')
     fileEl.className = 'mm-script-file'
     fileEl.textContent = item.file
+    this.setFullTextTooltip(fileEl, item.file)
+
+    const rulesLink = document.createElement('button')
+    rulesLink.type = 'button'
+    rulesLink.className = 'mm-script-rules-link mm-icon-btn-sm'
+    rulesLink.setAttribute('aria-label', 'Manage local rules for this script')
+    rulesLink.setAttribute('data-mm-tooltip', 'Manage local rules')
+    rulesLink.setAttribute('data-mm-tooltip-placement', 'bottom')
+    const rulesIcon = document.createElement('span')
+    rulesIcon.className = 'mm-icon-slot'
+    rulesIcon.setAttribute('data-icon', 'rulesManage')
+    rulesLink.append(rulesIcon)
+    rulesLink.addEventListener('click', (event) => {
+      event.stopPropagation()
+      navigateExtensionPage(buildRulesPageScriptUrl(item.scriptKey, item.file))
+    })
 
     const { root: switchRoot, input } = createMmSwitch({ checked: item.enabled, disabled: !item.groupActive })
-    row.append(indexEl, nameEl, fileEl, switchRoot)
+    this.setSwitchTooltip(switchRoot, input, item)
+    row.append(indexEl, nameEl, fileEl, serviceEl, rulesLink, switchRoot)
 
     if (item.groupActive) {
       const applyToggle = (): void => {
@@ -138,23 +170,58 @@ export class MmScriptsApp extends HTMLElement {
           await setScriptEnabled(item.scriptKey, item.file, enabled)
           this.enabledByKey.set(this.enabledMapKey(item.scriptKey, item.file), enabled)
           item.enabled = enabled
+          this.setSwitchTooltip(switchRoot, input, item)
           this.applyFilters()
-          this.setStatus(enabled ? `Enabled ${item.file}` : `Disabled ${item.file}`, 'ok')
+          this.toast.show(enabled ? `Enabled ${item.file}` : `Disabled ${item.file}`, 'success')
         })()
       }
 
       input.addEventListener('change', applyToggle)
-      switchRoot.addEventListener('click', (event) => {
-        event.stopPropagation()
-      })
-
-      row.addEventListener('click', () => {
-        input.checked = !input.checked
-        applyToggle()
-      })
     }
 
     return row
+  }
+
+  private setFullTextTooltip(el: HTMLElement, text: string): void {
+    const value = text.trim()
+    if (!value) {
+      return
+    }
+    el.setAttribute('data-mm-tooltip-wide', '')
+    el.setAttribute('data-mm-tooltip-align', 'start')
+    updateMmTooltip(el, value, 'bottom')
+  }
+
+  private setSwitchTooltip(root: HTMLLabelElement, input: HTMLInputElement, item: ScriptRow): void {
+    const text = !item.groupActive ? 'Service disabled — enable in Servers' : input.checked ? 'Disable script' : 'Enable script'
+    root.setAttribute('data-mm-tooltip-align', 'end')
+    updateMmTooltip(root, text, 'bottom')
+    input.setAttribute('aria-label', text)
+  }
+
+  private renderServiceCell(item: ScriptRow): HTMLElement {
+    if (!item.serviceUrl) {
+      const el = document.createElement('span')
+      el.className = 'mm-script-service'
+      el.textContent = item.serviceLabel
+      if (item.serviceLabel) {
+        el.title = item.serviceLabel
+      }
+      return el
+    }
+
+    const link = document.createElement('a')
+    link.className = 'mm-script-service mm-script-service-link'
+    link.href = item.serviceUrl
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    link.textContent = item.serviceLabel || item.serviceUrl
+    link.setAttribute('data-mm-tooltip', 'Open service in new tab')
+    link.setAttribute('data-mm-tooltip-placement', 'bottom')
+    link.addEventListener('click', (event) => {
+      event.stopPropagation()
+    })
+    return link
   }
 
   private renderGroupRows(rows: ScriptRow[], startIndex: number): DocumentFragment {
@@ -166,30 +233,36 @@ export class MmScriptsApp extends HTMLElement {
   }
 
   private bindEvents(): void {
-    this.querySelector('[data-action="sync"]')?.addEventListener('click', () => {
-      void (async () => {
-        this.setStatus('Syncing…')
-        const res = await sendShellMessage({ type: 'SYNC_RULES' })
-        const message = res.ok && 'message' in res ? (res.message ?? 'Synced') : res.ok ? 'Synced' : res.error
-        this.setStatus(message, res.ok ? 'ok' : 'error')
-        await this.reloadList()
-      })()
-    })
-    this.querySelector('[data-action="editor"]')?.addEventListener('click', () => {
-      void (async () => {
-        const { service } = await loadActiveServiceDetail()
-        const baseUrl = service?.baseUrl
-        if (baseUrl) {
-          await focusOrOpenTab(`${baseUrl.replace(/\/$/, '')}/editor`)
-        }
-      })()
-    })
     this.querySelector('[data-ref="search"]')?.addEventListener('input', () => {
       this.applyFilters()
     })
     this.querySelector('[data-ref="filter"]')?.addEventListener('change', () => {
       this.applyFilters()
     })
+    this.querySelector('[data-ref="service-select"]')?.addEventListener('mm-search-select-change', () => {
+      this.applyFilters()
+    })
+  }
+
+  private getServiceSelect(): MmSearchSelect | null {
+    return this.querySelector('[data-ref="service-select"]') as MmSearchSelect | null
+  }
+
+  private syncServiceFilterOptions(): void {
+    const select = this.getServiceSelect()
+    if (!select) {
+      return
+    }
+
+    const labels = [...new Set(this.groups.flatMap((group) => group.rows.map((row) => row.serviceLabel).filter(Boolean)))].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' })
+    )
+
+    const current = select.getValue() || 'all'
+    const next = current !== 'all' && !labels.includes(current) ? 'all' : current
+
+    select.setOptions([{ value: 'all', label: 'All services' }, ...labels.map((label) => ({ value: label, label }))])
+    select.setValue(next)
   }
 
   private bindScrollIndicator(): void {
@@ -205,15 +278,6 @@ export class MmScriptsApp extends HTMLElement {
       this.scrollResizeObserver.observe(content)
     }
     this.updateScrollIndicator()
-  }
-
-  private setStatus(text: string, variant: 'idle' | 'ok' | 'error' = 'idle'): void {
-    const el = this.querySelector('[data-ref="status"]') as HTMLElement | null
-    if (!el) {
-      return
-    }
-    el.textContent = text
-    el.className = variant === 'error' ? `${STATUS_BASE} text-mm-danger` : variant === 'ok' ? `${STATUS_BASE} text-mm-success` : `${STATUS_BASE} text-mm-text-muted`
   }
 
   private setLoading(loading: boolean): void {
@@ -250,6 +314,7 @@ export class MmScriptsApp extends HTMLElement {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
     this.groups = []
+    this.syncServiceFilterOptions()
     this.setLoading(false)
     emptyEl?.classList.add('hidden')
     this.setListVisible(false)
@@ -264,6 +329,7 @@ export class MmScriptsApp extends HTMLElement {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
     this.groups = []
+    this.syncServiceFilterOptions()
     this.setLoading(false)
     errorEl?.classList.add('hidden')
     this.setListVisible(false)
@@ -363,6 +429,7 @@ export class MmScriptsApp extends HTMLElement {
     const totalScripts = groups.reduce((sum, g) => sum + g.scripts.length, 0)
     if (totalScripts === 0) {
       this.groups = []
+      this.syncServiceFilterOptions()
       this.setListVisible(false)
       this.renderGroups([])
       return
@@ -379,6 +446,8 @@ export class MmScriptsApp extends HTMLElement {
         group.scriptKey,
         group.scripts.map((s) => s.file)
       )
+      const serviceLabel = group.primaryServiceLabel
+      const serviceUrl = group.editorBaseUrl.trim().replace(/\/+$/, '')
       const rows: ScriptRow[] = group.scripts.map((s) => {
         const enabled = enabledByName.get(s.file) !== false
         this.enabledByKey.set(this.enabledMapKey(group.scriptKey, s.file), enabled)
@@ -386,6 +455,8 @@ export class MmScriptsApp extends HTMLElement {
           scriptKey: group.scriptKey,
           file: s.file,
           label: s.name,
+          serviceLabel,
+          serviceUrl,
           enabled,
           groupActive,
         }
@@ -394,13 +465,15 @@ export class MmScriptsApp extends HTMLElement {
     }
 
     this.groups = nextGroups
+    this.syncServiceFilterOptions()
     this.setListVisible(true)
     this.applyFilters()
   }
 
   private applyFilters(): void {
     const search = ((this.querySelector('[data-ref="search"]') as HTMLInputElement | null)?.value ?? '').trim().toLowerCase()
-    const filter = ((this.querySelector('[data-ref="filter"]') as HTMLSelectElement | null)?.value ?? 'all') as 'all' | 'enabled' | 'disabled'
+    const filter = ((this.querySelector('[data-ref="filter"]') as HTMLInputElement | null)?.value ?? 'all') as 'all' | 'enabled' | 'disabled'
+    const serviceFilter = this.getServiceSelect()?.getValue() || 'all'
 
     const filteredGroups: Array<{ group: ScriptKeyGroupView; rows: ScriptRow[] }> = []
     let totalRows = 0
@@ -409,6 +482,9 @@ export class MmScriptsApp extends HTMLElement {
     for (const group of this.groups) {
       totalRows += group.rows.length
       const rows = group.rows.filter((row) => {
+        if (serviceFilter !== 'all' && row.serviceLabel !== serviceFilter) {
+          return false
+        }
         if (search && !row.file.toLowerCase().includes(search) && !row.label.toLowerCase().includes(search)) {
           return false
         }
@@ -454,6 +530,7 @@ export class MmScriptsApp extends HTMLElement {
       index += rows.length
     }
     content.replaceChildren(fragment)
+    hydrateMmIcons(content)
     this.updateScrollIndicator()
   }
 

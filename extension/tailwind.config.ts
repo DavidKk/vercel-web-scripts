@@ -34,7 +34,7 @@ const mmPalette = {
 } as const
 
 export default {
-  content: [path.join(__dirname, 'src/**/*.{ts,html}')],
+  content: [path.join(__dirname, 'src/**/*.{ts,html,ejs}')],
   corePlugins: {
     preflight: false,
   },

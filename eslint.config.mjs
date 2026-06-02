@@ -68,6 +68,7 @@ export default [
             '**/vite.config.ts',
             '**/vite.ui.config.ts',
             'extension/vite-plugins/**/*.ts',
+            'extension/scripts/**/*.mjs',
             'extension/postcss.config.mjs',
             'extension/tailwind.config.ts',
           ],

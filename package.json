@@ -84,6 +84,7 @@
     "concurrently": "^9.1.2",
     "cz-customizable": "^7.2.1",
     "cz-customizable-i18n-config": "^0.0.1-alpha.2",
+    "ejs": "^3.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "eslint-config-prettier": "^9.0.0",

@@ -30,6 +30,12 @@ export interface ScriptTriggeredDetails {
   scriptKey?: string
 }
 
+export interface QuickAddRuleContextItem {
+  scriptKey: string
+  serviceLabels: string[]
+  scripts: Array<{ file: string; name: string; matchedOnActiveTab?: boolean }>
+}
+
 export type ShellMessage =
   | { type: 'GET_STATUS' }
   | { type: 'SET_NETWORK'; enabled: boolean }
@@ -37,9 +43,14 @@ export type ShellMessage =
   | { type: 'RESET_RUNTIME' }
   | { type: 'OPEN_EDITOR' }
   | { type: 'OPEN_SCRIPTS_PAGE' }
+  | { type: 'OPEN_RULES_PAGE' }
   | { type: 'OPEN_OPTIONS' }
   | { type: 'RELOAD_ACTIVE_TAB' }
   | { type: 'SYNC_RULES' }
+  | { type: 'GET_QUICK_ADD_RULE_CONTEXT' }
+  | { type: 'GET_LOCAL_RULES' }
+  | { type: 'ADD_LOCAL_RULE'; details: { scriptKey: string; script: string; wildcard: string; mode: 'include' | 'exclude' } }
+  | { type: 'REMOVE_LOCAL_RULE'; details: { scriptKey: string; script: string; wildcard: string; mode: 'include' | 'exclude' } }
   | { type: 'GM_XHR'; details: BridgeXhrDetails }
   | { type: 'WEB_CONNECT_EXTENSION'; details: WebConnectDetails }
   | { type: 'TAB_PAGE_LOAD'; details: { url: string } }
@@ -63,7 +74,25 @@ export interface ShellStatus {
   extensionVersion: string
 }
 
-export type ShellResponse = { ok: true; status?: ShellStatus } | { ok: true; message?: string } | { ok: true; xhr: BridgeXhrResponse } | { ok: false; error: string }
+export type ShellResponse =
+  | { ok: true; status?: ShellStatus }
+  | { ok: true; message?: string }
+  | { ok: true; ruleMutation?: { created?: boolean; removed?: boolean } }
+  | {
+      ok: true
+      localRules?: Array<{
+        id: string
+        scriptKey: string
+        script: string
+        scriptName: string
+        scriptFile: string
+        wildcard: string
+        mode: 'include' | 'exclude'
+      }>
+    }
+  | { ok: true; xhr: BridgeXhrResponse }
+  | { ok: true; quickAddRuleContext?: { activeTabUrl: string; items: QuickAddRuleContextItem[] } }
+  | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {
   return chrome.runtime.sendMessage(message) as Promise<ShellResponse>

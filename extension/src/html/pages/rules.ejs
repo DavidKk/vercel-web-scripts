@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<%- include('../partials/document-head', { title: 'MagickMonkey — Rules' }) %>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <mm-rules-app>
+      <div class="mm-admin-page mm-page-fill">
+<%- include('../partials/admin-header', { currentTab: 'rules' }) %>
+        <div class="mm-servers-main">
+          <div class="mm-servers-body mm-rules-body" data-ref="rules-page">
+            <aside class="mm-servers-list-pane mm-rules-list-pane" aria-label="Local rules" data-ref="list-box">
+              <div class="mm-servers-pane-head">
+                <div class="mm-servers-pane-head-copy">
+                  <h2 class="mm-servers-pane-title">Local Rules</h2>
+                  <p class="mm-servers-pane-desc">Left list, right editor. Local rules only.</p>
+                </div>
+                <div class="mm-servers-pane-head-actions">
+                  <button type="button" data-action="start-add-rule" class="mm-icon-btn" data-mm-tooltip="Add local rule" data-mm-tooltip-placement="bottom" aria-label="Add local rule">
+                    <span data-icon="plus" class="mm-icon-slot"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="mm-servers-list-scroll mm-rules-list-scroll" data-ref="list-scroll">
+                <div data-ref="rules-empty" class="mm-rules-empty">
+                  <span class="mm-icon-slot h-4 w-4 text-mm-icon" data-icon="nodata" aria-hidden="true"></span>
+                  <span>No local rules.</span>
+                </div>
+                <div data-ref="rules-list" class="mm-rules-list min-h-0 overflow-auto"></div>
+              </div>
+            </aside>
+
+            <div class="mm-servers-detail-pane mm-rules-detail-pane" data-ref="editor-box">
+              <div class="mm-servers-pane-head">
+                <div class="mm-servers-pane-head-copy">
+                  <h2 class="mm-servers-pane-title">Local Rule Editor</h2>
+                  <p class="mm-servers-pane-desc">Create or edit local include/exclude rules.</p>
+                </div>
+              </div>
+
+              <div class="mm-servers-detail-body is-empty" data-ref="detail-body">
+<%- include('../partials/nodata-empty', {
+  dataRef: 'detail-empty',
+  title: 'No local rule selected',
+  hint: 'Select a local rule from the list, or use <strong class="font-medium text-mm-secondary">+</strong> to add one.',
+}) %>
+                <div class="mm-servers-detail-form hidden" data-ref="detail-form">
+                  <div class="mm-servers-detail-scroll">
+                    <section class="mm-options-section" aria-labelledby="rule-basic-title">
+<%- include('../partials/options-section-head', { headingId: 'rule-basic-title', title: 'Rule basics', meta: 'Required' }) %>
+
+                      <div class="mm-options-field-grid">
+<%- include('../partials/rule-mode-select', {
+  variant: 'field',
+  id: 'ruleModeSelect',
+  dataRef: 'mode',
+  label: 'Rule mode',
+  hint: 'Include takes precedence over Exclude and script match.',
+}) %>
+<%- include('../partials/rule-template-select', {
+  variant: 'field',
+  id: 'ruleTemplateSelect',
+  dataRef: 'template',
+  label: 'Pattern template',
+  hint: 'Prefill from current tab URL, then fine-tune manually if needed.',
+}) %>
+                      </div>
+                    </section>
+
+                    <section class="mm-options-section" aria-labelledby="rule-target-title">
+<%- include('../partials/options-section-head', { headingId: 'rule-target-title', title: 'Rule target', meta: 'Required' }) %>
+
+                      <div class="mm-options-field-grid mm-options-field-grid-single">
+                        <mm-field class="mm-options-field">
+                          <label for="rulePatternInput" class="mm-label">URL pattern</label>
+                          <mm-input><input id="rulePatternInput" data-ref="pattern" type="text" placeholder="*://example.com/*" list="rule-pattern-suggestions" /></mm-input>
+                          <p class="mm-hint">Supports wildcard patterns such as <code>*://*.example.com/*</code>.</p>
+                        </mm-field>
+                      </div>
+                      <datalist id="rule-pattern-suggestions"></datalist>
+                    </section>
+
+                    <section class="mm-options-section" aria-labelledby="rule-script-title">
+<%- include('../partials/options-section-head', { headingId: 'rule-script-title', title: 'Linked script', meta: 'Required' }) %>
+
+                      <div class="mm-options-field-grid mm-options-field-grid-single">
+                        <mm-field class="mm-options-field">
+                          <label class="mm-label">Script</label>
+                          <mm-search-select data-ref="script-select"></mm-search-select>
+                          <p class="mm-hint">Choose the script to apply this local rule against.</p>
+                        </mm-field>
+                      </div>
+                    </section>
+                  </div>
+                  <div class="mm-servers-form-actions">
+                    <div class="mm-servers-form-actions-btns">
+                      <mm-button variant="danger"><button type="button" data-action="delete-rule">Delete</button></mm-button>
+                      <mm-button variant="warn"><button type="button" data-action="reset-edit">Reset</button></mm-button>
+                      <mm-button variant="primary"><button type="button" data-action="add-rule">Save</button></mm-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mm-rules-app>
+    <script defer src="./rules.js"></script>
+  </body>
+</html>

@@ -61,7 +61,12 @@ function globAndWatch(
 }
 
 function isExtensionSourceFile(relativePath: string): boolean {
-  return /\.(ts|tsx|html|css)$/.test(relativePath) && relativePath !== 'dev-build-stamp.ts'
+  return /\.(ts|tsx|html|css|ejs)$/.test(relativePath) && relativePath !== 'dev-build-stamp.ts'
+}
+
+/** FS `change` events for paths Rollup may not reliably re-run on via addWatchFile alone. */
+function shouldTouchStampOnFsChange(relativePath: string): boolean {
+  return relativePath.endsWith('.ejs') || relativePath === 'scripts/compile-extension-html.mjs'
 }
 
 function fileExists(abs: string): boolean {
@@ -98,6 +103,12 @@ export function registerExtensionWatchFiles(extensionDir: string, addWatchFile: 
     }
   }
 
+  const htmlCompileScript = path.join(extensionDir, 'scripts/compile-extension-html.mjs')
+  if (existsSync(htmlCompileScript)) {
+    addWatchFile(htmlCompileScript)
+    registered.push('scripts/compile-extension-html.mjs')
+  }
+
   // All extension sources (secondary IIFE entries are built in closeBundle, not in the primary graph).
   globAndWatch(path.join(extensionDir, 'src'), isExtensionSourceFile, 'src/', addWatchFile, registered)
 
@@ -114,11 +125,20 @@ export function registerExtensionWatchFiles(extensionDir: string, addWatchFile: 
 
 export function watchExtensionNewFiles(extensionDir: string, onNewFile: (absolutePath: string) => void): () => void {
   const watchers: FSWatcher[] = []
-  const watchTargets = [
+  const watchTargets: Array<{
+    baseDir: string
+    shouldInclude: (relativePath: string) => boolean
+    stampRel?: (relativePath: string) => string
+  }> = [
     { baseDir: path.join(extensionDir, 'src'), shouldInclude: isExtensionSourceFile },
     { baseDir: path.join(extensionDir, 'icons'), shouldInclude: () => true },
     { baseDir: path.join(extensionDir, 'vite-plugins'), shouldInclude: (rel: string) => /\.(ts|mjs)$/.test(rel) },
     { baseDir: path.join(extensionDir, '../shared'), shouldInclude: (rel: string) => /\.ts$/.test(rel) },
+    {
+      baseDir: path.join(extensionDir, 'scripts'),
+      shouldInclude: (rel: string) => rel === 'compile-extension-html.mjs',
+      stampRel: (rel: string) => `scripts/${rel}`,
+    },
   ]
 
   for (const target of watchTargets) {
@@ -128,13 +148,26 @@ export function watchExtensionNewFiles(extensionDir: string, onNewFile: (absolut
 
     try {
       const watcher = watch(target.baseDir, { recursive: true }, (eventType, filename) => {
-        if (eventType !== 'rename' || !filename) {
+        if (!filename) {
           return
         }
 
         const rel = filename.toString().replace(/\\/g, '/')
         const abs = path.join(target.baseDir, rel)
-        if (target.shouldInclude(rel) && fileExists(abs)) {
+        if (!target.shouldInclude(rel)) {
+          return
+        }
+
+        const stampRel = target.stampRel?.(rel) ?? rel
+
+        if (eventType === 'rename') {
+          if (fileExists(abs)) {
+            onNewFile(abs)
+          }
+          return
+        }
+
+        if (eventType === 'change' && fileExists(abs) && shouldTouchStampOnFsChange(stampRel)) {
           onNewFile(abs)
         }
       })

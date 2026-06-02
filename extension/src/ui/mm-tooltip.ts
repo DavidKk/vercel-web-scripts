@@ -32,14 +32,18 @@ function ensureTooltipElement(): HTMLDivElement {
 }
 
 function findTooltipTrigger(target: EventTarget | null): HTMLElement | null {
-  if (!(target instanceof Element)) {
+  if (!target) {
     return null
   }
-  const host = target.closest('mm-tooltip')
+  const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null
+  if (!element) {
+    return null
+  }
+  const host = element.closest('mm-tooltip')
   if (host instanceof MmTooltip) {
     return host.triggerElement
   }
-  return target.closest<HTMLElement>(TOOLTIP_SELECTOR)
+  return element.closest<HTMLElement>(TOOLTIP_SELECTOR)
 }
 
 function measureTooltip(host: HTMLDivElement, content: string): { width: number; height: number } {
@@ -84,6 +88,8 @@ function showTooltip(trigger: HTMLElement): void {
   }
 
   activeTrigger = trigger
+  const host = ensureTooltipElement()
+  host.classList.toggle('is-wide', trigger.hasAttribute('data-mm-tooltip-wide'))
   repositionTooltip(trigger, content)
   bindScrollReposition()
 }
@@ -94,7 +100,7 @@ function hideTooltip(): void {
     hideTimer = undefined
   }
   activeTrigger = null
-  tooltipEl?.classList.remove('is-visible')
+  tooltipEl?.classList.remove('is-visible', 'is-wide')
   if (tooltipEl) {
     tooltipEl.style.visibility = 'hidden'
   }

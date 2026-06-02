@@ -65,7 +65,22 @@ describe('extension-storage pure helpers', () => {
       expect(groups.map((g) => g.scriptKey)).toEqual(['key-a', 'key-b'])
       expect(groups[0]?.active).toBe(false)
       expect(groups[0]?.serviceLabels).toEqual(['Prod', 'Local'])
+      expect(groups[0]?.primaryServiceLabel).toBe('Prod')
       expect(groups[1]?.editorBaseUrl).toBe('https://other.com')
+    })
+
+    it('should pick primaryServiceLabel from first enabled service in list order', () => {
+      const state: ExtensionServicesState = {
+        services: [
+          makeService({ id: '1', label: 'Prod', baseUrl: 'https://prod.com', scriptKey: 'key-a', enabled: true }),
+          makeService({ id: '2', label: 'Local', baseUrl: 'https://local.com', scriptKey: 'key-a', enabled: true }),
+        ],
+        scriptKeyMeta: [],
+      }
+
+      const groups = buildScriptKeyGroupMetaFromState(state)
+      expect(groups[0]?.primaryServiceLabel).toBe('Prod')
+      expect(groups[0]?.editorBaseUrl).toBe('https://prod.com')
     })
   })
 

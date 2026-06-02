@@ -47,7 +47,7 @@ pnpm pack:extension
 
 Production `pnpm build` runs `pack:extension` automatically so the editor can offer the ZIP download.
 
-All UI uses **Tailwind CSS** only (`extension/src/ui/tailwind.css` inlined into Shadow DOM; `shell.css` for page layout). Built via `extension/vite.config.ts`.
+All UI uses **Tailwind CSS** only (`extension/src/ui/tailwind.css` inlined into Shadow DOM; `shell.css` for page layout). Extension page markup lives in **`src/html/pages/*.ejs`** with reusable partials under **`src/html/partials/`**, compiled at build time via `extension/scripts/compile-extension-html.mjs`. Built via `extension/vite.config.ts`.
 
 After rebuilding, reload the extension at `chrome://extensions` (not just the page tab).
 
@@ -61,21 +61,22 @@ Rebuild `dist/` and reload the extension after pulling changes.
 
 `pnpm run build:extension:dev` uses [**build watch**](https://vite.dev/guide/build#build-watch). The primary Rollup graph is only `background.ts`; popup/scripts/servers/bridge/launcher are built in `closeBundle`. Anything not in that graph is registered with [`addWatchFile`](https://rollupjs.org/plugin/typescript/#plugin-context) on **every** `buildStart` (including a fresh `src/**/*.{ts,tsx,html,css}` scan). Newly created files are detected by a small dev watcher that touches `src/dev-build-stamp.ts`, which wakes the primary Rollup graph and lets the next `buildStart` register the new path.
 
-On change, Rollup re-runs and `closeBundle` rebuilds secondary IIFEs, `shell.css`, and copies HTML into `dist/`. Look for:
+On change, Rollup re-runs and `closeBundle` rebuilds secondary IIFEs, `shell.css`, and compiles EJS HTML into `dist/`. Look for:
 
 - `[extension] watch: … path(s) via addWatchFile (src glob each buildStart)`
-- `[extension] copied HTML, manifest, icons → dist/` (after each rebuild)
+- `[extension] compiled HTML, manifest, icons → dist/` (after each rebuild)
 
 Changing `vite.config.ts` or adding a new `EXTENSION_ENTRIES` bundle still requires restarting the watch process.
 
-| Watched                                       | Notes                                                           |
-| --------------------------------------------- | --------------------------------------------------------------- |
-| `src/**`                                      | TS/HTML/CSS; new files: dev stamp touch + per-`buildStart` scan |
-| `icons/**`, `manifest.json`, Tailwind/PostCSS | Copied or used in `closeBundle`                                 |
-| `../shared/**`, `../package.json`             | Aliases + manifest `__VERSION__`                                |
-| `vite-plugins/**`                             | Build helpers (not `vite.config.ts` itself)                     |
-| `~icons/*` (MDI)                              | Resolved via npm / unplugin-icons; no repo file watch           |
-| `extension/scripts/*.mjs`                     | Dev/build helper scripts; restart watch after changing them     |
+| Watched                                        | Notes                                                                                     |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/**`                                       | TS/CSS/EJS; new files: dev stamp touch + per-`buildStart` scan                            |
+| `src/html/pages/*.ejs`, `src/html/partials/**` | Page templates + shared partials → `dist/*.html`; partial `change` also touches dev stamp |
+| `icons/**`, `manifest.json`, Tailwind/PostCSS  | Copied or used in `closeBundle`                                                           |
+| `../shared/**`, `../package.json`              | Aliases + manifest `__VERSION__`                                                          |
+| `vite-plugins/**`                              | Build helpers (not `vite.config.ts` itself)                                               |
+| `~icons/*` (MDI)                               | Resolved via npm / unplugin-icons; no repo file watch                                     |
+| `extension/scripts/*.mjs`                      | Dev/build helper scripts; restart watch after changing them                               |
 
 Verify locally: `pnpm run test:extension:static-watch` (create/update/delete coverage for HTML and copied static assets)
 
