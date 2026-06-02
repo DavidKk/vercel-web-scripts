@@ -114,17 +114,42 @@ export function resolveDevelopService(services: ServiceProfile[]): ServiceProfil
 }
 
 /**
- * Derive a default service label from server URL host.
+ * Derive a default service label from server URL host (and port for local dev).
  * @param baseUrl Server URL
- * @returns Hostname or fallback label
+ * @returns Hostname with port for localhost, otherwise hostname
  */
 export function defaultLabelFromBaseUrl(baseUrl: string): string {
   try {
-    const host = new URL(normalizeBaseUrl(baseUrl)).hostname
-    return host || 'Service'
+    const url = new URL(normalizeBaseUrl(baseUrl))
+    const host = url.hostname
+    if (!host) {
+      return 'Service'
+    }
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') {
+      const port = url.port || (url.protocol === 'https:' ? '443' : '80')
+      return `localhost:${port}`
+    }
+    return host
   } catch {
     return 'Service'
   }
+}
+
+/**
+ * Resolve label used to seed gmScope from service label and/or server URL.
+ * @param label Service label from form or profile
+ * @param baseUrl Server URL fallback when label is empty
+ * @returns Non-empty label candidate
+ */
+export function resolveGmScopeSeedLabel(label: string, baseUrl?: string): string {
+  const trimmed = label.trim()
+  if (trimmed) {
+    return trimmed
+  }
+  if (baseUrl?.trim()) {
+    return defaultLabelFromBaseUrl(baseUrl)
+  }
+  return ''
 }
 
 /**
@@ -169,13 +194,14 @@ export function ensureUniqueGmScope(gmScope: string, scriptKey: string, meta: Sc
  * @param fallbackLabel Label used when meta is missing
  * @returns gmScope string
  */
-export function getGmScopeForScriptKey(scriptKey: string, meta: ScriptKeyMeta[], fallbackLabel: string): string {
+export function getGmScopeForScriptKey(scriptKey: string, meta: ScriptKeyMeta[], fallbackLabel: string, baseUrl?: string): string {
   const normalized = normalizeScriptKey(scriptKey)
   const found = meta.find((m) => normalizeScriptKey(m.scriptKey) === normalized)
   if (found?.gmScope) {
     return found.gmScope
   }
-  return ensureUniqueGmScope(defaultGmScopeFromLabel(fallbackLabel), scriptKey, meta)
+  const seed = resolveGmScopeSeedLabel(fallbackLabel, baseUrl)
+  return ensureUniqueGmScope(defaultGmScopeFromLabel(seed || 'svc'), scriptKey, meta)
 }
 
 /**
@@ -183,8 +209,9 @@ export function getGmScopeForScriptKey(scriptKey: string, meta: ScriptKeyMeta[],
  * @param state Services state (mutated in place)
  * @param scriptKey Script key
  * @param label Label for default gmScope when missing
+ * @param baseUrl Server URL fallback when label is empty
  */
-export function ensureScriptKeyMetaEntry(state: ExtensionServicesState, scriptKey: string, label: string): void {
+export function ensureScriptKeyMetaEntry(state: ExtensionServicesState, scriptKey: string, label: string, baseUrl?: string): void {
   const normalized = normalizeScriptKey(scriptKey)
   if (!normalized) {
     return
@@ -193,9 +220,10 @@ export function ensureScriptKeyMetaEntry(state: ExtensionServicesState, scriptKe
   if (existing) {
     return
   }
+  const seed = resolveGmScopeSeedLabel(label, baseUrl)
   state.scriptKeyMeta.push({
     scriptKey: normalized,
-    gmScope: ensureUniqueGmScope(defaultGmScopeFromLabel(label), normalized, state.scriptKeyMeta),
+    gmScope: ensureUniqueGmScope(defaultGmScopeFromLabel(seed || 'svc'), normalized, state.scriptKeyMeta),
   })
 }
 
@@ -222,6 +250,25 @@ export function formatScriptKeyShort(scriptKey: string): string {
     return trimmed
   }
   return `${trimmed.slice(0, 8)}…`
+}
+
+/**
+ * Mask a script key for sensitive display (head + bullets + tail).
+ * @param scriptKey Raw script key
+ * @param head Visible prefix length
+ * @param tail Visible suffix length
+ * @returns Masked display form when key is long enough
+ */
+export function formatScriptKeyMasked(scriptKey: string, head = 8, tail = 8): string {
+  const trimmed = normalizeScriptKey(scriptKey)
+  if (!trimmed) {
+    return ''
+  }
+  if (trimmed.length <= head + tail) {
+    return trimmed
+  }
+  const hiddenLen = trimmed.length - head - tail
+  return `${trimmed.slice(0, head)}${'.'.repeat(hiddenLen)}${trimmed.slice(-tail)}`
 }
 
 /**

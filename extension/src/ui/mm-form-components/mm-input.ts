@@ -7,5 +7,8 @@ export class MmInput extends HTMLElement {
     if (this.querySelector('.mm-input-icon')) {
       this.classList.add('mm-input-with-icon')
     }
+    if (this.querySelector('.mm-input-action')) {
+      this.classList.add('mm-input-with-action')
+    }
   }
 }

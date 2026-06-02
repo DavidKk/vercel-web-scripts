@@ -1,12 +1,16 @@
 import {
   countServiceRefs,
   defaultGmScopeFromLabel,
+  defaultLabelFromBaseUrl,
   ensureUniqueGmScope,
   findServiceByEndpoint,
+  formatScriptKeyMasked,
   getEnabledScriptKeys,
+  getGmScopeForScriptKey,
   isValidScriptKeyFormat,
   normalizeBaseUrl,
   resolveDevelopService,
+  resolveGmScopeSeedLabel,
   resolveOtaEndpoint,
   serviceEndpointKey,
 } from '../../extension/src/shared/extension-services'
@@ -109,6 +113,45 @@ describe('extension-services', () => {
     it('should uniquify gmScope collisions', () => {
       const scope = ensureUniqueGmScope('A', 'key-b', [{ scriptKey: 'key-a', gmScope: 'A' }])
       expect(scope).toBe('A_2')
+    })
+  })
+
+  describe('defaultLabelFromBaseUrl', () => {
+    it('should include port for local dev hosts', () => {
+      expect(defaultLabelFromBaseUrl('http://localhost:3000')).toBe('localhost:3000')
+      expect(defaultLabelFromBaseUrl('http://127.0.0.1:5173')).toBe('localhost:5173')
+    })
+
+    it('should use hostname for remote hosts', () => {
+      expect(defaultLabelFromBaseUrl('https://vercel-web-scripts.vercel.app')).toBe('vercel-web-scripts.vercel.app')
+    })
+  })
+
+  describe('resolveGmScopeSeedLabel', () => {
+    it('should prefer explicit label over baseUrl', () => {
+      expect(resolveGmScopeSeedLabel('Client A', 'http://localhost:3000')).toBe('Client A')
+    })
+
+    it('should fall back to baseUrl label when service label is empty', () => {
+      expect(resolveGmScopeSeedLabel('', 'https://vercel-web-scripts.vercel.app')).toBe('vercel-web-scripts.vercel.app')
+    })
+  })
+
+  describe('getGmScopeForScriptKey', () => {
+    it('should derive distinct gmScope defaults for different local ports', () => {
+      expect(getGmScopeForScriptKey('key-a', [], '', 'http://localhost:3000')).toBe('localhost_3000')
+      expect(getGmScopeForScriptKey('key-b', [{ scriptKey: 'key-a', gmScope: 'localhost_3000' }], '', 'http://localhost:5173')).toBe('localhost_5173')
+    })
+  })
+
+  describe('formatScriptKeyMasked', () => {
+    it('should mask long script keys with head and tail visible', () => {
+      const key = 'a'.repeat(64)
+      expect(formatScriptKeyMasked(key)).toBe(`${'a'.repeat(8)}${'.'.repeat(48)}${'a'.repeat(8)}`)
+    })
+
+    it('should return short keys unchanged', () => {
+      expect(formatScriptKeyMasked('abc123')).toBe('abc123')
     })
   })
 

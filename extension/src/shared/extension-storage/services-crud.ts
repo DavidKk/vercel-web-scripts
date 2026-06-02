@@ -41,7 +41,7 @@ export async function upsertService(input: UpsertServiceInput): Promise<{ create
     }
     state.services = state.services.map((s) => (s.id === existing.id ? updated : s))
     state.activeServiceId = updated.id
-    ensureScriptKeyMetaEntry(state, scriptKey, updated.label)
+    ensureScriptKeyMetaEntry(state, scriptKey, updated.label, updated.baseUrl)
     await saveExtensionServicesState(state)
     return { created: false, service: updated }
   }
@@ -58,7 +58,7 @@ export async function upsertService(input: UpsertServiceInput): Promise<{ create
   }
   state.services = [...state.services, service]
   state.activeServiceId = service.id
-  ensureScriptKeyMetaEntry(state, scriptKey, service.label)
+  ensureScriptKeyMetaEntry(state, scriptKey, service.label, service.baseUrl)
   await saveExtensionServicesState(state)
   return { created: true, service }
 }
@@ -117,7 +117,7 @@ export async function saveOptionsServiceConfig(config: ExtensionConfig): Promise
     updatedAt: Date.now(),
   }
   state.services = state.services.map((s) => (s.id === active!.id ? active! : s))
-  ensureScriptKeyMetaEntry(state, scriptKey, active.label)
+  ensureScriptKeyMetaEntry(state, scriptKey, active.label, active.baseUrl)
   await saveExtensionServicesState(state)
 
   if (endpointChanged) {
@@ -150,7 +150,7 @@ export async function loadActiveServiceDetail(): Promise<{
   return {
     state,
     service,
-    gmScope: getGmScopeForScriptKey(scriptKey, state.scriptKeyMeta, service.label),
+    gmScope: getGmScopeForScriptKey(scriptKey, state.scriptKeyMeta, service.label, service.baseUrl),
     scriptKeyRefCount: countServiceRefs(scriptKey, state.services),
   }
 }
@@ -174,7 +174,7 @@ export async function loadOptionsPanelDetail(): Promise<{
   return {
     state,
     service,
-    gmScope: getGmScopeForScriptKey(scriptKey, state.scriptKeyMeta, service.label),
+    gmScope: getGmScopeForScriptKey(scriptKey, state.scriptKeyMeta, service.label, service.baseUrl),
     scriptKeyRefCount: countServiceRefs(scriptKey, state.services),
   }
 }
@@ -230,7 +230,7 @@ export async function saveActiveServiceFromOptions(input: SaveOptionsServiceInpu
   }
   state.services = state.services.map((s) => (s.id === active.id ? updated : s))
   state.activeServiceId = updated.id
-  ensureScriptKeyMetaEntry(state, scriptKey, updated.label)
+  ensureScriptKeyMetaEntry(state, scriptKey, updated.label, updated.baseUrl)
 
   if (input.gmScope?.trim()) {
     setGmScopeOnState(state, scriptKey, input.gmScope.trim())
@@ -279,7 +279,7 @@ export async function createServiceFromOptions(input: Omit<SaveOptionsServiceInp
   }
   state.services = [...state.services, service]
   state.activeServiceId = service.id
-  ensureScriptKeyMetaEntry(state, scriptKey, service.label)
+  ensureScriptKeyMetaEntry(state, scriptKey, service.label, service.baseUrl)
   if (input.gmScope?.trim()) {
     setGmScopeOnState(state, scriptKey, input.gmScope.trim())
   }

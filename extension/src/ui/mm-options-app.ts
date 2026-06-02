@@ -1,4 +1,11 @@
-import { formatScriptKeyShort, isValidScriptKeyFormat, resolveOtaEndpoint } from '@ext/shared/extension-services'
+import {
+  defaultLabelFromBaseUrl,
+  formatScriptKeyMasked,
+  formatScriptKeyShort,
+  getGmScopeForScriptKey,
+  isValidScriptKeyFormat,
+  resolveOtaEndpoint,
+} from '@ext/shared/extension-services'
 import {
   clearActiveServiceId,
   createServiceFromOptions,
@@ -10,7 +17,7 @@ import {
   setActiveServiceId,
   setServiceEnabled,
 } from '@ext/shared/extension-storage'
-import { DEFAULT_CONFIG, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
+import { DEFAULT_CONFIG, type ScriptKeyMeta, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
 
 import { initAdminNavIndicator } from './mm-admin-nav'
 import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from './mm-icons'
@@ -49,6 +56,11 @@ export class MmOptionsApp extends HTMLElement {
   private listDragRowId: string | null = null
   private dropPlaceholderEl: HTMLElement | null = null
   private scriptKeyRefCount = 0
+  private scriptKeyStored = ''
+  private scriptKeyRevealed = true
+  private scriptKeyMeta: ScriptKeyMeta[] = []
+  private gmScopeTouched = false
+  private labelTouched = false
   private listDragBound = false
   private disposeAdminNavIndicator: (() => void) | undefined
 
@@ -134,6 +146,9 @@ export class MmOptionsApp extends HTMLElement {
     this.querySelector('[data-action="test-connection"]')?.addEventListener('click', () => {
       void this.runDetailConnectionTest()
     })
+    this.querySelector('[data-action="toggle-script-key"]')?.addEventListener('click', () => {
+      this.toggleScriptKeyVisibility()
+    })
 
     const listEl = this.querySelector('[data-ref="service-list"]') as HTMLUListElement | null
     if (listEl) {
@@ -141,16 +156,28 @@ export class MmOptionsApp extends HTMLElement {
     }
 
     this.querySelector('[data-ref="script-key"]')?.addEventListener('input', () => {
+      if (!this.shouldMaskScriptKey()) {
+        this.scriptKeyStored = this.getScriptKeyInput()?.value ?? ''
+      }
       this.updateScriptKeyHint()
+      this.updateSuggestedServiceFields()
     })
-    this.querySelector('[data-ref="enabled"]')?.addEventListener('change', () => {
-      void this.syncEnabledFromDetailPanel()
+    this.querySelector('[data-ref="base-url"]')?.addEventListener('input', () => {
+      this.updateSuggestedServiceFields()
+    })
+    this.querySelector('[data-ref="label"]')?.addEventListener('input', () => {
+      this.labelTouched = true
+      this.updateSuggestedServiceFields()
+    })
+    this.querySelector('[data-ref="gm-scope"]')?.addEventListener('input', () => {
+      this.gmScopeTouched = true
     })
   }
 
   private async reload(options?: { preserveDraft?: boolean }): Promise<void> {
     const detail = await loadOptionsPanelDetail()
     this.services = detail.state.services
+    this.scriptKeyMeta = detail.state.scriptKeyMeta
     if (!options?.preserveDraft) {
       this.createMode = false
       this.activeServiceId = detail.service?.id ?? null
@@ -514,29 +541,6 @@ export class MmOptionsApp extends HTMLElement {
     this.setStatus(enabled ? 'Service enabled.' : 'Service disabled (skipped for OTA).', 'ok')
   }
 
-  /** Keep list enable icon in sync when the detail panel Enabled switch changes. */
-  private async syncEnabledFromDetailPanel(): Promise<void> {
-    if (this.createMode || !this.activeServiceId) {
-      return
-    }
-    const input = this.querySelector('[data-ref="enabled"]') as HTMLInputElement | null
-    if (!input) {
-      return
-    }
-    const enabled = input.checked
-    const serviceId = this.activeServiceId
-    const previous = this.services.find((s) => s.id === serviceId)?.enabled
-    if (previous === enabled) {
-      return
-    }
-    try {
-      await this.setServiceEnabledFromList(serviceId, enabled)
-    } catch (error) {
-      input.checked = previous ?? false
-      this.setStatus(error instanceof Error ? error.message : 'Failed to update enabled state.', 'error')
-    }
-  }
-
   private async selectService(serviceId: string): Promise<void> {
     this.createMode = false
     this.activeServiceId = serviceId
@@ -564,13 +568,17 @@ export class MmOptionsApp extends HTMLElement {
 
   private applyDraftDetail(): void {
     this.setDetailTestState('idle')
+    this.labelTouched = false
+    this.gmScopeTouched = false
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = ''
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = DEFAULT_CONFIG.baseUrl
-    ;(this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value = ''
-    ;(this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value = ''
+    this.scriptKeyStored = ''
+    this.scriptKeyRevealed = true
     ;(this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked = true
     ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = false
     this.setScriptKeyBadge(0)
+    this.updateSuggestedServiceFields()
+    this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
   }
 
@@ -578,14 +586,44 @@ export class MmOptionsApp extends HTMLElement {
     if (!options?.preserveTestUi) {
       this.setDetailTestState('idle')
     }
+    this.labelTouched = false
+    this.gmScopeTouched = false
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = service.label
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = service.baseUrl
-    ;(this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value = service.scriptKey
+    this.scriptKeyStored = service.scriptKey
+    this.scriptKeyRevealed = false
     ;(this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value = gmScope
     ;(this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked = service.enabled
     ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = service.developMode === true
     this.setScriptKeyBadge(scriptKeyRefCount)
+    this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
+  }
+
+  private updateSuggestedServiceFields(): void {
+    const labelEl = this.querySelector('[data-ref="label"]') as HTMLInputElement | null
+    const baseUrlEl = this.querySelector('[data-ref="base-url"]') as HTMLInputElement | null
+    const gmScopeEl = this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement | null
+    if (!labelEl || !baseUrlEl || !gmScopeEl) {
+      return
+    }
+
+    const baseUrl = baseUrlEl.value.trim().replace(/\/$/, '')
+    if (!this.labelTouched && !labelEl.value.trim() && baseUrl) {
+      labelEl.value = defaultLabelFromBaseUrl(baseUrl)
+    }
+
+    if (this.gmScopeTouched) {
+      return
+    }
+
+    const scriptKey = this.readScriptKeyValue()
+    if (!scriptKey) {
+      gmScopeEl.value = ''
+      return
+    }
+
+    gmScopeEl.value = getGmScopeForScriptKey(scriptKey, this.scriptKeyMeta, labelEl.value, baseUrl)
   }
 
   private setScriptKeyBadge(refCount: number): void {
@@ -612,6 +650,88 @@ export class MmOptionsApp extends HTMLElement {
     if (testConnBtn) {
       testConnBtn.disabled = mode === 'empty' || this.testAllRunning
     }
+    if (mode === 'create') {
+      this.scriptKeyRevealed = true
+    } else if (mode === 'empty') {
+      this.scriptKeyStored = ''
+      this.scriptKeyRevealed = false
+    }
+    this.syncScriptKeyFieldDisplay()
+  }
+
+  private getScriptKeyInput(): HTMLInputElement | null {
+    return this.querySelector('[data-ref="script-key"]') as HTMLInputElement | null
+  }
+
+  private shouldMaskScriptKey(): boolean {
+    return !this.createMode && !this.scriptKeyRevealed
+  }
+
+  private syncScriptKeyFieldDisplay(): void {
+    const input = this.getScriptKeyInput()
+    const toggleBtn = this.querySelector('[data-action="toggle-script-key"]') as HTMLButtonElement | null
+    if (!input) {
+      return
+    }
+
+    const showToggle = !this.createMode
+    toggleBtn?.classList.toggle('hidden', !showToggle)
+
+    if (this.shouldMaskScriptKey()) {
+      input.readOnly = true
+      input.value = formatScriptKeyMasked(this.scriptKeyStored)
+    } else {
+      input.readOnly = false
+      input.value = this.scriptKeyStored
+    }
+
+    this.updateScriptKeyVisibilityUi()
+  }
+
+  private updateScriptKeyVisibilityUi(): void {
+    const icon = this.querySelector('[data-ref="script-key-visibility-icon"]') as HTMLElement | null
+    const btn = this.querySelector('[data-action="toggle-script-key"]') as HTMLButtonElement | null
+    if (!icon || !btn || btn.classList.contains('hidden')) {
+      return
+    }
+
+    const tooltip = this.scriptKeyRevealed ? 'Hide script key' : 'Show script key'
+    if (this.scriptKeyRevealed) {
+      setIconSlotKey(icon, 'eyeOff')
+      btn.setAttribute('aria-label', tooltip)
+      btn.setAttribute('data-mm-tooltip', tooltip)
+    } else {
+      setIconSlotKey(icon, 'eye')
+      btn.setAttribute('aria-label', tooltip)
+      btn.setAttribute('data-mm-tooltip', tooltip)
+    }
+    updateMmTooltip(btn, tooltip)
+  }
+
+  private toggleScriptKeyVisibility(): void {
+    if (this.createMode) {
+      return
+    }
+    if (this.scriptKeyRevealed) {
+      this.scriptKeyStored = (this.getScriptKeyInput()?.value ?? '').trim()
+      this.scriptKeyRevealed = false
+    } else {
+      this.scriptKeyRevealed = true
+    }
+    this.syncScriptKeyFieldDisplay()
+    this.updateSuggestedServiceFields()
+    if (this.scriptKeyRevealed) {
+      const input = this.getScriptKeyInput()
+      input?.focus()
+      input?.setSelectionRange(input.value.length, input.value.length)
+    }
+  }
+
+  private readScriptKeyValue(): string {
+    if (this.shouldMaskScriptKey()) {
+      return this.scriptKeyStored.trim()
+    }
+    return (this.getScriptKeyInput()?.value ?? '').trim()
   }
 
   private readFormInput(): {
@@ -625,7 +745,7 @@ export class MmOptionsApp extends HTMLElement {
     return {
       label: (this.querySelector('[data-ref="label"]') as HTMLInputElement).value.trim(),
       baseUrl: (this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value.trim().replace(/\/$/, ''),
-      scriptKey: (this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value.trim(),
+      scriptKey: this.readScriptKeyValue(),
       gmScope: (this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value.trim(),
       enabled: (this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked,
       developMode: (this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked,
@@ -642,7 +762,7 @@ export class MmOptionsApp extends HTMLElement {
 
   private updateScriptKeyHint(): void {
     const hint = this.querySelector('[data-ref="script-key-hint"]') as HTMLElement | null
-    const scriptKey = (this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value.trim()
+    const scriptKey = this.readScriptKeyValue()
     if (!hint) {
       return
     }

@@ -68,7 +68,7 @@
                       <label class="mm-options-toggle-card">
                         <span class="mm-options-toggle-copy">
                           <span class="mm-options-toggle-title">Enabled</span>
-                          <span class="mm-options-toggle-text">Disabled services are skipped for OTA and editor defaults.</span>
+                          <span class="mm-options-toggle-text">Disabled services are skipped for OTA and editor defaults. Changes here apply after Save.</span>
                         </span>
                         <span class="mm-switch-control">
                           <input type="checkbox" class="mm-switch-input" data-ref="enabled" checked />
@@ -107,7 +107,25 @@
                         <mm-field class="mm-options-field">
                           <label for="scriptKey" class="mm-label">Script key</label>
                           <mm-input>
-                            <input id="scriptKey" type="text" data-ref="script-key" placeholder="64-char SHA-256 hex" autocomplete="off" spellcheck="false" />
+                            <input
+                              id="scriptKey"
+                              type="text"
+                              class="mm-input-script-key"
+                              data-ref="script-key"
+                              placeholder="64-char SHA-256 hex"
+                              autocomplete="off"
+                              spellcheck="false"
+                            />
+                            <button
+                              type="button"
+                              class="mm-input-action hidden"
+                              data-action="toggle-script-key"
+                              data-mm-tooltip="Show script key"
+                              data-mm-tooltip-placement="bottom"
+                              aria-label="Show script key"
+                            >
+                              <span data-ref="script-key-visibility-icon" data-icon="eye" class="mm-icon-slot" aria-hidden="true"></span>
+                            </button>
                           </mm-input>
                           <p class="mm-hint" data-ref="script-key-hint">Matches <code>/static/[key]/</code>.</p>
                         </mm-field>
@@ -126,7 +144,7 @@
                           <mm-input>
                             <input id="gmScope" type="text" data-ref="gm-scope" placeholder="A" autocomplete="off" spellcheck="false" />
                           </mm-input>
-                          <p class="mm-hint">Prefix for GM storage keys, e.g. <code>A_A</code>. Same script key on multiple services shares one scope.</p>
+                          <p class="mm-hint">Prefix for GM storage keys, e.g. <code>A_A</code>. Auto-filled from label or server URL; same script key shares one scope.</p>
                         </mm-field>
                       </div>
                     </section>

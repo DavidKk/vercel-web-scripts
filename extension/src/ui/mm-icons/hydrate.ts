@@ -8,6 +8,8 @@ import iconCog from '~icons/mdi/cog?raw'
 import iconCpu64Bit from '~icons/mdi/cpu-64-bit?raw'
 import iconDelete from '~icons/mdi/delete-outline?raw'
 import iconDragVertical from '~icons/mdi/drag-vertical?raw'
+import iconEyeOffOutline from '~icons/mdi/eye-off-outline?raw'
+import iconEyeOutline from '~icons/mdi/eye-outline?raw'
 import iconInboxOutline from '~icons/mdi/inbox-outline?raw'
 import iconLanCheck from '~icons/mdi/lan-check?raw'
 import iconLightningBoltOutline from '~icons/mdi/lightning-bolt-outline?raw'
@@ -42,6 +44,8 @@ export const mmPopupIcons = {
   close: iconClose,
   testAll: iconCheckAll,
   delete: iconDelete,
+  eye: iconEyeOutline,
+  eyeOff: iconEyeOffOutline,
   serviceOn: iconPower,
   serviceOff: iconPowerOff,
   nodata: iconInboxOutline,

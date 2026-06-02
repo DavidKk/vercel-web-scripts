@@ -444,6 +444,10 @@
     @apply h-8 rounded px-2.5 text-xs leading-normal;
   }
 
+  .mm-servers-detail-form .mm-options-field mm-input > input.mm-input-script-key {
+    @apply font-mono tracking-tight;
+  }
+
   .mm-servers-detail-form .mm-hint {
     @apply mt-1.5 text-[11px] leading-snug;
   }
@@ -1863,6 +1867,23 @@
   mm-input:has(.mm-input-icon) > input,
   .mm-input-with-icon .mm-native-input {
     @apply pl-9;
+  }
+
+  mm-input:has(.mm-input-action) > input,
+  .mm-input-with-action .mm-native-input {
+    @apply pr-9;
+  }
+
+  .mm-input-action {
+    @apply absolute right-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary;
+  }
+
+  .mm-input-action .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  mm-input > input.mm-input-script-key {
+    @apply font-mono text-xs tracking-tight;
   }
 
   mm-input > input {

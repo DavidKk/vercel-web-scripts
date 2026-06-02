@@ -79,7 +79,7 @@ async function migrateLegacyExtensionConfigIfNeeded(): Promise<ExtensionServices
     activeServiceId: services[0]?.id,
   }
   for (const service of services) {
-    ensureScriptKeyMetaEntry(state, service.scriptKey, service.label)
+    ensureScriptKeyMetaEntry(state, service.scriptKey, service.label, service.baseUrl)
   }
 
   const primaryScriptKey = services[0]?.scriptKey
