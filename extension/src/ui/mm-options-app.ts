@@ -8,6 +8,7 @@ import {
   resetOptionsServiceConfig,
   saveActiveServiceFromOptions,
   setActiveServiceId,
+  setServiceEnabled,
 } from '@ext/shared/extension-storage'
 import { DEFAULT_CONFIG, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
 
@@ -18,6 +19,9 @@ const STATUS_BASE = 'mm-servers-status'
 
 type DetailMode = 'empty' | 'edit' | 'create'
 type ServiceTestState = 'idle' | 'loading' | 'ok' | 'error'
+
+const SERVICE_TEST_OK_DISPLAY_MS = 3000
+const SERVICE_TEST_RESULT_FADE_MS = 200
 
 const DETAIL_TEST_TOOLTIPS: Record<ServiceTestState, string> = {
   idle: 'Test connection (optional)',
@@ -35,10 +39,13 @@ export class MmOptionsApp extends HTMLElement {
   private activeServiceId: string | null = null
   private services: ServiceProfile[] = []
   private storageListener: ((changes: Record<string, chrome.storage.StorageChange>, area: string) => void) | undefined
-  private serviceTestTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private testAllRunning = false
+  private serviceTestTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private batchTestDismissTimer: ReturnType<typeof setTimeout> | undefined
   private detailTestTimer: ReturnType<typeof setTimeout> | undefined
   private dragServiceId: string | null = null
+  /** Set on drag-handle mousedown; cleared on mouseup/dragend. Gates row dragstart. */
+  private listDragRowId: string | null = null
   private dropPlaceholderEl: HTMLElement | null = null
   private listDragBound = false
 
@@ -65,6 +72,7 @@ export class MmOptionsApp extends HTMLElement {
       clearTimeout(timer)
     }
     this.serviceTestTimers.clear()
+    this.clearBatchTestDismissTimer()
     if (this.detailTestTimer) {
       clearTimeout(this.detailTestTimer)
       this.detailTestTimer = undefined
@@ -102,6 +110,16 @@ export class MmOptionsApp extends HTMLElement {
         event.preventDefault()
         event.stopPropagation()
         void this.deleteServiceById(deleteBtn.dataset.serviceId)
+        return
+      }
+      const enableBtn = el.closest<HTMLElement>('[data-action="toggle-service-enabled"]')
+      if (enableBtn?.dataset.serviceId) {
+        event.preventDefault()
+        event.stopPropagation()
+        const service = this.services.find((s) => s.id === enableBtn.dataset.serviceId)
+        if (service) {
+          void this.setServiceEnabledFromList(service.id, !service.enabled)
+        }
       }
     })
     this.querySelector('[data-action="delete-service"]')?.addEventListener('click', () => {
@@ -118,6 +136,9 @@ export class MmOptionsApp extends HTMLElement {
 
     this.querySelector('[data-ref="script-key"]')?.addEventListener('input', () => {
       this.updateScriptKeyHint()
+    })
+    this.querySelector('[data-ref="enabled"]')?.addEventListener('change', () => {
+      void this.syncEnabledFromDetailPanel()
     })
   }
 
@@ -167,23 +188,36 @@ export class MmOptionsApp extends HTMLElement {
       const item = document.createElement('li')
       item.className = 'mm-options-service-row'
       item.dataset.serviceId = service.id
+      item.draggable = true
 
       const dragHandle = document.createElement('span')
       dragHandle.className = 'mm-servers-drag-handle'
       dragHandle.dataset.action = 'drag-handle'
-      dragHandle.role = 'button'
-      dragHandle.tabIndex = 0
-      item.draggable = true
       dragHandle.setAttribute('data-mm-tooltip', 'Drag to reorder')
       dragHandle.setAttribute('data-mm-tooltip-placement', 'right')
       dragHandle.setAttribute('aria-label', 'Drag to reorder')
+      dragHandle.addEventListener('mousedown', (event) => {
+        if (event.button !== 0) {
+          return
+        }
+        this.listDragRowId = service.id
+        const releaseGate = (): void => {
+          window.removeEventListener('mouseup', releaseGate)
+          window.setTimeout(() => {
+            if (!this.dragServiceId) {
+              this.listDragRowId = null
+            }
+          }, 0)
+        }
+        window.addEventListener('mouseup', releaseGate, { once: true })
+      })
       const dragIcon = document.createElement('span')
       dragIcon.className = 'mm-icon-slot'
       dragIcon.dataset.icon = 'drag'
       dragHandle.appendChild(dragIcon)
 
       const card = document.createElement('div')
-      card.className = 'mm-options-service-card'
+      card.className = `mm-options-service-card${service.enabled ? '' : ' is-service-off'}`
       card.setAttribute('role', 'option')
       card.dataset.serviceId = service.id
       card.setAttribute('aria-selected', String(!this.createMode && service.id === this.activeServiceId))
@@ -202,11 +236,6 @@ export class MmOptionsApp extends HTMLElement {
 
       const badges = document.createElement('span')
       badges.className = 'mm-options-service-item-badges'
-
-      const enabledBadge = document.createElement('span')
-      enabledBadge.className = `mm-options-service-badge${service.enabled ? '' : ' is-off'}`
-      enabledBadge.textContent = service.enabled ? 'Enabled' : 'Disabled'
-      badges.appendChild(enabledBadge)
 
       if ((scriptKeyCounts.get(service.scriptKey.trim()) ?? 0) > 1) {
         const sharedBadge = document.createElement('span')
@@ -239,6 +268,19 @@ export class MmOptionsApp extends HTMLElement {
         void this.selectService(service.id)
       })
 
+      const enableBtn = document.createElement('button')
+      enableBtn.type = 'button'
+      enableBtn.className = `mm-servers-item-action${service.enabled ? ' is-service-on' : ' is-service-off'}`
+      enableBtn.dataset.action = 'toggle-service-enabled'
+      enableBtn.dataset.serviceId = service.id
+      enableBtn.setAttribute('aria-pressed', String(service.enabled))
+      enableBtn.setAttribute('data-mm-tooltip', service.enabled ? 'Disable service (skipped for OTA)' : 'Enable service')
+      enableBtn.setAttribute('aria-label', service.enabled ? 'Disable service' : 'Enable service')
+      const enableIcon = document.createElement('span')
+      enableIcon.className = 'mm-icon-slot'
+      enableIcon.dataset.icon = service.enabled ? 'serviceOn' : 'serviceOff'
+      enableBtn.appendChild(enableIcon)
+
       const testBtn = document.createElement('button')
       testBtn.type = 'button'
       testBtn.className = 'mm-servers-item-action'
@@ -263,7 +305,7 @@ export class MmOptionsApp extends HTMLElement {
       deleteIcon.dataset.icon = 'delete'
       deleteBtn.appendChild(deleteIcon)
 
-      card.append(body, testBtn, deleteBtn)
+      card.append(body, enableBtn, testBtn, deleteBtn)
       item.append(dragHandle, card)
       listEl.appendChild(item)
     }
@@ -286,18 +328,18 @@ export class MmOptionsApp extends HTMLElement {
       })
       this.removeDropPlaceholder()
       this.dragServiceId = null
+      this.listDragRowId = null
     }
 
     listEl.addEventListener('dragstart', (event) => {
-      const handle = (event.target as HTMLElement).closest('[data-action="drag-handle"]')
-      if (!handle) {
+      const row = (event.target as HTMLElement).closest<HTMLElement>('.mm-options-service-row')
+      const serviceId = row?.dataset.serviceId
+      if (!serviceId || this.listDragRowId !== serviceId) {
         event.preventDefault()
         return
       }
-      const row = handle.closest<HTMLElement>('.mm-options-service-row')
-      const serviceId = row?.dataset.serviceId
-      const card = row?.querySelector('.mm-options-service-card') as HTMLElement | null
-      if (!serviceId || !row || !card) {
+      const card = row.querySelector('.mm-options-service-card') as HTMLElement | null
+      if (!row || !card) {
         event.preventDefault()
         return
       }
@@ -445,7 +487,48 @@ export class MmOptionsApp extends HTMLElement {
       return
     }
     await reorderService(serviceId, clamped)
+    const detail = await loadOptionsPanelDetail()
+    this.services = detail.state.services
+    this.renderServiceList()
     this.setStatus('Order updated. Top row has highest OTA priority.', 'ok')
+  }
+
+  private async setServiceEnabledFromList(serviceId: string, enabled: boolean): Promise<void> {
+    const previous = this.services.find((s) => s.id === serviceId)?.enabled
+    if (previous === enabled) {
+      return
+    }
+    await setServiceEnabled(serviceId, enabled)
+    const detail = await loadOptionsPanelDetail()
+    this.services = detail.state.services
+    if (!this.createMode && this.activeServiceId === serviceId && detail.service) {
+      this.applyServiceDetail(detail.service, detail.gmScope, detail.scriptKeyRefCount, { preserveTestUi: true })
+    }
+    this.renderServiceList()
+    this.setStatus(enabled ? 'Service enabled.' : 'Service disabled (skipped for OTA).', 'ok')
+  }
+
+  /** Keep list enable icon in sync when the detail panel Enabled switch changes. */
+  private async syncEnabledFromDetailPanel(): Promise<void> {
+    if (this.createMode || !this.activeServiceId) {
+      return
+    }
+    const input = this.querySelector('[data-ref="enabled"]') as HTMLInputElement | null
+    if (!input) {
+      return
+    }
+    const enabled = input.checked
+    const serviceId = this.activeServiceId
+    const previous = this.services.find((s) => s.id === serviceId)?.enabled
+    if (previous === enabled) {
+      return
+    }
+    try {
+      await this.setServiceEnabledFromList(serviceId, enabled)
+    } catch (error) {
+      input.checked = previous ?? false
+      this.setStatus(error instanceof Error ? error.message : 'Failed to update enabled state.', 'error')
+    }
   }
 
   private async selectService(serviceId: string): Promise<void> {
@@ -474,6 +557,7 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   private applyDraftDetail(): void {
+    this.setDetailTestState('idle')
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = ''
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = DEFAULT_CONFIG.baseUrl
     ;(this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value = ''
@@ -484,7 +568,10 @@ export class MmOptionsApp extends HTMLElement {
     this.updateScriptKeyHint()
   }
 
-  private applyServiceDetail(service: ServiceProfile, gmScope: string, scriptKeyRefCount: number): void {
+  private applyServiceDetail(service: ServiceProfile, gmScope: string, scriptKeyRefCount: number, options?: { preserveTestUi?: boolean }): void {
+    if (!options?.preserveTestUi) {
+      this.setDetailTestState('idle')
+    }
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = service.label
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = service.baseUrl
     ;(this.querySelector('[data-ref="script-key"]') as HTMLInputElement).value = service.scriptKey
@@ -610,6 +697,22 @@ export class MmOptionsApp extends HTMLElement {
     return this.querySelector(`[data-action="test-service"][data-service-id="${CSS.escape(serviceId)}"]`)
   }
 
+  private getServiceRow(serviceId: string): HTMLElement | null {
+    return this.querySelector(`[data-ref="service-list"] .mm-options-service-row[data-service-id="${CSS.escape(serviceId)}"]`)
+  }
+
+  private getServiceCard(serviceId: string): HTMLElement | null {
+    return this.getServiceRow(serviceId)?.querySelector('.mm-options-service-card') ?? null
+  }
+
+  private setTestAllListActive(active: boolean): void {
+    this.querySelector('[data-ref="service-list"]')?.classList.toggle('is-test-all-active', active)
+  }
+
+  private clearServiceTestFail(serviceId: string): void {
+    this.getServiceCard(serviceId)?.classList.remove('is-test-fail')
+  }
+
   private clearServiceTestTimer(serviceId: string): void {
     const timer = this.serviceTestTimers.get(serviceId)
     if (timer) {
@@ -618,43 +721,158 @@ export class MmOptionsApp extends HTMLElement {
     }
   }
 
+  private clearServiceTestFeedbackUi(serviceId: string): void {
+    const card = this.getServiceCard(serviceId)
+    card?.classList.remove('is-test-feedback', 'is-test-feedback-exit')
+  }
+
+  /** After success: fade all row actions together → swap test icon while hidden. */
+  private beginServiceTestOkDismiss(serviceId: string): void {
+    const btn = this.getServiceTestButton(serviceId)
+    const icon = btn?.querySelector('.mm-icon-slot') as HTMLElement | null
+    const card = this.getServiceCard(serviceId)
+    if (!btn || !icon) {
+      this.setServiceTestState(serviceId, 'idle')
+      return
+    }
+
+    card?.classList.add('is-test-feedback-exit')
+    this.serviceTestTimers.set(
+      serviceId,
+      setTimeout(() => {
+        btn.classList.remove('is-ok')
+        setIconSlotKey(icon, 'test')
+        card?.classList.remove('is-test-feedback', 'is-test-feedback-exit')
+        if (!this.testAllRunning) {
+          btn.disabled = false
+        }
+        this.serviceTestTimers.delete(serviceId)
+      }, SERVICE_TEST_RESULT_FADE_MS)
+    )
+  }
+
+  private scheduleServiceTestOkDismiss(serviceId: string): void {
+    this.clearServiceTestTimer(serviceId)
+    this.serviceTestTimers.set(
+      serviceId,
+      setTimeout(() => this.beginServiceTestOkDismiss(serviceId), SERVICE_TEST_OK_DISPLAY_MS)
+    )
+  }
+
+  private clearBatchTestDismissTimer(): void {
+    if (this.batchTestDismissTimer) {
+      clearTimeout(this.batchTestDismissTimer)
+      this.batchTestDismissTimer = undefined
+    }
+  }
+
+  /** Test-all: wait once, then fade every successful row's actions in sync. */
+  private scheduleBatchOkDismiss(serviceIds: string[]): void {
+    this.clearBatchTestDismissTimer()
+    if (serviceIds.length === 0) {
+      return
+    }
+    this.batchTestDismissTimer = setTimeout(() => {
+      this.batchTestDismissTimer = undefined
+      this.beginBatchOkDismiss(serviceIds)
+    }, SERVICE_TEST_OK_DISPLAY_MS)
+  }
+
+  private beginBatchOkDismiss(serviceIds: string[]): void {
+    for (const serviceId of serviceIds) {
+      this.getServiceCard(serviceId)?.classList.add('is-test-feedback-exit')
+    }
+
+    setTimeout(() => {
+      for (const serviceId of serviceIds) {
+        const btn = this.getServiceTestButton(serviceId)
+        const icon = btn?.querySelector('.mm-icon-slot') as HTMLElement | null
+        btn?.classList.remove('is-ok')
+        if (icon) {
+          setIconSlotKey(icon, 'test')
+        }
+        if (btn) {
+          btn.disabled = false
+        }
+        this.clearServiceTestFeedbackUi(serviceId)
+      }
+    }, SERVICE_TEST_RESULT_FADE_MS)
+  }
+
   private setServiceTestState(serviceId: string, state: ServiceTestState): void {
     const btn = this.getServiceTestButton(serviceId)
     const icon = btn?.querySelector('.mm-icon-slot') as HTMLElement | null
-    if (!btn || !icon) {
-      return
-    }
-
-    this.clearServiceTestTimer(serviceId)
-    btn.classList.remove('is-ok', 'is-error')
-    btn.disabled = state === 'loading' || this.testAllRunning
+    const card = this.getServiceCard(serviceId)
 
     if (state === 'loading') {
-      setIconSlotLoading(icon, true)
-      return
-    }
-
-    if (state === 'idle') {
-      setIconSlotKey(icon, 'test')
+      this.clearServiceTestTimer(serviceId)
+      this.clearServiceTestFeedbackUi(serviceId)
+      if (btn) {
+        btn.classList.remove('is-ok', 'is-error')
+        btn.disabled = true
+      }
+      if (icon) {
+        setIconSlotLoading(icon, true)
+      }
+      card?.classList.add('is-test-feedback')
       return
     }
 
     if (state === 'ok') {
-      btn.classList.add('is-ok')
-      setIconSlotKey(icon, 'check')
-      this.serviceTestTimers.set(
-        serviceId,
-        setTimeout(() => this.setServiceTestState(serviceId, 'idle'), 2000)
-      )
+      this.clearServiceTestTimer(serviceId)
+      this.clearServiceTestFeedbackUi(serviceId)
+      if (btn) {
+        btn.classList.remove('is-error')
+        btn.classList.add('is-ok')
+        btn.disabled = this.testAllRunning
+      }
+      if (icon) {
+        setIconSlotKey(icon, 'check')
+      }
+      this.clearServiceTestFail(serviceId)
+      card?.classList.add('is-test-feedback')
+      if (!this.testAllRunning) {
+        this.scheduleServiceTestOkDismiss(serviceId)
+      }
       return
     }
 
-    btn.classList.add('is-error')
-    setIconSlotKey(icon, 'close')
-    this.serviceTestTimers.set(
-      serviceId,
-      setTimeout(() => this.setServiceTestState(serviceId, 'idle'), 2000)
-    )
+    if (state === 'error') {
+      this.clearServiceTestTimer(serviceId)
+      card?.classList.remove('is-test-feedback-exit')
+      if (btn) {
+        btn.classList.remove('is-ok')
+        btn.classList.add('is-error')
+        btn.disabled = this.testAllRunning
+      }
+      if (icon) {
+        setIconSlotKey(icon, 'close')
+      }
+      card?.classList.add('is-test-fail', 'is-test-feedback')
+      return
+    }
+
+    if (state === 'idle') {
+      this.clearServiceTestTimer(serviceId)
+      this.clearServiceTestFeedbackUi(serviceId)
+      if (btn) {
+        btn.classList.remove('is-ok', 'is-error')
+        btn.disabled = this.testAllRunning
+      }
+      if (icon) {
+        setIconSlotKey(icon, 'test')
+      }
+      this.clearServiceTestFail(serviceId)
+    }
+  }
+
+  private finishBatchServiceTestButtons(serviceIds: string[]): void {
+    for (const serviceId of serviceIds) {
+      const btn = this.getServiceTestButton(serviceId)
+      if (btn) {
+        btn.disabled = false
+      }
+    }
   }
 
   private setTestAllBusy(busy: boolean): void {
@@ -709,6 +927,42 @@ export class MmOptionsApp extends HTMLElement {
     }
   }
 
+  private getDetailTestButton(): HTMLButtonElement | null {
+    return this.querySelector('[data-action="test-connection"]') as HTMLButtonElement | null
+  }
+
+  private getDetailTestIcon(): HTMLElement | null {
+    return this.querySelector('[data-ref="test-connection-icon"]') as HTMLElement | null
+  }
+
+  private clearDetailTestFeedbackUi(): void {
+    this.getDetailTestButton()?.classList.remove('is-test-feedback-exit')
+  }
+
+  private beginDetailTestOkDismiss(): void {
+    const btn = this.getDetailTestButton()
+    const icon = this.getDetailTestIcon()
+    if (!btn || !icon) {
+      this.setDetailTestState('idle')
+      return
+    }
+
+    btn.classList.add('is-test-feedback-exit')
+    this.detailTestTimer = setTimeout(() => {
+      btn.classList.remove('is-ok', 'is-test-feedback-exit')
+      setIconSlotKey(icon, 'test')
+      if (!this.testAllRunning) {
+        btn.disabled = false
+      }
+      this.detailTestTimer = undefined
+    }, SERVICE_TEST_RESULT_FADE_MS)
+  }
+
+  private scheduleDetailTestOkDismiss(): void {
+    this.clearDetailTestTimer()
+    this.detailTestTimer = setTimeout(() => this.beginDetailTestOkDismiss(), SERVICE_TEST_OK_DISPLAY_MS)
+  }
+
   private applyDetailTestTooltip(state: ServiceTestState): void {
     const btn = this.querySelector('[data-action="test-connection"]') as HTMLButtonElement | null
     if (!btn) {
@@ -720,13 +974,14 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   private setDetailTestState(state: ServiceTestState): void {
-    const btn = this.querySelector('[data-action="test-connection"]') as HTMLButtonElement | null
-    const icon = this.querySelector('[data-ref="test-connection-icon"]') as HTMLElement | null
+    const btn = this.getDetailTestButton()
+    const icon = this.getDetailTestIcon()
     if (!btn || !icon) {
       return
     }
 
     this.clearDetailTestTimer()
+    this.clearDetailTestFeedbackUi()
     btn.classList.remove('is-ok', 'is-error')
     btn.disabled = state === 'loading' || this.testAllRunning
     this.applyDetailTestTooltip(state)
@@ -747,13 +1002,18 @@ export class MmOptionsApp extends HTMLElement {
     if (state === 'ok') {
       btn.classList.add('is-ok')
       setIconSlotKey(icon, 'check')
-      this.detailTestTimer = setTimeout(() => this.setDetailTestState('idle'), 2000)
+      if (!this.testAllRunning) {
+        btn.disabled = false
+      }
+      this.scheduleDetailTestOkDismiss()
       return
     }
 
     btn.classList.add('is-error')
     setIconSlotKey(icon, 'close')
-    this.detailTestTimer = setTimeout(() => this.setDetailTestState('idle'), 2000)
+    if (!this.testAllRunning) {
+      btn.disabled = false
+    }
   }
 
   private async runDetailConnectionTest(): Promise<void> {
@@ -787,9 +1047,13 @@ export class MmOptionsApp extends HTMLElement {
     }
   }
 
-  private async runServiceTest(serviceId: string): Promise<boolean> {
+  private async runServiceTest(serviceId: string, options?: { batch?: boolean }): Promise<boolean> {
+    if (this.testAllRunning && !options?.batch) {
+      return false
+    }
+
     const icon = this.getServiceTestButton(serviceId)?.querySelector('.mm-icon-slot') as HTMLElement | null
-    if (icon?.classList.contains('mm-icon-spin')) {
+    if (!options?.batch && icon?.classList.contains('mm-icon-spin')) {
       return false
     }
 
@@ -815,33 +1079,38 @@ export class MmOptionsApp extends HTMLElement {
       return
     }
 
+    const serviceIds = this.services.map((service) => service.id)
+    this.clearBatchTestDismissTimer()
+    for (const serviceId of serviceIds) {
+      this.clearServiceTestTimer(serviceId)
+    }
+
     this.testAllRunning = true
+    this.setTestAllListActive(true)
     this.setTestAllBusy(true)
     const detailTestBtn = this.querySelector('[data-action="test-connection"]') as HTMLButtonElement | null
     if (detailTestBtn) {
       detailTestBtn.disabled = true
     }
 
-    let passed = 0
-    for (const service of this.services) {
-      const ok = await this.runServiceTest(service.id)
-      if (ok) {
-        passed += 1
+    let results: boolean[] = []
+    try {
+      results = await Promise.all(serviceIds.map((serviceId) => this.runServiceTest(serviceId, { batch: true })))
+    } finally {
+      this.testAllRunning = false
+      this.setTestAllListActive(false)
+      this.setTestAllBusy(false)
+      if (detailTestBtn) {
+        detailTestBtn.disabled = false
       }
+      this.finishBatchServiceTestButtons(serviceIds)
     }
 
-    this.testAllRunning = false
-    this.setTestAllBusy(false)
-    if (detailTestBtn) {
-      detailTestBtn.disabled = false
-    }
-    for (const btn of this.querySelectorAll<HTMLButtonElement>('[data-action="test-service"]')) {
-      if (!btn.querySelector('.mm-icon-slot')?.classList.contains('mm-icon-spin')) {
-        btn.disabled = false
-      }
-    }
+    const passedIds = serviceIds.filter((_, index) => results[index])
+    this.scheduleBatchOkDismiss(passedIds)
 
-    const total = this.services.length
+    const passed = results.filter(Boolean).length
+    const total = serviceIds.length
     if (passed === total) {
       this.setStatus(`All ${total} connection(s) OK.`, 'ok')
       return

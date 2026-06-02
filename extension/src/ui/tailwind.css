@@ -640,6 +640,10 @@
     @apply text-mm-danger hover:text-mm-danger;
   }
 
+  .mm-servers-connection-test-btn.is-test-feedback-exit {
+    @apply opacity-0 transition-opacity duration-200;
+  }
+
   .mm-servers-connection-test-btn:disabled {
     @apply cursor-not-allowed opacity-50;
   }
@@ -767,11 +771,13 @@
   }
 
   .mm-servers-drag-handle .mm-icon-slot {
-    @apply h-4 w-4;
+    @apply pointer-events-none h-4 w-4;
+    -webkit-user-drag: none;
   }
 
   .mm-servers-drag-handle .mm-icon-slot svg {
     @apply h-4 w-4;
+    -webkit-user-drag: none;
   }
 
   .mm-options-service-card {
@@ -780,6 +786,35 @@
 
   .mm-options-service-card[aria-selected='true'] {
     @apply border-mm-accent/55 bg-mm-accent-soft shadow-mm-sm ring-2 ring-mm-accent/30;
+  }
+
+  .mm-options-service-card.is-service-off {
+    @apply opacity-70;
+  }
+
+  .mm-options-service-card.is-test-fail {
+    @apply border-mm-danger ring-2 ring-mm-danger/30;
+  }
+
+  .mm-options-service-card.is-test-fail[aria-selected='true'] {
+    @apply border-mm-danger bg-mm-danger-soft/25 ring-mm-danger/30;
+  }
+
+  .mm-options-service-items.is-test-all-active .mm-servers-item-action,
+  .mm-options-service-card.is-test-feedback .mm-servers-item-action {
+    @apply opacity-100;
+  }
+
+  .mm-options-service-card.is-test-feedback-exit .mm-servers-item-action {
+    @apply opacity-0 transition-opacity duration-200;
+  }
+
+  .mm-options-service-card.is-test-fail .mm-servers-item-action.is-error {
+    @apply text-mm-danger;
+  }
+
+  .mm-options-service-card.is-test-feedback:not(.is-test-fail) .mm-servers-item-action.is-ok {
+    @apply text-mm-success;
   }
 
   .mm-options-service-item-body {
@@ -813,20 +848,44 @@
     @apply text-mm-danger;
   }
 
-  .mm-servers-item-action.is-ok {
-    @apply opacity-100 text-mm-success;
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-on,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-on {
+    @apply text-mm-success;
   }
 
-  .mm-servers-item-action.is-ok:hover {
-    @apply text-mm-success brightness-90;
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-on:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-on:hover {
+    @apply brightness-90;
   }
 
-  .mm-servers-item-action.is-error {
-    @apply opacity-100 text-mm-danger;
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-off,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-off {
+    @apply text-mm-secondary;
   }
 
-  .mm-servers-item-action.is-error:hover {
-    @apply text-mm-danger brightness-90;
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-off:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-off:hover {
+    @apply text-mm-ink brightness-90;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-ok,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-ok {
+    @apply text-mm-success;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-ok:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-ok:hover {
+    @apply brightness-90;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-error,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-error {
+    @apply text-mm-danger;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-error:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-error:hover {
+    @apply brightness-90;
   }
 
   .mm-options-service-item-label {

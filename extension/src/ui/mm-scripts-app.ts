@@ -157,66 +157,12 @@ export class MmScriptsApp extends HTMLElement {
     return row
   }
 
-  private renderGroup(group: ScriptKeyGroupView, rows: ScriptRow[], startIndex: number): HTMLElement {
-    const debug = getScriptsDebugOverrides()
-    const inactive = !group.active || debug.forceInactiveGroups
-
-    const section = document.createElement('section')
-    section.className = 'mm-scripts-group'
-    if (inactive) {
-      section.classList.add('mm-scripts-group--inactive')
+  private renderGroupRows(rows: ScriptRow[], startIndex: number): DocumentFragment {
+    const fragment = document.createDocumentFragment()
+    for (let offset = 0; offset < rows.length; offset++) {
+      fragment.appendChild(this.renderRow(rows[offset], startIndex + offset))
     }
-    section.dataset.scriptKey = group.scriptKey
-
-    const head = document.createElement('div')
-    head.className = 'mm-scripts-group-head'
-
-    const titleWrap = document.createElement('div')
-    titleWrap.className = 'mm-scripts-group-title'
-
-    const keyEl = document.createElement('span')
-    keyEl.className = 'mm-scripts-group-key'
-    keyEl.textContent = group.scriptKey
-    keyEl.title = group.scriptKey
-
-    const labelsEl = document.createElement('span')
-    labelsEl.className = 'mm-scripts-group-labels'
-    labelsEl.textContent = group.serviceLabels.join(' · ')
-
-    titleWrap.append(keyEl, labelsEl)
-
-    const headActions = document.createElement('div')
-    headActions.className = 'mm-scripts-group-actions'
-
-    if (group.editorBaseUrl && group.active && !debug.forceInactiveGroups) {
-      const editorBtn = document.createElement('button')
-      editorBtn.type = 'button'
-      editorBtn.className = 'mm-scripts-group-editor'
-      editorBtn.textContent = 'Editor'
-      editorBtn.addEventListener('click', (event) => {
-        event.stopPropagation()
-        void focusOrOpenTab(`${group.editorBaseUrl.replace(/\/$/, '')}/editor`)
-      })
-      headActions.appendChild(editorBtn)
-    }
-
-    if (inactive) {
-      const badge = document.createElement('span')
-      badge.className = 'mm-scripts-group-badge'
-      badge.textContent = 'No enabled server'
-      headActions.appendChild(badge)
-    }
-
-    head.append(titleWrap, headActions)
-
-    const body = document.createElement('div')
-    body.className = 'mm-scripts-group-rows'
-    rows.forEach((row, offset) => {
-      body.appendChild(this.renderRow(row, startIndex + offset))
-    })
-
-    section.append(head, body)
-    return section
+    return fragment
   }
 
   private bindEvents(): void {
@@ -503,8 +449,8 @@ export class MmScriptsApp extends HTMLElement {
     }
     const fragment = document.createDocumentFragment()
     let index = 0
-    for (const { group, rows } of filtered) {
-      fragment.appendChild(this.renderGroup(group, rows, index))
+    for (const { rows } of filtered) {
+      fragment.appendChild(this.renderGroupRows(rows, index))
       index += rows.length
     }
     content.replaceChildren(fragment)

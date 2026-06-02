@@ -11,6 +11,8 @@ import iconLanCheck from '~icons/mdi/lan-check?raw'
 import iconLoading from '~icons/mdi/loading?raw'
 import iconPencil from '~icons/mdi/pencil?raw'
 import iconPlus from '~icons/mdi/plus?raw'
+import iconPower from '~icons/mdi/power?raw'
+import iconPowerOff from '~icons/mdi/power-off?raw'
 import iconRefresh from '~icons/mdi/refresh?raw'
 import iconReload from '~icons/mdi/reload?raw'
 import iconWeb from '~icons/mdi/web?raw'
@@ -32,6 +34,8 @@ export const mmPopupIcons = {
   close: iconClose,
   testAll: iconCheckAll,
   delete: iconDelete,
+  serviceOn: iconPower,
+  serviceOff: iconPowerOff,
   nodata: iconInboxOutline,
 } as const
 
