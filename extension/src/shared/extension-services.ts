@@ -231,7 +231,7 @@ export function normalizeExtensionServicesState(raw: unknown): ExtensionServices
   const value = raw as ExtensionServicesState
   const services = Array.isArray(value.services) ? value.services.filter(isValidServiceProfile) : []
   const scriptKeyMeta = Array.isArray(value.scriptKeyMeta) ? value.scriptKeyMeta.filter(isValidScriptKeyMeta) : []
-  const activeServiceId = typeof value.activeServiceId === 'string' && services.some((s) => s.id === value.activeServiceId) ? value.activeServiceId : services[0]?.id
+  const activeServiceId = typeof value.activeServiceId === 'string' && services.some((s) => s.id === value.activeServiceId) ? value.activeServiceId : undefined
   return { services, scriptKeyMeta, activeServiceId }
 }
 

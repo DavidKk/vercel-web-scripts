@@ -82,6 +82,15 @@
     @apply block h-full min-h-0 w-full;
   }
 
+  .mm-tooltip {
+    @apply pointer-events-none fixed z-[10000] max-w-[min(calc(100vw-16px),14rem)] rounded-md border border-mm-border bg-mm-ink px-2.5 py-1.5 text-xs leading-snug text-white shadow-mm;
+    visibility: hidden;
+  }
+
+  .mm-tooltip.is-visible {
+    visibility: visible;
+  }
+
   mm-scripts-app[data-loading] {
     @apply flex min-h-screen w-full flex-col;
   }
@@ -182,78 +191,104 @@
     @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
   }
 
-  .mm-servers-head {
-    @apply flex shrink-0 justify-end border-b border-mm-border-light bg-mm-surface px-3 py-2;
-  }
-
-  .mm-servers-toolbar {
-    @apply flex max-w-full flex-nowrap items-center justify-end gap-1.5;
-  }
-
   .mm-servers-status {
-    @apply mr-auto hidden min-w-0 shrink truncate text-xs leading-none text-mm-text-muted;
+    @apply hidden min-w-0 flex-1 truncate text-xs leading-snug text-mm-text-muted;
   }
 
   .mm-servers-status:not(:empty) {
-    @apply block max-w-[min(100%,20rem)] sm:max-w-md;
-  }
-
-  .mm-servers-status.text-mm-success:not(:empty),
-  .mm-servers-status.text-mm-danger:not(:empty) {
-    @apply max-w-[min(100%,24rem)] sm:max-w-lg;
-  }
-
-  .mm-servers-toolbar > mm-button {
-    @apply inline-flex shrink-0;
-  }
-
-  .mm-servers-toolbar .mm-button-native,
-  .mm-servers-toolbar mm-button > button {
-    @apply h-8 whitespace-nowrap px-3 text-xs;
-  }
-
-  .mm-servers-test-btn {
-    @apply inline-flex min-w-[5.5rem] items-center justify-center gap-1.5;
-  }
-
-  .mm-servers-test-btn.is-ok {
-    @apply text-mm-success;
-  }
-
-  .mm-servers-test-btn.is-error {
-    @apply text-mm-danger;
+    @apply block;
   }
 
   .mm-servers-body {
-    @apply grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)];
+    @apply grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(380px,480px)_minmax(0,1fr)] lg:grid-cols-[minmax(420px,520px)_minmax(0,1fr)];
   }
 
   .mm-servers-list-pane {
-    @apply flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-mm-border-light bg-mm-canvas/30 md:border-b-0 md:border-r;
+    @apply flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-mm-border-light bg-mm-canvas md:border-b-0 md:border-r;
   }
 
-  .mm-servers-list-head {
-    @apply shrink-0 border-b border-mm-border-light px-4 py-3;
+  .mm-servers-pane-head {
+    @apply flex shrink-0 items-center justify-between gap-3 border-b border-mm-border-light bg-mm-surface px-4 py-3;
   }
 
-  .mm-servers-list-head-row {
-    @apply flex items-center justify-between gap-2;
+  .mm-servers-pane-head-copy {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5;
   }
 
-  .mm-servers-list-title {
-    @apply m-0 min-w-0 flex-1 text-sm font-semibold text-mm-ink;
+  .mm-servers-pane-title {
+    @apply m-0 min-w-0 truncate text-sm font-semibold leading-tight text-mm-ink;
   }
 
-  .mm-servers-list-hint {
-    @apply m-0 mt-1 text-[11px] leading-snug text-mm-text-muted;
+  .mm-servers-pane-desc {
+    @apply m-0 min-w-0 text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-servers-pane-desc:empty {
+    @apply hidden;
+  }
+
+  .mm-servers-pane-head-actions {
+    @apply flex shrink-0 items-center gap-1 self-center;
   }
 
   .mm-servers-list-scroll {
-    @apply min-h-0 flex-1 overflow-y-auto px-3 py-3;
+    @apply flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2;
+  }
+
+  .mm-servers-list-scroll.is-empty {
+    @apply items-center justify-center;
+  }
+
+  .mm-nodata-line {
+    @apply m-0 max-w-[15rem] px-2 text-center text-xs leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-icon-btn-sm {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .mm-icon-btn-sm .mm-icon-slot {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-icon-btn-sm .mm-icon-slot svg {
+    @apply h-3.5 w-3.5;
   }
 
   .mm-servers-detail-pane {
     @apply flex min-h-0 min-w-0 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-servers-detail-body {
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .mm-servers-detail-body.is-empty {
+    @apply bg-mm-surface;
+  }
+
+  .mm-nodata {
+    @apply flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center;
+  }
+
+  .mm-nodata-icon {
+    @apply mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-mm-muted text-mm-icon;
+  }
+
+  .mm-nodata-icon .mm-icon-slot {
+    @apply h-5 w-5;
+  }
+
+  .mm-nodata-icon .mm-icon-slot svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-nodata-title {
+    @apply m-0 text-sm font-medium text-mm-secondary;
+  }
+
+  .mm-nodata-hint {
+    @apply m-0 max-w-[16rem] text-xs leading-relaxed text-mm-text-muted;
   }
 
   .mm-servers-detail-form {
@@ -264,8 +299,78 @@
     @apply min-h-0 flex-1 overflow-y-auto;
   }
 
+  /* Compact form: smaller controls; more space between label and field */
+  .mm-servers-detail-form .mm-options-section {
+    @apply gap-3 px-4 py-3 sm:px-4 sm:py-3;
+  }
+
+  .mm-servers-detail-form .mm-options-section-head {
+    @apply gap-2;
+  }
+
+  .mm-servers-detail-form .mm-options-section-title {
+    @apply text-xs font-semibold;
+  }
+
+  .mm-servers-detail-form .mm-options-section-meta {
+    @apply px-1.5 py-0.5 text-[10px];
+  }
+
+  .mm-servers-detail-form .mm-options-field-grid {
+    @apply gap-3;
+  }
+
+  .mm-servers-detail-form .mm-field-component {
+    @apply gap-2.5;
+  }
+
+  .mm-servers-detail-form .mm-label {
+    @apply text-xs font-semibold leading-snug text-mm-secondary;
+  }
+
+  .mm-servers-detail-form .mm-options-field .mm-native-input,
+  .mm-servers-detail-form .mm-options-field mm-input > input {
+    @apply h-8 rounded px-2.5 text-xs leading-normal;
+  }
+
+  .mm-servers-detail-form .mm-hint {
+    @apply mt-1.5 text-[11px] leading-snug;
+  }
+
+  .mm-servers-detail-form .mm-options-toggle-card {
+    @apply gap-3 border-mm-border-light bg-mm-muted px-3 py-2.5 hover:border-mm-accent/30 hover:bg-mm-accent-soft;
+  }
+
+  .mm-servers-detail-form .mm-options-toggle-title {
+    @apply text-xs font-semibold leading-tight;
+  }
+
+  .mm-servers-detail-form .mm-options-toggle-text {
+    @apply mt-0.5 text-[11px] leading-snug;
+  }
+
+  .mm-servers-detail-form .mm-switch-control {
+    @apply h-[18px] w-8;
+  }
+
+  .mm-servers-detail-form .mm-switch-track {
+    @apply h-[18px] w-8;
+  }
+
+  .mm-servers-detail-form .mm-switch-thumb {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-servers-detail-form .mm-switch-input:checked ~ .mm-switch-thumb {
+    transform: translateX(0.875rem);
+  }
+
   .mm-servers-form-actions {
-    @apply flex shrink-0 justify-end gap-2 border-t border-mm-border-light bg-mm-surface px-4 py-3 sm:px-5;
+    @apply flex shrink-0 items-center gap-3 border-t border-mm-border-light bg-mm-surface px-4 py-2.5 sm:px-4;
+  }
+
+  .mm-servers-form-actions-btns {
+    @apply ml-auto flex shrink-0 items-center justify-end gap-1.5;
   }
 
   .mm-servers-form-actions > mm-button {
@@ -274,11 +379,7 @@
 
   .mm-servers-form-actions .mm-button-native,
   .mm-servers-form-actions mm-button > button {
-    @apply h-8 whitespace-nowrap px-4 text-xs;
-  }
-
-  .mm-options-detail-toolbar {
-    @apply flex shrink-0 flex-col gap-2 border-t border-mm-border-light px-4 py-4 sm:flex-row sm:px-5;
+    @apply h-7 whitespace-nowrap px-3 text-xs;
   }
 
   .mm-scripts-head {
@@ -511,11 +612,36 @@
   }
 
   .mm-options-section {
-    @apply grid gap-4 px-4 py-4 sm:px-5 sm:py-5;
+    @apply grid gap-4 border-b border-mm-border-light/80 bg-mm-surface px-4 py-4 last:border-b-0 sm:px-5 sm:py-5;
   }
 
   .mm-options-section-head {
     @apply flex items-center justify-between gap-3;
+  }
+
+  .mm-options-section-head-main {
+    @apply flex min-w-0 flex-wrap items-center gap-2;
+  }
+
+  .mm-servers-connection-test-btn {
+    @apply h-8 w-8 shrink-0 self-center p-0;
+  }
+
+  .mm-servers-connection-test-btn .mm-icon-slot,
+  .mm-servers-connection-test-btn .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-servers-connection-test-btn.is-ok {
+    @apply text-mm-success hover:text-mm-success;
+  }
+
+  .mm-servers-connection-test-btn.is-error {
+    @apply text-mm-danger hover:text-mm-danger;
+  }
+
+  .mm-servers-connection-test-btn:disabled {
+    @apply cursor-not-allowed opacity-50;
   }
 
   .mm-options-section-title {
@@ -536,7 +662,18 @@
 
   .mm-options-field .mm-native-input,
   .mm-options-field mm-input > input {
-    @apply h-10 rounded-md bg-mm-canvas/40;
+    @apply h-10 rounded-md bg-mm-surface;
+    box-shadow: 0 0 0 1px theme('colors.mm.border');
+  }
+
+  .mm-options-field .mm-native-input:hover,
+  .mm-options-field mm-input > input:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  .mm-options-field .mm-native-input:focus,
+  .mm-options-field mm-input > input:focus {
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
   }
 
   .mm-options-field code,
@@ -545,7 +682,7 @@
   }
 
   .mm-options-toggle-card {
-    @apply flex cursor-pointer items-center justify-between gap-4 rounded-md border border-mm-border-light bg-mm-canvas/40 px-4 py-3 transition hover:bg-mm-accent-soft/40;
+    @apply flex cursor-pointer items-center justify-between gap-4 rounded-md border border-mm-border-light bg-mm-muted px-4 py-3 transition hover:border-mm-accent/30 hover:bg-mm-accent-soft;
   }
 
   .mm-options-toggle-copy {
@@ -588,12 +725,108 @@
     @apply m-0 flex list-none flex-col gap-1.5 p-0;
   }
 
-  .mm-options-service-item {
-    @apply w-full cursor-pointer rounded-md border border-transparent px-3 py-2.5 text-left transition hover:bg-mm-accent-soft/50;
+  .mm-options-service-items.is-list-dragging {
+    @apply select-none;
   }
 
-  .mm-options-service-item[aria-selected='true'] {
-    @apply border-mm-accent/30 bg-mm-accent-soft ring-1 ring-mm-accent/20;
+  .mm-options-service-row {
+    @apply flex items-center gap-0.5;
+  }
+
+  .mm-options-service-row[draggable='true'] {
+    @apply outline-none;
+  }
+
+  .mm-options-service-row.is-dragging {
+    @apply relative;
+  }
+
+  .mm-options-service-row.is-dragging > .mm-servers-drag-handle,
+  .mm-options-service-row.is-dragging > .mm-options-service-card {
+    @apply invisible;
+  }
+
+  .mm-options-service-row.is-dragging::after {
+    content: '';
+    @apply pointer-events-none absolute inset-0 rounded-md border-2 border-dashed border-mm-border bg-mm-muted/50;
+  }
+
+  .mm-servers-drop-placeholder {
+    @apply pointer-events-none m-0 box-border min-h-[4.5rem] list-none rounded-md border-2 border-dashed border-mm-accent/55 bg-mm-accent-soft/35;
+  }
+
+  .mm-servers-drag-ghost {
+    @apply cursor-grabbing rounded-md border border-mm-border bg-mm-surface opacity-[0.97];
+    box-shadow:
+      0 4px 6px rgb(22 32 51 / 0.06),
+      0 16px 32px rgb(22 32 51 / 0.14);
+  }
+
+  .mm-servers-drag-handle {
+    @apply flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center self-center rounded text-mm-icon outline-none transition hover:bg-mm-border-light/60 hover:text-mm-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-mm-accent/35 active:cursor-grabbing;
+  }
+
+  .mm-servers-drag-handle .mm-icon-slot {
+    @apply h-4 w-4;
+  }
+
+  .mm-servers-drag-handle .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-options-service-card {
+    @apply flex min-w-0 flex-1 items-center gap-0 overflow-hidden rounded-md border border-mm-border bg-mm-surface text-left shadow-mm-sm transition hover:border-mm-accent/40 hover:bg-mm-accent-soft;
+  }
+
+  .mm-options-service-card[aria-selected='true'] {
+    @apply border-mm-accent/55 bg-mm-accent-soft shadow-mm-sm ring-2 ring-mm-accent/30;
+  }
+
+  .mm-options-service-item-body {
+    @apply min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-3 py-2.5 text-left outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-mm-accent/35 focus-visible:ring-inset;
+  }
+
+  /* Row action icons: hidden until row hover; hover deepens icon color only (no fill). */
+  .mm-servers-item-action {
+    @apply mr-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-mm-icon opacity-0 outline-none transition-[opacity,color] duration-150 hover:bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-mm-accent/35 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .mm-servers-item-action:last-child {
+    @apply mr-1.5;
+  }
+
+  .mm-servers-item-action .mm-icon-slot,
+  .mm-servers-item-action .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action,
+  .mm-options-service-row:focus-within .mm-servers-item-action {
+    @apply opacity-100;
+  }
+
+  .mm-servers-item-action:hover {
+    @apply text-mm-secondary;
+  }
+
+  .mm-servers-item-action[data-action='delete-service-item']:hover {
+    @apply text-mm-danger;
+  }
+
+  .mm-servers-item-action.is-ok {
+    @apply opacity-100 text-mm-success;
+  }
+
+  .mm-servers-item-action.is-ok:hover {
+    @apply text-mm-success brightness-90;
+  }
+
+  .mm-servers-item-action.is-error {
+    @apply opacity-100 text-mm-danger;
+  }
+
+  .mm-servers-item-action.is-error:hover {
+    @apply text-mm-danger brightness-90;
   }
 
   .mm-options-service-item-label {
@@ -601,7 +834,7 @@
   }
 
   .mm-options-service-item-meta {
-    @apply mt-0.5 block truncate font-mono text-[11px] text-mm-text-muted;
+    @apply mt-0.5 block truncate font-mono text-[11px] text-mm-secondary;
   }
 
   .mm-options-service-item-badges {
@@ -609,7 +842,7 @@
   }
 
   .mm-options-service-badge {
-    @apply rounded-full bg-mm-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-mm-text-muted;
+    @apply rounded-full border border-mm-border-light bg-mm-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-mm-secondary;
   }
 
   .mm-options-service-badge.is-off {
@@ -620,16 +853,8 @@
     @apply bg-mm-accent-soft text-mm-accent;
   }
 
-  .mm-options-service-list-empty {
-    @apply m-0 px-1 py-2 text-xs leading-snug text-mm-text-muted;
-  }
-
   .mm-options-service-detail {
     @apply min-w-0 p-0;
-  }
-
-  .mm-options-detail-empty {
-    @apply m-0 flex flex-1 items-center justify-center px-6 py-10 text-center text-sm text-mm-text-muted;
   }
 
   .mm-options-detail-form {
@@ -1242,6 +1467,11 @@
   mm-button[variant='danger'] > button,
   .mm-button-component[variant='danger'] .mm-button-native {
     @apply bg-mm-danger text-white hover:brightness-95;
+  }
+
+  mm-button[variant='warn'] > button,
+  .mm-button-component[variant='warn'] .mm-button-native {
+    @apply bg-mm-warn text-white hover:bg-mm-warn-hover;
   }
 
   mm-button[block] > button,

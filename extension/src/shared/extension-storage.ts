@@ -603,6 +603,42 @@ export async function loadActiveServiceDetail(): Promise<{
   }
 }
 
+/**
+ * Load Servers detail panel state (no fallback when nothing is selected).
+ */
+export async function loadOptionsPanelDetail(): Promise<{
+  state: ExtensionServicesState
+  service: ServiceProfile | null
+  gmScope: string
+  scriptKeyRefCount: number
+}> {
+  const state = await ensureExtensionServicesState()
+  const activeId = state.activeServiceId
+  const service = activeId ? (state.services.find((s) => s.id === activeId) ?? null) : null
+  if (!service) {
+    return { state, service: null, gmScope: '', scriptKeyRefCount: 0 }
+  }
+  const scriptKey = normalizeScriptKey(service.scriptKey)
+  return {
+    state,
+    service,
+    gmScope: getGmScopeForScriptKey(scriptKey, state.scriptKeyMeta, service.label),
+    scriptKeyRefCount: countServiceRefs(scriptKey, state.services),
+  }
+}
+
+/**
+ * Clear the active service selection (Servers list).
+ */
+export async function clearActiveServiceId(): Promise<void> {
+  const state = await ensureExtensionServicesState()
+  if (!state.activeServiceId) {
+    return
+  }
+  delete state.activeServiceId
+  await saveExtensionServicesState(state)
+}
+
 export interface SaveOptionsServiceInput {
   serviceId: string
   label: string
@@ -749,6 +785,25 @@ export async function moveService(serviceId: string, direction: 'up' | 'down'): 
   await saveExtensionServicesState(state)
 }
 
+/**
+ * Move a service to a new index in the list (list order defines OTA priority).
+ * @param serviceId Service to move
+ * @param toIndex Insert index in the array **after** removing the service
+ */
+export async function reorderService(serviceId: string, toIndex: number): Promise<void> {
+  const state = await ensureExtensionServicesState()
+  const fromIndex = state.services.findIndex((s) => s.id === serviceId)
+  if (fromIndex < 0) {
+    return
+  }
+  const next = [...state.services]
+  const [item] = next.splice(fromIndex, 1)
+  const insertAt = Math.max(0, Math.min(toIndex, next.length))
+  next.splice(insertAt, 0, item)
+  state.services = next
+  await saveExtensionServicesState(state)
+}
+
 function setGmScopeOnState(state: ExtensionServicesState, scriptKey: string, gmScope: string): void {
   const normalized = normalizeScriptKey(scriptKey)
   const scope = defaultGmScopeFromLabel(gmScope)
@@ -804,7 +859,7 @@ export async function removeService(serviceId: string): Promise<void> {
   const scriptKey = normalizeScriptKey(target.scriptKey)
   state.services = state.services.filter((s) => s.id !== serviceId)
   if (state.activeServiceId === serviceId) {
-    state.activeServiceId = state.services[0]?.id
+    delete state.activeServiceId
   }
 
   if (scriptKey && countServiceRefs(scriptKey, state.services) === 0) {
