@@ -20,6 +20,7 @@ import { DEFAULT_CONFIG, type ScriptKeyMeta, type ServiceProfile, SERVICES_STORA
 
 import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
 import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from './mm-icons'
+import { showMmNotification } from './mm-notification'
 import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
 
 const STATUS_BASE = 'mm-servers-status'
@@ -86,7 +87,7 @@ export class MmOptionsApp extends HTMLElement {
     initMmTooltipDelegation(this)
     this.bindEvents()
     this.unsubscribeAdminView = subscribeAdminViewActivated('servers', () => {
-      void this.reload()
+      void this.reload({ preserveDraft: this.createMode })
     })
 
     this.storageListener = (changes, area) => {
@@ -1379,7 +1380,7 @@ export class MmOptionsApp extends HTMLElement {
     try {
       if (this.createMode) {
         const existingScriptKey = this.services.some((s) => s.scriptKey.trim() === input.scriptKey)
-        const service = await createServiceFromOptions({
+        await createServiceFromOptions({
           label: input.label,
           baseUrl: input.baseUrl,
           scriptKey: input.scriptKey,
@@ -1387,27 +1388,31 @@ export class MmOptionsApp extends HTMLElement {
           developMode: input.developMode,
           gmScope: input.gmScope,
         })
+        showMmNotification(existingScriptKey ? 'Service created (shared script key).' : 'Service created.', 'success')
+        if (!isValidScriptKeyFormat(input.scriptKey)) {
+          showMmNotification('Script key format looks unusual.', 'warn')
+        }
         this.createMode = false
-        this.activeServiceId = service.id
-        this.setStatus(existingScriptKey ? 'Saved. This script key shares rules and script toggles with other services.' : 'Service created.', 'ok')
         await this.reload()
         return
       }
 
       if (!this.activeServiceId) {
-        this.setStatus('Select a service to save.', 'error')
+        showMmNotification('Select a service to save.', 'error')
         return
       }
 
-      const { endpointChanged } = await saveActiveServiceFromOptions({
+      await saveActiveServiceFromOptions({
         serviceId: this.activeServiceId,
         ...input,
       })
-      const formatNote = isValidScriptKeyFormat(input.scriptKey) ? '' : ' Script key format looks unusual.'
-      this.setStatus((endpointChanged ? 'Saved. Endpoint changed — reload open tabs.' : 'Saved. Reload open tabs for changes to take effect.') + formatNote, 'ok')
+      showMmNotification('Saved.', 'success')
+      if (!isValidScriptKeyFormat(input.scriptKey)) {
+        showMmNotification('Script key format looks unusual.', 'warn')
+      }
       await this.reload()
     } catch (error) {
-      this.setStatus(error instanceof Error ? error.message : 'Save failed.', 'error')
+      showMmNotification(error instanceof Error ? error.message : 'Save failed.', 'error')
     }
   }
 

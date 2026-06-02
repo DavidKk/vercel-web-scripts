@@ -10,6 +10,19 @@ export function normalizeBaseUrl(baseUrl: string): string {
 }
 
 /**
+ * Whether the MagickMonkey server URL is a local dev host (localhost / 127.0.0.1).
+ * Used for default per-service developMode on Connect and preset path selection.
+ */
+export function isLocalMagickMonkeyBase(baseUrl: string): boolean {
+  try {
+    const host = new URL(normalizeBaseUrl(baseUrl)).hostname
+    return host === 'localhost' || host === '127.0.0.1'
+  } catch {
+    return false
+  }
+}
+
+/**
  * Normalize script key (trim whitespace).
  * @param scriptKey Raw script key
  * @returns Trimmed script key

@@ -1,6 +1,8 @@
 import { initAdminRouter } from '@ext/ui/mm-admin-router'
 import { defineMmAdminTabs } from '@ext/ui/mm-admin-tabs'
+import { initAdminPageFocusRefresh } from '@ext/ui/mm-admin-view-lifecycle'
 import { defineMmFormComponents } from '@ext/ui/mm-form-components'
+import { mountMmNotificationHost } from '@ext/ui/mm-notification'
 import { MmOptionsApp } from '@ext/ui/mm-options-app'
 import { MmRulesApp } from '@ext/ui/mm-rules-app'
 import { MmScriptsApp } from '@ext/ui/mm-scripts-app'
@@ -22,4 +24,6 @@ if (!customElements.get('mm-rules-app')) {
 }
 
 mountScriptsDebugPanel()
+mountMmNotificationHost()
 initAdminRouter()
+initAdminPageFocusRefresh()

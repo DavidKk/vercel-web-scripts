@@ -156,7 +156,7 @@
   }
 
   .mm-admin-header {
-    @apply relative flex h-[60px] min-h-[60px] shrink-0 flex-row flex-nowrap items-center justify-between gap-4 border-b border-solid border-mm-border-light bg-mm-surface px-4;
+    @apply relative z-20 flex h-[60px] min-h-[60px] shrink-0 flex-row flex-nowrap items-center justify-between gap-4 border-b border-solid border-mm-border-light bg-mm-surface px-4;
     border-bottom-width: 1px;
   }
 
@@ -2006,23 +2006,50 @@
     @apply shrink-0 rounded-sm bg-mm-muted px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-mm-text-muted ring-1 ring-mm-border-light;
   }
 
-  .mm-global-toast {
-    @apply pointer-events-none fixed bottom-3 left-1/2 z-[10001] -translate-x-1/2 rounded border px-3 py-2 text-xs opacity-0 shadow-mm transition-opacity duration-200;
+  mm-notification-host,
+  .mm-notification-host {
+    @apply pointer-events-none fixed right-3 top-[4.5rem] z-[99999] flex w-[min(calc(100vw-1.5rem),20rem)] flex-col gap-2;
   }
 
-  .mm-global-toast-visible {
+  .mm-notification-stack {
+    @apply flex flex-col gap-2;
+  }
+
+  .mm-notification {
+    @apply pointer-events-auto flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm leading-snug shadow-mm opacity-0 transition-all duration-300 ease-out;
+    transform: translateY(-0.35rem);
+  }
+
+  .mm-notification.is-visible {
     @apply opacity-100;
+    transform: translateY(0);
   }
 
-  .mm-global-toast-success {
-    @apply border-mm-success/30 bg-mm-success-soft text-mm-success;
+  .mm-notification-icon {
+    @apply mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center;
   }
 
-  .mm-global-toast-error {
-    @apply border-mm-danger/30 bg-mm-danger-soft text-mm-danger;
+  .mm-notification-icon svg {
+    @apply h-5 w-5 fill-current;
   }
 
-  .mm-global-toast-info {
+  .mm-notification-message {
+    @apply m-0 min-w-0 flex-1;
+  }
+
+  .mm-notification-success {
+    @apply border-mm-success/35 bg-mm-success-soft text-mm-success;
+  }
+
+  .mm-notification-error {
+    @apply border-mm-danger/35 bg-mm-danger-soft text-mm-danger;
+  }
+
+  .mm-notification-info {
     @apply border-mm-border bg-mm-surface text-mm-secondary;
+  }
+
+  .mm-notification-warn {
+    @apply border-amber-300/80 bg-amber-50 text-amber-950;
   }
 }

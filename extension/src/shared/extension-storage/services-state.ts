@@ -24,6 +24,19 @@ import { RULES_STORAGE_KEY } from './constants'
 
 let servicesStateCache: ExtensionServicesState | null = null
 
+/** Drop in-memory services state so the next read uses chrome.storage.local. */
+export function invalidateExtensionServicesStateCache(): void {
+  servicesStateCache = null
+}
+
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[SERVICES_STORAGE_KEY]) {
+      invalidateExtensionServicesStateCache()
+    }
+  })
+}
+
 /**
  * Read multi-service state from chrome.storage.local (no migration).
  * @returns Normalized services state

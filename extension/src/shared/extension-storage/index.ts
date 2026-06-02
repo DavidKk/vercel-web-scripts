@@ -21,6 +21,7 @@ export { refreshExtensionServiceData } from './service-data-sync'
 export * from './services-crud'
 export {
   ensureExtensionServicesState,
+  invalidateExtensionServicesStateCache,
   loadExtensionServicesState,
   loadGmScopeForScriptKey,
   loadScriptKeyGroupMeta,
