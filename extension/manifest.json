@@ -19,7 +19,7 @@
     }
   },
   "options_ui": {
-    "page": "servers.html",
+    "page": "admin.html",
     "open_in_tab": true
   },
   "content_scripts": [

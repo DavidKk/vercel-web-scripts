@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Redirecting…</title>
+    <script>
+      (function () {
+        var defaultHash = '<%= defaultHash %>'
+        var raw = (location.hash || '').replace(/^#/, '')
+        var target = defaultHash
+<% if (migrateRulesHash) { %>
+        if (raw === 'new' || raw.indexOf('rule/') === 0 || raw.indexOf('script/') === 0) {
+          target = '#rules/' + raw
+        } else if (raw.indexOf('rules/') === 0) {
+          target = '#' + raw
+        } else if (raw === 'rules' || !raw) {
+          target = '#rules'
+        } else if (raw === 'servers' || raw === 'scripts') {
+          target = '#' + raw
+        }
+<% } %>
+        location.replace('admin.html' + target)
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>

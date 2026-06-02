@@ -6,9 +6,13 @@ import ejs from 'ejs'
 
 const PAGE_OUTPUT = {
   popup: 'popup.html',
-  servers: 'servers.html',
-  scripts: 'scripts.html',
-  rules: 'rules.html',
+  admin: 'admin.html',
+}
+
+const LEGACY_REDIRECTS = {
+  'servers.html': '#servers',
+  'scripts.html': '#scripts',
+  'rules.html': '#rules',
 }
 
 /**
@@ -20,6 +24,7 @@ export function compileExtensionHtml(extensionDir, outDir) {
   const htmlRoot = path.join(extensionDir, 'src/html')
   const pagesDir = path.join(htmlRoot, 'pages')
   const partialsDir = path.join(htmlRoot, 'partials')
+  const legacyDir = path.join(pagesDir, 'legacy')
 
   if (!existsSync(pagesDir)) {
     throw new Error(`Missing extension HTML pages directory: ${pagesDir}`)
@@ -51,6 +56,25 @@ export function compileExtensionHtml(extensionDir, outDir) {
     )
 
     writeFileSync(dest, html, 'utf-8')
+  }
+
+  const redirectTemplate = path.join(legacyDir, 'redirect.ejs')
+  if (existsSync(redirectTemplate)) {
+    for (const [outFile, defaultHash] of Object.entries(LEGACY_REDIRECTS)) {
+      const dest = path.join(outDir, outFile)
+      const html = ejs.render(
+        readFileSync(redirectTemplate, 'utf-8'),
+        { defaultHash, migrateRulesHash: outFile === 'rules.html' },
+        {
+          filename: redirectTemplate,
+          views: [pagesDir, partialsDir, legacyDir],
+          root: htmlRoot,
+          async: false,
+          cache: false,
+        }
+      )
+      writeFileSync(dest, html, 'utf-8')
+    }
   }
 }
 

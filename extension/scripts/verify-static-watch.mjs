@@ -15,9 +15,9 @@ const log = createScriptLogger('verify-static-watch')
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const repoRoot = path.resolve(root, '..')
 
-const htmlSrc = path.join(root, 'src/html/pages/scripts.ejs')
+const htmlSrc = path.join(root, 'src/html/pages/admin.ejs')
 const partialSrc = path.join(root, 'src/html/partials/admin-header.ejs')
-const htmlDist = path.join(root, 'dist/scripts.html')
+const htmlDist = path.join(root, 'dist/admin.html')
 const stampSrc = path.join(root, 'src/dev-build-stamp.ts')
 const testAssetRel = '__watch-static-test.txt'
 const testAssetSrc = path.join(root, 'icons', testAssetRel)
@@ -147,7 +147,14 @@ try {
     if (originalHtml == null) {
       throw new Error(`${htmlSrc} is missing before test`)
     }
-    writeFileSync(htmlSrc, originalHtml.replace('<mm-scripts-app data-loading>', `<mm-scripts-app data-loading>\n      <!-- ${htmlMarker} -->`), 'utf-8')
+    writeFileSync(
+      htmlSrc,
+      originalHtml.replace(
+        '<mm-scripts-app class="mm-admin-view-host" data-loading>',
+        `<mm-scripts-app class="mm-admin-view-host" data-loading>\n          <!-- ${htmlMarker} -->`
+      ),
+      'utf-8'
+    )
   }, 'HTML update')
   assertFileContains(htmlDist, htmlMarker)
 

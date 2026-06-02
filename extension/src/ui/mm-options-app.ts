@@ -12,14 +12,12 @@ import {
   loadOptionsPanelDetail,
   removeService,
   reorderService,
-  resetOptionsServiceConfig,
   saveActiveServiceFromOptions,
   setActiveServiceId,
   setServiceEnabled,
 } from '@ext/shared/extension-storage'
 import { DEFAULT_CONFIG, type ScriptKeyMeta, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
 
-import { initAdminNavIndicator } from './mm-admin-nav'
 import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from './mm-icons'
 import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
 
@@ -27,6 +25,19 @@ const STATUS_BASE = 'mm-servers-status'
 
 type DetailMode = 'empty' | 'edit' | 'create'
 type ServiceTestState = 'idle' | 'loading' | 'ok' | 'error'
+
+type DetailFieldRef = 'base-url' | 'script-key'
+
+type DetailFormBaseline = {
+  mode: DetailMode
+  serviceId: string | null
+  label: string
+  baseUrl: string
+  scriptKey: string
+  gmScope: string
+  enabled: boolean
+  developMode: boolean
+}
 
 const SERVICE_TEST_OK_DISPLAY_MS = 3000
 const SERVICE_TEST_RESULT_FADE_MS = 200
@@ -62,14 +73,13 @@ export class MmOptionsApp extends HTMLElement {
   private gmScopeTouched = false
   private labelTouched = false
   private listDragBound = false
-  private disposeAdminNavIndicator: (() => void) | undefined
+  private detailFormBaseline: DetailFormBaseline | null = null
 
   connectedCallback(): void {
     if (this.bound) {
       return
     }
     this.bound = true
-    this.disposeAdminNavIndicator = initAdminNavIndicator(this)
     hydrateMmIcons(this)
     initMmTooltipDelegation(this)
     this.bindEvents()
@@ -84,8 +94,6 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   disconnectedCallback(): void {
-    this.disposeAdminNavIndicator?.()
-    this.disposeAdminNavIndicator = undefined
     for (const timer of this.serviceTestTimers.values()) {
       clearTimeout(timer)
     }
@@ -106,12 +114,15 @@ export class MmOptionsApp extends HTMLElement {
       void this.save()
     })
     this.querySelector('[data-action="reset"]')?.addEventListener('click', () => {
-      void this.reset()
+      void this.resetDetailForm()
     })
     this.querySelector('[data-action="test-all"]')?.addEventListener('click', () => {
       void this.runAllServiceTests()
     })
     this.querySelector('[data-action="add-service"]')?.addEventListener('click', () => {
+      if (!this.confirmDiscardDetailChanges()) {
+        return
+      }
       this.enterCreateMode()
     })
     this.querySelector('[data-ref="service-list"]')?.addEventListener('click', (event) => {
@@ -156,6 +167,7 @@ export class MmOptionsApp extends HTMLElement {
     }
 
     this.querySelector('[data-ref="script-key"]')?.addEventListener('input', () => {
+      this.clearFieldError('script-key')
       if (!this.shouldMaskScriptKey()) {
         this.scriptKeyStored = this.getScriptKeyInput()?.value ?? ''
       }
@@ -163,6 +175,7 @@ export class MmOptionsApp extends HTMLElement {
       this.updateSuggestedServiceFields()
     })
     this.querySelector('[data-ref="base-url"]')?.addEventListener('input', () => {
+      this.clearFieldError('base-url')
       this.updateSuggestedServiceFields()
     })
     this.querySelector('[data-ref="label"]')?.addEventListener('input', () => {
@@ -295,7 +308,13 @@ export class MmOptionsApp extends HTMLElement {
       body.append(label, meta, badges)
       body.addEventListener('click', () => {
         if (!this.createMode && this.activeServiceId === service.id) {
+          if (!this.confirmDiscardDetailChanges()) {
+            return
+          }
           void this.deselectService()
+          return
+        }
+        if (!this.confirmDiscardDetailChanges()) {
           return
         }
         void this.selectService(service.id)
@@ -567,6 +586,7 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   private applyDraftDetail(): void {
+    this.clearAllFieldErrors()
     this.setDetailTestState('idle')
     this.labelTouched = false
     this.gmScopeTouched = false
@@ -580,9 +600,11 @@ export class MmOptionsApp extends HTMLElement {
     this.updateSuggestedServiceFields()
     this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
+    this.captureDetailFormBaseline()
   }
 
   private applyServiceDetail(service: ServiceProfile, gmScope: string, scriptKeyRefCount: number, options?: { preserveTestUi?: boolean }): void {
+    this.clearAllFieldErrors()
     if (!options?.preserveTestUi) {
       this.setDetailTestState('idle')
     }
@@ -598,6 +620,7 @@ export class MmOptionsApp extends HTMLElement {
     this.setScriptKeyBadge(scriptKeyRefCount)
     this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
+    this.captureDetailFormBaseline()
   }
 
   private updateSuggestedServiceFields(): void {
@@ -645,6 +668,8 @@ export class MmOptionsApp extends HTMLElement {
     }
     if (mode === 'empty') {
       this.setDetailTestState('idle')
+      this.detailFormBaseline = null
+      this.clearAllFieldErrors()
     }
     const testConnBtn = this.querySelector('[data-action="test-connection"]') as HTMLButtonElement | null
     if (testConnBtn) {
@@ -657,6 +682,9 @@ export class MmOptionsApp extends HTMLElement {
       this.scriptKeyRevealed = false
     }
     this.syncScriptKeyFieldDisplay()
+    if (mode !== 'empty') {
+      this.captureDetailFormBaseline()
+    }
   }
 
   private getScriptKeyInput(): HTMLInputElement | null {
@@ -753,11 +781,137 @@ export class MmOptionsApp extends HTMLElement {
   }
 
   private validateFormInput(input: ReturnType<typeof this.readFormInput>): boolean {
-    if (!input.baseUrl || !input.scriptKey) {
-      this.setStatus('Please enter Server URL and Script Key.', 'error')
+    return this.validateRequiredDetailFields(input)
+  }
+
+  private getDetailFieldControl(ref: DetailFieldRef): HTMLInputElement | null {
+    return this.querySelector(`[data-ref="${ref}"]`) as HTMLInputElement | null
+  }
+
+  private getDetailFieldRoot(ref: DetailFieldRef): HTMLElement | null {
+    const input = this.getDetailFieldControl(ref)
+    if (!input) {
+      return null
+    }
+    return input.closest('mm-field')
+  }
+
+  private clearFieldError(ref: DetailFieldRef): void {
+    const root = this.getDetailFieldRoot(ref)
+    root?.classList.remove('is-invalid')
+    const errorEl = this.querySelector(`[data-ref="${ref}-error"]`) as HTMLElement | null
+    if (errorEl) {
+      errorEl.textContent = ''
+      errorEl.hidden = true
+    }
+    const input = this.getDetailFieldControl(ref)
+    input?.removeAttribute('aria-invalid')
+  }
+
+  private clearAllFieldErrors(): void {
+    for (const ref of ['base-url', 'script-key'] as const) {
+      this.clearFieldError(ref)
+    }
+  }
+
+  private setFieldError(ref: DetailFieldRef, message: string): void {
+    const root = this.getDetailFieldRoot(ref)
+    const errorEl = this.querySelector(`[data-ref="${ref}-error"]`) as HTMLElement | null
+    const input = this.getDetailFieldControl(ref)
+    root?.classList.add('is-invalid')
+    if (errorEl) {
+      errorEl.textContent = message
+      errorEl.hidden = false
+    }
+    input?.setAttribute('aria-invalid', 'true')
+  }
+
+  private focusDetailField(ref: DetailFieldRef): void {
+    if (ref === 'script-key' && this.shouldMaskScriptKey()) {
+      this.scriptKeyRevealed = true
+      this.syncScriptKeyFieldDisplay()
+    }
+    const input = this.getDetailFieldControl(ref)
+    if (!input) {
+      return
+    }
+    input.focus()
+    if (typeof input.select === 'function') {
+      input.select()
+    }
+    this.getDetailFieldRoot(ref)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }
+
+  private validateRequiredDetailFields(input: ReturnType<typeof this.readFormInput>): boolean {
+    this.clearAllFieldErrors()
+    const errors: Array<{ ref: DetailFieldRef; message: string }> = []
+    if (!input.baseUrl) {
+      errors.push({ ref: 'base-url', message: 'Please enter Server URL.' })
+    }
+    if (!input.scriptKey) {
+      errors.push({ ref: 'script-key', message: 'Please enter Script Key.' })
+    }
+    for (const error of errors) {
+      this.setFieldError(error.ref, error.message)
+    }
+    if (errors.length > 0) {
+      this.setStatus('', 'idle')
+      this.focusDetailField(errors[0].ref)
       return false
     }
     return true
+  }
+
+  private currentDetailMode(): DetailMode {
+    const emptyEl = this.querySelector('[data-ref="detail-empty"]') as HTMLElement | null
+    if (emptyEl && !emptyEl.classList.contains('hidden')) {
+      return 'empty'
+    }
+    return this.createMode ? 'create' : 'edit'
+  }
+
+  private captureDetailFormBaseline(): void {
+    const mode = this.currentDetailMode()
+    if (mode === 'empty') {
+      this.detailFormBaseline = null
+      return
+    }
+    const input = this.readFormInput()
+    this.detailFormBaseline = {
+      mode,
+      serviceId: this.activeServiceId,
+      ...input,
+    }
+  }
+
+  private hasUnsavedDetailChanges(): boolean {
+    const mode = this.currentDetailMode()
+    if (mode === 'empty') {
+      return false
+    }
+    if (!this.detailFormBaseline) {
+      return mode === 'create'
+    }
+    if (this.detailFormBaseline.mode !== mode || this.detailFormBaseline.serviceId !== this.activeServiceId) {
+      return true
+    }
+    const input = this.readFormInput()
+    return (
+      input.label !== this.detailFormBaseline.label ||
+      input.baseUrl !== this.detailFormBaseline.baseUrl ||
+      input.scriptKey !== this.detailFormBaseline.scriptKey ||
+      input.gmScope !== this.detailFormBaseline.gmScope ||
+      input.enabled !== this.detailFormBaseline.enabled ||
+      input.developMode !== this.detailFormBaseline.developMode
+    )
+  }
+
+  /** Prompt when leaving Servers detail with unsaved edits (admin tab router). */
+  confirmDiscardDetailChanges(): boolean {
+    if (!this.hasUnsavedDetailChanges()) {
+      return true
+    }
+    return window.confirm('Discard unsaved changes to this service?')
   }
 
   private updateScriptKeyHint(): void {
@@ -1111,8 +1265,7 @@ export class MmOptionsApp extends HTMLElement {
 
   private async runDetailConnectionTest(): Promise<void> {
     const input = this.readFormInput()
-    if (!input.baseUrl || !input.scriptKey) {
-      this.setStatus('Enter Server URL and Script Key to test.', 'error')
+    if (!this.validateRequiredDetailFields(input)) {
       this.setDetailTestState('error')
       return
     }
@@ -1252,16 +1405,40 @@ export class MmOptionsApp extends HTMLElement {
     }
   }
 
-  private async reset(): Promise<void> {
-    if (!window.confirm('Reset all services to defaults? This removes every connection.')) {
+  private confirmResetDetailForm(): boolean {
+    if (this.createMode) {
+      return window.confirm('Reset this form? Unsaved entries will be discarded.')
+    }
+    const service = this.activeServiceId ? this.services.find((entry) => entry.id === this.activeServiceId) : undefined
+    const name = service?.label.trim() || service?.baseUrl || 'this service'
+    return window.confirm(`Reset form to last saved values for “${name}”?\n\nUnsaved changes will be discarded.`)
+  }
+
+  private async resetDetailForm(): Promise<void> {
+    const mode = this.currentDetailMode()
+    if (mode === 'empty') {
       return
     }
-    this.createMode = false
-    this.activeServiceId = null
-    await resetOptionsServiceConfig()
-    this.applyDraftDetail()
+    if (!this.confirmResetDetailForm()) {
+      return
+    }
+
+    this.clearAllFieldErrors()
+    this.setDetailTestState('idle')
+
+    if (this.createMode) {
+      this.applyDraftDetail()
+      this.setDetailMode('create')
+      this.setStatus('Form reset.', 'idle')
+      return
+    }
+
+    if (!this.activeServiceId) {
+      return
+    }
+
     await this.reload()
-    this.setStatus('Reset to defaults.', 'ok')
+    this.setStatus('Form reset to last saved values.', 'ok')
   }
 
   private confirmDeleteService(service: ServiceProfile): boolean {

@@ -253,7 +253,8 @@ export function formatScriptKeyShort(scriptKey: string): string {
 }
 
 /**
- * Mask a script key for sensitive display (head + bullets + tail).
+ * Mask a script key for sensitive display (head + asterisks + tail).
+ * Asterisk count matches hidden character count so total length stays the same.
  * @param scriptKey Raw script key
  * @param head Visible prefix length
  * @param tail Visible suffix length
@@ -268,7 +269,7 @@ export function formatScriptKeyMasked(scriptKey: string, head = 8, tail = 8): st
     return trimmed
   }
   const hiddenLen = trimmed.length - head - tail
-  return `${trimmed.slice(0, head)}${'.'.repeat(hiddenLen)}${trimmed.slice(-tail)}`
+  return `${trimmed.slice(0, head)}${'*'.repeat(hiddenLen)}${trimmed.slice(-tail)}`
 }
 
 /**

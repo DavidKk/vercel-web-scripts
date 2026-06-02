@@ -1,9 +1,9 @@
 import { buildQuickRuleScriptSelectOptions } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 
-import { initAdminNavIndicator } from './mm-admin-nav'
+import { buildAdminHash, parseAdminHash } from './mm-admin-hash'
 import { hydrateMmIcons } from './mm-icons'
-import { buildRulesHash, parseRulesHash, type RulesHashRoute } from './mm-rules-hash'
+import { type RulesHashRoute } from './mm-rules-hash'
 import { MmToast } from './mm-toast'
 import { initMmTooltipDelegation } from './mm-tooltip'
 
@@ -38,7 +38,6 @@ export class MmRulesApp extends HTMLElement {
   private scriptSelectOptions: SearchSelectOption[] = []
   private suppressHashRoute = false
   private readonly toast = new MmToast(document)
-  private disposeAdminNavIndicator: (() => void) | undefined
   private readonly onHashChange = (): void => {
     if (this.suppressHashRoute) {
       return
@@ -47,7 +46,6 @@ export class MmRulesApp extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this.disposeAdminNavIndicator = initAdminNavIndicator(this)
     initMmTooltipDelegation(this)
     hydrateMmIcons(this)
     this.bindEvents()
@@ -56,8 +54,6 @@ export class MmRulesApp extends HTMLElement {
 
   disconnectedCallback(): void {
     window.removeEventListener('hashchange', this.onHashChange)
-    this.disposeAdminNavIndicator?.()
-    this.disposeAdminNavIndicator = undefined
   }
 
   private bindEvents(): void {
@@ -105,17 +101,12 @@ export class MmRulesApp extends HTMLElement {
   }
 
   private syncHashRoute(route: RulesHashRoute): void {
-    const nextHash = buildRulesHash(route)
-    const currentHash = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash
-    if (currentHash === nextHash) {
+    const nextHash = buildAdminHash({ tab: 'rules', rules: route })
+    if (location.hash === nextHash) {
       return
     }
     this.suppressHashRoute = true
-    if (nextHash) {
-      history.replaceState(null, '', `#${nextHash}`)
-    } else {
-      history.replaceState(null, '', `${location.pathname}${location.search}`)
-    }
+    history.replaceState(null, '', nextHash)
     queueMicrotask(() => {
       this.suppressHashRoute = false
     })
@@ -135,7 +126,11 @@ export class MmRulesApp extends HTMLElement {
   }
 
   private async applyRouteFromHash(): Promise<void> {
-    const route = parseRulesHash(location.hash)
+    const adminRoute = parseAdminHash(location.hash)
+    if (adminRoute.tab !== 'rules') {
+      return
+    }
+    const route = adminRoute.rules
     if (route.kind === 'empty') {
       if (this.createMode || this.editingRule) {
         this.enterEmptyMode({ syncHash: false })
@@ -266,8 +261,8 @@ export class MmRulesApp extends HTMLElement {
 
     await this.reloadRulesList()
 
-    const hashRoute = parseRulesHash(location.hash)
-    if (hashRoute.kind !== 'empty') {
+    const adminRoute = parseAdminHash(location.hash)
+    if (adminRoute.tab === 'rules' && adminRoute.rules.kind !== 'empty') {
       await this.applyRouteFromHash()
     } else {
       const recent = await chrome.storage.local.get(MmRulesApp.QUICK_RULE_RECENT_SCRIPT_KEY)
@@ -360,9 +355,26 @@ export class MmRulesApp extends HTMLElement {
     if (patternInput) {
       patternInput.value = this.deriveWildcard(this.currentUrl, 'host')
     }
+    const adminRoute = parseAdminHash(location.hash)
+    const scriptValue = adminRoute.tab === 'rules' && adminRoute.rules.kind === 'script' ? adminRoute.rules.scriptValue : ''
+    this.getScriptSelect()?.setValue(scriptValue)
+  }
+
+  private confirmResetEditor(): boolean {
+    if (this.editingRule) {
+      const row = this.editingRule
+      return window.confirm(`Reset form to last saved values for this rule?\n\n[${row.mode}] ${row.script}\n${row.wildcard}\n\nUnsaved changes will be discarded.`)
+    }
+    if (this.createMode) {
+      return window.confirm('Reset this form? Unsaved entries will be discarded.')
+    }
+    return false
   }
 
   private resetEditorByMode(): void {
+    if (!this.confirmResetEditor()) {
+      return
+    }
     if (this.editingRule) {
       this.enterEditMode(this.editingRule)
       return
@@ -576,8 +588,8 @@ export class MmRulesApp extends HTMLElement {
       deleteBtn.disabled = mode !== 'edit'
     }
     if (resetBtn) {
-      resetBtn.closest('mm-button')?.classList.toggle('hidden', mode !== 'edit')
-      resetBtn.disabled = mode !== 'edit'
+      resetBtn.closest('mm-button')?.classList.toggle('hidden', mode === 'empty')
+      resetBtn.disabled = mode === 'empty'
     }
   }
 }

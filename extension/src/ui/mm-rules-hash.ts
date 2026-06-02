@@ -1,6 +1,8 @@
+import { buildAdminPageUrl } from './mm-admin-hash'
+
 export type RulesHashRoute = { kind: 'empty' } | { kind: 'new' } | { kind: 'rule'; ruleId: string } | { kind: 'script'; scriptValue: string }
 
-/** Parse `rules.html` location hash into a client route. */
+/** Parse rules sub-route hash segment (without `#rules/` prefix). */
 export function parseRulesHash(hash: string): RulesHashRoute {
   const raw = (hash.startsWith('#') ? hash.slice(1) : hash).trim()
   if (!raw) {
@@ -20,7 +22,7 @@ export function parseRulesHash(hash: string): RulesHashRoute {
   return { kind: 'empty' }
 }
 
-/** Serialize a rules page route (without leading `#`). */
+/** Serialize a rules sub-route (without `#rules/` prefix). */
 export function buildRulesHash(route: RulesHashRoute): string {
   switch (route.kind) {
     case 'empty':
@@ -36,5 +38,5 @@ export function buildRulesHash(route: RulesHashRoute): string {
 
 /** Extension page path for rules editor pre-selected to one script file. */
 export function buildRulesPageScriptUrl(scriptKey: string, file: string): string {
-  return `rules.html#${buildRulesHash({ kind: 'script', scriptValue: `${scriptKey}|${file}` })}`
+  return buildAdminPageUrl({ tab: 'rules', rules: { kind: 'script', scriptValue: `${scriptKey}|${file}` } })
 }

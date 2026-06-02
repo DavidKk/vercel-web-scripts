@@ -8,6 +8,8 @@ declare const __EXTENSION_DEV_RELOAD_SSE__: string
 import { loadExtensionConfig } from '@ext/shared/extension-storage'
 import { CONFIG_STORAGE_KEY, SERVICES_STORAGE_KEY } from '@ext/types'
 
+import { captureAdminPageForDevReload } from './dev-admin-restore'
+
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 let eventSource: EventSource | undefined
 
@@ -23,7 +25,10 @@ async function connectDevReloadSse(url: string): Promise<void> {
   eventSource = new EventSource(url)
 
   eventSource.addEventListener('reload', () => {
-    chrome.runtime.reload()
+    void (async () => {
+      await captureAdminPageForDevReload()
+      chrome.runtime.reload()
+    })()
   })
 
   eventSource.onerror = () => {

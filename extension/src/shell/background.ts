@@ -33,6 +33,7 @@ import { type ExtensionConfig } from '@ext/types'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import { extensionLogger } from '../shared/logger'
+import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
 
 void DEV_BUILD_STAMP
@@ -297,17 +298,17 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           return
         }
         case 'OPEN_SCRIPTS_PAGE': {
-          await focusOrOpenExtensionPage('scripts.html')
+          await focusOrOpenExtensionPage('admin.html#scripts')
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
         case 'OPEN_RULES_PAGE': {
-          await focusOrOpenExtensionPage('rules.html')
+          await focusOrOpenExtensionPage('admin.html#rules')
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
         case 'OPEN_OPTIONS': {
-          await focusOrOpenExtensionPage('servers.html')
+          await focusOrOpenExtensionPage('admin.html#servers')
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }
@@ -437,3 +438,4 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
 })
 
 initDevExtensionReload()
+void restoreAdminPageAfterDevReload()

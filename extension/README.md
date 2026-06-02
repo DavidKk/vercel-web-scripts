@@ -27,11 +27,21 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 extension/dist/
 ├── background.js      # badge, shell commands
 ├── popup.html/js      # compact shell menu
-├── scripts.html/js    # script enable/disable
-├── servers.html/js    # server / connection management
+├── admin.html/js      # unified admin (Servers / Scripts / Rules tabs)
+├── servers.html       # legacy redirect → admin.html#servers
+├── scripts.html       # legacy redirect → admin.html#scripts
+├── rules.html         # legacy redirect → admin.html#rules (+ hash migration)
 ├── content-bridge.js  # inject preset when RULE allows
 └── page-launcher.js   # interim OTA bootstrap (to be replaced)
 ```
+
+Admin URLs use hash routes on a single page:
+
+| Tab     | URL                                                                                                         |
+| ------- | ----------------------------------------------------------------------------------------------------------- |
+| Servers | `admin.html#servers`                                                                                        |
+| Scripts | `admin.html#scripts`                                                                                        |
+| Rules   | `admin.html#rules` (optional sub-path: `#rules/new`, `#rules/rule/{id}`, `#rules/script/{scriptKey\|file}`) |
 
 ## Build
 
@@ -98,7 +108,7 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 
 1. `pnpm build:extension`
 2. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `extension/dist`
-3. **Servers** (`servers.html`): manage one or more **Service** rows (label, Server URL, Script Key, enabled, developMode, gmScope)
+3. **Servers** (`admin.html#servers`, or Chrome **Extension options**): manage one or more **Service** rows (label, Server URL, Script Key, enabled, developMode, gmScope)
    - **List order = OTA priority** for the same scriptKey (top enabled row is the OTA representative).
    - **Same scriptKey, different baseUrl** → shared Scripts toggles / RULE bucket; separate OTA cache per `(baseUrl|scriptKey)`.
    - **Editor Connect** upserts `(baseUrl, scriptKey)`; duplicate endpoints update the existing row.
@@ -126,9 +136,9 @@ Design notes and task checklist: **[docs/multi-service-tasks.md](./docs/multi-se
 - Subtitle: active Service label + enabled server / scriptKey counts
 - Open editor (active Service, or first enabled) · Update runtime (all enabled scriptKeys) · Reload tab · Reset state (all enabled scriptKeys)
 - Shell network toggle
-- Manage scripts (opens `scripts.html`, grouped by scriptKey) · Sync rules (all enabled scriptKeys)
+- Manage scripts (opens `admin.html#scripts`, grouped by scriptKey) · Sync rules (all enabled scriptKeys)
 
-## Scripts page
+## Scripts page (`admin.html#scripts`)
 
 Per-script enable/disable scoped by scriptKey (`vws_script_enabled:{scriptKey}:{file}`). Same scriptKey across multiple Services shares one toggle group. Does not edit source — use the web editor.
 

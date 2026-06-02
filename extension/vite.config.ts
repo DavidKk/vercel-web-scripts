@@ -19,9 +19,7 @@ const extensionLog = createScriptLogger('extension')
 const EXTENSION_ENTRIES = [
   { name: 'background', input: 'src/shell/background.ts' },
   { name: 'popup', input: 'src/shell/popup/popup.ts' },
-  { name: 'scripts', input: 'src/pages/scripts/scripts.ts' },
-  { name: 'rules', input: 'src/pages/rules/rules.ts' },
-  { name: 'servers', input: 'src/servers/servers.ts' },
+  { name: 'admin', input: 'src/pages/admin/admin.ts' },
   { name: 'content-bridge', input: 'src/bridge/content.ts' },
   { name: 'page-launcher', input: 'src/page/index.ts' },
 ] as const

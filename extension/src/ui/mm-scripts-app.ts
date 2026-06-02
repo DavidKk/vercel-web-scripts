@@ -11,7 +11,6 @@ import {
 import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
 
-import { initAdminNavIndicator } from './mm-admin-nav'
 import type { MmSearchSelect } from './mm-form-components/mm-search-select'
 import { hydrateMmIcons } from './mm-icons'
 import { buildRulesPageScriptUrl } from './mm-rules-hash'
@@ -47,14 +46,12 @@ export class MmScriptsApp extends HTMLElement {
   private reloadToken = 0
   private readonly handleListScroll = (): void => this.updateScrollIndicator()
   private readonly toast = new MmToast(document)
-  private disposeAdminNavIndicator: (() => void) | undefined
 
   connectedCallback(): void {
     if (this.bound) {
       return
     }
     this.bound = true
-    this.disposeAdminNavIndicator = initAdminNavIndicator(this)
     initMmTooltipDelegation(this)
     this.prepareInitialLoadingShell()
     this.bindEvents()
@@ -105,8 +102,6 @@ export class MmScriptsApp extends HTMLElement {
   }
 
   disconnectedCallback(): void {
-    this.disposeAdminNavIndicator?.()
-    this.disposeAdminNavIndicator = undefined
     if (this.storageListener) {
       chrome.storage.onChanged.removeListener(this.storageListener)
     }

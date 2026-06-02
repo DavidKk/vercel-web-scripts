@@ -1,11 +1,3 @@
-<!doctype html>
-<html lang="en" class="h-full">
-<%- include('../partials/document-head', { title: 'MagickMonkey — Servers' }) %>
-  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
-    <mm-options-app>
-      <div class="mm-admin-page mm-page-fill">
-<%- include('../partials/admin-header', { currentTab: 'servers' }) %>
-
         <div class="mm-servers-main">
           <div class="mm-servers-body">
             <aside class="mm-servers-list-pane" aria-label="Services">
@@ -99,9 +91,10 @@
                         <mm-field class="mm-options-field">
                           <label for="baseUrl" class="mm-label">Server URL</label>
                           <mm-input>
-                            <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" autocomplete="url" />
+                            <input id="baseUrl" type="url" data-ref="base-url" placeholder="https://your-app.vercel.app" autocomplete="url" aria-describedby="baseUrlHint baseUrlError" />
                           </mm-input>
-                          <p class="mm-hint">Editor origin, e.g. <code>http://localhost:3000</code>.</p>
+                          <p id="baseUrlHint" class="mm-hint">Editor origin, e.g. <code>http://localhost:3000</code>.</p>
+                          <p id="baseUrlError" class="mm-field-error" data-ref="base-url-error" role="alert" hidden></p>
                         </mm-field>
 
                         <mm-field class="mm-options-field">
@@ -115,6 +108,7 @@
                               placeholder="64-char SHA-256 hex"
                               autocomplete="off"
                               spellcheck="false"
+                              aria-describedby="scriptKeyHint scriptKeyError"
                             />
                             <button
                               type="button"
@@ -127,7 +121,8 @@
                               <span data-ref="script-key-visibility-icon" data-icon="eye" class="mm-icon-slot" aria-hidden="true"></span>
                             </button>
                           </mm-input>
-                          <p class="mm-hint" data-ref="script-key-hint">Matches <code>/static/[key]/</code>.</p>
+                          <p id="scriptKeyHint" class="mm-hint" data-ref="script-key-hint">Matches <code>/static/[key]/</code>.</p>
+                          <p id="scriptKeyError" class="mm-field-error" data-ref="script-key-error" role="alert" hidden></p>
                         </mm-field>
                       </div>
                     </section>
@@ -190,8 +185,3 @@
             </div>
           </div>
         </div>
-      </div>
-    </mm-options-app>
-    <script defer src="./servers.js"></script>
-  </body>
-</html>

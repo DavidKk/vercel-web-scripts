@@ -1,21 +1,39 @@
+import { parseAdminHash } from './mm-admin-hash'
+import { bindAdminNavIndicator } from './mm-admin-nav'
+
 type AdminTabKey = 'servers' | 'scripts' | 'rules'
 
 const REPO_URL = 'https://github.com/DavidKk/vercel-web-scripts'
 
-const TAB_CONFIG: Array<{ key: AdminTabKey; label: string; href: string }> = [
-  { key: 'servers', label: 'Servers', href: './servers.html' },
-  { key: 'scripts', label: 'Scripts', href: './scripts.html' },
-  { key: 'rules', label: 'Rules', href: './rules.html' },
+const TAB_CONFIG: Array<{ key: AdminTabKey; label: string; hash: string }> = [
+  { key: 'servers', label: 'Servers', hash: '#servers' },
+  { key: 'scripts', label: 'Scripts', hash: '#scripts' },
+  { key: 'rules', label: 'Rules', hash: '#rules' },
 ]
 
 export class MmAdminTabs extends HTMLElement {
-  connectedCallback(): void {
-    this.render()
+  static get observedAttributes(): string[] {
+    return ['current']
   }
 
-  private render(): void {
-    const currentAttr = (this.getAttribute('current') || 'servers').toLowerCase()
-    const current = (['servers', 'scripts', 'rules'] as const).includes(currentAttr as AdminTabKey) ? (currentAttr as AdminTabKey) : 'servers'
+  connectedCallback(): void {
+    if (location.hash) {
+      this.setAttribute('current', parseAdminHash(location.hash).tab)
+    }
+    if (!this.querySelector('.mm-admin-nav')) {
+      this.buildNav()
+    }
+    this.syncCurrentTab()
+  }
+
+  attributeChangedCallback(name: string): void {
+    if (name !== 'current') {
+      return
+    }
+    this.syncCurrentTab()
+  }
+
+  private buildNav(): void {
     const navLabel = this.getAttribute('nav-label') || 'Extension pages'
 
     this.innerHTML = ''
@@ -25,11 +43,9 @@ export class MmAdminTabs extends HTMLElement {
 
     for (const tab of TAB_CONFIG) {
       const link = document.createElement('a')
-      link.href = tab.href
+      link.href = tab.hash
       link.className = 'mm-admin-nav-link'
-      if (tab.key === current) {
-        link.setAttribute('aria-current', 'page')
-      }
+      link.dataset.adminTab = tab.key
       link.textContent = tab.label
       nav.appendChild(link)
     }
@@ -46,6 +62,22 @@ export class MmAdminTabs extends HTMLElement {
     nav.appendChild(github)
 
     this.appendChild(nav)
+    bindAdminNavIndicator(nav)
+  }
+
+  private syncCurrentTab(): void {
+    const currentAttr = (this.getAttribute('current') || 'servers').toLowerCase()
+    const current = (['servers', 'scripts', 'rules'] as const).includes(currentAttr as AdminTabKey) ? (currentAttr as AdminTabKey) : 'servers'
+
+    for (const link of this.querySelectorAll<HTMLAnchorElement>('.mm-admin-nav-link[data-admin-tab]')) {
+      if (link.dataset.adminTab === current) {
+        link.setAttribute('aria-current', 'page')
+      } else {
+        link.removeAttribute('aria-current')
+      }
+    }
+
+    this.dispatchEvent(new CustomEvent('mm-admin-tabs-current-changed', { detail: { tab: current } }))
   }
 }
 

@@ -147,7 +147,7 @@ describe('extension-services', () => {
   describe('formatScriptKeyMasked', () => {
     it('should mask long script keys with head and tail visible', () => {
       const key = 'a'.repeat(64)
-      expect(formatScriptKeyMasked(key)).toBe(`${'a'.repeat(8)}${'.'.repeat(48)}${'a'.repeat(8)}`)
+      expect(formatScriptKeyMasked(key)).toBe(`${'a'.repeat(8)}${'*'.repeat(48)}${'a'.repeat(8)}`)
     })
 
     it('should return short keys unchanged', () => {

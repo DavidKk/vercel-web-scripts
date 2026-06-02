@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<%- include('../partials/document-head', { title: 'MagickMonkey' }) %>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <div class="mm-admin-page mm-page-fill">
+<%- include('../partials/admin-header') %>
+      <div class="mm-admin-views">
+        <div class="mm-admin-view is-active" data-admin-view="servers">
+          <mm-options-app class="mm-admin-view-host">
+<%- include('../partials/views/servers-panel') %>
+          </mm-options-app>
+        </div>
+        <div class="mm-admin-view" data-admin-view="scripts" hidden>
+          <mm-scripts-app class="mm-admin-view-host" data-loading>
+<%- include('../partials/views/scripts-panel') %>
+          </mm-scripts-app>
+        </div>
+        <div class="mm-admin-view" data-admin-view="rules" hidden>
+          <mm-rules-app class="mm-admin-view-host">
+<%- include('../partials/views/rules-panel') %>
+          </mm-rules-app>
+        </div>
+      </div>
+    </div>
+    <mm-scripts-debug-panel></mm-scripts-debug-panel>
+    <script defer src="./admin.js"></script>
+  </body>
+</html>
