@@ -114,6 +114,13 @@ Default to `GME_*` helpers when they match the task. Use `GM_*` when you need Ta
 | Utilities               | `GME_debounce`, `GME_throttle`, `GME_sha1`, `GME_md5`, `GME_uuid`                                                                  |
 | Logging / notifications | `GME_ok`, `GME_info`, `GME_warn`, `GME_fail`, `GME_group`, `GME_notification`, `GME_notification_update`, `GME_notification_close` |
 
+**Logging (authoring)**
+
+- In GIST module sources, keep using `GME_ok` / `GME_info` / `GME_warn` / `GME_fail` (or `const { GME_info } = createGMELogger('your-namespace')`). The remote wrapper installs `enterScriptLogScope` so user script body lines always reach the browser console.
+- `Executing script \`file.ts\` …` is emitted by the **wrapper** (shell), not your module body; it follows the shell Logger mode on the Chrome extension install.
+- **Tampermonkey-only install** has no Logger popup; shell mode stays `console`, so wrapper + preset + script logs all appear in DevTools unless `vws_shell_log_output_mode` is set manually in GM storage.
+- Runtime-only (do not call from scripts): `enterScriptLogScope`, `exitScriptLogScope`, `createScriptGMELogger`, `createScriptLogger` (`script_*`).
+
 **Injected constants (typical)**
 
 - `__BASE_URL__`, `__RULE_API_URL__`, `__EDITOR_URL__`, `__PROJECT_VERSION__`, `__SCRIPT_UPDATED_AT__`, `__PRESET_BUILD_HASH__` — see typings for exact types.

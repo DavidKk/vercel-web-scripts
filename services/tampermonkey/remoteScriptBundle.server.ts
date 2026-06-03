@@ -5,6 +5,9 @@ import { fetchGist, getGistInfo } from '@/services/gist'
 
 import { getRemoteScriptContent } from './createUserScript.server'
 
+/** Bump when remote module wrapper / log scoping changes (invalidates cached tampermonkey-remote.js). */
+export const REMOTE_SCRIPT_WRAPPER_VERSION = 2
+
 /**
  * Compiled remote script body plus SHA-1 (same bytes as GET tampermonkey-remote.js).
  */
@@ -38,7 +41,7 @@ export async function buildRemoteScriptBundleFromGist(): Promise<RemoteScriptBun
     )
     const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
     const raw = await getRemoteScriptContent(files, { strictCompile: true, scriptBuiltAt: gistUpdatedAtMs })
-    const content = raw.replace(/\r\n/g, '\n')
+    const content = `// vws-wrapper:${REMOTE_SCRIPT_WRAPPER_VERSION}\n${raw.replace(/\r\n/g, '\n')}`
     if (!content.trim()) {
       return null
     }

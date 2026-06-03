@@ -242,12 +242,20 @@ function createScriptCompiler(scriptBuiltAt: number, options?: { strictCompile: 
  */
 function getExecutionWrapper(runAt: string, moduleName: string, match: string[], file: string, compiledContent: string, scriptBuiltAt: number): string {
   const builtAtDisplay = scriptBuiltAt > 0 && Number.isFinite(scriptBuiltAt) ? new Date(scriptBuiltAt).toLocaleString() : 'unknown'
+  // Shell: preset GME_ok for "Executing script …". Body: enterScriptLogScope so bare GME_* → emitScriptLog.
   const scriptContent = `
-        const { GME_ok, GME_info, GME_fail, GME_warn } = createGMELogger(${JSON.stringify(moduleName)})
         try {
-          if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule("${file}")) {
+          if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule(${JSON.stringify(file)})) {
             GME_ok(${JSON.stringify(formatScriptExecutingLog(file, builtAtDisplay))});
-            ${compiledContent}
+            enterScriptLogScope(${JSON.stringify(moduleName)})
+            try {
+              ${compiledContent}
+            } catch (error) {
+              const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
+              GME_fail(${JSON.stringify(formatScriptExecutingFailureLog(file))}, message)
+            } finally {
+              exitScriptLogScope()
+            }
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
