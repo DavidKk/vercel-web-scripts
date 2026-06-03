@@ -62,14 +62,14 @@ export type ShellMessage =
 
 export interface ShellStatus {
   configured: boolean
-  /** Primary OTA representative baseUrl (legacy popup field). */
+  /** Primary OTA representative baseUrl (legacy field). */
   baseUrl: string
-  /** Primary enabled scriptKey (legacy popup field). */
+  /** Primary enabled scriptKey (legacy field). */
   scriptKey: string
   enabledServiceCount: number
   enabledScriptKeyCount: number
-  /** Label of active Service row in Options, when set. */
-  activeServiceLabel: string
+  /** Per-file enabled scripts across all enabled scriptKeys (Manage scripts toggles). */
+  enabledScriptCount: number
   networkEnabled: boolean
   /** console | logviewer | none */
   logOutputMode: ShellLogOutputMode

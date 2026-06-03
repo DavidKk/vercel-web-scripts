@@ -205,6 +205,31 @@ export async function loadScriptKeyScriptsGroupsFromCache(): Promise<ScriptKeySc
 }
 
 /**
+ * Popup subtitle counts: enabled Servers rows and Manage-scripts toggles on across their scriptKeys.
+ * @returns Enabled server count and enabled script file count (deduped per scriptKey, not per server row)
+ */
+export async function countEnabledScriptsForEnabledScriptKeys(): Promise<{ serverCount: number; enabledScriptCount: number }> {
+  const state = await ensureExtensionServicesState()
+  const enabledKeys = getEnabledScriptKeys(state.services)
+  const serverCount = state.services.filter((service) => service.enabled).length
+  let enabledScriptCount = 0
+  for (const scriptKey of enabledKeys) {
+    const normalized = normalizeScriptKey(scriptKey)
+    const scripts = await loadManagedScriptListFromCacheForScriptKey(normalized)
+    const enabledMap = await loadScriptEnabledMapForScriptKey(
+      normalized,
+      scripts.map((row) => row.file)
+    )
+    for (const row of scripts) {
+      if (enabledMap.get(row.file) !== false) {
+        enabledScriptCount += 1
+      }
+    }
+  }
+  return { serverCount, enabledScriptCount }
+}
+
+/**
  * Build page-world bootstrap payload for all enabled unique scriptKeys.
  * @param extensionVersion Extension manifest version
  * @returns Bootstrap config or null when no enabled scriptKey

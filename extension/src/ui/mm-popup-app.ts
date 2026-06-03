@@ -1,4 +1,4 @@
-import { buildQuickRuleScriptSelectOptions } from '@ext/shared/extension-storage'
+import { buildQuickRuleScriptSelectOptions, countEnabledScriptsForEnabledScriptKeys } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
@@ -240,7 +240,7 @@ export class MmPopupApp extends HTMLElement {
   }
 
   private async refresh(): Promise<void> {
-    const res = await sendShellMessage({ type: 'GET_STATUS' })
+    const [res, scriptTotals] = await Promise.all([sendShellMessage({ type: 'GET_STATUS' }), countEnabledScriptsForEnabledScriptKeys()])
     if (!res.ok) {
       this.showToast(res.error, true)
       return
@@ -250,21 +250,16 @@ export class MmPopupApp extends HTMLElement {
       return
     }
     const s = res.status
+    const configured = scriptTotals.serverCount > 0
 
     const subtitle = this.querySelector('[data-ref="subtitle"]')
     if (subtitle) {
-      if (!s.configured) {
+      if (!configured) {
         subtitle.textContent = 'Configure in Servers'
         subtitle.classList.remove('hidden')
       } else {
-        const label = s.activeServiceLabel || this.shortServiceLabelFromBaseUrl(s.baseUrl)
-        if (label) {
-          subtitle.textContent = label
-          subtitle.classList.remove('hidden')
-        } else {
-          subtitle.textContent = ''
-          subtitle.classList.add('hidden')
-        }
+        subtitle.textContent = this.formatRuntimeSummary(scriptTotals.serverCount, scriptTotals.enabledScriptCount)
+        subtitle.classList.remove('hidden')
       }
     }
 
@@ -278,7 +273,7 @@ export class MmPopupApp extends HTMLElement {
       triggerHint.textContent =
         s.triggeredCountOnActiveTab > 0
           ? `${s.triggeredCountOnActiveTab} script trigger(s) on this page load`
-          : s.configured
+          : configured
             ? 'No scripts triggered on this page load'
             : 'Configure Servers to track script triggers'
     }
@@ -289,15 +284,12 @@ export class MmPopupApp extends HTMLElement {
     this.quickRuleCurrentUrl = s.activeTabUrl || ''
   }
 
-  private shortServiceLabelFromBaseUrl(baseUrl: string): string {
-    if (!baseUrl.trim()) {
-      return ''
-    }
-    try {
-      return new URL(baseUrl.trim().replace(/\/+$/, '')).hostname
-    } catch {
-      return ''
-    }
+  private formatRuntimeSummary(serverCount: number, scriptCount: number): string {
+    const servers = Math.max(0, Number.isFinite(serverCount) ? serverCount : 0)
+    const scripts = Math.max(0, Number.isFinite(scriptCount) ? scriptCount : 0)
+    const serversLabel = `${servers} servers`
+    const scriptsLabel = `${scripts} scripts`
+    return `${serversLabel} · ${scriptsLabel}`
   }
 
   private deriveWildcardByTemplate(url: string, template: 'host' | 'path' | 'exact'): string {

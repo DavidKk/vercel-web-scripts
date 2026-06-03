@@ -2,6 +2,7 @@ import { defaultDevelopModeForBaseUrl } from '@ext/shared/extension-services'
 import {
   addScriptKeyRule,
   clearRuntimeModuleCachesForEnabledScriptKeys,
+  countEnabledScriptsForEnabledScriptKeys,
   ensureExtensionServicesState,
   getEnabledScriptKeys,
   getShellLogOutputMode,
@@ -13,7 +14,6 @@ import {
   removeScriptKeyRule,
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
-  resolveOtaEndpoint,
   setShellLogOutputMode,
   setShellNetworkEnabled,
   syncRulesForEnabledScriptKeys,
@@ -140,19 +140,18 @@ async function reloadTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
 }
 
 async function buildStatus(): Promise<ShellStatus> {
-  const [config, servicesState, tab, networkEnabled, logOutputMode] = await Promise.all([
+  const [config, servicesState, tab, networkEnabled, logOutputMode, scriptTotals] = await Promise.all([
     loadExtensionConfig(),
     ensureExtensionServicesState(),
     getActiveTab(),
     getShellNetworkEnabled(),
     getShellLogOutputMode(),
+    countEnabledScriptsForEnabledScriptKeys(),
   ])
   const url = tab?.url ?? ''
   const enabledServices = servicesState.services.filter((service) => service.enabled)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
-  const otaService = enabledScriptKeys[0] ? resolveOtaEndpoint(enabledScriptKeys[0], servicesState.services) : null
-  const activeService = servicesState.services.find((service) => service.id === servicesState.activeServiceId && service.enabled) ?? otaService ?? enabledServices[0]
-  const configured = enabledScriptKeys.length > 0 && Boolean(config.baseUrl && config.scriptKey)
+  const configured = scriptTotals.serverCount > 0
   const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
   const manifest = chrome.runtime.getManifest()
   return {
@@ -161,7 +160,7 @@ async function buildStatus(): Promise<ShellStatus> {
     scriptKey: config.scriptKey,
     enabledServiceCount: enabledServices.length,
     enabledScriptKeyCount: enabledScriptKeys.length,
-    activeServiceLabel: activeService?.label?.trim() ?? '',
+    enabledScriptCount: scriptTotals.enabledScriptCount,
     networkEnabled,
     logOutputMode,
     triggeredCountOnActiveTab,
