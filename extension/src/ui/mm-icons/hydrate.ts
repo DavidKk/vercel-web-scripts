@@ -1,6 +1,7 @@
 import iconAsterisk from '~icons/mdi/asterisk?raw'
 import iconCheck from '~icons/mdi/check?raw'
 import iconCheckAll from '~icons/mdi/check-all?raw'
+import iconClipboardTextOutline from '~icons/mdi/clipboard-text-outline?raw'
 import iconClose from '~icons/mdi/close?raw'
 import iconCloudDownloadOutline from '~icons/mdi/cloud-download-outline?raw'
 import iconCodeTags from '~icons/mdi/code-tags?raw'
@@ -34,6 +35,7 @@ export const mmPopupIcons = {
   settings: iconCog,
   rulesManage: iconShieldOutline,
   network: iconWeb,
+  logs: iconClipboardTextOutline,
   quickRules: iconLightningBoltOutline,
   plus: iconPlus,
   minus: iconMinus,

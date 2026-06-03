@@ -7,6 +7,7 @@ import { parseScriptExecutingFailureLog, parseScriptExecutingLog } from '@shared
 import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
 import { logStore } from '@/services/log-store'
+import { shouldLogToConsole, shouldLogToMemory } from '@/services/shell-log-settings'
 
 function readActiveScriptKey(pageConfig: { scriptKey?: string } | undefined): string | undefined {
   const runtimeKey = (globalThis as { __VWS_SCRIPT_KEY__?: unknown }).__VWS_SCRIPT_KEY__
@@ -98,6 +99,9 @@ function formatContentsForStore(...contents: any[]): string {
  * Push to log store if available (log-store.ts must be loaded before logger)
  */
 function pushToLogStore(level: 'ok' | 'info' | 'warn' | 'fail' | 'debug', ...contents: any[]): void {
+  if (!shouldLogToMemory()) {
+    return
+  }
   try {
     const store = logStore
     if (store && typeof store.push === 'function') {
@@ -105,8 +109,39 @@ function pushToLogStore(level: 'ok' | 'info' | 'warn' | 'fail' | 'debug', ...con
       if (msg) store.push(level, msg)
     }
   } catch (e) {
+    if (!shouldLogToConsole()) {
+      return
+    }
     // eslint-disable-next-line no-console -- log store write failure must be visible (logger must not throw)
     console.error('[logger] writeToStore failed:', e)
+  }
+}
+
+type GmeStoreLevel = 'ok' | 'info' | 'warn' | 'fail' | 'debug'
+
+function writeGmeToConsole(scope: string, level: VwsConsoleLogLevel, storeLevel: GmeStoreLevel, ...contents: any[]): void {
+  const args = processLogContents(scope, level, ...contents)
+  if (storeLevel === 'debug') {
+    // eslint-disable-next-line no-console
+    console.debug(...args)
+    return
+  }
+  // eslint-disable-next-line no-console
+  console.log(...args)
+}
+
+function emitGmeLog(scope: string, level: VwsConsoleLogLevel, storeLevel: GmeStoreLevel, ...contents: any[]): void {
+  if (storeLevel === 'ok') {
+    notifyExtensionScriptTriggered(contents)
+  }
+  if (storeLevel === 'fail') {
+    notifyExtensionScriptFailed(contents)
+  }
+  if (shouldLogToConsole()) {
+    writeGmeToConsole(scope, level, storeLevel, ...contents)
+  }
+  if (shouldLogToMemory()) {
+    pushToLogStore(storeLevel, ...contents)
   }
 }
 
@@ -279,11 +314,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_ok(...contents: any[]) {
-      notifyExtensionScriptTriggered(contents)
-      const args = processLogContents(scope, 'ok', ...contents)
-      // eslint-disable-next-line no-console
-      console.log(...args)
-      pushToLogStore('ok', ...contents)
+      emitGmeLog(scope, 'ok', 'ok', ...contents)
     },
 
     /**
@@ -295,10 +326,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_info(...contents: any[]) {
-      const args = processLogContents(scope, 'info', ...contents)
-      // eslint-disable-next-line no-console
-      console.log(...args)
-      pushToLogStore('info', ...contents)
+      emitGmeLog(scope, 'info', 'info', ...contents)
     },
 
     /**
@@ -310,11 +338,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_fail(...contents: any[]) {
-      notifyExtensionScriptFailed(contents)
-      const args = processLogContents(scope, 'fail', ...contents)
-      // eslint-disable-next-line no-console
-      console.log(...args)
-      pushToLogStore('fail', ...contents)
+      emitGmeLog(scope, 'fail', 'fail', ...contents)
     },
 
     /**
@@ -326,10 +350,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_warn(...contents: any[]) {
-      const args = processLogContents(scope, 'warn', ...contents)
-      // eslint-disable-next-line no-console
-      console.log(...args)
-      pushToLogStore('warn', ...contents)
+      emitGmeLog(scope, 'warn', 'warn', ...contents)
     },
 
     /**
@@ -342,10 +363,7 @@ export function createGMELogger(prefix?: string) {
      * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
      */
     GME_debug(...contents: any[]) {
-      const args = processLogContents(scope, 'debug', ...contents)
-      // eslint-disable-next-line no-console
-      console.debug(...args)
-      pushToLogStore('debug', ...contents)
+      emitGmeLog(scope, 'debug', 'debug', ...contents)
     },
   }
 }
@@ -360,11 +378,7 @@ export function createGMELogger(prefix?: string) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_ok(...contents: any[]) {
-  notifyExtensionScriptTriggered(contents)
-  const args = processLogContents('Preset', 'ok', ...contents)
-  // eslint-disable-next-line no-console
-  console.log(...args)
-  pushToLogStore('ok', ...contents)
+  emitGmeLog('Preset', 'ok', 'ok', ...contents)
 }
 
 /**
@@ -376,10 +390,7 @@ export function GME_ok(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_info(...contents: any[]) {
-  const args = processLogContents('Preset', 'info', ...contents)
-  // eslint-disable-next-line no-console
-  console.log(...args)
-  pushToLogStore('info', ...contents)
+  emitGmeLog('Preset', 'info', 'info', ...contents)
 }
 
 /**
@@ -391,11 +402,7 @@ export function GME_info(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_fail(...contents: any[]) {
-  notifyExtensionScriptFailed(contents)
-  const args = processLogContents('Preset', 'fail', ...contents)
-  // eslint-disable-next-line no-console
-  console.log(...args)
-  pushToLogStore('fail', ...contents)
+  emitGmeLog('Preset', 'fail', 'fail', ...contents)
 }
 
 /**
@@ -407,10 +414,7 @@ export function GME_fail(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_warn(...contents: any[]) {
-  const args = processLogContents('Preset', 'warn', ...contents)
-  // eslint-disable-next-line no-console
-  console.log(...args)
-  pushToLogStore('warn', ...contents)
+  emitGmeLog('Preset', 'warn', 'warn', ...contents)
 }
 
 /**
@@ -423,10 +427,7 @@ export function GME_warn(...contents: any[]) {
  * @param contents Messages to log (can include %c for styling or HTML-like tags like <b>, <i>, <red>, etc.)
  */
 export function GME_debug(...contents: any[]) {
-  const args = processLogContents('Preset', 'debug', ...contents)
-  // eslint-disable-next-line no-console
-  console.debug(...args)
-  pushToLogStore('debug', ...contents)
+  emitGmeLog('Preset', 'debug', 'debug', ...contents)
 }
 
 // ============================================================================
@@ -472,9 +473,10 @@ class LogGroup implements GroupLogger {
     this.scriptName = scriptName
     this.startTime = Date.now()
 
-    // Immediately output start marker with script name
-    // eslint-disable-next-line no-console
-    console.log(...buildVwsConsoleLogArgs(scriptName, 'info', `▶ ${label}`))
+    if (shouldLogToConsole()) {
+      // eslint-disable-next-line no-console
+      console.log(...buildVwsConsoleLogArgs(scriptName, 'info', `▶ ${label}`))
+    }
   }
 
   /**
@@ -487,11 +489,11 @@ class LogGroup implements GroupLogger {
   private log(type: 'log' | 'debug' | 'warn' | 'error', level: VwsConsoleLogLevel, ...contents: any[]): GroupLogger {
     const args = processLogContents(this.scriptName, level, ...contents)
 
-    // Immediately output (don't block)
-    // eslint-disable-next-line no-console
-    console[type](...args)
+    if (shouldLogToConsole()) {
+      // eslint-disable-next-line no-console
+      console[type](...args)
+    }
 
-    // Also collect for summary
     this.logs.push({ type, args })
 
     return this
@@ -547,13 +549,15 @@ class LogGroup implements GroupLogger {
    * Creates a collapsible group showing all collected logs
    */
   end(): void {
+    if (!shouldLogToConsole()) {
+      return
+    }
     const duration = Date.now() - this.startTime
     const logCount = this.logs.length
 
     // eslint-disable-next-line no-console
     console.groupCollapsed(...buildVwsConsoleLogArgs(this.scriptName, 'info', `${this.label} · ${logCount} logs · ${duration}ms`))
 
-    // Replay all collected logs
     this.logs.forEach(({ type, args }) => {
       // eslint-disable-next-line no-console
       console[type](...args)

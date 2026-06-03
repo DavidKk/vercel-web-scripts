@@ -4,9 +4,10 @@
  */
 
 import { appendToDocumentElement } from '@/helpers/dom'
-import type { LogLevel } from '@/services/log-store'
-import { logStore } from '@/services/log-store'
-import { isLogPersistEnabled } from '@/services/shell-log-settings'
+import { getSharedLogStore } from '@/services/log-store/global-access'
+import type { LogStore } from '@/services/log-store/LogStore'
+import type { LogLevel } from '@/services/log-store/types'
+import { applyLogPersistSetting, isLogPersistEnabled } from '@/services/shell-log-settings'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import iconWarn from '~icons/mdi/alert?raw'
 import iconDebug from '~icons/mdi/bug?raw'
@@ -70,7 +71,7 @@ export class LogViewerUI extends HTMLElement {
   static TAG_NAME = TAG
   #shadowRoot: ShadowRoot | null = null
   #unsubscribe: (() => void) | null = null
-  #store: typeof logStore | null = null
+  #store: LogStore | null = null
   /** When false, only logs from current page session are shown; when true, include persisted history */
   #includePrevious = false
   #copyFlashTimer: ReturnType<typeof setTimeout> | null = null
@@ -83,13 +84,14 @@ export class LogViewerUI extends HTMLElement {
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
     this.#shadowRoot.innerHTML = innerHTML
 
-    this.#store = logStore ?? null
+    this.#store = getSharedLogStore()
 
     const backdrop = this.#shadowRoot.querySelector('.log-viewer__backdrop')
     const closeBtn = this.#shadowRoot.querySelector('.log-viewer__icon-btn--close')
     const copyBtn = this.#shadowRoot.querySelector('[data-action="copy"]')
     const includePreviousBtn = this.#shadowRoot.querySelector('[data-action="include-previous"]')
     const clearBtn = this.#shadowRoot.querySelector('[data-action="clear"]')
+    const persistInput = this.#shadowRoot.querySelector('[data-action="persist"]') as HTMLInputElement | null
     const searchInput = this.#shadowRoot.querySelector('.log-viewer__search')
     const filterInputs = this.#shadowRoot.querySelectorAll('.log-viewer__filter input')
 
@@ -103,6 +105,7 @@ export class LogViewerUI extends HTMLElement {
     copyBtn?.addEventListener('click', () => void this.#onCopy())
     clearBtn?.addEventListener('click', () => this.#onClear())
     includePreviousBtn?.addEventListener('click', () => this.#onToggleIncludePrevious())
+    persistInput?.addEventListener('change', () => this.#onPersistChange())
     searchInput?.addEventListener('input', () => this.#render())
     filterInputs.forEach((input) => input.addEventListener('change', () => this.#render()))
   }
@@ -118,7 +121,9 @@ export class LogViewerUI extends HTMLElement {
 
   open() {
     this.classList.add('log-viewer--open')
+    this.#store = getSharedLogStore()
     this.#includePrevious = false
+    this.#syncPersistToggle()
     this.#syncIncludePreviousAvailability()
     this.#updateIncludePreviousButton()
     this.#unsubscribe?.()
@@ -146,6 +151,29 @@ export class LogViewerUI extends HTMLElement {
     this.#includePrevious = !this.#includePrevious
     this.#updateIncludePreviousButton()
     this.#render()
+  }
+
+  #onPersistChange() {
+    const input = this.#shadowRoot?.querySelector('[data-action="persist"]') as HTMLInputElement | null
+    if (!input) {
+      return
+    }
+    const enabled = input.checked
+    applyLogPersistSetting(enabled)
+    if (!enabled) {
+      this.#includePrevious = false
+    }
+    this.#syncIncludePreviousAvailability()
+    this.#updateIncludePreviousButton()
+    this.#render()
+  }
+
+  #syncPersistToggle() {
+    const input = this.#shadowRoot?.querySelector('[data-action="persist"]') as HTMLInputElement | null
+    if (!input) {
+      return
+    }
+    input.checked = isLogPersistEnabled()
   }
 
   #syncIncludePreviousAvailability() {
@@ -189,7 +217,7 @@ export class LogViewerUI extends HTMLElement {
     const btn = this.#shadowRoot?.querySelector('[data-action="include-previous"]') as HTMLButtonElement | null
     if (btn) {
       if (!isLogPersistEnabled()) {
-        btn.title = 'Enable “Log persist (IndexedDB)” in the userscript menu to keep logs across sessions'
+        btn.title = 'Turn on “Persist logs” below to include previous sessions'
         btn.setAttribute('aria-pressed', 'false')
         btn.classList.remove('log-viewer__icon-btn--active')
         return
@@ -257,7 +285,7 @@ export class LogViewerUI extends HTMLElement {
       listEl.innerHTML = ''
       const empty = document.createElement('div')
       empty.className = 'log-viewer__empty'
-      empty.textContent = 'Log store not available (logger may not be loaded)'
+      empty.textContent = 'Log store not available (preset core may not be loaded yet)'
       listEl.appendChild(empty)
       if (copyBtn) copyBtn.disabled = true
       return

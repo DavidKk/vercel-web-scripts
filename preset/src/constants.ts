@@ -26,6 +26,8 @@ export const PRESET_BUILT_HASH_KEY = 'vws_preset_built_hash'
 export const SHELL_NETWORK_ENABLED_KEY = 'vws_shell_network_enabled'
 /** GM_setValue key: when true, log viewer persists logs to IndexedDB across sessions; default false (memory only) */
 export const SHELL_LOG_PERSIST_ENABLED_KEY = 'vws_shell_log_persist_enabled'
+/** GM_setValue key: log output mode — console | logviewer | none */
+export { SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 /** GM_setValue key: cached tampermonkey-remote.js body for offline shell */
 export const REMOTE_SCRIPT_CACHE_KEY = 'vws_remote_script_cache'

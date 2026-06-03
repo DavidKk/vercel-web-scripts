@@ -3,7 +3,9 @@
  * Import logStore from here for production; use LogStore + config in tests.
  */
 
-import { isLogPersistEnabled } from '@/services/shell-log-settings'
+import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
+
+import { isLogPersistEnabled, shouldLogToMemory } from '@/services/shell-log-settings'
 
 import { flushBootLogBufferIntoStore } from './boot-buffer'
 import { defaultLogStoreConfig } from './config'
@@ -13,7 +15,17 @@ const logStore = new LogStore({
   ...defaultLogStoreConfig,
   persistToIndexedDB: isLogPersistEnabled(),
 })
-flushBootLogBufferIntoStore(logStore)
+if (shouldLogToMemory()) {
+  flushBootLogBufferIntoStore(logStore)
+}
+
+if (typeof GM_addValueChangeListener === 'function') {
+  GM_addValueChangeListener(SHELL_LOG_OUTPUT_MODE_KEY, (_name, _oldValue, newValue) => {
+    if (normalizeShellLogOutputMode(newValue) === 'none') {
+      logStore.clearLogs()
+    }
+  })
+}
 
 if (typeof window !== 'undefined') {
   if (logStore.isPersistenceEnabled()) {

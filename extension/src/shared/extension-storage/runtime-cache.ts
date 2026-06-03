@@ -11,6 +11,7 @@ import {
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
+import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY, type ShellLogOutputMode } from '@shared/shell-log-output'
 
 import type { ExtensionConfig } from '../../types'
 import { CONFIG_STORAGE_KEY, SERVICES_STORAGE_KEY } from '../../types'
@@ -38,6 +39,15 @@ export async function getShellNetworkEnabled(): Promise<boolean> {
 
 export async function setShellNetworkEnabled(enabled: boolean): Promise<void> {
   await chrome.storage.local.set({ [gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]: enabled })
+}
+
+export async function getShellLogOutputMode(): Promise<ShellLogOutputMode> {
+  const result = await chrome.storage.local.get(gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY))
+  return normalizeShellLogOutputMode(result[gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)])
+}
+
+export async function setShellLogOutputMode(mode: ShellLogOutputMode): Promise<void> {
+  await chrome.storage.local.set({ [gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]: mode })
 }
 
 function scopedKeys(config: ExtensionConfig): string[] {

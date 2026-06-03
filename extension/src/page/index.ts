@@ -3,6 +3,7 @@
  */
 
 import { extensionLogger } from '@ext/shared/logger'
+import { syncShellLogOutputModeFromGmStore } from '@ext/shared/shell-log-output-cache'
 import type { PageBootstrapConfig, ScriptKeyBootstrapEntry } from '@ext/types'
 
 import { buildLauncherUrls } from './config'
@@ -74,6 +75,7 @@ function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<ty
 
 function main(): void {
   loadBootstrapData()
+  syncShellLogOutputModeFromGmStore()
 
   const config = window.__VWS_PAGE_CONFIG__
   const entries = config ? resolveBootstrapEntries(config) : []
