@@ -3,6 +3,7 @@
  */
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
+import { buildGrantsFromGlobal, executeWithGlobal } from '@shared/csp-script-executor'
 
 import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@/constants'
 import { GME_fetch } from '@/helpers/http'
@@ -79,16 +80,18 @@ function writeRemoteScriptCache(content: string, etag: string): void {
  * @param content Script content to execute
  */
 export function executeScript(content: string): void {
-  const execute = new Function('global', `with(global){${content}}`)
   // When run by launcher, use __GLOBAL__ (launcher's g) so remote script runs in the same sandbox as preset (matchRule, GM_*, etc.)
-  const g = typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
-  const grants = eval(`({ ${__GRANTS_STRING__} })`) as Record<string, unknown>
-  const prev = (g as any).__IS_REMOTE_EXECUTE__
+  const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {}) as Record<
+    string,
+    unknown
+  >
+  const grants = buildGrantsFromGlobal(g, String(typeof __GRANTS_STRING__ !== 'undefined' ? __GRANTS_STRING__ : ''))
+  const prev = g.__IS_REMOTE_EXECUTE__
   try {
     Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
-    execute(g)
+    executeWithGlobal(g, content)
   } finally {
-    ;(g as any).__IS_REMOTE_EXECUTE__ = prev
+    g.__IS_REMOTE_EXECUTE__ = prev
   }
 }
 

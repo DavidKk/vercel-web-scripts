@@ -70,7 +70,32 @@ export class LogStore {
       })
   }
 
+  /** Whether this store writes logs to IndexedDB (see shell log persist setting). */
+  isPersistenceEnabled(): boolean {
+    return this.config.persistToIndexedDB === true
+  }
+
+  /**
+   * Enable or disable IndexedDB persistence at runtime (menu toggle).
+   * @param enabled - When false, cancels pending writes and purges stored logs
+   */
+  setPersistenceEnabled(enabled: boolean): void {
+    this.config.persistToIndexedDB = enabled
+    if (!enabled) {
+      if (this.persistTimer) {
+        clearTimeout(this.persistTimer)
+        this.persistTimer = null
+      }
+      void this.purgePersistedStorage()
+      return
+    }
+    this.loadFromIDB()
+  }
+
   private schedulePersist(): void {
+    if (!this.isPersistenceEnabled()) {
+      return
+    }
     if (this.persistTimer) clearTimeout(this.persistTimer)
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null
@@ -125,10 +150,29 @@ export class LogStore {
   /**
    * Clear all logs (memory + IndexedDB).
    */
+  /**
+   * Remove persisted logs from IndexedDB without clearing the in-memory buffer.
+   */
+  purgePersistedStorage(): Promise<void> {
+    if (typeof indexedDB === 'undefined' || !indexedDB) {
+      return Promise.resolve()
+    }
+    return this.openDB()
+      .then((db) => {
+        const tx = db.transaction(this.config.storeName, 'readwrite')
+        const store = tx.objectStore(this.config.storeName)
+        store.delete(this.config.storageKey)
+      })
+      .catch((e) => {
+        // eslint-disable-next-line no-console -- log-store runs before GME logger; expose purge failure
+        console.error('[log-store] purgePersistedStorage failed:', e)
+      })
+  }
+
   clearLogs(): void {
     this.memoryBuffer = []
     this.notifyListeners()
-    if (typeof indexedDB === 'undefined' || !indexedDB) return
+    if (!this.isPersistenceEnabled() || typeof indexedDB === 'undefined' || !indexedDB) return
     this.openDB()
       .then((db) => {
         const tx = db.transaction(this.config.storeName, 'readwrite')
@@ -170,7 +214,7 @@ export class LogStore {
    * Drops entries older than retentionDays and persists pruned buffer if needed.
    */
   loadFromIDB(): void {
-    if (typeof indexedDB === 'undefined' || !indexedDB) return
+    if (!this.isPersistenceEnabled() || typeof indexedDB === 'undefined' || !indexedDB) return
     /** Entire in-memory buffer (includes boot replay with timestamps before sessionStartMs). */
     const inMemorySnapshot = this.memoryBuffer.slice()
     this.openDB()

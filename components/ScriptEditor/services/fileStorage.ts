@@ -1,5 +1,6 @@
 'use client'
 
+import { DB_NAME } from '../conf/indexedDBConfig'
 import { type FileMetadata } from '../types'
 import { createFileKey, INDEX_NAMES, indexedDBService, OBJECT_STORES } from './indexedDBService'
 
@@ -583,7 +584,7 @@ export class FileStorageService {
     }
 
     return new Promise((resolve, reject) => {
-      const deleteRequest = indexedDB.deleteDatabase('script_editor_storage')
+      const deleteRequest = indexedDB.deleteDatabase(DB_NAME)
 
       deleteRequest.onerror = () => reject(deleteRequest.error)
       deleteRequest.onsuccess = () => {

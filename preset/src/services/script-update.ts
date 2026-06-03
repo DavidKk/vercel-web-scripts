@@ -4,6 +4,8 @@
  * Editor page does not trigger GIST update (it is HOST for preset/Editor Dev Mode only).
  */
 
+import { buildGrantsFromGlobal, executeWithGlobal } from '@shared/csp-script-executor'
+
 import { GME_debug, GME_fail, GME_info, GME_ok } from '@/helpers/logger'
 import { fetchScript } from '@/scripts'
 import { isEditorPage } from '@/services/dev-mode/constants'
@@ -252,15 +254,17 @@ class ScriptUpdate {
    * @param content Script source code to execute
    */
   private executeScriptContent(content: string): void {
-    const execute = new Function('global', `with(global){${content}}`)
-    const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : ({} as any)
-    const grants = eval(`({ ${__GRANTS_STRING__} })`) as Record<string, unknown>
-    const prev = (g as any).__IS_REMOTE_EXECUTE__
+    const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {}) as Record<
+      string,
+      unknown
+    >
+    const grants = buildGrantsFromGlobal(g, String(typeof __GRANTS_STRING__ !== 'undefined' ? __GRANTS_STRING__ : ''))
+    const prev = g.__IS_REMOTE_EXECUTE__
     try {
       Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
-      execute(g)
+      executeWithGlobal(g, content)
     } finally {
-      ;(g as any).__IS_REMOTE_EXECUTE__ = prev
+      g.__IS_REMOTE_EXECUTE__ = prev
     }
   }
 

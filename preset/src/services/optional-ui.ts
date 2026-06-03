@@ -1,3 +1,5 @@
+import { executeWithGlobal, isCspEvalError } from '@shared/csp-script-executor'
+
 import { createGMELogger } from '@/helpers/logger'
 import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 import { GME_notification } from '@/ui/notification/index'
@@ -152,15 +154,16 @@ function writeOptionalUiCache(content: string, url: string, etag: string): void 
 
 function executeOptionalUiContent(content: string): OptionalUiApi | null {
   try {
-    const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as any
-    const core = g.__VWS_CORE__
-    const execute = new Function('global', `with(global){${content}}`)
-    execute(g)
+    const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as Record<string, unknown>
+    const core = g.__VWS_CORE__ as { get?: (id: string) => unknown } | undefined
+    const mode = executeWithGlobal(g, content)
+    GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
     const loaded = core?.get ? (core.get('preset-ui') as OptionalUiApi | undefined) : undefined
     return loaded ?? null
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    reportPresetUiLoadFailure('execute:cache-exception', message, `Optional UI cache execution error: ${message.slice(0, 120)}`)
+    const context = isCspEvalError(error) ? 'execute:csp-fallback-failed' : 'execute:cache-exception'
+    reportPresetUiLoadFailure(context, message, `Optional UI cache execution error: ${message.slice(0, 120)}`)
     return null
   }
 }
