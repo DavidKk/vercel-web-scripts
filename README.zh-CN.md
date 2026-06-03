@@ -8,6 +8,7 @@ MagickMonkey 主要用于在 Vercel 上管理和部署自定义脚本。
 
 - **脚本管理**：私有脚本集中管理，同步到多个客户端，支持在线修改即时同步
 - **脚本打包**：自动生成脚本入口，支持多脚本打包。(默认 Tampermonkey launcher；可选 [Chrome extension](./extension/README.md) subproject)
+- **Shell 日志**：扩展 Popup 可选 Console / Log Viewer / Off（仅约束 preset 与 wrapper）；用户 GIST 脚本正文始终输出到控制台。油猴安装无 Logger 开关，默认全部在 DevTools 可见。
 
 ## 安全说明
 

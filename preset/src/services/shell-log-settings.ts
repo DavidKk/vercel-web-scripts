@@ -25,6 +25,10 @@ function readShellLogOutputModeFromPageStore(): ShellLogOutputMode | null {
 
 /**
  * Current log output mode from GM storage.
+ *
+ * Tampermonkey userscript install has no Logger popup — mode stays {@link DEFAULT_SHELL_LOG_OUTPUT_MODE}
+ * (`console`) unless the user sets `vws_shell_log_output_mode` in GM storage manually.
+ * Extension shell exposes Console / Log Viewer / Off and syncs the key via popup + page bridge.
  */
 export function getShellLogOutputMode(): ShellLogOutputMode {
   const raw = GM_getValue(SHELL_LOG_OUTPUT_MODE_KEY)
@@ -56,9 +60,9 @@ export function isUserScriptLogContext(): boolean {
 }
 
 /**
- * Whether GME / shell logs should appear in the browser console (respects Logger output mode).
- * Remote modules use injected `GME_*` (e.g. "Executing script …") — same rule as preset/launcher.
- * Scripts may still use native `console.*`; those are not routed through this helper.
+ * Whether preset / shell GME_* logs should appear in the browser console (Logger output mode).
+ * User GIST script body uses {@link enterScriptLogScope} / {@link createScriptGMELogger} → `emitScriptLog` (always console).
+ * Native `console.*` is unaffected.
  */
 export function shouldLogToConsole(): boolean {
   return shouldLogToConsoleForMode(getShellLogOutputMode())

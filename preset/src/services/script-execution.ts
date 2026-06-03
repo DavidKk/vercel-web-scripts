@@ -87,11 +87,21 @@ export function executeScript(content: string): void {
   >
   const grants = buildGrantsFromGlobal(g, String(typeof __GRANTS_STRING__ !== 'undefined' ? __GRANTS_STRING__ : ''))
   const prev = g.__IS_REMOTE_EXECUTE__
+  const prevCreateGMELogger = g.createGMELogger
+  const scriptCreateGMELogger = g.createScriptGMELogger
   try {
     Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
+    if (typeof scriptCreateGMELogger === 'function') {
+      g.createGMELogger = scriptCreateGMELogger
+    }
     executeWithGlobal(g, content)
   } finally {
     g.__IS_REMOTE_EXECUTE__ = prev
+    if (prevCreateGMELogger === undefined) {
+      delete g.createGMELogger
+    } else {
+      g.createGMELogger = prevCreateGMELogger
+    }
   }
 }
 

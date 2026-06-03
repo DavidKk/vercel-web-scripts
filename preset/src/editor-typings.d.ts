@@ -788,7 +788,43 @@ declare function createGMELogger(prefix?: string): {
   GME_fail: (...contents: any[]) => void
   /** Log warning message with module prefix */
   GME_warn: (...contents: any[]) => void
+  /** Log debug message with module prefix */
+  GME_debug: (...contents: any[]) => void
 }
+
+/**
+ * User GIST script logger — always prints to the browser console (ignores Logger Viewer/Off).
+ * @param prefix Module name shown in log prefix
+ */
+declare function createScriptLogger(prefix?: string): {
+  script_ok: (...contents: any[]) => void
+  script_info: (...contents: any[]) => void
+  script_fail: (...contents: any[]) => void
+  script_warn: (...contents: any[]) => void
+  script_debug: (...contents: any[]) => void
+}
+
+/**
+ * User GIST script logger as `GME_*` (always console; not affected by Logger mode).
+ * Remote wrappers use this; script sources may call `GME_info` from the returned object or top-level aliases.
+ * @param prefix Module name shown in log prefix
+ */
+declare function createScriptGMELogger(prefix?: string): {
+  GME_ok: (...contents: any[]) => void
+  GME_info: (...contents: any[]) => void
+  GME_fail: (...contents: any[]) => void
+  GME_warn: (...contents: any[]) => void
+  GME_debug: (...contents: any[]) => void
+}
+
+/**
+ * Remote compile wrapper only — marks user module body for script logging (do not call from GIST sources).
+ * @param scope Module namespace from `@namespace` or filename
+ */
+declare function enterScriptLogScope(scope: string): void
+
+/** Pairs with {@link enterScriptLogScope} after module body runs. */
+declare function exitScriptLogScope(): void
 
 /**
  * Log success message

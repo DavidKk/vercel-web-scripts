@@ -134,9 +134,12 @@ function buildRuntimeSummary() {
       domAndTiming: ['GME_waitFor', 'GME_watchFor', 'GME_watchForVisible', 'GME_pollFor', 'GME_sleep', 'GME_isVisible'],
       utilities: ['GME_debounce', 'GME_throttle', 'GME_sha1', 'GME_md5', 'GME_uuid'],
       notificationsAndLogs: ['GME_ok', 'GME_info', 'GME_warn', 'GME_fail', 'GME_group', 'GME_notification', 'GME_notification_update', 'GME_notification_close'],
+      scriptLoggingRuntime: ['createScriptGMELogger', 'createScriptLogger', 'enterScriptLogScope', 'exitScriptLogScope'],
     },
     globalApiGuidance: {
       preferredDefault: 'Prefer GME_* helpers when they match the task.',
+      scriptLogging:
+        'GIST module sources use GME_*; wrapper enterScriptLogScope keeps user logs on console. Tampermonkey install has no Logger popup (default console). Extension shell: Console / Log Viewer / Off for preset+wrapper only.',
       useGmWhen: 'Use GM_* for Tampermonkey compatibility, native userscript storage, tab/menu primitives, resources, or low-level network behavior.',
       compactSummaryOnly: true,
       advancedUseSparingly: ['unsafeWindow', 'GM_webRequest', 'GM_cookie'],
