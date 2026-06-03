@@ -4,13 +4,16 @@ import {
   clearRuntimeModuleCachesForEnabledScriptKeys,
   ensureExtensionServicesState,
   getEnabledScriptKeys,
+  getShellLogOutputMode,
   getShellNetworkEnabled,
+  gmStorageKey,
   loadExtensionConfig,
   loadLocalRulesForEnabledScriptKeys,
   loadQuickAddRuleContext,
   removeScriptKeyRule,
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
+  setShellLogOutputMode,
   setShellNetworkEnabled,
   syncRulesForEnabledScriptKeys,
   syncRulesFromServer,
@@ -31,9 +34,11 @@ import {
   resetTabTriggerCountsForPageLoad,
 } from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
+import { SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import { extensionLogger } from '../shared/logger'
+import { refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
 
@@ -134,7 +139,13 @@ async function reloadTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
 }
 
 async function buildStatus(): Promise<ShellStatus> {
-  const [config, servicesState, tab, networkEnabled] = await Promise.all([loadExtensionConfig(), ensureExtensionServicesState(), getActiveTab(), getShellNetworkEnabled()])
+  const [config, servicesState, tab, networkEnabled, logOutputMode] = await Promise.all([
+    loadExtensionConfig(),
+    ensureExtensionServicesState(),
+    getActiveTab(),
+    getShellNetworkEnabled(),
+    getShellLogOutputMode(),
+  ])
   const url = tab?.url ?? ''
   const enabledServices = servicesState.services.filter((service) => service.enabled !== false)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
@@ -150,6 +161,7 @@ async function buildStatus(): Promise<ShellStatus> {
     enabledScriptKeyCount: enabledScriptKeys.length,
     activeServiceLabel: activeService?.label?.trim() ?? '',
     networkEnabled,
+    logOutputMode,
     triggeredCountOnActiveTab,
     activeTabUrl: url,
     extensionVersion: manifest.version ?? '0.0.0',
@@ -191,6 +203,7 @@ async function refreshAllBadges(): Promise<void> {
 }
 
 async function initBadgeDefaults(): Promise<void> {
+  await refreshShellLogOutputModeCache()
   await hydrateTabTriggerCounts()
   void applyBadgeColors({})
   void refreshAllBadges()
@@ -220,6 +233,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') {
     return
   }
+  if (changes[gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]) {
+    void refreshShellLogOutputModeCache()
+  }
   if (shouldInvalidateTabMatchCache(changes)) {
     void invalidateTabMatchCache()
   }
@@ -246,6 +262,13 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           await setShellNetworkEnabled(message.enabled)
           const next = await getShellNetworkEnabled()
           extensionLogger.debug(`[Shell network] toggle requested=${message.enabled} previous=${previous} next=${next}`)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'SET_LOG_OUTPUT_MODE': {
+          await setShellLogOutputMode(message.mode)
+          await refreshShellLogOutputModeCache()
+          extensionLogger.debug(`[Shell log output] mode=${message.mode}`)
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }

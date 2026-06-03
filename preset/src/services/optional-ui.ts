@@ -1,6 +1,7 @@
 import { executeWithGlobal, isCspEvalError } from '@shared/csp-script-executor'
 
 import { createGMELogger } from '@/helpers/logger'
+import { shouldLogToConsole } from '@/services/shell-log-settings'
 import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 import { GME_notification } from '@/ui/notification/index'
 
@@ -94,8 +95,10 @@ async function resolvePresetUiScriptUrl(): Promise<string> {
  */
 function reportPresetUiLoadFailure(context: string, technicalDetail: string, userSummary: string): void {
   const line = `${OPTIONAL_UI_LOG_PREFIX} ${context} ${technicalDetail}`
-  // eslint-disable-next-line no-console -- explicit visibility when logger / UI not ready
-  console.warn('[VWS][preset-ui]', context, technicalDetail)
+  if (shouldLogToConsole()) {
+    // eslint-disable-next-line no-console -- explicit visibility when logger / UI not ready
+    console.warn('[VWS][preset-ui]', context, technicalDetail)
+  }
   GME_warn(line)
   try {
     const id = GME_notification(userSummary, 'warn', 8000)
@@ -241,8 +244,10 @@ export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
 
   if (!isShellNetworkEnabled()) {
     const msg = `${OPTIONAL_UI_LOG_PREFIX} load:skip:network-off`
-    // eslint-disable-next-line no-console -- match user request for visible console output
-    console.warn('[VWS][preset-ui]', msg)
+    if (shouldLogToConsole()) {
+      // eslint-disable-next-line no-console -- match user request for visible console output
+      console.warn('[VWS][preset-ui]', msg)
+    }
     GME_warn(msg)
     return null
   }
@@ -298,8 +303,10 @@ export async function openOptionalLogViewer(): Promise<void> {
     return
   }
   const msg = '[Optional UI] Log viewer needs Shell network enabled once to fetch preset-ui.'
-  // eslint-disable-next-line no-console -- user explicitly opened log viewer
-  console.warn('[VWS][preset-ui]', msg)
+  if (shouldLogToConsole()) {
+    // eslint-disable-next-line no-console -- user explicitly opened log viewer
+    console.warn('[VWS][preset-ui]', msg)
+  }
   GME_warn(msg)
   try {
     GME_notification(msg, 'warn', 7000)

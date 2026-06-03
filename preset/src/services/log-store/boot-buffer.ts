@@ -4,6 +4,8 @@
  * {@link flushBootLogBufferIntoStore} replays them into the ring buffer with original timestamps.
  */
 
+import { shouldLogToMemory } from '@/services/shell-log-settings'
+
 import type { LogStore } from './LogStore'
 import type { LogLevel } from './types'
 
@@ -49,13 +51,15 @@ export function flushBootLogBufferIntoStore(store: LogStore): void {
   } catch {
     ;(root as unknown as Record<string, unknown>)[VWS_BOOT_LOG_GLOBAL_KEY] = []
   }
-  for (let i = 0; i < raw.length; i++) {
-    const row = raw[i] as VwsBootLogRecord
-    if (!row || typeof row.message !== 'string') {
-      continue
+  if (shouldLogToMemory()) {
+    for (let i = 0; i < raw.length; i++) {
+      const row = raw[i] as VwsBootLogRecord
+      if (!row || typeof row.message !== 'string') {
+        continue
+      }
+      const level = normalizeBootLevel(typeof row.level === 'string' ? row.level : 'info')
+      const t = typeof row.t === 'number' && Number.isFinite(row.t) ? row.t : Date.now()
+      store.pushAt(level, `[boot] ${row.message}`, t)
     }
-    const level = normalizeBootLevel(typeof row.level === 'string' ? row.level : 'info')
-    const t = typeof row.t === 'number' && Number.isFinite(row.t) ? row.t : Date.now()
-    store.pushAt(level, `[boot] ${row.message}`, t)
   }
 }

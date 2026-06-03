@@ -3,7 +3,9 @@
  */
 
 import { gmLogger } from '@ext/shared/logger'
+import { setCachedShellLogOutputMode } from '@ext/shared/shell-log-output-cache'
 import { LEGACY_AUTO_UPDATE_SCRIPT_KEY, SHELL_LOG_PERSIST_ENABLED_KEY, SHELL_NETWORK_ENABLED_KEY } from '@shared/launcher-constants'
+import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 import type { GMApi, GMRequestDetails, GMResponse, GMValue } from './gm-types'
 
@@ -18,7 +20,7 @@ const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Err
 const changeListeners = new Map<string, Map<string, (name: string, oldValue: GMValue, newValue: GMValue) => void>>()
 let listenerSeq = 0
 let activeGmScope: string | null = null
-const GM_GLOBAL_KEYS = new Set<string>([SHELL_NETWORK_ENABLED_KEY, SHELL_LOG_PERSIST_ENABLED_KEY, LEGACY_AUTO_UPDATE_SCRIPT_KEY])
+const GM_GLOBAL_KEYS = new Set<string>([SHELL_NETWORK_ENABLED_KEY, SHELL_LOG_PERSIST_ENABLED_KEY, SHELL_LOG_OUTPUT_MODE_KEY, LEGACY_AUTO_UPDATE_SCRIPT_KEY])
 
 /**
  * Set GM namespace for the current launcher execution (`{gmScope}_{key}` in storage).
@@ -111,6 +113,9 @@ function handleStorageChanged(payload: unknown): void {
     delete store[key]
   } else {
     store[key] = newValue
+  }
+  if (logicalKey === SHELL_LOG_OUTPUT_MODE_KEY) {
+    setCachedShellLogOutputMode(normalizeShellLogOutputMode(newValue))
   }
   notifyValueChange(logicalKey, oldValue, newValue)
 }

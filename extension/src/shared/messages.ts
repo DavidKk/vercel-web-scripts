@@ -1,3 +1,5 @@
+import type { ShellLogOutputMode } from '@shared/shell-log-output'
+
 /** Background ↔ popup/content message types (MVP). */
 export interface BridgeXhrDetails {
   method?: string
@@ -39,6 +41,7 @@ export interface QuickAddRuleContextItem {
 export type ShellMessage =
   | { type: 'GET_STATUS' }
   | { type: 'SET_NETWORK'; enabled: boolean }
+  | { type: 'SET_LOG_OUTPUT_MODE'; mode: ShellLogOutputMode }
   | { type: 'UPDATE_RUNTIME' }
   | { type: 'RESET_RUNTIME' }
   | { type: 'OPEN_EDITOR' }
@@ -68,6 +71,8 @@ export interface ShellStatus {
   /** Label of active Service row in Options, when set. */
   activeServiceLabel: string
   networkEnabled: boolean
+  /** console | logviewer | none */
+  logOutputMode: ShellLogOutputMode
   /** Scripts that actually executed on the active tab for the current URL (not RULE match count). */
   triggeredCountOnActiveTab: number
   activeTabUrl: string

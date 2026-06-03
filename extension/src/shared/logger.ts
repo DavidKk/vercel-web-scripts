@@ -1,5 +1,7 @@
 import { buildVwsConsoleLogArgs, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
+import { shouldExtensionLogToConsole } from './shell-log-output-cache'
+
 export type ExtensionLogLevel = 'debug' | 'info' | 'ok' | 'warn' | 'error'
 
 type ConsoleSink = (...args: unknown[]) => void
@@ -81,6 +83,9 @@ export class ExtensionLogger {
   }
 
   private emit(level: ExtensionLogLevel, args: unknown[]): void {
+    if (!shouldExtensionLogToConsole()) {
+      return
+    }
     LEVEL_SINK[level](...buildVwsConsoleLogArgs(this.scope, level as VwsConsoleLogLevel, ...args))
   }
 }

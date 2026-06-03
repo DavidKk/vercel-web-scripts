@@ -14,6 +14,8 @@ export const PRESET_UPDATED_NOTIFY_KEY = 'vws_preset_updated_notify'
 export const SHELL_NETWORK_ENABLED_KEY = 'vws_shell_network_enabled'
 /** When true, log-store persists to IndexedDB; default off (memory-only for current session) */
 export const SHELL_LOG_PERSIST_ENABLED_KEY = 'vws_shell_log_persist_enabled'
+/** Log output: console | logviewer | none — see {@link ShellLogOutputMode} in shared/shell-log-output.ts */
+export { SHELL_LOG_OUTPUT_MODE_KEY } from './shell-log-output'
 /** Legacy auto-update toggle */
 export const LEGACY_AUTO_UPDATE_SCRIPT_KEY = 'vws_auto_update_script'
 /** Current activated preset hash */

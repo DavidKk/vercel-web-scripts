@@ -668,13 +668,17 @@
 
   .mm-admin-nav {
     @apply relative ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-mm-border-light/90 bg-mm-muted/60 p-1;
+    --mm-nav-outer-r: 0.5rem;
+    --mm-nav-pad: 0.25rem;
+    --mm-nav-inner-r: calc(var(--mm-nav-outer-r) - var(--mm-nav-pad));
     --mm-nav-indicator-x: 0px;
     --mm-nav-indicator-w: 0px;
     --mm-nav-indicator-opacity: 0;
   }
 
   .mm-admin-nav-link {
-    @apply relative z-[1] cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted no-underline transition hover:text-mm-ink;
+    @apply relative z-[1] cursor-pointer px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted no-underline transition hover:text-mm-ink;
+    border-radius: var(--mm-nav-inner-r);
   }
 
   .mm-admin-nav-link[aria-current='page'] {
@@ -686,9 +690,12 @@
   }
 
   .mm-admin-nav-indicator {
-    @apply pointer-events-none absolute bottom-1 top-1 z-0 rounded-md bg-mm-surface shadow-mm-sm;
+    @apply pointer-events-none absolute z-0 bg-mm-surface shadow-mm-sm;
+    top: var(--mm-nav-pad);
+    bottom: var(--mm-nav-pad);
     left: var(--mm-nav-indicator-x);
     width: var(--mm-nav-indicator-w);
+    border-radius: var(--mm-nav-inner-r);
     opacity: var(--mm-nav-indicator-opacity);
     transition: none;
   }
@@ -1645,6 +1652,20 @@
 
   .mm-row-icon-danger {
     @apply text-mm-danger/70;
+  }
+
+  .mm-popup-log-nav {
+    @apply ml-0 shrink-0 rounded-md p-0.5;
+    --mm-nav-outer-r: 0.375rem;
+    --mm-nav-pad: 0.125rem;
+  }
+
+  .mm-popup-log-nav .mm-admin-nav-link {
+    @apply px-2 py-1 text-[11px];
+  }
+
+  .mm-popup-settings-row {
+    @apply flex items-center justify-between gap-3 px-3 py-2.5;
   }
 
   .mm-switch-row {

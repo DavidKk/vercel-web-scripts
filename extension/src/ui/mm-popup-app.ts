@@ -1,6 +1,8 @@
 import { buildQuickRuleScriptSelectOptions } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
+import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
+import { bindAdminNavIndicator, syncAdminNavIndicator } from './mm-admin-nav'
 import { hydrateMmIcons, setIconSlotLoading } from './mm-icons'
 
 type SearchSelectOption = { value: string; label: string }
@@ -27,6 +29,10 @@ export class MmPopupApp extends HTMLElement {
     }
     this.bound = true
     hydrateMmIcons(this)
+    const logNav = this.querySelector('[data-ref="log-output-tabs"]')
+    if (logNav instanceof HTMLElement) {
+      bindAdminNavIndicator(logNav)
+    }
     this.bindEvents()
     void this.refresh().then(() => {
       requestAnimationFrame(() => {
@@ -73,6 +79,14 @@ export class MmPopupApp extends HTMLElement {
     this.querySelector('[data-ref="network"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       void this.run(() => sendShellMessage({ type: 'SET_NETWORK', enabled: checked }), 'network')
+    })
+    this.querySelectorAll('[data-log-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = (btn as HTMLElement).dataset.logMode
+        if (mode === 'console' || mode === 'logviewer' || mode === 'none') {
+          void this.setLogOutputMode(mode)
+        }
+      })
     })
     this.querySelector('[data-action="quick-add-rule"]')?.addEventListener('click', () => {
       void this.submitQuickRule()
@@ -174,6 +188,18 @@ export class MmPopupApp extends HTMLElement {
       return
     }
 
+    if (action === 'log-output') {
+      this.querySelectorAll<HTMLButtonElement>('[data-log-mode]').forEach((btn) => {
+        btn.disabled = loading
+      })
+      const logNav = this.querySelector('[data-ref="log-output-tabs"]')
+      if (logNav instanceof HTMLElement) {
+        logNav.style.pointerEvents = loading ? 'none' : ''
+        logNav.style.opacity = loading ? '0.6' : ''
+      }
+      return
+    }
+
     const btn = this.querySelector(`[data-action="${action}"]`) as HTMLButtonElement | null
     if (btn) {
       btn.disabled = loading
@@ -246,6 +272,7 @@ export class MmPopupApp extends HTMLElement {
     if (network) {
       network.checked = s.networkEnabled
     }
+    this.syncLogOutputTabs(s.logOutputMode)
     const triggerHint = this.querySelector('[data-ref="trigger-hint"]')
     if (triggerHint) {
       triggerHint.textContent =
@@ -393,6 +420,22 @@ export class MmPopupApp extends HTMLElement {
       return { ok: false, error: res.error }
     }
     return { ok: true, message: 'message' in res ? (res.message ?? 'Local rule added.') : 'Local rule added.' }
+  }
+
+  private syncLogOutputTabs(mode: ShellLogOutputMode): void {
+    const tabs = this.querySelectorAll<HTMLButtonElement>('[data-log-mode]')
+    tabs.forEach((btn) => {
+      if (btn.dataset.logMode === mode) {
+        btn.setAttribute('aria-current', 'page')
+      } else {
+        btn.removeAttribute('aria-current')
+      }
+    })
+    syncAdminNavIndicator(this)
+  }
+
+  private async setLogOutputMode(mode: ShellLogOutputMode): Promise<void> {
+    await this.run(() => sendShellMessage({ type: 'SET_LOG_OUTPUT_MODE', mode }), 'log-output')
   }
 
   private async submitQuickRule(): Promise<void> {

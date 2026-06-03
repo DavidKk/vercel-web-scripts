@@ -45,6 +45,18 @@
                   <span class="mm-switch-thumb" aria-hidden="true"></span>
                 </span>
               </label>
+              <div class="h-px bg-mm-canvas" aria-hidden="true"></div>
+              <div class="mm-popup-settings-row">
+                <span class="flex min-w-0 items-center gap-2.5">
+                  <span data-icon="logs" aria-hidden="true"></span>
+                  <span class="text-[13px] text-mm-secondary">Logger</span>
+                </span>
+                <nav class="mm-admin-nav mm-popup-log-nav is-indicator-ready" data-ref="log-output-tabs" role="tablist" aria-label="Logger output">
+                  <button type="button" role="tab" class="mm-admin-nav-link" data-log-mode="console" aria-current="page">Console</button>
+                  <button type="button" role="tab" class="mm-admin-nav-link" data-log-mode="logviewer">Viewer</button>
+                  <button type="button" role="tab" class="mm-admin-nav-link" data-log-mode="none">Off</button>
+                </nav>
+              </div>
             </div>
 
             <div class="mm-card divide-y divide-mm-border-light">
