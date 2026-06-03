@@ -220,6 +220,10 @@ export class MmOptionsApp extends HTMLElement {
       return
     }
     this.activeServiceId = null
+    const otaHint = this.querySelector('[data-ref="ota-hint"]') as HTMLElement | null
+    if (otaHint) {
+      otaHint.hidden = true
+    }
     this.setDetailMode('empty')
   }
 
@@ -305,7 +309,8 @@ export class MmOptionsApp extends HTMLElement {
       if (service.developMode) {
         const devBadge = document.createElement('span')
         devBadge.className = 'mm-options-service-badge'
-        devBadge.textContent = 'Dev'
+        devBadge.textContent = 'Auto-reload'
+        devBadge.setAttribute('data-mm-tooltip', 'Extension auto-reload enabled for this service')
         badges.appendChild(devBadge)
       }
 
@@ -315,6 +320,13 @@ export class MmOptionsApp extends HTMLElement {
         otaBadge.className = 'mm-options-service-badge'
         otaBadge.textContent = 'OTA primary'
         badges.appendChild(otaBadge)
+      } else if (otaService && service.enabled) {
+        const otaRefBadge = document.createElement('span')
+        otaRefBadge.className = 'mm-options-service-badge is-shared'
+        const otaLabel = otaService.label.trim() || otaService.baseUrl
+        otaRefBadge.textContent = `OTA: ${otaLabel}`
+        otaRefBadge.setAttribute('data-mm-tooltip', 'Pages load scripts from this server (first enabled row for the script key). Reload tabs after changing order or enablement.')
+        badges.appendChild(otaRefBadge)
       }
 
       body.append(label, meta, badges)
@@ -569,7 +581,7 @@ export class MmOptionsApp extends HTMLElement {
       this.applyServiceDetail(detail.service, detail.gmScope, detail.scriptKeyRefCount, { preserveTestUi: true })
     }
     this.renderServiceList()
-    this.setStatus(enabled ? 'Service enabled.' : 'Service disabled (skipped for OTA).', 'ok')
+    this.setStatus(enabled ? 'Service enabled.' : 'Service disabled (skipped for OTA). Reload open shop tabs to apply the next server.', 'ok')
   }
 
   private async selectService(serviceId: string): Promise<void> {
@@ -630,11 +642,33 @@ export class MmOptionsApp extends HTMLElement {
     this.scriptKeyRevealed = false
     ;(this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value = gmScope
     ;(this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked = service.enabled
-    ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = defaultDevelopModeForBaseUrl(service.baseUrl)
+    ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = service.developMode === true
     this.setScriptKeyBadge(scriptKeyRefCount)
     this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
+    this.updateOtaHint(service)
     this.captureDetailFormBaseline()
+  }
+
+  /** Explain when the selected row is not the OTA representative for its script key. */
+  private updateOtaHint(service: ServiceProfile): void {
+    const hint = this.querySelector('[data-ref="ota-hint"]') as HTMLElement | null
+    if (!hint) {
+      return
+    }
+    const ota = resolveOtaEndpoint(service.scriptKey, this.services)
+    if (!service.enabled) {
+      hint.hidden = false
+      hint.textContent = 'This server is disabled and is not used for OTA. Enable it or pick another row.'
+      return
+    }
+    if (ota && ota.id !== service.id) {
+      hint.hidden = false
+      const otaLabel = ota.label.trim() || ota.baseUrl
+      hint.textContent = `OTA for this script key uses “${otaLabel}”. Open shop tabs load that server until you reload them.`
+      return
+    }
+    hint.hidden = true
   }
 
   private updateSuggestedServiceFields(): void {
@@ -1407,7 +1441,7 @@ export class MmOptionsApp extends HTMLElement {
           baseUrl: input.baseUrl,
           scriptKey: input.scriptKey,
           enabled: input.enabled,
-          developMode: this.developModeTouched ? input.developMode : defaultDevelopModeForBaseUrl(input.baseUrl),
+          developMode: input.developMode,
           gmScope: input.gmScope,
         })
         showMmNotification(existingScriptKey ? 'Service created (shared script key).' : 'Service created.', 'success')

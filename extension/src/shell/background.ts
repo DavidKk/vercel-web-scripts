@@ -13,6 +13,7 @@ import {
   removeScriptKeyRule,
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
+  resolveOtaEndpoint,
   setShellLogOutputMode,
   setShellNetworkEnabled,
   syncRulesForEnabledScriptKeys,
@@ -147,10 +148,11 @@ async function buildStatus(): Promise<ShellStatus> {
     getShellLogOutputMode(),
   ])
   const url = tab?.url ?? ''
-  const enabledServices = servicesState.services.filter((service) => service.enabled !== false)
+  const enabledServices = servicesState.services.filter((service) => service.enabled)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
-  const activeService = servicesState.services.find((service) => service.id === servicesState.activeServiceId) ?? enabledServices[0]
-  const configured = enabledScriptKeys.length > 0
+  const otaService = enabledScriptKeys[0] ? resolveOtaEndpoint(enabledScriptKeys[0], servicesState.services) : null
+  const activeService = servicesState.services.find((service) => service.id === servicesState.activeServiceId && service.enabled) ?? otaService ?? enabledServices[0]
+  const configured = enabledScriptKeys.length > 0 && Boolean(config.baseUrl && config.scriptKey)
   const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
   const manifest = chrome.runtime.getManifest()
   return {

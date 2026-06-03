@@ -121,6 +121,25 @@ export function resolveOtaEndpoint(scriptKey: string, services: ServiceProfile[]
 }
 
 /**
+ * UI selection: active row when enabled, otherwise first enabled service in list order.
+ * @param state Persisted services state
+ */
+export function resolveActiveServiceForUi(state: ExtensionServicesState): ServiceProfile | null {
+  if (state.activeServiceId) {
+    const selected = state.services.find((s) => s.id === state.activeServiceId)
+    if (selected?.enabled) {
+      return selected
+    }
+  }
+  for (const service of state.services) {
+    if (service.enabled) {
+      return service
+    }
+  }
+  return null
+}
+
+/**
  * Resolve develop service (first enabled + developMode in list order).
  * @param services Service list
  * @returns First develop service or null when none qualify

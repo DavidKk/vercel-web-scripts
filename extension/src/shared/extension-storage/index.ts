@@ -10,7 +10,7 @@ export {
   scriptKeyListCacheStorageKey,
   scriptKeyRulesStorageKey,
 } from '../extension-multi-service-pure'
-export { countServiceRefs, getEnabledScriptKeys, isValidScriptKeyFormat, resolveDevelopService, resolveOtaEndpoint } from '../extension-services'
+export { countServiceRefs, getEnabledScriptKeys, isValidScriptKeyFormat, resolveActiveServiceForUi, resolveDevelopService, resolveOtaEndpoint } from '../extension-services'
 export * from './constants'
 export * from './extension-rules'
 export { applyExtensionServiceConfig, isSameExtensionService, loadExtensionConfig, resolveEditorServiceConfig } from './legacy-config'

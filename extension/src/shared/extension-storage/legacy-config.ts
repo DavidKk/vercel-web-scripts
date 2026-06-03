@@ -1,8 +1,8 @@
 import type { ExtensionConfig } from '../../types'
-import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from '../../types'
-import { getEnabledScriptKeys, normalizeBaseUrl, normalizeScriptKey, resolveDevelopService, resolveOtaEndpoint } from '../extension-services'
+import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, UNCONFIGURED_CONFIG } from '../../types'
+import { getEnabledScriptKeys, normalizeBaseUrl, normalizeScriptKey, resolveActiveServiceForUi, resolveDevelopService, resolveOtaEndpoint } from '../extension-services'
 import { refreshExtensionServiceData } from './service-data-sync'
-import { loadActiveServiceDetail, upsertService } from './services-crud'
+import { upsertService } from './services-crud'
 import { ensureExtensionServicesState, serviceProfileToExtensionConfig } from './services-state'
 
 /**
@@ -27,7 +27,7 @@ export async function loadExtensionConfig(): Promise<ExtensionConfig> {
   if (raw?.baseUrl && raw?.scriptKey) {
     return { ...DEFAULT_CONFIG, ...raw, baseUrl: normalizeBaseUrl(raw.baseUrl), scriptKey: normalizeScriptKey(raw.scriptKey) }
   }
-  return { ...DEFAULT_CONFIG }
+  return { ...UNCONFIGURED_CONFIG }
 }
 
 /**
@@ -35,14 +35,21 @@ export async function loadExtensionConfig(): Promise<ExtensionConfig> {
  * @returns Config for editor URL or null when no service configured
  */
 export async function resolveEditorServiceConfig(): Promise<ExtensionConfig | null> {
-  const { service } = await loadActiveServiceDetail()
-  if (service?.baseUrl && service.scriptKey) {
-    return serviceProfileToExtensionConfig(service)
-  }
   const state = await ensureExtensionServicesState()
-  const firstEnabled = state.services.find((row) => row.enabled !== false)
-  if (firstEnabled?.baseUrl && firstEnabled.scriptKey) {
-    return serviceProfileToExtensionConfig(firstEnabled)
+  const firstKey = getEnabledScriptKeys(state.services)[0]
+  if (firstKey) {
+    const ota = resolveOtaEndpoint(firstKey, state.services)
+    if (ota) {
+      return {
+        baseUrl: ota.baseUrl,
+        scriptKey: ota.scriptKey,
+        developMode: resolveDevelopService(state.services) !== null,
+      }
+    }
+  }
+  const ui = resolveActiveServiceForUi(state)
+  if (ui?.baseUrl && ui.scriptKey) {
+    return serviceProfileToExtensionConfig(ui)
   }
   return null
 }

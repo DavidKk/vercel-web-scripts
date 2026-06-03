@@ -61,7 +61,7 @@ export function buildScriptKeyGroupMetaFromState(state: ExtensionServicesState):
     seen.add(scriptKey)
 
     const related = state.services.filter((s) => normalizeScriptKey(s.scriptKey) === scriptKey)
-    const active = related.some((s) => s.enabled !== false)
+    const active = related.some((s) => s.enabled)
     const ota = resolveOtaEndpoint(scriptKey, state.services)
     const editorBaseUrl = ota?.baseUrl ?? related[0]?.baseUrl ?? ''
     const displayService = ota ?? related[0]

@@ -14,6 +14,13 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   developMode: true,
 }
 
+/** Empty legacy config when no enabled service is available (avoids falling back to localhost). */
+export const UNCONFIGURED_CONFIG: ExtensionConfig = {
+  baseUrl: '',
+  scriptKey: '',
+  developMode: false,
+}
+
 /** @deprecated Legacy single-service config; migrated to {@link SERVICES_STORAGE_KEY}. */
 export const CONFIG_STORAGE_KEY = 'vws_extension_config'
 

@@ -1,5 +1,5 @@
 import type { ExtensionConfig, ExtensionServicesState, ServiceProfile } from '../../types'
-import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, SERVICES_MIGRATION_FLAG_KEY, SERVICES_STORAGE_KEY } from '../../types'
+import { CONFIG_STORAGE_KEY, SERVICES_MIGRATION_FLAG_KEY, SERVICES_STORAGE_KEY, UNCONFIGURED_CONFIG } from '../../types'
 import {
   buildScriptKeyGroupMetaFromState,
   SCRIPT_ENABLED_PREFIX,
@@ -49,7 +49,7 @@ export async function loadExtensionServicesState(): Promise<ExtensionServicesSta
 
 async function syncLegacyConfigFromServicesState(state: ExtensionServicesState): Promise<void> {
   const firstKey = getEnabledScriptKeys(state.services)[0]
-  const ota = firstKey ? resolveOtaEndpoint(firstKey, state.services) : state.services[0]
+  const ota = firstKey ? resolveOtaEndpoint(firstKey, state.services) : null
   const dev = resolveDevelopService(state.services)
   if (ota) {
     await chrome.storage.local.set({
@@ -62,7 +62,7 @@ async function syncLegacyConfigFromServicesState(state: ExtensionServicesState):
     return
   }
   await chrome.storage.local.set({
-    [CONFIG_STORAGE_KEY]: { ...DEFAULT_CONFIG, scriptKey: '' },
+    [CONFIG_STORAGE_KEY]: { ...UNCONFIGURED_CONFIG },
   })
 }
 

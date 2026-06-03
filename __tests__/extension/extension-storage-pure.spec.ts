@@ -6,7 +6,7 @@ import {
   scriptKeyListCacheStorageKey,
   scriptKeyRulesStorageKey,
 } from '../../extension/src/shared/extension-multi-service-pure'
-import { getGmScopeForScriptKey } from '../../extension/src/shared/extension-services'
+import { getGmScopeForScriptKey, resolveActiveServiceForUi } from '../../extension/src/shared/extension-services'
 import type { ExtensionServicesState, ServiceProfile } from '../../extension/src/types'
 
 function makeService(partial: Partial<ServiceProfile> & Pick<ServiceProfile, 'id' | 'baseUrl' | 'scriptKey'>): ServiceProfile {
@@ -84,7 +84,35 @@ describe('extension-storage pure helpers', () => {
     })
   })
 
+  describe('resolveActiveServiceForUi', () => {
+    it('should skip disabled active selection and use first enabled row', () => {
+      const state: ExtensionServicesState = {
+        services: [
+          makeService({ id: 'local', label: 'Local', baseUrl: 'http://localhost:3000', scriptKey: 'key-a', enabled: false }),
+          makeService({ id: 'prod', label: 'Prod', baseUrl: 'https://prod.com', scriptKey: 'key-a', enabled: true }),
+        ],
+        activeServiceId: 'local',
+        scriptKeyMeta: [],
+      }
+      expect(resolveActiveServiceForUi(state)?.id).toBe('prod')
+    })
+  })
+
   describe('buildScriptKeyBootstrapEntriesFromState', () => {
+    it('should use next enabled row when first same scriptKey service is disabled', () => {
+      const state: ExtensionServicesState = {
+        services: [
+          makeService({ id: '1', label: 'Local', baseUrl: 'http://localhost:3000', scriptKey: 'key-a', enabled: false }),
+          makeService({ id: '2', label: 'Prod', baseUrl: 'https://prod.com', scriptKey: 'key-a', enabled: true }),
+        ],
+        scriptKeyMeta: [],
+      }
+      const entries = buildScriptKeyBootstrapEntriesFromState(state, {
+        'key-a': { files: [], enabledByFile: {} },
+      })
+      expect(entries[0]?.baseUrl).toBe('https://prod.com')
+    })
+
     it('should build one bootstrap entry per enabled scriptKey using OTA representative', () => {
       const state: ExtensionServicesState = {
         services: [

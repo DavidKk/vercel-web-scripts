@@ -1,5 +1,5 @@
 import type { ExtensionConfig, ExtensionServicesState, ServiceProfile } from '../../types'
-import { DEFAULT_CONFIG } from '../../types'
+import { UNCONFIGURED_CONFIG } from '../../types'
 import {
   countServiceRefs,
   createServiceId,
@@ -10,6 +10,7 @@ import {
   getGmScopeForScriptKey,
   normalizeBaseUrl,
   normalizeScriptKey,
+  resolveActiveServiceForUi,
   serviceEndpointKey,
 } from '../extension-services'
 import { clearRuntimeModuleCache } from './runtime-cache'
@@ -84,7 +85,7 @@ export async function saveOptionsServiceConfig(config: ExtensionConfig): Promise
     throw new Error('Missing Server URL or Script Key.')
   }
 
-  let active = state.services.find((s) => s.id === state.activeServiceId) ?? state.services[0]
+  let active = resolveActiveServiceForUi(state) ?? state.services[0]
   if (!active) {
     await upsertService({
       baseUrl,
@@ -143,7 +144,7 @@ export async function loadActiveServiceDetail(): Promise<{
   scriptKeyRefCount: number
 }> {
   const state = await ensureExtensionServicesState()
-  const service = state.services.find((s) => s.id === state.activeServiceId) ?? state.services[0] ?? null
+  const service = resolveActiveServiceForUi(state) ?? state.services[0] ?? null
   if (!service) {
     return { state, service: null, gmScope: '', scriptKeyRefCount: 0 }
   }
@@ -226,7 +227,7 @@ export async function saveActiveServiceFromOptions(input: SaveOptionsServiceInpu
     baseUrl,
     scriptKey,
     enabled: input.enabled,
-    developMode: input.developMode ?? defaultDevelopModeForBaseUrl(baseUrl),
+    developMode: input.developMode,
     updatedAt: Date.now(),
   }
   state.services = state.services.map((s) => (s.id === active.id ? updated : s))
@@ -353,11 +354,11 @@ export async function reorderService(serviceId: string, toIndex: number): Promis
  */
 export async function loadOptionsServiceConfig(): Promise<ExtensionConfig> {
   const state = await ensureExtensionServicesState()
-  const active = state.services.find((s) => s.id === state.activeServiceId) ?? state.services[0]
-  if (active) {
+  const active = resolveActiveServiceForUi(state) ?? state.services[0]
+  if (active?.enabled) {
     return serviceProfileToExtensionConfig(active)
   }
-  return { ...DEFAULT_CONFIG }
+  return { ...UNCONFIGURED_CONFIG }
 }
 
 /**
@@ -368,6 +369,14 @@ export async function loadOptionsServiceConfig(): Promise<ExtensionConfig> {
 export async function setServiceEnabled(serviceId: string, enabled: boolean): Promise<void> {
   const state = await ensureExtensionServicesState()
   state.services = state.services.map((s) => (s.id === serviceId ? { ...s, enabled, updatedAt: Date.now() } : s))
+  if (!enabled && state.activeServiceId === serviceId) {
+    const replacement = state.services.find((s) => s.enabled && s.id !== serviceId)
+    if (replacement) {
+      state.activeServiceId = replacement.id
+    } else {
+      delete state.activeServiceId
+    }
+  }
   await saveExtensionServicesState(state)
 }
 
@@ -387,7 +396,12 @@ export async function removeService(serviceId: string): Promise<void> {
   const scriptKey = normalizeScriptKey(target.scriptKey)
   state.services = state.services.filter((s) => s.id !== serviceId)
   if (state.activeServiceId === serviceId) {
-    delete state.activeServiceId
+    const replacement = state.services.find((s) => s.enabled)
+    if (replacement) {
+      state.activeServiceId = replacement.id
+    } else {
+      delete state.activeServiceId
+    }
   }
 
   if (scriptKey && countServiceRefs(scriptKey, state.services) === 0) {
