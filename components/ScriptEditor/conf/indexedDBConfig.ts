@@ -4,10 +4,12 @@
  * IndexedDB database configuration
  */
 
+import { MM_SCRIPT_EDITOR_DB_NAME, MM_SCRIPT_EDITOR_DB_VERSION } from '@shared/mm-indexed-db'
+
 /**
  * Database name
  */
-export const DB_NAME = 'script_editor_storage'
+export const DB_NAME = MM_SCRIPT_EDITOR_DB_NAME
 
 /**
  * Database version
@@ -16,8 +18,9 @@ export const DB_NAME = 'script_editor_storage'
  * Version 3: Separated original contents and modified contents
  * Version 4: Merged file contents into single table, simplified table structure
  * Version 5: Added layout store for editor panel state
+ * Version 6: Renamed database to mm_script_editor (MagickMonkey)
  */
-export const DB_VERSION = 5
+export const DB_VERSION = MM_SCRIPT_EDITOR_DB_VERSION
 
 /**
  * Object store (table) names

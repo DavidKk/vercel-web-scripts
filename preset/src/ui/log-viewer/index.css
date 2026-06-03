@@ -199,6 +199,13 @@
   color: #8fc8ff;
 }
 
+.log-viewer__icon-btn--disabled,
+.log-viewer__icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .log-viewer__icon-btn--copied {
   color: #89d185;
 }

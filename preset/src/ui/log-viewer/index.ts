@@ -6,6 +6,7 @@
 import { appendToDocumentElement } from '@/helpers/dom'
 import type { LogLevel } from '@/services/log-store'
 import { logStore } from '@/services/log-store'
+import { isLogPersistEnabled } from '@/services/shell-log-settings'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import iconWarn from '~icons/mdi/alert?raw'
 import iconDebug from '~icons/mdi/bug?raw'
@@ -118,6 +119,7 @@ export class LogViewerUI extends HTMLElement {
   open() {
     this.classList.add('log-viewer--open')
     this.#includePrevious = false
+    this.#syncIncludePreviousAvailability()
     this.#updateIncludePreviousButton()
     this.#unsubscribe?.()
     if (this.#store?.subscribe) {
@@ -138,9 +140,25 @@ export class LogViewerUI extends HTMLElement {
   }
 
   #onToggleIncludePrevious() {
+    if (!isLogPersistEnabled()) {
+      return
+    }
     this.#includePrevious = !this.#includePrevious
     this.#updateIncludePreviousButton()
     this.#render()
+  }
+
+  #syncIncludePreviousAvailability() {
+    const btn = this.#shadowRoot?.querySelector('[data-action="include-previous"]') as HTMLButtonElement | null
+    if (!btn) {
+      return
+    }
+    const persistOn = isLogPersistEnabled()
+    btn.disabled = !persistOn
+    btn.classList.toggle('log-viewer__icon-btn--disabled', !persistOn)
+    if (!persistOn) {
+      this.#includePrevious = false
+    }
   }
 
   async #onCopy() {
@@ -170,6 +188,12 @@ export class LogViewerUI extends HTMLElement {
   #updateIncludePreviousButton() {
     const btn = this.#shadowRoot?.querySelector('[data-action="include-previous"]') as HTMLButtonElement | null
     if (btn) {
+      if (!isLogPersistEnabled()) {
+        btn.title = 'Enable “Log persist (IndexedDB)” in the userscript menu to keep logs across sessions'
+        btn.setAttribute('aria-pressed', 'false')
+        btn.classList.remove('log-viewer__icon-btn--active')
+        return
+      }
       btn.title = this.#includePrevious ? 'Showing all sessions — click for this session only' : 'Include logs from previous sessions'
       btn.setAttribute('aria-pressed', this.#includePrevious ? 'true' : 'false')
       btn.classList.toggle('log-viewer__icon-btn--active', this.#includePrevious)

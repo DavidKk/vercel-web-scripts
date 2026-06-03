@@ -3,15 +3,24 @@
  * Import logStore from here for production; use LogStore + config in tests.
  */
 
+import { isLogPersistEnabled } from '@/services/shell-log-settings'
+
 import { flushBootLogBufferIntoStore } from './boot-buffer'
 import { defaultLogStoreConfig } from './config'
 import { LogStore } from './LogStore'
 
-const logStore = new LogStore(defaultLogStoreConfig)
+const logStore = new LogStore({
+  ...defaultLogStoreConfig,
+  persistToIndexedDB: isLogPersistEnabled(),
+})
 flushBootLogBufferIntoStore(logStore)
 
 if (typeof window !== 'undefined') {
-  logStore.loadFromIDB()
+  if (logStore.isPersistenceEnabled()) {
+    logStore.loadFromIDB()
+  } else {
+    void logStore.purgePersistedStorage()
+  }
 }
 
 export type { VwsBootLogRecord } from './boot-buffer'

@@ -6,17 +6,41 @@ import { GME_debug, GME_fail } from '@/helpers/logger'
 import { fetchAndCacheRules } from '@/rules'
 import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, isEditorDevMode } from '@/services/dev-mode'
 import { deleteLauncherBootstrapStorage } from '@/services/launcher-bootstrap-storage'
+import { logStore } from '@/services/log-store'
 import { openOptionalLogViewer } from '@/services/optional-ui'
 import { getScriptUpdate } from '@/services/script-update'
+import { isLogPersistEnabled, setLogPersistEnabled } from '@/services/shell-log-settings'
 import { isShellNetworkEnabled, runWithShellNetworkAsync, setShellNetworkEnabled } from '@/services/shell-network-settings'
 import { GME_notification } from '@/ui/notification/index'
 
 /** Tampermonkey menu command id for shell network toggle (re-registered when state changes) */
 let shellNetworkMenuCmdId: string | number | undefined
+/** Menu command id for log IndexedDB persistence toggle */
+let shellLogPersistMenuCmdId: string | number | undefined
 
 /**
  * Register or refresh shell network menu label to match GM storage.
  */
+/**
+ * Register or refresh log persistence menu label to match GM storage.
+ */
+function registerShellLogPersistMenuItem(): void {
+  if (shellLogPersistMenuCmdId !== undefined) {
+    GM_unregisterMenuCommand(shellLogPersistMenuCmdId)
+    shellLogPersistMenuCmdId = undefined
+  }
+  const enabled = isLogPersistEnabled()
+  const label = `Log persist (IndexedDB): ${enabled ? 'On' : 'Off'}`
+  shellLogPersistMenuCmdId = GM_registerMenuCommand(label, () => {
+    const next = !isLogPersistEnabled()
+    setLogPersistEnabled(next)
+    logStore.setPersistenceEnabled(next)
+    GME_debug(`[Log persist] toggle enabled=${next}`)
+    GME_notification(next ? 'Logs will persist across sessions (IndexedDB)' : 'Logs are memory-only for this tab (IndexedDB cleared)', next ? 'success' : 'info', 3500)
+    registerShellLogPersistMenuItem()
+  })
+}
+
 function registerShellNetworkMenuItem(): void {
   if (shellNetworkMenuCmdId !== undefined) {
     GM_unregisterMenuCommand(shellNetworkMenuCmdId)
@@ -65,6 +89,7 @@ export function registerBasicMenus(): void {
   })
 
   registerShellNetworkMenuItem()
+  registerShellLogPersistMenuItem()
 
   GM_registerMenuCommand('Update Rules', async () => {
     await runWithShellNetworkAsync(async () => {

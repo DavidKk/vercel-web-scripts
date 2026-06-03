@@ -27,6 +27,7 @@ import type { LauncherUrls } from './config'
 import { PRESET_VAR_NAMES } from './config'
 import { setActiveGmScope } from './gm-bridge'
 import type { GMApi, GMRequestDetails } from './gm-types'
+import { executePresetInPageContext, isCspEvalError } from './preset-executor'
 
 export interface LauncherStartOptions {
   scriptKey: string
@@ -191,13 +192,12 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     setActiveGmScope(gmScope)
     try {
       const decls = PRESET_VAR_NAMES.map((n) => `var ${n} = g.${n};`).join('\n')
-      const body = `with(g) {\n${decls}\n${presetCode}\n}`
-
-      new Function('g', body)(g)
-      bootLog('ok', `execute:success bytes=${bytes}`)
+      const mode = executePresetInPageContext(g, decls, presetCode)
+      bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
     } catch (e) {
       const em = e instanceof Error ? e.message : String(e)
-      bootLog('fail', 'execute:failed', em)
+      const cspHint = isCspEvalError(e) ? ' (CSP: eval blocked; nonce fallback failed or unavailable)' : ''
+      bootLog('fail', 'execute:failed', em + cspHint)
       launcherLogger.error(`[${scriptKey}] preset run failed:`, em, e)
     }
   }
