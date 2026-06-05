@@ -1,13 +1,16 @@
 'use server'
 
-import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, SCRIPT_INDEX_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFile } from '@/services/gist'
+import { buildScriptUpdatedAtMapFromIndexContent } from '@/services/scripts/gistScripts'
 import { extractMeta } from '@/services/tampermonkey/meta'
 import { isRuleConfig, type RuleConfig } from '@/services/tampermonkey/types'
 
 export interface Script {
   name: string
   file: string
+  /** Last known content change time (epoch ms); falls back to gist `updated_at` when index has no per-file timestamp */
+  updatedAt: number
 }
 
 export async function getScriptsGistUpdatedAt(): Promise<number> {
@@ -20,6 +23,7 @@ export async function getScriptsWithMeta(): Promise<{ scripts: Script[]; gistUpd
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
   const gistUpdatedAt = new Date(gist.updated_at).getTime()
+  const updatedAtByFile = buildScriptUpdatedAtMapFromIndexContent(gist.files[SCRIPT_INDEX_FILE]?.content, gistUpdatedAt)
 
   const scripts = Array.from<Script>(
     (function* () {
@@ -30,7 +34,7 @@ export async function getScriptsWithMeta(): Promise<{ scripts: Script[]; gistUpd
 
         const metas = extractMeta(info.content)
         const name = metas?.name ? (Array.isArray(metas.name) ? metas.name[0] : metas?.name) : file
-        yield { file, name } satisfies Script
+        yield { file, name, updatedAt: updatedAtByFile.get(file) ?? gistUpdatedAt } satisfies Script
       }
     })()
   )

@@ -73,74 +73,24 @@
 
             <div data-ref="skeleton" class="mm-scripts-skeleton" aria-busy="true" aria-label="Loading scripts">
               <div class="mm-scripts-table-head mm-scripts-skeleton-head" role="row">
-                <span class="mm-scripts-col-index" role="columnheader">#</span>
-                <span class="mm-scripts-col-name" role="columnheader">Name</span>
-                <span class="mm-scripts-col-file" role="columnheader">File</span>
-                <span class="mm-scripts-col-service" role="columnheader">Service</span>
-                <span class="mm-scripts-col-rules" role="columnheader" aria-hidden="true"></span>
-                <span class="mm-scripts-col-switch" role="columnheader" aria-hidden="true"></span>
+                <%- include('./scripts-table-head-cells') %>
               </div>
               <div class="mm-scripts-skeleton-rows">
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
-                <div class="mm-script-skeleton-row" aria-hidden="true">
-                  <span class="mm-skeleton mm-skeleton-index"></span><span class="mm-skeleton mm-skeleton-name"></span><span class="mm-skeleton mm-skeleton-file"></span><span class="mm-skeleton mm-skeleton-service"></span
-                  ><span class="mm-skeleton mm-skeleton-rules"></span
-                  ><span class="mm-skeleton mm-skeleton-switch"></span>
-                </div>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
+                <%- include('./scripts-skeleton-row') %>
               </div>
             </div>
 
             <div data-ref="list-head" class="mm-scripts-table-head hidden" role="row" aria-hidden="true">
-              <span class="mm-scripts-col-index" role="columnheader">#</span>
-              <span class="mm-scripts-col-name" role="columnheader">Name</span>
-              <span class="mm-scripts-col-file" role="columnheader">File</span>
-              <span class="mm-scripts-col-service" role="columnheader">Service</span>
-              <span class="mm-scripts-col-rules" role="columnheader" aria-hidden="true"></span>
-              <span class="mm-scripts-col-switch" role="columnheader" aria-hidden="true"></span>
+              <%- include('./scripts-table-head-cells') %>
             </div>
 
             <div data-ref="scroll-shell" class="mm-scripts-table-scroll-shell hidden">

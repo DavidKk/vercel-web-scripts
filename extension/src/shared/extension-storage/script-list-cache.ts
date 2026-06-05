@@ -12,6 +12,31 @@ function scriptListScope(config: ExtensionConfig): string {
   return `${config.baseUrl}|${config.scriptKey}`
 }
 
+function resolveScriptListUpdatedAtFallback(gistUpdatedAt: number): number | undefined {
+  return typeof gistUpdatedAt === 'number' && Number.isFinite(gistUpdatedAt) && gistUpdatedAt > 0 ? gistUpdatedAt : undefined
+}
+
+/**
+ * Fill missing per-script `updatedAt` from gist-level revision time (legacy caches / API rows without the field).
+ */
+export function enrichManagedScriptListWithUpdatedAt(scripts: ManagedScriptListEntry[], gistUpdatedAt: number): ManagedScriptListEntry[] {
+  const fallback = resolveScriptListUpdatedAtFallback(gistUpdatedAt)
+  if (!fallback) {
+    return scripts
+  }
+
+  return scripts.map((row) => {
+    if (typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt) && row.updatedAt > 0) {
+      return row
+    }
+    return { ...row, updatedAt: fallback }
+  })
+}
+
+function managedScriptListNeedsUpdatedAtRefresh(scripts: ManagedScriptListEntry[]): boolean {
+  return scripts.some((row) => !(typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt) && row.updatedAt > 0))
+}
+
 export function dedupeManagedScriptListByFile(scripts: ManagedScriptListEntry[]): ManagedScriptListEntry[] {
   const byFile = new Map<string, ManagedScriptListEntry>()
   for (const row of scripts) {
@@ -34,7 +59,9 @@ function parseManagedScriptRows(data: unknown): ManagedScriptListEntry[] {
       continue
     }
     const name = typeof (row as ManagedScriptListEntry).name === 'string' ? (row as ManagedScriptListEntry).name : file
-    list.push({ file, name })
+    const updatedAtRaw = (row as ManagedScriptListEntry).updatedAt
+    const updatedAt = typeof updatedAtRaw === 'number' && Number.isFinite(updatedAtRaw) ? updatedAtRaw : undefined
+    list.push({ file, name, ...(updatedAt !== undefined ? { updatedAt } : {}) })
   }
   return dedupeManagedScriptListByFile(list)
 }
@@ -50,10 +77,11 @@ export async function readScriptKeyListCache(scriptKey: string): Promise<ScriptL
   const result = await chrome.storage.local.get([scopedKey, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY])
   const raw = result[scopedKey] as ScriptListCache | undefined
   if (raw?.scope && Array.isArray(raw.scripts) && raw.scripts.length > 0) {
+    const gistUpdatedAt = typeof raw.gistUpdatedAt === 'number' ? raw.gistUpdatedAt : 0
     return {
       scope: raw.scope,
-      gistUpdatedAt: typeof raw.gistUpdatedAt === 'number' ? raw.gistUpdatedAt : 0,
-      scripts: parseManagedScriptRows(raw.scripts),
+      gistUpdatedAt,
+      scripts: enrichManagedScriptListWithUpdatedAt(parseManagedScriptRows(raw.scripts), gistUpdatedAt),
     }
   }
 
@@ -61,10 +89,11 @@ export async function readScriptKeyListCache(scriptKey: string): Promise<ScriptL
   const ota = resolveOtaEndpoint(normalized, state.services)
   const legacyGlobal = result[SCRIPT_LIST_CACHE_KEY] as ScriptListCache | undefined
   if (ota && legacyGlobal?.scope === serviceEndpointKey(ota.baseUrl, normalized) && legacyGlobal.scripts?.length) {
+    const gistUpdatedAt = typeof legacyGlobal.gistUpdatedAt === 'number' ? legacyGlobal.gistUpdatedAt : 0
     return {
       scope: legacyGlobal.scope,
-      gistUpdatedAt: typeof legacyGlobal.gistUpdatedAt === 'number' ? legacyGlobal.gistUpdatedAt : 0,
-      scripts: parseManagedScriptRows(legacyGlobal.scripts),
+      gistUpdatedAt,
+      scripts: enrichManagedScriptListWithUpdatedAt(parseManagedScriptRows(legacyGlobal.scripts), gistUpdatedAt),
     }
   }
 
@@ -122,13 +151,13 @@ export async function fetchManagedScriptList(config: ExtensionConfig): Promise<M
   }
   const body = (await res.json()) as {
     code?: number
-    data?: { scripts?: Array<{ file?: string; name?: string }>; gistUpdatedAt?: number } | Array<{ file?: string; name?: string }>
+    data?: { scripts?: Array<{ file?: string; name?: string; updatedAt?: number }>; gistUpdatedAt?: number } | Array<{ file?: string; name?: string; updatedAt?: number }>
   }
   if (body.code !== 0 || !body.data) {
     throw new Error('Invalid scripts API response')
   }
 
-  let rows: Array<{ file?: string; name?: string }>
+  let rows: Array<{ file?: string; name?: string; updatedAt?: number }>
   let gistUpdatedAt = 0
   if (Array.isArray(body.data)) {
     rows = body.data
@@ -143,9 +172,10 @@ export async function fetchManagedScriptList(config: ExtensionConfig): Promise<M
       continue
     }
     const name = typeof row.name === 'string' && row.name.trim() ? row.name.trim() : row.file
-    list.push({ file: row.file, name })
+    const apiUpdatedAt = typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt) && row.updatedAt > 0 ? row.updatedAt : undefined
+    list.push({ file: row.file, name, ...(apiUpdatedAt !== undefined ? { updatedAt: apiUpdatedAt } : {}) })
   }
-  const scripts = dedupeManagedScriptListByFile(list)
+  let scripts = dedupeManagedScriptListByFile(list)
   if (gistUpdatedAt <= 0) {
     try {
       gistUpdatedAt = await fetchScriptListVersion(config)
@@ -153,6 +183,7 @@ export async function fetchManagedScriptList(config: ExtensionConfig): Promise<M
       gistUpdatedAt = Date.now()
     }
   }
+  scripts = enrichManagedScriptListWithUpdatedAt(scripts, gistUpdatedAt)
   await writeScriptListCache(config, gistUpdatedAt, scripts)
   return scripts
 }
@@ -293,7 +324,9 @@ export async function syncManagedScriptListIfNeeded(config: ExtensionConfig): Pr
   const cache = await readScriptListCache(config)
   try {
     const remoteVersion = await fetchScriptListVersion(config)
-    if (cache && cache.gistUpdatedAt > 0 && remoteVersion === cache.gistUpdatedAt) {
+    const unchangedRevision = Boolean(cache && cache.gistUpdatedAt > 0 && remoteVersion === cache.gistUpdatedAt)
+    const needsUpdatedAtRefresh = cache ? managedScriptListNeedsUpdatedAtRefresh(cache.scripts) : false
+    if (unchangedRevision && !needsUpdatedAtRefresh) {
       return null
     }
     return await fetchManagedScriptList(config)

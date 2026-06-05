@@ -11,6 +11,8 @@ export interface UpsertServiceInput {
 export interface ManagedScriptListEntry {
   file: string
   name: string
+  /** Last content change time (epoch ms) when provided by the scripts API */
+  updatedAt?: number
 }
 
 export interface ScriptListCache {

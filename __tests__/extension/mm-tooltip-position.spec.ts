@@ -62,6 +62,15 @@ describe('computeMmTooltipPosition', () => {
     expect(result.top + th).toBeLessThanOrEqual(trigger.top)
   })
 
+  it('should keep preferred bottom placement when noFlip is set', () => {
+    const trigger = rect(40, 260, 60, 32)
+    const th = 28
+    const result = computeMmTooltipPosition(trigger, 100, th, 'bottom', viewport, 'center', true)
+    expect(result.placement).toBe('bottom')
+    expect(result.top).toBeGreaterThanOrEqual(MM_TOOLTIP_PADDING)
+    expect(result.top + th).toBeLessThanOrEqual(viewport.height - MM_TOOLTIP_PADDING)
+  })
+
   it('should clamp position inside viewport when no side fully fits', () => {
     const trigger = rect(0, 0, 400, 300)
     const tw = 200

@@ -188,6 +188,7 @@ export const SCRIPTS_OPENAPI_V1 = {
           connects: { type: 'array', items: { type: 'string' }, description: 'Userscript @connect values.' },
           aliases: { type: 'array', items: { type: 'string' }, description: 'Human-maintained search aliases preserved from the script index.' },
           keywords: { type: 'array', items: { type: 'string' }, description: 'Human-maintained search keywords preserved from the script index.' },
+          updatedAt: { type: 'integer', description: 'Last content change time for this file (epoch ms).' },
         },
         required: ['filename', 'byteLength'],
       },

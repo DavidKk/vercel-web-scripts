@@ -1,6 +1,7 @@
 import { fetchGist, readGistFile, writeGistFiles } from '@/services/gist'
 import {
   batchPatchManagedScriptFiles,
+  buildScriptUpdatedAtMapFromIndexContent,
   deleteManagedScriptFile,
   findManagedScriptFiles,
   getManagedScriptSnippet,
@@ -478,6 +479,59 @@ describe('gist script token-efficient editing helpers', () => {
       expect(result.header).toEqual({ openCount: 0, closeCount: 0 })
       expect(result.diagnostics).toContain('Userscript header block must be present exactly once')
       expect(result.diagnostics.length).toBeGreaterThan(1)
+    })
+  })
+
+  describe('script updatedAt metadata', () => {
+    it('maps per-file updatedAt from index JSON with gist fallback', () => {
+      const map = buildScriptUpdatedAtMapFromIndexContent(
+        JSON.stringify({
+          version: 1,
+          updatedAt: '2026-01-02T00:00:00Z',
+          scripts: [
+            { filename: 'demo.ts', byteLength: 1, updatedAt: 1761481200000 },
+            { filename: 'other.ts', byteLength: 1 },
+          ],
+        }),
+        1761481300000
+      )
+
+      expect(map.get('demo.ts')).toBe(1761481200000)
+      expect(map.get('other.ts')).toBe(1761481300000)
+    })
+
+    it('preserves updatedAt when script content hash is unchanged', async () => {
+      mockGist({ 'demo.ts': scriptContent })
+      await upsertManagedScriptFile('demo.ts', scriptContent)
+      const firstIndex = getWrittenIndex()
+      const preservedUpdatedAt = firstIndex.scripts[0].updatedAt
+
+      mockGist({
+        'demo.ts': scriptContent,
+        'magickmonkey.scripts.index.json': JSON.stringify(firstIndex),
+      })
+      mockWriteGistFiles.mockClear()
+      await upsertManagedScriptFile('demo.ts', scriptContent)
+
+      const secondIndex = getWrittenIndex()
+      expect(secondIndex.scripts[0].updatedAt).toBe(preservedUpdatedAt)
+    })
+
+    it('bumps updatedAt when script content changes', async () => {
+      const before = 1761481200000
+      mockGist({
+        'demo.ts': scriptContent,
+        'magickmonkey.scripts.index.json': JSON.stringify({
+          version: 1,
+          updatedAt: '2026-01-01T00:00:00Z',
+          scripts: [{ filename: 'demo.ts', byteLength: 1, contentHash: '0'.repeat(64), updatedAt: before }],
+        }),
+      })
+
+      await upsertManagedScriptFile('demo.ts', scriptContent.replace('Demo Script', 'Demo Script v2'))
+
+      const index = getWrittenIndex()
+      expect(index.scripts[0].updatedAt).toBeGreaterThan(before)
     })
   })
 })

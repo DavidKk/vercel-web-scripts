@@ -517,7 +517,7 @@
 
   .mm-scripts-body {
     @apply flex min-h-0 flex-1 flex-col overflow-hidden;
-    --mm-script-grid-cols: 2rem minmax(7rem, 0.36fr) minmax(6rem, 0.28fr) minmax(5rem, 0.24fr) 1fr 1.75rem 2.25rem;
+    --mm-script-grid-cols: 2.25rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 0.75fr) 5.5rem 1fr 1.75rem 2.25rem;
   }
 
   .mm-scripts-toolbar {
@@ -1342,7 +1342,7 @@
     column-gap: 0.625rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    grid-template-columns: var(--mm-script-grid-cols, 2rem minmax(8rem, 0.42fr) minmax(0, 1fr) 1.75rem 2.25rem);
+    grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 0.75fr) 5.5rem 1fr 1.75rem 2.25rem);
   }
 
   .mm-scripts-table-head {
@@ -1350,66 +1350,79 @@
     border-bottom-width: 1px;
   }
 
-  .mm-scripts-col-index,
-  .mm-script-index,
-  .mm-skeleton-index {
+  .mm-script-cell--index {
     grid-column: 1;
   }
 
-  .mm-scripts-col-name,
-  .mm-script-name,
-  .mm-skeleton-name {
+  .mm-script-cell--name {
     grid-column: 2;
   }
 
-  .mm-scripts-col-file,
-  .mm-script-file,
-  .mm-skeleton-file {
+  .mm-script-cell--file {
     grid-column: 3;
   }
 
-  .mm-scripts-col-service,
-  .mm-script-service,
-  .mm-skeleton-service {
+  .mm-script-cell--service {
     grid-column: 4;
   }
 
-  .mm-scripts-col-rules,
-  .mm-script-row .mm-script-rules-link,
-  .mm-skeleton-rules {
-    @apply justify-self-end;
-    grid-column: 6;
+  .mm-script-cell--updated {
+    grid-column: 5;
   }
 
-  .mm-scripts-col-switch,
-  .mm-script-row .mm-switch,
-  .mm-skeleton-switch {
-    @apply justify-self-end;
+  .mm-script-cell--rules,
+  .mm-script-row > .mm-script-rules-link {
     grid-column: 7;
   }
 
-  .mm-scripts-col-index {
-    @apply text-left tabular-nums;
+  .mm-script-cell--switch,
+  .mm-script-row > .mm-switch {
+    grid-column: 8;
   }
 
-  .mm-scripts-col-name {
-    @apply min-w-0 truncate text-left;
+  .mm-script-cell {
+    @apply min-w-0;
   }
 
-  .mm-scripts-col-service {
-    @apply min-w-0 justify-self-start truncate text-left;
+  .mm-script-cell--index,
+  .mm-script-cell--name,
+  .mm-script-cell--file,
+  .mm-script-cell--service,
+  .mm-script-cell--updated {
+    @apply flex items-center justify-start;
   }
 
-  .mm-scripts-col-file {
-    @apply min-w-0 truncate text-left;
+  .mm-script-cell--rules,
+  .mm-script-cell--switch {
+    @apply flex items-center justify-end;
   }
 
-  .mm-scripts-col-switch {
+  .mm-script-row > .mm-script-rules-link,
+  .mm-script-row > .mm-switch {
     @apply justify-self-end;
   }
 
-  .mm-scripts-col-rules {
-    @apply justify-self-end;
+  .mm-script-cell .mm-script-index,
+  .mm-script-cell .mm-script-name,
+  .mm-script-cell .mm-script-file,
+  .mm-script-cell .mm-script-service,
+  .mm-script-cell a.mm-script-service-link,
+  .mm-script-cell .mm-script-updated,
+  .mm-script-cell .mm-script-col-label {
+    @apply inline-block max-w-full truncate text-left;
+  }
+
+  .mm-script-cell .mm-script-index,
+  .mm-script-cell .mm-script-updated {
+    @apply tabular-nums;
+  }
+
+  .mm-scripts-table-head .mm-script-col-label {
+    @apply inline-block max-w-full truncate text-left text-[11px] font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-script-cell .mm-script-updated {
+    @apply text-[12px] leading-snug text-mm-text-muted;
   }
 
   .mm-script-row .mm-script-rules-link {
@@ -1445,7 +1458,7 @@
     column-gap: 0.625rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    grid-template-columns: var(--mm-script-grid-cols, 2rem minmax(8rem, 0.42fr) minmax(0, 1fr) 1.75rem 2.25rem);
+    grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 0.75fr) 5.5rem 1fr 1.75rem 2.25rem);
   }
 
   .mm-skeleton {
@@ -1456,19 +1469,23 @@
   }
 
   .mm-skeleton-index {
-    @apply h-3 w-4;
+    @apply block h-3 w-4;
   }
 
   .mm-skeleton-name {
-    @apply h-3.5 w-[min(100%,10rem)];
+    @apply block h-3.5 w-40 max-w-full;
   }
 
   .mm-skeleton-service {
-    @apply h-3.5 w-[min(100%,8rem)];
+    @apply block h-3.5 w-28 max-w-full;
   }
 
   .mm-skeleton-file {
-    @apply h-3.5 w-[min(100%,16rem)];
+    @apply block h-3.5 w-48 max-w-full;
+  }
+
+  .mm-skeleton-updated {
+    @apply block h-3.5 w-12 max-w-full;
   }
 
   .mm-skeleton-switch {
@@ -1515,23 +1532,23 @@
   }
 
   .mm-script-row .mm-switch {
-    @apply shrink-0 cursor-pointer justify-self-end;
+    @apply shrink-0 cursor-pointer;
   }
 
   .mm-script-index {
-    @apply text-left text-[11px] font-normal tabular-nums leading-none text-mm-label;
+    @apply text-[11px] font-normal leading-none text-mm-label;
   }
 
   .mm-script-name {
-    @apply min-w-0 truncate text-left text-[13px] font-medium leading-snug text-mm-secondary;
+    @apply text-[13px] font-medium leading-snug text-mm-secondary;
   }
 
   .mm-script-service {
-    @apply min-w-0 justify-self-start truncate text-left text-[12px] leading-snug text-mm-text-muted;
+    @apply text-[12px] leading-snug text-mm-text-muted;
   }
 
   a.mm-script-service-link {
-    @apply cursor-pointer no-underline transition-colors hover:text-mm-accent hover:underline;
+    @apply cursor-pointer truncate no-underline transition-colors hover:text-mm-accent hover:underline;
   }
 
   .mm-script-row--inactive a.mm-script-service-link {
@@ -1539,7 +1556,7 @@
   }
 
   .mm-script-file {
-    @apply min-w-0 max-w-[14rem] truncate text-left font-mono text-[12px] leading-snug text-mm-text-muted;
+    @apply font-mono text-[12px] leading-snug text-mm-text-muted;
   }
 
   .mm-script-row--inactive {

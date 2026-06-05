@@ -30,6 +30,8 @@ export interface ScriptFileMeta {
   aliases?: string[]
   /** Human-maintained search keywords preserved from the index */
   keywords?: string[]
+  /** Last content change time for this file (epoch ms) */
+  updatedAt?: number
 }
 
 /** Result of listing script files */
@@ -188,6 +190,65 @@ function parseUserscriptHeader(content: string): Omit<ScriptFileMeta, 'filename'
   return metadata
 }
 
+function parsePreviousScriptIndexEntries(content?: string): Map<string, Pick<ScriptFileMeta, 'contentHash' | 'updatedAt'>> {
+  if (!content) {
+    return new Map()
+  }
+
+  try {
+    const parsed = JSON.parse(content) as Partial<ScriptIndexFile>
+    if (!Array.isArray(parsed.scripts)) {
+      return new Map()
+    }
+
+    return new Map(
+      parsed.scripts
+        .filter((script) => typeof script.filename === 'string')
+        .map((script) => [
+          script.filename,
+          {
+            contentHash: typeof script.contentHash === 'string' ? script.contentHash : undefined,
+            updatedAt: typeof script.updatedAt === 'number' && Number.isFinite(script.updatedAt) ? script.updatedAt : undefined,
+          },
+        ])
+    )
+  } catch {
+    return new Map()
+  }
+}
+
+/**
+ * Build a filename → updatedAt map from persisted script index JSON.
+ * @param indexContent Raw `magickmonkey.scripts.index.json` content
+ * @param gistUpdatedAtMs Gist-level fallback when a row has no per-file timestamp
+ */
+export function buildScriptUpdatedAtMapFromIndexContent(indexContent: string | undefined, gistUpdatedAtMs: number): Map<string, number> {
+  const fallback = Number.isFinite(gistUpdatedAtMs) ? gistUpdatedAtMs : 0
+  const map = new Map<string, number>()
+  if (!indexContent) {
+    return map
+  }
+
+  try {
+    const parsed = JSON.parse(indexContent) as Partial<ScriptIndexFile>
+    if (!Array.isArray(parsed.scripts)) {
+      return map
+    }
+
+    for (const script of parsed.scripts) {
+      if (typeof script.filename !== 'string') {
+        continue
+      }
+      const updatedAt = typeof script.updatedAt === 'number' && Number.isFinite(script.updatedAt) ? script.updatedAt : fallback
+      map.set(script.filename, updatedAt)
+    }
+  } catch {
+    /* ignore malformed index */
+  }
+
+  return map
+}
+
 function parseScriptIndex(content?: string): Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>> {
   if (!content) {
     return new Map()
@@ -253,6 +314,8 @@ function buildScriptIndex(
   manualMetadataOverrides: Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>> = new Map()
 ): ScriptIndexFile {
   const manualMetadata = parseScriptIndex(files[SCRIPT_INDEX_FILE]?.content)
+  const previousEntries = parsePreviousScriptIndexEntries(files[SCRIPT_INDEX_FILE]?.content)
+  const writeNow = Date.now()
   const scripts: ScriptFileMeta[] = []
 
   for (const [filename, { content }] of Object.entries(files)) {
@@ -261,10 +324,15 @@ function buildScriptIndex(
     }
 
     const manual = manualMetadataOverrides.get(filename) ?? manualMetadata.get(filename)
+    const contentHash = sha256(content)
+    const previous = previousEntries.get(filename)
+    const fileUpdatedAt = previous?.contentHash === contentHash && typeof previous.updatedAt === 'number' ? previous.updatedAt : writeNow
+
     scripts.push({
       filename,
       byteLength: Buffer.byteLength(content, 'utf8'),
-      contentHash: sha256(content),
+      contentHash,
+      updatedAt: fileUpdatedAt,
       ...parseUserscriptHeader(content),
       ...(manual?.aliases && manual.aliases.length > 0 ? { aliases: manual.aliases } : {}),
       ...(manual?.keywords && manual.keywords.length > 0 ? { keywords: manual.keywords } : {}),

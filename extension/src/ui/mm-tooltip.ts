@@ -64,10 +64,11 @@ function repositionTooltip(trigger: HTMLElement, content: string): void {
   const host = ensureTooltipElement()
   const preferred = parsePlacement(trigger.getAttribute('data-mm-tooltip-placement'))
   const align = parseAlign(trigger.getAttribute('data-mm-tooltip-align'))
+  const noFlip = trigger.hasAttribute('data-mm-tooltip-no-flip')
   const { width: tw, height: th } = measureTooltip(host, content)
   const rect = trigger.getBoundingClientRect()
   const viewport = { width: window.innerWidth, height: window.innerHeight }
-  const { left, top, placement } = computeMmTooltipPosition(rect, tw, th, preferred, viewport, align)
+  const { left, top, placement } = computeMmTooltipPosition(rect, tw, th, preferred, viewport, align, noFlip)
   host.dataset.placement = placement
   host.style.left = `${left}px`
   host.style.top = `${top}px`

@@ -40,8 +40,15 @@ export function computeMmTooltipPosition(
   tooltipHeight: number,
   preferred: MmTooltipPlacement = 'bottom',
   viewport: MmViewport = { width: 1024, height: 768 },
-  align: MmTooltipAlign = 'center'
+  align: MmTooltipAlign = 'center',
+  noFlip = false
 ): MmTooltipPositionResult {
+  if (noFlip) {
+    const coords = coordsForPlacement(preferred, triggerRect, tooltipWidth, tooltipHeight, viewport, align)
+    const clamped = clampToViewport(coords.left, coords.top, tooltipWidth, tooltipHeight, viewport)
+    return { ...clamped, placement: preferred }
+  }
+
   const candidates = rankPlacementCandidates(preferred, triggerRect, tooltipWidth, tooltipHeight, viewport)
 
   for (const placement of candidates) {

@@ -13,6 +13,7 @@ import { SERVICES_STORAGE_KEY } from '@ext/types'
 
 import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
 import type { MmSearchSelect } from './mm-form-components/mm-search-select'
+import { formatScriptUpdatedAt } from './mm-format-relative-time'
 import { hydrateMmIcons } from './mm-icons'
 import { buildRulesPageScriptUrl } from './mm-rules-hash'
 import { createMmSwitch } from './mm-switch'
@@ -24,6 +25,7 @@ type ScriptRow = {
   scriptKey: string
   file: string
   label: string
+  updatedAt?: number
   serviceLabel: string
   serviceUrl: string
   enabled: boolean
@@ -121,6 +123,13 @@ export class MmScriptsApp extends HTMLElement {
     return `${scriptKey}:${file}`
   }
 
+  private wrapScriptTextCell(column: 'index' | 'name' | 'file' | 'service' | 'updated', inner: HTMLElement): HTMLDivElement {
+    const cell = document.createElement('div')
+    cell.className = `mm-script-cell mm-script-cell--${column}`
+    cell.append(inner)
+    return cell
+  }
+
   private renderRow(item: ScriptRow, index: number): HTMLElement {
     const row = document.createElement('div')
     row.className = 'mm-script-row'
@@ -128,29 +137,35 @@ export class MmScriptsApp extends HTMLElement {
       row.classList.add('mm-script-row--inactive')
     }
 
-    const indexEl = document.createElement('span')
-    indexEl.className = 'mm-script-index'
-    indexEl.textContent = String(index + 1)
+    const indexInner = document.createElement('span')
+    indexInner.className = 'mm-script-index'
+    indexInner.textContent = String(index + 1)
 
-    const serviceEl = this.renderServiceCell(item)
-
-    const nameEl = document.createElement('span')
-    nameEl.className = 'mm-script-name'
+    const nameInner = document.createElement('span')
+    nameInner.className = 'mm-script-name'
     const nameText = item.label || item.file
-    nameEl.textContent = nameText
-    this.setFullTextTooltip(nameEl, nameText)
+    nameInner.textContent = nameText
+    this.setFullTextTooltip(nameInner, nameText)
 
-    const fileEl = document.createElement('span')
-    fileEl.className = 'mm-script-file'
-    fileEl.textContent = item.file
-    this.setFullTextTooltip(fileEl, item.file)
+    const fileInner = document.createElement('span')
+    fileInner.className = 'mm-script-file'
+    fileInner.textContent = item.file
+    this.setFullTextTooltip(fileInner, item.file)
+
+    const updatedInner = document.createElement('span')
+    updatedInner.className = 'mm-script-updated'
+    const updatedLabel = formatScriptUpdatedAt(item.updatedAt)
+    updatedInner.textContent = updatedLabel
+    if (typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)) {
+      this.setFullTextTooltip(updatedInner, new Date(item.updatedAt).toLocaleString())
+    }
 
     const rulesLink = document.createElement('button')
     rulesLink.type = 'button'
     rulesLink.className = 'mm-script-rules-link mm-icon-btn-sm'
     rulesLink.setAttribute('aria-label', 'Manage local rules for this script')
     rulesLink.setAttribute('data-mm-tooltip', 'Manage local rules')
-    rulesLink.setAttribute('data-mm-tooltip-placement', 'bottom')
+    this.applyScriptTooltipPlacement(rulesLink)
     const rulesIcon = document.createElement('span')
     rulesIcon.className = 'mm-icon-slot'
     rulesIcon.setAttribute('data-icon', 'rulesManage')
@@ -162,7 +177,15 @@ export class MmScriptsApp extends HTMLElement {
 
     const { root: switchRoot, input } = createMmSwitch({ checked: item.enabled, disabled: !item.groupActive })
     this.setSwitchTooltip(switchRoot, input, item)
-    row.append(indexEl, nameEl, fileEl, serviceEl, rulesLink, switchRoot)
+    row.append(
+      this.wrapScriptTextCell('index', indexInner),
+      this.wrapScriptTextCell('name', nameInner),
+      this.wrapScriptTextCell('file', fileInner),
+      this.renderServiceCell(item),
+      this.wrapScriptTextCell('updated', updatedInner),
+      rulesLink,
+      switchRoot
+    )
 
     if (item.groupActive) {
       const applyToggle = (): void => {
@@ -183,32 +206,42 @@ export class MmScriptsApp extends HTMLElement {
     return row
   }
 
+  private applyScriptTooltipPlacement(el: HTMLElement): void {
+    el.setAttribute('data-mm-tooltip-placement', 'bottom')
+    el.setAttribute('data-mm-tooltip-align', 'center')
+    el.setAttribute('data-mm-tooltip-no-flip', '')
+  }
+
   private setFullTextTooltip(el: HTMLElement, text: string): void {
     const value = text.trim()
     if (!value) {
       return
     }
     el.setAttribute('data-mm-tooltip-wide', '')
-    el.setAttribute('data-mm-tooltip-align', 'start')
+    this.applyScriptTooltipPlacement(el)
     updateMmTooltip(el, value, 'bottom')
   }
 
   private setSwitchTooltip(root: HTMLLabelElement, input: HTMLInputElement, item: ScriptRow): void {
     const text = !item.groupActive ? 'Service disabled — enable in Servers' : input.checked ? 'Disable script' : 'Enable script'
-    root.setAttribute('data-mm-tooltip-align', 'end')
+    this.applyScriptTooltipPlacement(root)
     updateMmTooltip(root, text, 'bottom')
     input.setAttribute('aria-label', text)
   }
 
-  private renderServiceCell(item: ScriptRow): HTMLElement {
+  private renderServiceCell(item: ScriptRow): HTMLDivElement {
+    const cell = document.createElement('div')
+    cell.className = 'mm-script-cell mm-script-cell--service'
+
     if (!item.serviceUrl) {
-      const el = document.createElement('span')
-      el.className = 'mm-script-service'
-      el.textContent = item.serviceLabel
+      const inner = document.createElement('span')
+      inner.className = 'mm-script-service'
+      inner.textContent = item.serviceLabel
       if (item.serviceLabel) {
-        el.title = item.serviceLabel
+        inner.title = item.serviceLabel
       }
-      return el
+      cell.append(inner)
+      return cell
     }
 
     const link = document.createElement('a')
@@ -218,11 +251,12 @@ export class MmScriptsApp extends HTMLElement {
     link.rel = 'noopener noreferrer'
     link.textContent = item.serviceLabel || item.serviceUrl
     link.setAttribute('data-mm-tooltip', 'Open service in new tab')
-    link.setAttribute('data-mm-tooltip-placement', 'bottom')
+    this.applyScriptTooltipPlacement(link)
     link.addEventListener('click', (event) => {
       event.stopPropagation()
     })
-    return link
+    cell.append(link)
+    return cell
   }
 
   private renderGroupRows(rows: ScriptRow[], startIndex: number): DocumentFragment {
@@ -456,6 +490,7 @@ export class MmScriptsApp extends HTMLElement {
           scriptKey: group.scriptKey,
           file: s.file,
           label: s.name,
+          updatedAt: s.updatedAt,
           serviceLabel,
           serviceUrl,
           enabled,
