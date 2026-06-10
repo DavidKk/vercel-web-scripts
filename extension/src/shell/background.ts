@@ -9,11 +9,13 @@ import {
   getShellNetworkEnabled,
   gmStorageKey,
   loadExtensionConfig,
+  loadGmScopeForScriptKey,
   loadLocalRulesForEnabledScriptKeys,
   loadQuickAddRuleContext,
   removeScriptKeyRule,
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
+  resolvePresetProjectVersion,
   setShellLogOutputMode,
   setShellNetworkEnabled,
   syncRulesForEnabledScriptKeys,
@@ -37,6 +39,7 @@ import { type ExtensionConfig } from '@ext/types'
 import { SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
+import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { extensionLogger } from '../shared/logger'
 import { refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { initBadgeNavigationListeners } from './badge-navigation'
@@ -148,12 +151,24 @@ async function buildStatus(): Promise<ShellStatus> {
     getShellLogOutputMode(),
     countEnabledScriptsForEnabledScriptKeys(),
   ])
+  const gmScope = config.scriptKey ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
+  const presetVersion = await resolvePresetProjectVersion(config, gmScope, { allowManifestFetch: networkEnabled })
   const url = tab?.url ?? ''
   const enabledServices = servicesState.services.filter((service) => service.enabled)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
   const configured = scriptTotals.serverCount > 0
   const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
   const manifest = chrome.runtime.getManifest()
+  const extensionVersion = manifest.version ?? '0.0.0'
+  let extensionUpdateAvailable = false
+  let latestExtensionVersion: string | null = null
+  let extensionDownloadUrl: string | null = null
+  if (networkEnabled && config.baseUrl.trim()) {
+    const updateInfo = await fetchExtensionUpdateInfo(config.baseUrl, extensionVersion)
+    extensionUpdateAvailable = updateInfo.updateAvailable
+    latestExtensionVersion = updateInfo.latestVersion
+    extensionDownloadUrl = updateInfo.downloadUrl
+  }
   return {
     configured,
     baseUrl: config.baseUrl,
@@ -165,7 +180,11 @@ async function buildStatus(): Promise<ShellStatus> {
     logOutputMode,
     triggeredCountOnActiveTab,
     activeTabUrl: url,
-    extensionVersion: manifest.version ?? '0.0.0',
+    extensionVersion,
+    extensionUpdateAvailable,
+    latestExtensionVersion,
+    extensionDownloadUrl,
+    presetVersion,
   }
 }
 

@@ -69,7 +69,7 @@ function presetBuildHashPlugin() {
         content = content.replace(PRESET_BUILD_HASH_PLACEHOLDER, inlineHash)
         writeFileSync(outPath, content, 'utf-8')
         return hashFileStream(outPath).then((contentHash) => {
-          writeFileSync(path.resolve(outDir, MANIFEST_FILE), JSON.stringify({ file: key, hash: contentHash }, null, 0), 'utf-8')
+          writeFileSync(path.resolve(outDir, MANIFEST_FILE), JSON.stringify({ file: key, hash: contentHash, projectVersion }, null, 0), 'utf-8')
           // eslint-disable-next-line no-console -- build hash debug
           console.log(`[preset-build-hash] ${key} → ${contentHash}`)
         })

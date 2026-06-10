@@ -3,3 +3,13 @@ export const CHROME_EXTENSION_ZIP_PATH = '/downloads/magickmonkey-chrome-extensi
 
 /** Suggested filename when saving the extension ZIP in the browser. */
 export const CHROME_EXTENSION_ZIP_FILENAME = 'magickmonkey-chrome-extension.zip'
+
+/**
+ * Build absolute download URL for the extension ZIP on a deployment origin.
+ * @param baseUrl Request origin (e.g. `https://example.com`)
+ * @returns Full URL to the packaged extension ZIP
+ */
+export function buildChromeExtensionDownloadUrl(baseUrl: string): string {
+  const normalized = baseUrl.trim().replace(/\/+$/, '')
+  return `${normalized}${CHROME_EXTENSION_ZIP_PATH}`
+}

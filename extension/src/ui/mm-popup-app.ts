@@ -20,6 +20,7 @@ export class MmPopupApp extends HTMLElement {
   private toastTimer: ReturnType<typeof setTimeout> | undefined
   private quickRuleLastSelected = ''
   private quickRuleCurrentUrl = ''
+  private extensionDownloadUrl: string | null = null
   private static readonly QUICK_RULE_RECENT_SCRIPT_KEY = 'vws_popup_quick_rule_recent_script'
   private defaultPopupSize: { width: number; height: number } | null = null
 
@@ -76,6 +77,9 @@ export class MmPopupApp extends HTMLElement {
     this.querySelector('[data-action="sync-rules"]')?.addEventListener('click', () => {
       void this.run(() => sendShellMessage({ type: 'SYNC_RULES' }), 'sync-rules')
     })
+    this.querySelector('[data-ref="extension-update"]')?.addEventListener('click', () => {
+      void this.downloadExtensionUpdate()
+    })
     this.querySelector('[data-ref="network"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       void this.run(() => sendShellMessage({ type: 'SET_NETWORK', enabled: checked }), 'network')
@@ -109,11 +113,9 @@ export class MmPopupApp extends HTMLElement {
   private openRulesView(): void {
     const main = this.querySelector('[data-ref="main-view"]') as HTMLElement | null
     const rules = this.querySelector('[data-ref="rules-view"]') as HTMLElement | null
-    const footer = this.querySelector('[data-ref="footer"]') as HTMLElement | null
     if (!main || !rules) return
     main.classList.add('hidden')
     rules.classList.remove('hidden')
-    footer?.classList.add('hidden')
     this.applyDefaultPopupSize()
     this.applySubViewSizeFromDefault()
     void this.refreshQuickRuleContext()
@@ -122,11 +124,9 @@ export class MmPopupApp extends HTMLElement {
   private openMainView(): void {
     const main = this.querySelector('[data-ref="main-view"]') as HTMLElement | null
     const rules = this.querySelector('[data-ref="rules-view"]') as HTMLElement | null
-    const footer = this.querySelector('[data-ref="footer"]') as HTMLElement | null
     if (!main || !rules) return
     rules.classList.add('hidden')
     main.classList.remove('hidden')
-    footer?.classList.remove('hidden')
     rules.style.removeProperty('height')
     this.applyDefaultPopupSize()
   }
@@ -268,20 +268,45 @@ export class MmPopupApp extends HTMLElement {
       network.checked = s.networkEnabled
     }
     this.syncLogOutputTabs(s.logOutputMode)
-    const triggerHint = this.querySelector('[data-ref="trigger-hint"]')
-    if (triggerHint) {
-      triggerHint.textContent =
-        s.triggeredCountOnActiveTab > 0
-          ? `${s.triggeredCountOnActiveTab} script trigger(s) on this page load`
-          : configured
-            ? 'No scripts triggered on this page load'
-            : 'Configure Servers to track script triggers'
-    }
     const version = this.querySelector('[data-ref="version"]')
     if (version) {
-      version.textContent = `v${s.extensionVersion}`
+      version.textContent = this.formatVersionFooter(s.extensionVersion, s.presetVersion)
     }
+    this.renderExtensionUpdateHint(s)
     this.quickRuleCurrentUrl = s.activeTabUrl || ''
+  }
+
+  private renderExtensionUpdateHint(status: { extensionUpdateAvailable: boolean; latestExtensionVersion: string | null; extensionDownloadUrl: string | null }): void {
+    const button = this.querySelector('[data-ref="extension-update"]') as HTMLButtonElement | null
+    if (!button) {
+      return
+    }
+    const show = status.extensionUpdateAvailable && Boolean(status.extensionDownloadUrl)
+    button.classList.toggle('hidden', !show)
+    this.extensionDownloadUrl = show ? status.extensionDownloadUrl : null
+    if (show && status.latestExtensionVersion) {
+      button.title = `Download extension v${status.latestExtensionVersion}`
+    } else {
+      button.title = 'Download latest extension'
+    }
+  }
+
+  private async downloadExtensionUpdate(): Promise<void> {
+    const url = this.extensionDownloadUrl
+    if (!url) {
+      return
+    }
+    try {
+      await chrome.tabs.create({ url })
+    } catch {
+      this.showToast('Failed to open download', true)
+    }
+  }
+
+  private formatVersionFooter(extensionVersion: string, presetVersion: string | null): string {
+    const ext = extensionVersion.trim() || '0.0.0'
+    const preset = presetVersion?.trim() || '—'
+    return `Preset v${preset} · Extension v${ext}`
   }
 
   private formatRuntimeSummary(serverCount: number, scriptCount: number): string {

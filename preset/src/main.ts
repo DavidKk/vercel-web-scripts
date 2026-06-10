@@ -3,6 +3,8 @@
  * Orchestrates services only; logic lives in helpers and services.
  */
 
+import { PRESET_PROJECT_VERSION_KEY } from '@shared/launcher-constants'
+
 import { shouldSkipNonHtmlDocument } from '@/helpers/dom'
 import { detectDevelopModePresence, ensureWebScriptInitialized, getWebScriptId, isDevelopMode, isRemoteScript } from '@/helpers/env'
 import { GME_debug, GME_fail, GME_info } from '@/helpers/logger'
@@ -37,6 +39,29 @@ const ACTIVE_DEV_SCRIPT_TTL_MS = 15_000
 interface ActiveDevScriptPresence {
   host: string
   ts: number
+}
+
+/**
+ * Persist preset project version for extension popup / diagnostics (scoped + legacy GM keys).
+ * @param version Project version baked into preset at build time
+ */
+function persistPresetProjectVersion(version: string): void {
+  if (!version || version === 'unknown') {
+    return
+  }
+  try {
+    const baseUrl = typeof __BASE_URL__ !== 'undefined' ? String(__BASE_URL__).replace(/\/+$/, '') : ''
+    const scriptUrl = typeof __SCRIPT_URL__ !== 'undefined' ? String(__SCRIPT_URL__) : ''
+    const keyMatch = scriptUrl.match(/\/static\/([^/]+)\//)
+    const scriptKey = keyMatch?.[1] ?? ''
+    if (baseUrl && scriptKey) {
+      const scope = encodeURIComponent(`${baseUrl}|${scriptKey}`)
+      GM_setValue(`${PRESET_PROJECT_VERSION_KEY}:${scope}`, version)
+    }
+    GM_setValue(PRESET_PROJECT_VERSION_KEY, version)
+  } catch {
+    // ignore persistence errors
+  }
 }
 
 /**
@@ -80,6 +105,7 @@ async function main(): Promise<void> {
   const updateTime = updateTimeMs > 0 && Number.isFinite(updateTimeMs) ? new Date(updateTimeMs).toLocaleString() : 'unknown'
   const updateTimeHint = updateTime === 'unknown' ? ' (preset may be cached; add ?vws_script_update=1 and reload to refresh)' : ''
   GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
+  persistPresetProjectVersion(projectVersion)
   GME_debug('[Main] Logger online — earlier [VWS][Launcher] lines were captured as [boot] in the log viewer (same timeline timestamps as console)')
   GME_debug(
     '[Main] Starting main, IS_DEVELOP_MODE: ' +

@@ -35,6 +35,9 @@ export const REMOTE_SCRIPT_ETAG_KEY = 'vws_remote_script_etag'
 /** Prefix for runtime state keys cleared on "Reset Runtime State" */
 export const RUNTIME_STATE_KEY_PREFIX = 'vws_'
 
+/** GM_setValue key: project version (package.json) reported when preset last executed */
+export const PRESET_PROJECT_VERSION_KEY = 'vws_preset_project_version'
+
 /** Ring buffer key on globalThis (must match preset log-store) */
 export const BOOT_LOG_KEY = '__VWS_BOOT_LOG__'
 export const BOOT_LOG_MAX = 200

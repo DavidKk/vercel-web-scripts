@@ -4,6 +4,10 @@ import { buildVersionedStaticModuleUrl } from '@/services/runtime/contentAddress
 import { getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
 import { buildRemoteScriptBundleFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
 
+import pkg from '../../package.json'
+
+const defaultProjectVersion = (pkg as { version?: string }).version ?? '0.0.0'
+
 /**
  * Supported hash algorithms for module integrity checks.
  */
@@ -49,6 +53,8 @@ export interface RuntimeModuleDefinition {
 export interface RuntimeModuleManifest {
   manifestVersion: 1
   generatedAt: number
+  /** Semver baked into preset at build time; surfaced for popup / diagnostics */
+  projectVersion: string
   modules: RuntimeModuleDefinition[]
 }
 
@@ -116,9 +122,12 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
     },
   ]
 
+  const projectVersion = presetManifest?.projectVersion?.trim() || defaultProjectVersion
+
   return {
     manifestVersion: 1,
     generatedAt: Date.now(),
+    projectVersion,
     modules,
   }
 }
@@ -132,6 +141,7 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
 export function buildRuntimeModuleManifestEtag(manifest: RuntimeModuleManifest): string {
   const stable = {
     manifestVersion: manifest.manifestVersion,
+    projectVersion: manifest.projectVersion,
     modules: manifest.modules,
   }
   return createHash('sha1').update(JSON.stringify(stable), 'utf8').digest('hex')

@@ -36,6 +36,8 @@ let presetUiBundleCache: { mtimeMs: number; content: string } | null = null
 export interface PresetManifest {
   file: string
   hash: string
+  /** Semver from root package.json at preset build time */
+  projectVersion?: string
 }
 
 /**

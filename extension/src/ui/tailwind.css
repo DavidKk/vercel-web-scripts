@@ -2048,6 +2048,18 @@
     @apply flex items-center justify-between gap-2 border-t border-mm-border-light bg-mm-surface px-3 py-2;
   }
 
+  .mm-popup-footer {
+    @apply justify-center px-2.5 py-0.5;
+  }
+
+  .mm-popup-footer-version {
+    @apply flex w-full items-center justify-center gap-0.5 font-mono text-[10px] leading-none tabular-nums text-mm-text-muted;
+  }
+
+  .mm-popup-footer-update {
+    @apply cursor-pointer border-0 bg-transparent p-0 font-mono text-[10px] leading-none text-mm-accent hover:underline;
+  }
+
   .mm-badge {
     @apply shrink-0 rounded-sm bg-mm-muted px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-mm-text-muted ring-1 ring-mm-border-light;
   }

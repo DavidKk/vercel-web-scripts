@@ -14,6 +14,7 @@ import {
   PRESET_CACHE_KEY,
   PRESET_ETAG_KEY,
   PRESET_PREVIOUS_HASH_KEY,
+  PRESET_PROJECT_VERSION_KEY,
   PRESET_UPDATE_CHANNEL_KEY,
   PRESET_UPDATED_NOTIFY_KEY,
   REMOTE_SCRIPT_CACHE_KEY,
@@ -45,6 +46,7 @@ interface ManifestModule {
 
 interface ModuleManifest {
   modules?: ManifestModule[]
+  projectVersion?: string
 }
 
 /**
@@ -291,6 +293,14 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     }
   }
 
+  function persistProjectVersionFromManifest(data: ModuleManifest | null | undefined): void {
+    const version = data?.projectVersion
+    if (typeof version !== 'string' || !version.trim()) {
+      return
+    }
+    writeScopedAndLegacy(`${PRESET_PROJECT_VERSION_KEY}:${cacheScope}`, PRESET_PROJECT_VERSION_KEY, version.trim())
+  }
+
   function applyScriptBundleUrlFromManifest(data: ModuleManifest | null, manifestNotModified: boolean): void {
     if (manifestNotModified) {
       const cachedUrl = readScopedValue(scopedScriptBundleUrlKey, SCRIPT_BUNDLE_URL_KEY, '') as string
@@ -440,6 +450,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
           let presetMod: ManifestModule | null = null
           if (!mres.notModified && mres.data) {
             applyScriptBundleUrlFromManifest(mres.data, false)
+            persistProjectVersionFromManifest(mres.data)
             presetMod = extractPresetCoreModule(mres.data)
             expectedHash = hashFromPresetCoreModule(presetMod)
             if (mres.etag) pendingManifestEtag = mres.etag
@@ -473,6 +484,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
         }
         if (mres.etag) pendingManifestEtag = mres.etag
         applyScriptBundleUrlFromManifest(mres.data, false)
+        persistProjectVersionFromManifest(mres.data)
         const presetMod = extractPresetCoreModule(mres.data)
         const presetFetchUrl = presetMod?.url ?? presetUrl
         const remoteHash = hashFromPresetCoreModule(presetMod)

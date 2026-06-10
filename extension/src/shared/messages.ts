@@ -77,6 +77,14 @@ export interface ShellStatus {
   triggeredCountOnActiveTab: number
   activeTabUrl: string
   extensionVersion: string
+  /** True when server reports a newer extension semver than installed. */
+  extensionUpdateAvailable: boolean
+  /** Latest extension semver from server when check succeeded. */
+  latestExtensionVersion: string | null
+  /** Absolute ZIP download URL when server check succeeded. */
+  extensionDownloadUrl: string | null
+  /** Project version last reported by preset on an http(s) tab; null before first page load. */
+  presetVersion: string | null
 }
 
 export type ShellResponse =

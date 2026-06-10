@@ -14,6 +14,7 @@ export { countServiceRefs, getEnabledScriptKeys, isValidScriptKeyFormat, resolve
 export * from './constants'
 export * from './extension-rules'
 export { applyExtensionServiceConfig, isSameExtensionService, loadExtensionConfig, resolveEditorServiceConfig } from './legacy-config'
+export * from './preset-project-version'
 export * from './runtime-cache'
 export * from './script-enabled'
 export * from './script-list-cache'
