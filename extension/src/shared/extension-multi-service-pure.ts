@@ -96,6 +96,11 @@ export function buildScriptKeyBootstrapEntriesFromState(
     for (const file of list.files) {
       enabledScripts[file] = list.enabledByFile[file] !== false
     }
+    for (const [file, enabled] of Object.entries(list.enabledByFile)) {
+      if (!(file in enabledScripts)) {
+        enabledScripts[file] = enabled !== false
+      }
+    }
     entries.push({
       scriptKey: normalized,
       baseUrl: endpoint.baseUrl,

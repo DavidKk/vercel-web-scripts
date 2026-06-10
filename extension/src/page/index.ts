@@ -9,6 +9,7 @@ import type { PageBootstrapConfig, ScriptKeyBootstrapEntry } from '@ext/types'
 import { buildLauncherUrls } from './config'
 import { installGmApiOnPage } from './gm-bridge'
 import { startLauncher } from './launcher-runtime'
+import { mergeScriptKeyEnabledScripts } from './merge-enabled-scripts'
 
 function loadBootstrapData(): void {
   if (window.__VWS_PAGE_CONFIG__) {
@@ -58,7 +59,7 @@ function resolveBootstrapEntries(config: PageBootstrapConfig): ScriptKeyBootstra
   return []
 }
 
-function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<typeof installGmApiOnPage>): void {
+function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<typeof installGmApiOnPage>, mergedEnabledScripts: Record<string, boolean>): void {
   const shortKey = entry.scriptKey.length > 8 ? `${entry.scriptKey.slice(0, 8)}…` : entry.scriptKey
   const urls = buildLauncherUrls({
     baseUrl: entry.baseUrl,
@@ -68,7 +69,7 @@ function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<ty
   startLauncher(urls, gm, {
     scriptKey: entry.scriptKey,
     gmScope: entry.gmScope,
-    enabledScripts: entry.enabledScripts,
+    enabledScripts: { ...entry.enabledScripts, ...mergedEnabledScripts },
     logPrefix: `[ModuleLoad][${shortKey}]`,
   })
 }
@@ -88,6 +89,7 @@ function main(): void {
   const started = window.__VWS_STARTED_SCRIPT_KEYS__
 
   const gm = installGmApiOnPage()
+  const mergedEnabledScripts = mergeScriptKeyEnabledScripts(entries)
 
   for (const entry of entries) {
     if (started.includes(entry.scriptKey)) {
@@ -97,7 +99,7 @@ function main(): void {
     started.push(entry.scriptKey)
 
     try {
-      startLauncherForEntry(entry, gm)
+      startLauncherForEntry(entry, gm, mergedEnabledScripts)
     } catch (error) {
       extensionLogger.error(`Failed to start launcher for scriptKey ${entry.scriptKey}:`, error)
     }

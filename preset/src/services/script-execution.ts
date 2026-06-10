@@ -4,6 +4,7 @@
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
 import { buildGrantsFromGlobal, executeWithGlobal } from '@shared/csp-script-executor'
+import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
 
 import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@/constants'
 import { GME_fetch } from '@/helpers/http'
@@ -85,6 +86,12 @@ export function executeScript(content: string): void {
     string,
     unknown
   >
+  const enabledScripts = readExtensionEnabledScripts(g)
+  const skippedModules = listDisabledRemoteModules(content, enabledScripts)
+  const executableContent = filterDisabledRemoteModules(content, enabledScripts)
+  if (skippedModules.length > 0) {
+    GME_debug(`[Remote script] skip:disabled ${skippedModules.join(', ')}`)
+  }
   const grants = buildGrantsFromGlobal(g, String(typeof __GRANTS_STRING__ !== 'undefined' ? __GRANTS_STRING__ : ''))
   const prev = g.__IS_REMOTE_EXECUTE__
   const prevCreateGMELogger = g.createGMELogger
@@ -94,7 +101,7 @@ export function executeScript(content: string): void {
     if (typeof scriptCreateGMELogger === 'function') {
       g.createGMELogger = scriptCreateGMELogger
     }
-    executeWithGlobal(g, content)
+    executeWithGlobal(g, executableContent)
   } finally {
     g.__IS_REMOTE_EXECUTE__ = prev
     if (prevCreateGMELogger === undefined) {

@@ -4,7 +4,12 @@ import type { ExtensionConfig, PageBootstrapConfig } from '../../types'
 import { buildScriptKeyBootstrapEntriesFromState, scriptKeyListCacheStorageKey } from '../extension-multi-service-pure'
 import { getEnabledScriptKeys, normalizeScriptKey, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
 import { SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY } from './constants'
-import { fallbackScriptListFromEnabledKeys, fallbackScriptListFromEnabledKeysForScriptKey, loadScriptEnabledMapForScriptKey } from './script-enabled'
+import {
+  fallbackScriptListFromEnabledKeys,
+  fallbackScriptListFromEnabledKeysForScriptKey,
+  loadScriptEnabledMapForScriptKey,
+  scriptNamesFromEnabledStorageKeysForScriptKey,
+} from './script-enabled'
 import { ensureExtensionServicesState, loadScriptKeyGroupMeta, serviceProfileToExtensionConfig } from './services-state'
 import type { ManagedScriptListEntry, ScriptKeyScriptsGroupView, ScriptListCache } from './types'
 
@@ -273,16 +278,16 @@ export async function buildPageBootstrapConfig(extensionVersion: string): Promis
   }
 
   const listsByScriptKey: Record<string, { files: string[]; enabledByFile: Record<string, boolean> }> = {}
+  const allStorageKeys = Object.keys(await chrome.storage.local.get(null))
   for (const scriptKey of enabledKeys) {
     const normalized = normalizeScriptKey(scriptKey)
     const scripts = await loadManagedScriptListFromCacheForScriptKey(normalized)
-    const enabledMap = await loadScriptEnabledMapForScriptKey(
-      normalized,
-      scripts.map((row) => row.file)
-    )
+    const storageToggledFiles = scriptNamesFromEnabledStorageKeysForScriptKey(normalized, allStorageKeys)
+    const filesForEnabledRead = [...new Set([...scripts.map((row) => row.file), ...storageToggledFiles])]
+    const enabledMap = await loadScriptEnabledMapForScriptKey(normalized, filesForEnabledRead)
     const enabledByFile: Record<string, boolean> = {}
-    for (const row of scripts) {
-      enabledByFile[row.file] = enabledMap.get(row.file) !== false
+    for (const file of filesForEnabledRead) {
+      enabledByFile[file] = enabledMap.get(file) !== false
     }
     listsByScriptKey[normalized] = { files: scripts.map((row) => row.file), enabledByFile }
   }

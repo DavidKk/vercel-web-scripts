@@ -4,6 +4,7 @@ import * as prettier from 'prettier'
 import * as ts from 'typescript'
 
 import { EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { buildExtensionScriptEnabledGuard } from '@/shared/extension-script-enabled-guard'
 import { formatScriptExecutingFailureLog, formatScriptExecutingLog } from '@/shared/script-trigger-log'
 
 import { createBanner } from './createBanner'
@@ -244,7 +245,7 @@ function getExecutionWrapper(runAt: string, moduleName: string, match: string[],
   const builtAtDisplay = scriptBuiltAt > 0 && Number.isFinite(scriptBuiltAt) ? new Date(scriptBuiltAt).toLocaleString() : 'unknown'
   // Shell: preset GME_ok for "Executing script …". Body: enterScriptLogScope so bare GME_* → emitScriptLog.
   const scriptContent = `
-        try {
+        try {${buildExtensionScriptEnabledGuard(file)}
           if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule(${JSON.stringify(file)})) {
             GME_ok(${JSON.stringify(formatScriptExecutingLog(file, builtAtDisplay))});
             enterScriptLogScope(${JSON.stringify(moduleName)})
