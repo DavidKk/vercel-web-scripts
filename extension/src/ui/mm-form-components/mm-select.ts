@@ -1,6 +1,12 @@
+import { bindDropdownViewportResize, fitDropdownScrollerToViewport, resetDropdownScrollerViewportFit } from './dropdown-viewport-fit'
+import { ensureMenuScrollIndicator } from './scroll-indicator'
 import { markReady, selectBound } from './state'
 
 export class MmSelect extends HTMLElement {
+  private refreshScrollIndicator: (() => void) | undefined
+  private releaseViewportResize: (() => void) | undefined
+  private menuScroller: HTMLElement | null = null
+  private menuRoot: HTMLElement | null = null
   connectedCallback(): void {
     markReady(this, 'mm-select-component')
     this.querySelector('select')?.classList.add('mm-native-select')
@@ -23,6 +29,17 @@ export class MmSelect extends HTMLElement {
     const setOpen = (open: boolean): void => {
       this.toggleAttribute('open', open)
       trigger.setAttribute('aria-expanded', String(open))
+      if (open) {
+        this.releaseViewportResize = bindDropdownViewportResize(() => this.applyViewportFit())
+        this.applyViewportFit()
+      } else {
+        this.releaseViewportResize?.()
+        this.releaseViewportResize = undefined
+        if (this.menuScroller) {
+          resetDropdownScrollerViewportFit(this.menuScroller)
+        }
+        this.refreshScrollIndicator?.()
+      }
     }
 
     const getOptions = (): HTMLElement[] => [...this.querySelectorAll<HTMLElement>('.mm-select-menu [data-value]')]
@@ -47,7 +64,15 @@ export class MmSelect extends HTMLElement {
       }
     }
 
-    const menu = this.querySelector('.mm-select-menu')
+    const menu = this.querySelector('.mm-select-menu') as HTMLElement | null
+    if (menu) {
+      this.menuRoot = menu
+      const bound = ensureMenuScrollIndicator(menu)
+      if (bound) {
+        this.menuScroller = bound.scroller
+        this.refreshScrollIndicator = bound.refresh
+      }
+    }
 
     trigger.addEventListener('click', () => {
       setOpen(!this.hasAttribute('open'))
@@ -107,5 +132,17 @@ export class MmSelect extends HTMLElement {
       }
     })
     syncSelected()
+  }
+
+  private applyViewportFit(): void {
+    if (!this.menuRoot || !this.menuScroller) {
+      return
+    }
+    fitDropdownScrollerToViewport({
+      menu: this.menuRoot,
+      scroller: this.menuScroller,
+      optionSelector: '.mm-select-option, [data-value]',
+    })
+    this.refreshScrollIndicator?.()
   }
 }

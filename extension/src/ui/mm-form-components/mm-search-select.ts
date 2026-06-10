@@ -1,7 +1,11 @@
+import { bindDropdownViewportResize, fitDropdownScrollerToViewport, resetDropdownScrollerViewportFit } from './dropdown-viewport-fit'
+import { bindScrollIndicator } from './scroll-indicator'
 import { markReady, searchSelectBound } from './state'
 
 export class MmSearchSelect extends HTMLElement {
   private options: Array<{ value: string; label: string }> = []
+  private refreshScrollIndicator: (() => void) | undefined
+  private releaseViewportResize: (() => void) | undefined
 
   connectedCallback(): void {
     markReady(this, 'mm-search-select-component')
@@ -18,7 +22,12 @@ export class MmSearchSelect extends HTMLElement {
           <div class="mm-search-select-search-wrap">
             <input data-ref="search" class="mm-search-select-search" type="search" placeholder="${this.getAttribute('search-placeholder') ?? 'Search...'}" autocomplete="off" spellcheck="false" />
           </div>
-          <div class="mm-search-select-options" data-ref="options"></div>
+          <div class="mm-scroll-indicator-shell mm-search-select-options-shell">
+            <div class="mm-scroll-indicator-scroller mm-search-select-options" data-ref="options"></div>
+            <div class="mm-scroll-indicator-track" aria-hidden="true">
+              <span class="mm-scroll-indicator-thumb"></span>
+            </div>
+          </div>
         </div>
       `
     }
@@ -26,6 +35,10 @@ export class MmSearchSelect extends HTMLElement {
       return
     }
     searchSelectBound.add(this)
+    const scroller = this.querySelector('[data-ref="options"]') as HTMLElement | null
+    if (scroller) {
+      this.refreshScrollIndicator = bindScrollIndicator(scroller)
+    }
     this.bindSearchSelect()
   }
 
@@ -60,6 +73,15 @@ export class MmSearchSelect extends HTMLElement {
         search.value = ''
         this.renderOptions('')
         search.focus()
+        this.releaseViewportResize = bindDropdownViewportResize(() => this.applyViewportFit())
+        this.applyViewportFit()
+      } else {
+        this.releaseViewportResize?.()
+        this.releaseViewportResize = undefined
+        const scroller = this.querySelector('[data-ref="options"]') as HTMLElement | null
+        if (scroller) {
+          resetDropdownScrollerViewportFit(scroller)
+        }
       }
     }
     trigger.addEventListener('click', () => setOpen(!this.hasAttribute('open')))
@@ -77,6 +99,20 @@ export class MmSearchSelect extends HTMLElement {
       }
     })
     this.renderOptions()
+  }
+
+  private applyViewportFit(): void {
+    const menu = this.querySelector('[data-ref="menu"]') as HTMLElement | null
+    const scroller = this.querySelector('[data-ref="options"]') as HTMLElement | null
+    if (!menu || !scroller) {
+      return
+    }
+    fitDropdownScrollerToViewport({
+      menu,
+      scroller,
+      optionSelector: '.mm-search-select-option',
+    })
+    this.refreshScrollIndicator?.()
   }
 
   private syncLabel(): void {
@@ -97,6 +133,8 @@ export class MmSearchSelect extends HTMLElement {
       empty.textContent = q ? 'No data (search)' : 'No data'
       list.replaceChildren(empty)
       this.syncLabel()
+      resetDropdownScrollerViewportFit(list)
+      this.refreshScrollIndicator?.()
       return
     }
     list.replaceChildren(
@@ -119,5 +157,10 @@ export class MmSearchSelect extends HTMLElement {
       })
     )
     this.syncLabel()
+    if (this.hasAttribute('open')) {
+      this.applyViewportFit()
+    } else {
+      this.refreshScrollIndicator?.()
+    }
   }
 }

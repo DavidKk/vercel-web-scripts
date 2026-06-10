@@ -1824,6 +1824,14 @@
     @apply pointer-events-none absolute right-0 top-[calc(100%+0.25rem)] z-30 grid w-max min-w-full translate-y-1 gap-1 rounded border border-mm-border-light bg-mm-surface p-1 opacity-0 shadow-mm-sm transition;
   }
 
+  .mm-select-menu:has(.mm-scroll-indicator-shell) {
+    @apply block;
+  }
+
+  .mm-select-menu-scroll {
+    @apply grid gap-1 overflow-x-hidden overflow-y-auto;
+  }
+
   .mm-select-component[open] .mm-select-menu,
   mm-select[open] .mm-select-menu {
     @apply pointer-events-auto translate-y-0 opacity-100;
@@ -1864,7 +1872,7 @@
   }
 
   .mm-search-select-menu {
-    @apply pointer-events-none absolute inset-x-0 top-[calc(100%+0.25rem)] z-40 grid w-full min-w-0 max-w-full translate-y-1 gap-1 overflow-hidden rounded border border-mm-border bg-mm-surface p-1 opacity-0 shadow-mm-sm transition;
+    @apply pointer-events-none absolute inset-x-0 top-[calc(100%+0.25rem)] z-40 grid w-full min-w-0 max-w-full translate-y-1 gap-0.5 overflow-hidden rounded border border-mm-border bg-mm-surface p-1 opacity-0 shadow-mm-sm transition;
   }
 
   .mm-search-select-component[open] .mm-search-select-menu {
@@ -1872,7 +1880,7 @@
   }
 
   .mm-search-select-search-wrap {
-    @apply min-w-0 px-1 pb-1;
+    @apply min-w-0 px-1 pb-0;
   }
 
   .mm-search-select-search {
@@ -1892,8 +1900,38 @@
     @apply block min-w-0 flex-1 truncate text-left;
   }
 
+  .mm-search-select-options-shell {
+    @apply border-t border-mm-border-light pt-0.5;
+  }
+
   .mm-search-select-options {
-    @apply max-h-56 min-w-0 overflow-x-hidden overflow-y-auto border-t border-mm-border-light pt-1;
+    @apply min-w-0 overflow-x-hidden overflow-y-auto;
+  }
+
+  .mm-scroll-indicator-shell {
+    @apply relative min-h-0 min-w-0;
+  }
+
+  .mm-scroll-indicator-scroller {
+    scrollbar-width: none;
+  }
+
+  .mm-scroll-indicator-scroller::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .mm-scroll-indicator-track {
+    @apply pointer-events-none absolute bottom-1 right-0 top-1 w-px overflow-hidden bg-mm-border-light/50;
+  }
+
+  .mm-scroll-indicator-thumb {
+    @apply absolute left-0 top-0 block w-full bg-mm-secondary/40;
+    transition:
+      height 120ms ease,
+      transform 80ms linear,
+      opacity 160ms ease;
   }
 
   .mm-search-select-empty {
@@ -2058,6 +2096,17 @@
 
   .mm-popup-footer-update {
     @apply cursor-pointer border-0 bg-transparent p-0 font-mono text-[10px] leading-none text-mm-accent hover:underline;
+  }
+
+  /* Quick add local rule — match main popup row / settings typography (13px). */
+  .mm-popup-rules-view mm-input > input,
+  .mm-popup-rules-view .mm-select-trigger,
+  .mm-popup-rules-view .mm-search-select-trigger {
+    @apply h-8 text-[13px] leading-none;
+  }
+
+  .mm-popup-rules-view .mm-primary-btn {
+    @apply py-2 text-[13px] font-semibold leading-none;
   }
 
   .mm-badge {
