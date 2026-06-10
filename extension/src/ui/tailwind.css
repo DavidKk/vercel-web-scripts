@@ -143,6 +143,11 @@
     @apply relative bg-mm-canvas font-sans text-sm text-mm-ink antialiased;
   }
 
+  .mm-popup-shell {
+    /* Anchor for .mm-popup-toast (absolute bottom-0). */
+    @apply relative;
+  }
+
   .mm-page {
     @apply flex min-h-screen w-full flex-col bg-mm-canvas;
   }
@@ -1611,9 +1616,19 @@
     @apply mb-4 min-h-[12rem] flex-1;
   }
 
-  /* Overlay toast — does not affect popup document height (Chrome popup won't shrink after grow). */
+  /*
+   * Popup toast overlay — does not affect document height (Chrome popup won't shrink after grow).
+   *
+   * - .mm-popup-toast: absolute inset-x-0 bottom-0 on mm-shell — NOT position:fixed (extension popup bug).
+   * - Hidden via opacity only; never height:0 / padding-bottom on shell (causes scroll / layout shift).
+   * - Briefly overlays footer when visible; footer stays in main-view document flow.
+   */
   .mm-toast {
-    @apply pointer-events-none absolute inset-x-0 bottom-0 z-10 border-t px-3 py-2 text-xs opacity-0 shadow-mm transition-opacity duration-200;
+    @apply pointer-events-none m-0 border-t px-3 py-2 text-xs opacity-0 shadow-mm transition-opacity duration-200;
+  }
+
+  .mm-popup-toast {
+    @apply absolute inset-x-0 bottom-0 z-50 box-border text-center leading-snug;
   }
 
   .mm-toast-visible {
@@ -1732,6 +1747,19 @@
 
   .mm-icon-btn {
     @apply flex h-8 w-8 shrink-0 items-center justify-center rounded text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary;
+  }
+
+  .mm-icon-slot-danger svg {
+    @apply text-mm-danger;
+  }
+
+  .mm-shell-disable-menu {
+    @apply absolute right-0 top-full z-20 mt-1 min-w-[9.5rem] overflow-hidden rounded-lg bg-mm-surface py-1 shadow-mm-sm;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  .mm-shell-disable-menu-item {
+    @apply block w-full px-3 py-2 text-left text-[13px] text-mm-secondary transition hover:bg-mm-accent-soft/60;
   }
 
   .mm-field {

@@ -18,7 +18,7 @@ import type { ExtensionConfig } from '../../types'
 import { CONFIG_STORAGE_KEY, SERVICES_STORAGE_KEY } from '../../types'
 import { SCRIPT_ENABLED_PREFIX, SCRIPTKEY_RULES_PREFIX } from '../extension-multi-service-pure'
 import { getEnabledScriptKeys, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
-import { GM_STORAGE_PREFIX, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY } from './constants'
+import { GM_STORAGE_PREFIX, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY, SHELL_MASTER_ENABLED_STORAGE_KEY } from './constants'
 import { ensureExtensionServicesState, serviceProfileToExtensionConfig } from './services-state'
 
 export function gmStorageKey(key: string): string {
@@ -115,9 +115,10 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
   const all = await chrome.storage.local.get(null)
   const network = all[gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]
   const legacy = all[gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]
+  const shellMasterEnabled = all[SHELL_MASTER_ENABLED_STORAGE_KEY]
   const toRemove: string[] = []
   for (const key of Object.keys(all)) {
-    if (key === CONFIG_STORAGE_KEY || key === SERVICES_STORAGE_KEY) {
+    if (key === CONFIG_STORAGE_KEY || key === SERVICES_STORAGE_KEY || key === SHELL_MASTER_ENABLED_STORAGE_KEY) {
       continue
     }
     if (key.startsWith(SCRIPTKEY_RULES_PREFIX) || key.startsWith(SCRIPT_ENABLED_PREFIX)) {
@@ -133,6 +134,9 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
   await chrome.storage.local.set({
     [gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]: network === true || network === false ? network : true,
   })
+  if (shellMasterEnabled === true || shellMasterEnabled === false) {
+    await chrome.storage.local.set({ [SHELL_MASTER_ENABLED_STORAGE_KEY]: shellMasterEnabled })
+  }
   if (legacy === true || legacy === false) {
     await chrome.storage.local.set({ [gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]: legacy })
   }
@@ -159,6 +163,7 @@ export async function clearExtensionCachesForServiceSwitch(previousConfig?: Exte
   const all = await chrome.storage.local.get(null)
   const network = all[gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]
   const legacy = all[gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]
+  const shellMasterEnabled = all[SHELL_MASTER_ENABLED_STORAGE_KEY]
 
   if (previousConfig?.baseUrl.trim() && previousConfig.scriptKey.trim()) {
     await clearRuntimeModuleCache(previousConfig)
@@ -167,7 +172,7 @@ export async function clearExtensionCachesForServiceSwitch(previousConfig?: Exte
 
   const toRemove: string[] = [SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY]
   for (const key of Object.keys(all)) {
-    if (key === CONFIG_STORAGE_KEY || key === SERVICES_STORAGE_KEY) {
+    if (key === CONFIG_STORAGE_KEY || key === SERVICES_STORAGE_KEY || key === SHELL_MASTER_ENABLED_STORAGE_KEY) {
       continue
     }
     if (key.startsWith(SCRIPTKEY_RULES_PREFIX) || key.startsWith(SCRIPT_ENABLED_PREFIX) || key.startsWith(GM_STORAGE_PREFIX)) {
@@ -185,6 +190,9 @@ export async function clearExtensionCachesForServiceSwitch(previousConfig?: Exte
   await chrome.storage.local.set({
     [gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]: network === true || network === false ? network : true,
   })
+  if (shellMasterEnabled === true || shellMasterEnabled === false) {
+    await chrome.storage.local.set({ [SHELL_MASTER_ENABLED_STORAGE_KEY]: shellMasterEnabled })
+  }
   if (legacy === true || legacy === false) {
     await chrome.storage.local.set({ [gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]: legacy })
   }

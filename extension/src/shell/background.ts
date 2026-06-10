@@ -3,21 +3,29 @@ import {
   addScriptKeyRule,
   clearRuntimeModuleCachesForEnabledScriptKeys,
   countEnabledScriptsForEnabledScriptKeys,
+  disableShellForTab,
+  disableShellGlobally,
+  enableShellMaster,
   ensureExtensionServicesState,
   getEnabledScriptKeys,
+  getShellGloballyEnabled,
   getShellLogOutputMode,
   getShellNetworkEnabled,
   gmStorageKey,
+  isShellEnabledForTab,
   loadExtensionConfig,
   loadGmScopeForScriptKey,
   loadLocalRulesForEnabledScriptKeys,
   loadQuickAddRuleContext,
   removeScriptKeyRule,
+  removeShellDisabledTabId,
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
   resolvePresetProjectVersion,
   setShellLogOutputMode,
   setShellNetworkEnabled,
+  SHELL_DISABLED_TAB_IDS_STORAGE_KEY,
+  SHELL_MASTER_ENABLED_STORAGE_KEY,
   syncRulesForEnabledScriptKeys,
   syncRulesFromServer,
   upsertService,
@@ -120,7 +128,7 @@ async function handleWebConnect(details: Extract<ShellMessage, { type: 'WEB_CONN
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   return tabs[0]
 }
 
@@ -142,6 +150,18 @@ async function reloadTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
   await chrome.tabs.reload(tab.id)
 }
 
+async function reloadAllReloadableTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({})
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (tab.id == null || !isReloadableTabUrl(tab.url)) {
+        return
+      }
+      await chrome.tabs.reload(tab.id)
+    })
+  )
+}
+
 async function buildStatus(): Promise<ShellStatus> {
   const [config, servicesState, tab, networkEnabled, logOutputMode, scriptTotals] = await Promise.all([
     loadExtensionConfig(),
@@ -158,6 +178,8 @@ async function buildStatus(): Promise<ShellStatus> {
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
   const configured = scriptTotals.serverCount > 0
   const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
+  const shellGloballyEnabled = await getShellGloballyEnabled()
+  const shellEnabledOnActiveTab = tab?.id != null ? await isShellEnabledForTab(tab.id) : shellGloballyEnabled
   const manifest = chrome.runtime.getManifest()
   const extensionVersion = manifest.version ?? '0.0.0'
   let extensionUpdateAvailable = false
@@ -185,6 +207,8 @@ async function buildStatus(): Promise<ShellStatus> {
     latestExtensionVersion,
     extensionDownloadUrl,
     presetVersion,
+    shellEnabledOnActiveTab,
+    shellGloballyEnabled,
   }
 }
 
@@ -192,6 +216,12 @@ async function buildStatus(): Promise<ShellStatus> {
 const BADGE_BACKGROUND = '#3b82f6'
 const BADGE_BACKGROUND_ERROR = '#dc2626'
 const BADGE_TEXT_RGBA: [number, number, number, number] = [255, 255, 255, 255]
+/** Non-empty badge text so Chrome shows a red pill when the master switch is off. */
+const BADGE_SHELL_DISABLED_TEXT = '!'
+
+function isHttpTabUrl(url: string | undefined): boolean {
+  return Boolean(url?.startsWith('http://') || url?.startsWith('https://'))
+}
 
 type BadgeTarget = { tabId: number } | Record<string, never>
 
@@ -203,10 +233,16 @@ async function applyBadgeColors(target: BadgeTarget, hasError = false): Promise<
 
 async function updateBadgeForTab(tabId: number, url?: string): Promise<void> {
   const target: BadgeTarget = { tabId }
-  if (!url) {
+  if (!isHttpTabUrl(url)) {
     clearTabTriggerState(tabId)
     await chrome.action.setBadgeText({ tabId, text: '' })
     await applyBadgeColors(target)
+    return
+  }
+  if (!(await isShellEnabledForTab(tabId))) {
+    await chrome.action.setBadgeBackgroundColor({ tabId, color: BADGE_BACKGROUND_ERROR })
+    await chrome.action.setBadgeText({ tabId, text: BADGE_SHELL_DISABLED_TEXT })
+    await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_RGBA })
     return
   }
   const n = getTabTriggerCount(tabId)
@@ -246,17 +282,24 @@ initBadgeNavigationListeners(updateBadgeForTab)
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   clearTabTriggerState(tabId)
+  void removeShellDisabledTabId(tabId)
 })
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local') {
+  if (area === 'local') {
+    if (changes[SHELL_MASTER_ENABLED_STORAGE_KEY]) {
+      void refreshAllBadges()
+    }
+    if (changes[gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]) {
+      void refreshShellLogOutputModeCache()
+    }
+    if (shouldInvalidateTabMatchCache(changes)) {
+      void invalidateTabMatchCache()
+    }
     return
   }
-  if (changes[gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]) {
-    void refreshShellLogOutputModeCache()
-  }
-  if (shouldInvalidateTabMatchCache(changes)) {
-    void invalidateTabMatchCache()
+  if (area === 'session' && changes[SHELL_DISABLED_TAB_IDS_STORAGE_KEY]) {
+    void refreshAllBadges()
   }
 })
 
@@ -276,12 +319,58 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           sendResponse({ ok: true, status: await buildStatus() } satisfies ShellResponse)
           return
         }
+        case 'GET_SHELL_ENABLED_FOR_SENDER': {
+          const tabId = _sender?.tab?.id
+          if (tabId == null) {
+            sendResponse({ ok: true, shellEnabled: await getShellGloballyEnabled() } satisfies ShellResponse)
+            return
+          }
+          sendResponse({ ok: true, shellEnabled: await isShellEnabledForTab(tabId) } satisfies ShellResponse)
+          return
+        }
         case 'SET_NETWORK': {
           const previous = await getShellNetworkEnabled()
           await setShellNetworkEnabled(message.enabled)
           const next = await getShellNetworkEnabled()
           extensionLogger.debug(`[Shell network] toggle requested=${message.enabled} previous=${previous} next=${next}`)
           sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'SET_SHELL_ENABLED': {
+          const tab = await getActiveTab()
+          if (message.enabled) {
+            const wasGlobalOff = !(await getShellGloballyEnabled())
+            await enableShellMaster(tab?.id, {
+              clearAllTabDisables: wasGlobalOff || tab?.id == null,
+            })
+            if (wasGlobalOff) {
+              await reloadAllReloadableTabs()
+            } else {
+              await reloadTab(tab)
+            }
+            await refreshAllBadges()
+            sendResponse({ ok: true, message: 'Extension enabled.' } satisfies ShellResponse)
+            return
+          }
+          if (message.scope === 'global') {
+            await disableShellGlobally()
+            await reloadAllReloadableTabs()
+            await refreshAllBadges()
+            sendResponse({ ok: true, message: 'Extension disabled on all tabs.' } satisfies ShellResponse)
+            return
+          }
+          if (message.scope === 'tab') {
+            if (tab?.id == null) {
+              sendResponse({ ok: false, error: 'No active tab.' } satisfies ShellResponse)
+              return
+            }
+            await disableShellForTab(tab.id)
+            await reloadTab(tab)
+            await refreshAllBadges()
+            sendResponse({ ok: true, message: 'Extension disabled on this tab.' } satisfies ShellResponse)
+            return
+          }
+          sendResponse({ ok: false, error: 'Choose this tab or all tabs to disable.' } satisfies ShellResponse)
           return
         }
         case 'SET_LOG_OUTPUT_MODE': {

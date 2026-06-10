@@ -1,4 +1,5 @@
 import { buildPageBootstrapConfig } from '../shared/extension-storage'
+import type { ShellResponse } from '../shared/messages'
 import { GM_STORAGE_PREFIX } from './constants'
 import { getExtensionVersion, getRuntimeId, isExtensionContextInvalidated } from './extension-context'
 import { loadGmStore, postStorageChanged } from './gm-storage-bridge'
@@ -6,6 +7,19 @@ import { injectPageLauncherWhenReady } from './page-injector'
 
 function isHttpPageUrl(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://')
+}
+
+async function isCurrentTabShellEnabled(): Promise<boolean> {
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: 'GET_SHELL_ENABLED_FOR_SENDER' })) as ShellResponse
+    if (!res.ok || !('shellEnabled' in res)) {
+      return true
+    }
+    return res.shellEnabled !== false
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+    return true
+  }
 }
 
 function installGmStorageChangeListener(): void {
@@ -30,6 +44,10 @@ export async function bootstrapPageBridge(): Promise<void> {
   }
   const url = typeof location !== 'undefined' ? location.href : ''
   if (!isHttpPageUrl(url)) {
+    return
+  }
+
+  if (!(await isCurrentTabShellEnabled())) {
     return
   }
 

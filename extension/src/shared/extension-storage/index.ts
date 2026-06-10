@@ -29,4 +29,6 @@ export {
   saveExtensionServicesState,
   serviceProfileToExtensionConfig,
 } from './services-state'
+export * from './shell-master-switch'
+export * from './shell-master-switch-pure'
 export * from './types'

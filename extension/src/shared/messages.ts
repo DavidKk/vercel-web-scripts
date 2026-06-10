@@ -41,6 +41,8 @@ export interface QuickAddRuleContextItem {
 export type ShellMessage =
   | { type: 'GET_STATUS' }
   | { type: 'SET_NETWORK'; enabled: boolean }
+  | { type: 'SET_SHELL_ENABLED'; enabled: boolean; scope?: 'tab' | 'global' }
+  | { type: 'GET_SHELL_ENABLED_FOR_SENDER' }
   | { type: 'SET_LOG_OUTPUT_MODE'; mode: ShellLogOutputMode }
   | { type: 'UPDATE_RUNTIME' }
   | { type: 'RESET_RUNTIME' }
@@ -85,6 +87,10 @@ export interface ShellStatus {
   extensionDownloadUrl: string | null
   /** Project version last reported by preset on an http(s) tab; null before first page load. */
   presetVersion: string | null
+  /** False when master switch is off globally or for the active tab. */
+  shellEnabledOnActiveTab: boolean
+  /** False when master switch is off for all tabs. */
+  shellGloballyEnabled: boolean
 }
 
 export type ShellResponse =
@@ -105,6 +111,7 @@ export type ShellResponse =
     }
   | { ok: true; xhr: BridgeXhrResponse }
   | { ok: true; quickAddRuleContext?: { activeTabUrl: string; items: QuickAddRuleContextItem[] } }
+  | { ok: true; shellEnabled?: boolean }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

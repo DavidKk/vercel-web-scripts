@@ -3,17 +3,28 @@
 <%- include('../partials/document-head', { title: 'MagickMonkey' }) %>
   <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
     <mm-popup-app>
-      <div class="mm-shell w-[300px] overflow-hidden" data-ref="popup-shell">
+      <div class="mm-shell mm-popup-shell w-[300px] overflow-hidden" data-ref="popup-shell">
         <div data-ref="main-view">
-          <header class="flex items-center gap-3 border-b border-mm-border-light bg-mm-surface px-3 py-3 shadow-mm-sm">
+          <header class="flex shrink-0 items-center gap-3 border-b border-mm-border-light bg-mm-surface px-3 py-3 shadow-mm-sm">
             <img src="./icons/icon32.png" width="32" height="32" alt="" class="h-8 w-8 shrink-0 rounded-lg shadow-mm-sm ring-1 ring-mm-border-light" />
             <div class="min-w-0 flex-1">
               <div class="font-semibold leading-tight tracking-tight text-mm-ink">MagickMonkey</div>
               <div class="truncate text-xs text-mm-text-muted" data-ref="subtitle">Not configured</div>
             </div>
-            <button type="button" data-action="options" title="Servers" class="mm-icon-btn">
-              <span data-icon="settings" class="mm-icon-slot"></span>
-            </button>
+            <div class="flex shrink-0 items-center gap-[2px]">
+              <div class="relative shrink-0">
+                <button type="button" data-action="shell-master" title="Extension enabled" class="mm-icon-btn" aria-haspopup="menu" aria-expanded="false">
+                  <span data-ref="shell-master-icon" data-icon="serviceOn" class="mm-icon-slot"></span>
+                </button>
+                <div data-ref="shell-disable-menu" class="mm-shell-disable-menu hidden" role="menu" aria-label="Disable extension">
+                  <button type="button" data-action="shell-disable-tab" role="menuitem" class="mm-shell-disable-menu-item">This tab only</button>
+                  <button type="button" data-action="shell-disable-all" role="menuitem" class="mm-shell-disable-menu-item">All tabs</button>
+                </div>
+              </div>
+              <button type="button" data-action="options" title="Servers" class="mm-icon-btn">
+                <span data-icon="settings" class="mm-icon-slot"></span>
+              </button>
+            </div>
           </header>
 
           <div class="space-y-2.5 p-3">
@@ -104,8 +115,13 @@
             </div>
           </div>
         </div>
-
-        <p data-ref="toast" class="mm-toast" role="status" aria-live="polite"></p>
+        <!--
+          Popup toast overlay (see .mm-popup-toast in tailwind.css).
+          Must stay a direct child of mm-shell (position:relative), not inside main-view.
+          Use absolute bottom-0 only — position:fixed breaks Chrome extension popups.
+          Do not reserve layout space (no padding-bottom on footer/shell when visible).
+        -->
+        <p data-ref="toast" class="mm-toast mm-popup-toast" role="status" aria-live="polite"></p>
       </div>
     </mm-popup-app>
     <script src="./popup.js"></script>

@@ -3,7 +3,7 @@ import { sendShellMessage } from '@ext/shared/messages'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from './mm-admin-nav'
-import { hydrateMmIcons, setIconSlotLoading } from './mm-icons'
+import { hydrateIconSlot, hydrateMmIcons, setIconSlotLoading } from './mm-icons'
 
 type SearchSelectOption = { value: string; label: string }
 type SearchSelectElement = HTMLElement & {
@@ -21,6 +21,8 @@ export class MmPopupApp extends HTMLElement {
   private quickRuleLastSelected = ''
   private quickRuleCurrentUrl = ''
   private extensionDownloadUrl: string | null = null
+  private shellDisableMenuOpen = false
+  private shellDisableMenuOutsideListener: ((event: MouseEvent) => void) | null = null
   private static readonly QUICK_RULE_RECENT_SCRIPT_KEY = 'vws_popup_quick_rule_recent_script'
   private defaultPopupSize: { width: number; height: number } | null = null
 
@@ -47,11 +49,24 @@ export class MmPopupApp extends HTMLElement {
     if (this.toastTimer) {
       clearTimeout(this.toastTimer)
     }
+    this.closeShellDisableMenu()
   }
 
   private bindEvents(): void {
     this.querySelector('[data-action="options"]')?.addEventListener('click', () => {
       void sendShellMessage({ type: 'OPEN_OPTIONS' })
+    })
+    this.querySelector('[data-action="shell-master"]')?.addEventListener('click', (event) => {
+      event.stopPropagation()
+      void this.handleShellMasterClick()
+    })
+    this.querySelector('[data-action="shell-disable-tab"]')?.addEventListener('click', () => {
+      this.closeShellDisableMenu()
+      void this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: false, scope: 'tab' }), 'shell-master')
+    })
+    this.querySelector('[data-action="shell-disable-all"]')?.addEventListener('click', () => {
+      this.closeShellDisableMenu()
+      void this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: false, scope: 'global' }), 'shell-master')
     })
     this.querySelector('[data-action="update"]')?.addEventListener('click', () => {
       void this.run(() => sendShellMessage({ type: 'UPDATE_RUNTIME' }), 'update')
@@ -107,6 +122,9 @@ export class MmPopupApp extends HTMLElement {
     if (action === 'network') {
       return this.querySelector('.mm-switch-row [data-icon="network"]')
     }
+    if (action === 'shell-master') {
+      return this.querySelector('[data-ref="shell-master-icon"]')
+    }
     return this.querySelector(`[data-action="${action}"] [data-icon]`)
   }
 
@@ -116,6 +134,7 @@ export class MmPopupApp extends HTMLElement {
     if (!main || !rules) return
     main.classList.add('hidden')
     rules.classList.remove('hidden')
+    this.syncPopupBottomLayout(true)
     this.applyDefaultPopupSize()
     this.applySubViewSizeFromDefault()
     void this.refreshQuickRuleContext()
@@ -127,8 +146,15 @@ export class MmPopupApp extends HTMLElement {
     if (!main || !rules) return
     rules.classList.add('hidden')
     main.classList.remove('hidden')
+    this.syncPopupBottomLayout(false)
     rules.style.removeProperty('height')
     this.applyDefaultPopupSize()
+  }
+
+  /** Footer visibility on rules sub-view; toast stays fixed to shell bottom. */
+  private syncPopupBottomLayout(rulesOpen: boolean): void {
+    const footer = this.querySelector('[data-ref="footer"]') as HTMLElement | null
+    footer?.classList.toggle('hidden', rulesOpen)
   }
 
   private captureDefaultPopupSize(): void {
@@ -139,6 +165,7 @@ export class MmPopupApp extends HTMLElement {
     if (!shell) {
       return
     }
+    // Toast is absolute/out of flow — natural shell height excludes it (capture before applyDefaultPopupSize locks size).
     const rect = shell.getBoundingClientRect()
     if (rect.width > 0 && rect.height > 0) {
       this.defaultPopupSize = {
@@ -188,6 +215,17 @@ export class MmPopupApp extends HTMLElement {
       return
     }
 
+    if (action === 'shell-master') {
+      const btn = this.querySelector('[data-action="shell-master"]') as HTMLButtonElement | null
+      if (btn) {
+        btn.disabled = loading
+      }
+      this.querySelectorAll('[data-action="shell-disable-tab"], [data-action="shell-disable-all"]').forEach((el) => {
+        ;(el as HTMLButtonElement).disabled = loading
+      })
+      return
+    }
+
     if (action === 'log-output') {
       this.querySelectorAll<HTMLButtonElement>('[data-log-mode]').forEach((btn) => {
         btn.disabled = loading
@@ -206,18 +244,24 @@ export class MmPopupApp extends HTMLElement {
     }
   }
 
+  /**
+   * Popup status toast — opacity overlay only.
+   * Keep mm-popup-toast / mm-toast base classes (use classList, not className =).
+   * Layout rules: popup.ejs + .mm-popup-toast in tailwind.css.
+   */
   private showToast(text: string, isError = false): void {
     const toast = this.querySelector('[data-ref="toast"]') as HTMLElement | null
     if (!toast) {
       return
     }
     toast.textContent = text
-    toast.className = isError ? 'mm-toast mm-toast-visible mm-toast-error' : 'mm-toast mm-toast-visible mm-toast-success'
+    toast.classList.remove('mm-toast-visible', 'mm-toast-success', 'mm-toast-error')
+    toast.classList.add('mm-toast-visible', isError ? 'mm-toast-error' : 'mm-toast-success')
     if (this.toastTimer) {
       clearTimeout(this.toastTimer)
     }
     this.toastTimer = setTimeout(() => {
-      toast.className = 'mm-toast'
+      toast.classList.remove('mm-toast-visible', 'mm-toast-success', 'mm-toast-error')
       toast.textContent = ''
     }, 2500)
   }
@@ -273,7 +317,81 @@ export class MmPopupApp extends HTMLElement {
       version.textContent = this.formatVersionFooter(s.extensionVersion, s.presetVersion)
     }
     this.renderExtensionUpdateHint(s)
+    this.syncShellMasterSwitch(s)
     this.quickRuleCurrentUrl = s.activeTabUrl || ''
+  }
+
+  private syncShellMasterSwitch(status: { shellEnabledOnActiveTab: boolean; shellGloballyEnabled: boolean }): void {
+    const enabled = status.shellEnabledOnActiveTab
+    const icon = this.querySelector('[data-ref="shell-master-icon"]') as HTMLElement | null
+    const btn = this.querySelector('[data-action="shell-master"]') as HTMLButtonElement | null
+    if (icon) {
+      icon.dataset.icon = enabled ? 'serviceOn' : 'serviceOff'
+      hydrateIconSlot(icon)
+      icon.classList.toggle('mm-icon-slot-danger', !enabled)
+    }
+    if (btn) {
+      btn.title = enabled ? 'Disable extension' : 'Extension disabled — click to enable'
+      btn.setAttribute('aria-expanded', this.shellDisableMenuOpen ? 'true' : 'false')
+    }
+    if (!enabled) {
+      this.closeShellDisableMenu()
+    }
+  }
+
+  private async handleShellMasterClick(): Promise<void> {
+    const res = await sendShellMessage({ type: 'GET_STATUS' })
+    if (!res.ok || !('status' in res) || !res.status) {
+      return
+    }
+    if (!res.status.shellEnabledOnActiveTab) {
+      await this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: true }), 'shell-master')
+      return
+    }
+    if (this.shellDisableMenuOpen) {
+      this.closeShellDisableMenu()
+      return
+    }
+    this.openShellDisableMenu()
+  }
+
+  private openShellDisableMenu(): void {
+    const menu = this.querySelector('[data-ref="shell-disable-menu"]') as HTMLElement | null
+    const btn = this.querySelector('[data-action="shell-master"]') as HTMLButtonElement | null
+    if (!menu) {
+      return
+    }
+    menu.classList.remove('hidden')
+    this.shellDisableMenuOpen = true
+    btn?.setAttribute('aria-expanded', 'true')
+    if (this.shellDisableMenuOutsideListener) {
+      return
+    }
+    this.shellDisableMenuOutsideListener = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) {
+        return
+      }
+      if (menu.contains(target) || btn?.contains(target)) {
+        return
+      }
+      this.closeShellDisableMenu()
+    }
+    window.setTimeout(() => {
+      document.addEventListener('click', this.shellDisableMenuOutsideListener!, true)
+    }, 0)
+  }
+
+  private closeShellDisableMenu(): void {
+    const menu = this.querySelector('[data-ref="shell-disable-menu"]') as HTMLElement | null
+    const btn = this.querySelector('[data-action="shell-master"]') as HTMLButtonElement | null
+    menu?.classList.add('hidden')
+    this.shellDisableMenuOpen = false
+    btn?.setAttribute('aria-expanded', 'false')
+    if (this.shellDisableMenuOutsideListener) {
+      document.removeEventListener('click', this.shellDisableMenuOutsideListener, true)
+      this.shellDisableMenuOutsideListener = null
+    }
   }
 
   private renderExtensionUpdateHint(status: { extensionUpdateAvailable: boolean; latestExtensionVersion: string | null; extensionDownloadUrl: string | null }): void {
