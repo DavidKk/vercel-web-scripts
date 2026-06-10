@@ -69,6 +69,23 @@ export function clearTabTriggerState(tabId: number): void {
 }
 
 /**
+ * Sync stored URL after CSR (`pushState` / `replaceState`) without clearing trigger count.
+ * @param tabId Chrome tab id
+ * @param url Current tab URL after client-side routing
+ */
+export function syncTabTriggerUrlForClientNavigation(tabId: number, url: string | undefined): void {
+  if (!url) {
+    return
+  }
+  const state = tabTriggerState.get(tabId)
+  if (!state || state.url === url) {
+    return
+  }
+  tabTriggerState.set(tabId, { ...state, url })
+  void persistTabTriggerCounts()
+}
+
+/**
  * Reset count when the tab navigates to a new URL (same tab id, new document).
  * @param tabId Chrome tab id
  * @param url Current tab URL after navigation

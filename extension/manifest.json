@@ -3,7 +3,7 @@
   "name": "MagickMonkey",
   "version": "__VERSION__",
   "description": "Native Chrome shell for MagickMonkey: OTA preset and scripts without Tampermonkey.",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "webNavigation"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

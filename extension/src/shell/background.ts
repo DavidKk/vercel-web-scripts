@@ -31,7 +31,6 @@ import {
   hydrateTabTriggerCounts,
   incrementTabTriggerCount,
   markTabTriggerError,
-  resetTabTriggerCountsForNavigation,
   resetTabTriggerCountsForPageLoad,
 } from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
@@ -40,6 +39,7 @@ import { SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import { extensionLogger } from '../shared/logger'
 import { refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
+import { initBadgeNavigationListeners } from './badge-navigation'
 import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
 
@@ -218,13 +218,12 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 })
 
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
-  if (info.url) {
-    resetTabTriggerCountsForNavigation(tabId, tab.url)
-  }
   if (info.url || info.status === 'complete') {
     void updateBadgeForTab(tabId, tab.url)
   }
 })
+
+initBadgeNavigationListeners(updateBadgeForTab)
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   clearTabTriggerState(tabId)
