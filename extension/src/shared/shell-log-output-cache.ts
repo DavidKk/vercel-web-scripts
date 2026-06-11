@@ -1,4 +1,4 @@
-import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY, type ShellLogOutputMode, shouldLogToConsoleForMode } from '@shared/shell-log-output'
+import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY, type ShellLogOutputMode, shouldLogToConsoleForMode, shouldLogToMemoryForMode } from '@shared/shell-log-output'
 
 import { getShellLogOutputMode } from './extension-storage/runtime-cache'
 
@@ -66,4 +66,12 @@ export function getCachedShellLogOutputMode(): ShellLogOutputMode {
  */
 export function shouldExtensionLogToConsole(): boolean {
   return shouldLogToConsoleForMode(resolveExtensionLogOutputMode())
+}
+
+/**
+ * Whether extension debug logs should be collected in background session store.
+ * Linked to shell log output mode: off (`none`) disables collection.
+ */
+export function shouldExtensionCollectDebugLogs(): boolean {
+  return shouldLogToMemoryForMode(resolveExtensionLogOutputMode())
 }

@@ -2,12 +2,15 @@
 // Logging Functions
 // ============================================================================
 
-import { EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_FAILED_MESSAGE_TYPE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
+import { DEBUG_LOG_MESSAGE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_FAILED_MESSAGE_TYPE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
 import { parseScriptExecutingFailureLog, parseScriptExecutingLog } from '@shared/script-trigger-log'
 import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
 import { logStore } from '@/services/log-store'
 import { shouldLogToConsole, shouldLogToMemory } from '@/services/shell-log-settings'
+
+type GmeStoreLevel = 'ok' | 'info' | 'warn' | 'fail' | 'debug'
+type DebugLogLevel = 'debug' | 'info' | 'ok' | 'warn' | 'error'
 
 function readActiveScriptKey(pageConfig: { scriptKey?: string } | undefined): string | undefined {
   const runtimeKey = (globalThis as { __VWS_SCRIPT_KEY__?: unknown }).__VWS_SCRIPT_KEY__
@@ -73,6 +76,41 @@ function notifyExtensionScriptFailed(contents: unknown[]): void {
   }
 }
 
+function isExtensionPageContext(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return Boolean((window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__)
+}
+
+function forwardExtensionDebugLog(source: 'page' | 'inject', scope: string, storeLevel: GmeStoreLevel, ...contents: any[]): void {
+  if (!shouldLogToMemory() || !isExtensionPageContext()) {
+    return
+  }
+  const message = formatContentsForStore(...contents)
+  if (!message) {
+    return
+  }
+  const level: DebugLogLevel = storeLevel === 'fail' ? 'error' : storeLevel
+  try {
+    window.postMessage(
+      {
+        source: EXTENSION_BRIDGE_MESSAGE_SOURCE,
+        type: DEBUG_LOG_MESSAGE_TYPE,
+        payload: {
+          source,
+          scope,
+          level,
+          message,
+        },
+      },
+      '*'
+    )
+  } catch {
+    // ignore bridge errors
+  }
+}
+
 /**
  * Format log contents to a plain string for log store (strip %c, styles, HTML-like tags)
  */
@@ -116,8 +154,6 @@ function pushToLogStore(level: 'ok' | 'info' | 'warn' | 'fail' | 'debug', ...con
     console.error('[logger] writeToStore failed:', e)
   }
 }
-
-type GmeStoreLevel = 'ok' | 'info' | 'warn' | 'fail' | 'debug'
 
 /** Stack of module scopes; bare `GME_*` in the innermost scope route to {@link emitScriptLog}. */
 const activeScriptLogScopeStack: string[] = []
@@ -172,6 +208,7 @@ function emitGmeLog(scope: string, level: VwsConsoleLogLevel, storeLevel: GmeSto
   if (shouldLogToMemory()) {
     pushToLogStore(storeLevel, ...contents)
   }
+  forwardExtensionDebugLog('page', scope, storeLevel, ...contents)
 }
 
 /**
@@ -192,6 +229,7 @@ function emitScriptLog(scope: string, level: VwsConsoleLogLevel, storeLevel: Gme
   if (shouldLogToMemory()) {
     pushToLogStore(storeLevel, ...contents)
   }
+  forwardExtensionDebugLog('page', scriptScope, storeLevel, ...contents)
 }
 
 /**

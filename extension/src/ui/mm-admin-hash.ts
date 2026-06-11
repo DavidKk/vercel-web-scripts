@@ -3,7 +3,7 @@ import { buildRulesHash, parseRulesHash, type RulesHashRoute } from './mm-rules-
 
 export { ADMIN_PAGE }
 
-export type AdminTab = 'servers' | 'scripts' | 'rules'
+export type AdminTab = 'servers' | 'scripts' | 'rules' | 'logs'
 
 export type AdminRoute = {
   tab: AdminTab
@@ -16,8 +16,11 @@ export function parseAdminHash(hash: string): AdminRoute {
   if (!raw || raw === 'servers') {
     return { tab: 'servers', rules: { kind: 'empty' } }
   }
-  if (raw === 'scripts') {
-    return { tab: 'scripts', rules: { kind: 'empty' } }
+  if (raw === 'scripts' || raw === 'scripts/logs') {
+    return raw === 'scripts/logs' ? { tab: 'logs', rules: { kind: 'empty' } } : { tab: 'scripts', rules: { kind: 'empty' } }
+  }
+  if (raw === 'logs') {
+    return { tab: 'logs', rules: { kind: 'empty' } }
   }
   if (raw === 'rules') {
     return { tab: 'rules', rules: { kind: 'empty' } }
@@ -39,6 +42,9 @@ export function buildAdminHash(route: { tab: AdminTab; rules?: RulesHashRoute })
   if (route.tab === 'scripts') {
     return '#scripts'
   }
+  if (route.tab === 'logs') {
+    return '#logs'
+  }
   const rulesHash = route.rules ? buildRulesHash(route.rules) : ''
   return rulesHash ? `#rules/${rulesHash}` : '#rules'
 }
@@ -56,5 +62,7 @@ export function adminTabTitle(tab: AdminTab): string {
       return 'Scripts'
     case 'rules':
       return 'Rules'
+    case 'logs':
+      return 'Logs'
   }
 }

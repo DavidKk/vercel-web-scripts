@@ -24,6 +24,30 @@ export async function focusOrOpenTab(url: string): Promise<void> {
 }
 
 /**
+ * Focus an existing browser tab by Chrome tab id.
+ * @param tabId - Target tab id
+ * @returns True when the tab exists and was focused
+ */
+export async function focusTabById(tabId: number): Promise<boolean> {
+  if (!Number.isFinite(tabId) || tabId <= 0) {
+    return false
+  }
+  try {
+    const tab = await chrome.tabs.get(tabId)
+    if (tab.id == null) {
+      return false
+    }
+    await chrome.tabs.update(tab.id, { active: true })
+    if (tab.windowId != null) {
+      await chrome.windows.update(tab.windowId, { focused: true })
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Navigate the current tab to an extension page (same tab, no new tab).
  * @param pagePath - Path under extension root, optionally with hash, e.g. `admin.html#rules/script/...`
  */

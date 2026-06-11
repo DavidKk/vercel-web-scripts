@@ -1,3 +1,4 @@
+import { enhanceMmCheckboxLabel } from './mm-checkbox'
 import { DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE, getScriptsDebugOverrides, isScriptsDebugActive, setScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
 
 const TRIGGER_SIZE = 36
@@ -39,22 +40,22 @@ export class MmScriptsDebugPanel extends HTMLElement {
       <div class="mm-debug-panel-root" data-ref="root">
         <div class="mm-debug-panel-sheet" data-ref="sheet" role="dialog" aria-label="Scripts debug">
           <div class="mm-debug-panel-title">DEBUG</div>
-          <label class="mm-debug-panel-row">
+          <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-loading" />
-            <span>Force loading</span>
+            <span class="mm-checkbox-label">Force loading</span>
           </label>
-          <label class="mm-debug-panel-row">
+          <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-error" />
-            <span>Force error</span>
+            <span class="mm-checkbox-label">Force error</span>
           </label>
           <input type="text" class="mm-debug-panel-input" data-ref="error-message" placeholder="Error message" hidden />
-          <label class="mm-debug-panel-row">
+          <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-empty" />
-            <span>Force empty (no data)</span>
+            <span class="mm-checkbox-label">Force empty (no data)</span>
           </label>
-          <label class="mm-debug-panel-row">
+          <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-inactive-groups" />
-            <span>Mock inactive scriptKey groups</span>
+            <span class="mm-checkbox-label">Mock inactive scriptKey groups</span>
           </label>
           <button type="button" class="mm-debug-panel-reset" data-ref="reset">Reset overrides</button>
         </div>
@@ -67,6 +68,10 @@ export class MmScriptsDebugPanel extends HTMLElement {
         </button>
       </div>
     `
+
+    this.querySelectorAll<HTMLLabelElement>('label.mm-debug-panel-row.mm-checkbox').forEach((label) => {
+      enhanceMmCheckboxLabel(label)
+    })
 
     const trigger = this.querySelector('[data-ref="trigger"]') as HTMLButtonElement
     const sheet = this.querySelector('[data-ref="sheet"]') as HTMLElement

@@ -1,6 +1,8 @@
+import type { DebugLogAppendInput, DebugLogSource } from '@ext/shared/debug-log-types'
+import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
+import { reportDebugLog } from '@ext/shared/report-debug-log'
+import { shouldExtensionCollectDebugLogs, shouldExtensionLogToConsole } from '@ext/shared/shell-log-output-cache'
 import { buildVwsConsoleLogArgs, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
-
-import { shouldExtensionLogToConsole } from './shell-log-output-cache'
 
 export type ExtensionLogLevel = 'debug' | 'info' | 'ok' | 'warn' | 'error'
 
@@ -27,6 +29,22 @@ const LEVEL_SINK: Record<ExtensionLogLevel, ConsoleSink> = {
     // eslint-disable-next-line no-console -- centralized extension log sink
     console.error(...args)
   },
+}
+
+/**
+ * Infer debug log source from the current execution context.
+ */
+export function inferExtensionLogSource(): DebugLogSource {
+  if (typeof window === 'undefined') {
+    return 'background'
+  }
+  if (window.location.protocol === 'chrome-extension:') {
+    return window.location.pathname.includes('popup') ? 'popup' : 'admin'
+  }
+  if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
+    return 'content'
+  }
+  return 'inject'
 }
 
 /**
@@ -83,10 +101,19 @@ export class ExtensionLogger {
   }
 
   private emit(level: ExtensionLogLevel, args: unknown[]): void {
-    if (!shouldExtensionLogToConsole()) {
+    if (shouldExtensionLogToConsole()) {
+      LEVEL_SINK[level](...buildVwsConsoleLogArgs(this.scope, level as VwsConsoleLogLevel, ...args))
+    }
+    if (!shouldExtensionCollectDebugLogs()) {
       return
     }
-    LEVEL_SINK[level](...buildVwsConsoleLogArgs(this.scope, level as VwsConsoleLogLevel, ...args))
+    const input: DebugLogAppendInput = {
+      source: inferExtensionLogSource(),
+      scope: this.scope,
+      level,
+      message: formatDebugLogMessage(...args),
+    }
+    reportDebugLog(input)
   }
 }
 

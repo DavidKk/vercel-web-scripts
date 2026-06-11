@@ -1,4 +1,5 @@
 import { MmButton } from './mm-button'
+import { MmCheckbox } from './mm-checkbox'
 import { MmField } from './mm-field'
 import { MmInput } from './mm-input'
 import { MmSearchSelect } from './mm-search-select'
@@ -23,5 +24,8 @@ export function defineMmFormComponents(): void {
   }
   if (!customElements.get('mm-switch')) {
     customElements.define('mm-switch', MmSwitch)
+  }
+  if (!customElements.get('mm-checkbox')) {
+    customElements.define('mm-checkbox', MmCheckbox)
   }
 }

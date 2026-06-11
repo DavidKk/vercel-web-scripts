@@ -50,3 +50,7 @@ export const EXTENSION_BRIDGE_MESSAGE_SOURCE = 'vws-extension-bridge'
 export const SCRIPT_TRIGGERED_MESSAGE_TYPE = 'vws-script-triggered'
 /** Remote GIST script threw during execution (badge error background). */
 export const SCRIPT_FAILED_MESSAGE_TYPE = 'vws-script-failed'
+/** Page world → content: single debug log line for extension admin log viewer. */
+export const DEBUG_LOG_MESSAGE_TYPE = 'vws-debug-log'
+/** Page world → content: batch replay of launcher boot buffer rows. */
+export const DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE = 'vws-debug-log-boot-flush'

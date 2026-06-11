@@ -1,0 +1,100 @@
+        <mm-logs-app class="mm-admin-view-host">
+          <div class="mm-logs-main">
+            <div class="mm-logs-head">
+              <div class="mm-logs-head-left">
+                <div class="mm-logs-level-filter" data-ref="level-filters" role="group" aria-label="Log levels">
+                  <button type="button" class="mm-logs-level-chip" data-level="debug" aria-pressed="false">
+                    <span class="mm-logs-level-chip-icon" aria-hidden="true"><span data-icon="logDebug"></span></span>
+                    <span class="mm-logs-level-chip-label">Debug</span>
+                  </button>
+                  <button type="button" class="mm-logs-level-chip" data-level="info" aria-pressed="true">
+                    <span class="mm-logs-level-chip-icon" aria-hidden="true"><span data-icon="logInfo"></span></span>
+                    <span class="mm-logs-level-chip-label">Info</span>
+                  </button>
+                  <button type="button" class="mm-logs-level-chip" data-level="ok" aria-pressed="true">
+                    <span class="mm-logs-level-chip-icon" aria-hidden="true"><span data-icon="logOk"></span></span>
+                    <span class="mm-logs-level-chip-label">Ok</span>
+                  </button>
+                  <button type="button" class="mm-logs-level-chip" data-level="warn" aria-pressed="true">
+                    <span class="mm-logs-level-chip-icon" aria-hidden="true"><span data-icon="logWarn"></span></span>
+                    <span class="mm-logs-level-chip-label">Warn</span>
+                  </button>
+                  <button type="button" class="mm-logs-level-chip" data-level="error" aria-pressed="true">
+                    <span class="mm-logs-level-chip-icon" aria-hidden="true"><span data-icon="logError"></span></span>
+                    <span class="mm-logs-level-chip-label">Error</span>
+                  </button>
+                </div>
+                <button type="button" class="mm-logs-follow-toggle" data-ref="follow-toggle" aria-pressed="true" title="Following new log entries">
+                  <span data-icon="follow" class="mm-icon-slot mm-logs-follow-icon" aria-hidden="true"></span>
+                  <span>Follow</span>
+                </button>
+              </div>
+              <div class="mm-logs-toolbar" data-ref="toolbar">
+                <mm-input class="mm-logs-search">
+                  <span class="mm-input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none">
+                      <path d="m14.1 14.1 3.4 3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                      <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.7" />
+                    </svg>
+                  </span>
+                  <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Filter messages" autocomplete="off" spellcheck="false" />
+                </mm-input>
+                <mm-search-select
+                  class="mm-logs-source-filter"
+                  data-ref="source-select"
+                  placeholder="All sources"
+                  search-placeholder="Search sources..."
+                ></mm-search-select>
+                <mm-search-select
+                  class="mm-logs-scope-filter"
+                  data-ref="scope-select"
+                  placeholder="All scopes"
+                  search-placeholder="Search scopes..."
+                ></mm-search-select>
+                <mm-search-select
+                  class="mm-logs-host-filter"
+                  data-ref="host-select"
+                  placeholder="All hosts"
+                  search-placeholder="Search hosts..."
+                ></mm-search-select>
+                <mm-search-select
+                  class="mm-logs-tab-filter"
+                  data-ref="tab-select"
+                  placeholder="All tabs"
+                  search-placeholder="Search tab IDs..."
+                ></mm-search-select>
+                <button
+                  type="button"
+                  class="mm-icon-btn-sm mm-logs-clear-filters-btn"
+                  data-action="clear-filters"
+                  aria-label="Clear filters"
+                  title="Clear filters"
+                >
+                  <span data-icon="backspaceOutline" class="mm-icon-slot" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="mm-logs-body">
+              <div class="mm-scroll-indicator-shell mm-logs-table-scroll-shell" data-ref="scroll-shell">
+                <div class="mm-logs-list mm-scroll-indicator-scroller" data-ref="list" role="grid" aria-label="Debug logs">
+                  <div class="mm-logs-table-head" data-ref="table-head" role="row">
+                    <span class="mm-logs-col mm-logs-col--time" role="columnheader"><span class="mm-logs-col-label">Time</span></span>
+                    <span class="mm-logs-col mm-logs-col--level" role="columnheader"><span class="mm-logs-col-label">Level</span></span>
+                    <span class="mm-logs-col mm-logs-col--source" role="columnheader"><span class="mm-logs-col-label">Source</span></span>
+                    <span class="mm-logs-col mm-logs-col--scope" role="columnheader"><span class="mm-logs-col-label">Scope</span></span>
+                    <span class="mm-logs-col mm-logs-col--host" role="columnheader"><span class="mm-logs-col-label">Host</span></span>
+                    <span class="mm-logs-col mm-logs-col--tab" role="columnheader"><span class="mm-logs-col-label">Tab</span></span>
+                    <span class="mm-logs-col mm-logs-col--message" role="columnheader"><span class="mm-logs-col-label">Message</span></span>
+                  </div>
+                  <div class="mm-logs-rows" data-ref="rows" role="rowgroup" aria-live="off"></div>
+                </div>
+                <div class="mm-scroll-indicator-track mm-logs-scroll-track" aria-hidden="true">
+                  <span class="mm-scroll-indicator-thumb"></span>
+                </div>
+              </div>
+
+              <div class="mm-logs-footer" data-ref="footer" aria-live="polite" aria-atomic="true"></div>
+            </div>
+          </div>
+        </mm-logs-app>

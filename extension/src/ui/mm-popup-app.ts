@@ -1,5 +1,7 @@
+import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
 import { buildQuickRuleScriptSelectOptions, countEnabledScriptsForEnabledScriptKeys } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
+import { reportDebugLog } from '@ext/shared/report-debug-log'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from './mm-admin-nav'
@@ -266,16 +268,29 @@ export class MmPopupApp extends HTMLElement {
     }, 2500)
   }
 
+  private logPopupAction(action: string, level: 'info' | 'warn' | 'error' = 'info', ...args: unknown[]): void {
+    reportDebugLog({
+      source: 'popup',
+      scope: 'Popup',
+      level,
+      message: formatDebugLogMessage(action, ...args),
+    })
+  }
+
   private async run(action: () => Promise<{ ok: boolean; error?: string; message?: string }>, loadingAction: string): Promise<void> {
     this.setActionLoading(loadingAction, true)
     try {
       const res = await action()
       if (!res.ok) {
+        this.logPopupAction(loadingAction, 'error', res.error ?? 'Failed')
         this.showToast(res.error ?? 'Failed', true)
         return
       }
       if (res.message) {
+        this.logPopupAction(loadingAction, 'info', res.message)
         this.showToast(res.message)
+      } else {
+        this.logPopupAction(loadingAction, 'info', 'OK')
       }
       await this.refresh()
     } finally {

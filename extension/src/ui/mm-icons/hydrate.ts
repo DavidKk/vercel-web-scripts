@@ -1,4 +1,9 @@
+import iconAlertCircleOutline from '~icons/mdi/alert-circle-outline?raw'
+import iconAlertOutline from '~icons/mdi/alert-outline?raw'
+import iconArrowCollapseDown from '~icons/mdi/arrow-collapse-down?raw'
 import iconAsterisk from '~icons/mdi/asterisk?raw'
+import iconBackspaceOutline from '~icons/mdi/backspace-outline?raw'
+import iconBugOutline from '~icons/mdi/bug-outline?raw'
 import iconCheck from '~icons/mdi/check?raw'
 import iconCheckAll from '~icons/mdi/check-all?raw'
 import iconClipboardTextOutline from '~icons/mdi/clipboard-text-outline?raw'
@@ -6,12 +11,14 @@ import iconClose from '~icons/mdi/close?raw'
 import iconCloudDownloadOutline from '~icons/mdi/cloud-download-outline?raw'
 import iconCodeTags from '~icons/mdi/code-tags?raw'
 import iconCog from '~icons/mdi/cog?raw'
+import iconContentCopy from '~icons/mdi/content-copy?raw'
 import iconCpu64Bit from '~icons/mdi/cpu-64-bit?raw'
 import iconDelete from '~icons/mdi/delete-outline?raw'
 import iconDragVertical from '~icons/mdi/drag-vertical?raw'
 import iconEyeOffOutline from '~icons/mdi/eye-off-outline?raw'
 import iconEyeOutline from '~icons/mdi/eye-outline?raw'
 import iconInboxOutline from '~icons/mdi/inbox-outline?raw'
+import iconInformationOutline from '~icons/mdi/information-outline?raw'
 import iconLanCheck from '~icons/mdi/lan-check?raw'
 import iconLightningBoltOutline from '~icons/mdi/lightning-bolt-outline?raw'
 import iconLoading from '~icons/mdi/loading?raw'
@@ -43,6 +50,15 @@ export const mmPopupIcons = {
   drag: iconDragVertical,
   test: iconLanCheck,
   check: iconCheck,
+  copy: iconContentCopy,
+  clear: iconDelete,
+  backspaceOutline: iconBackspaceOutline,
+  follow: iconArrowCollapseDown,
+  logDebug: iconBugOutline,
+  logInfo: iconInformationOutline,
+  logOk: iconCheck,
+  logWarn: iconAlertOutline,
+  logError: iconAlertCircleOutline,
   close: iconClose,
   testAll: iconCheckAll,
   delete: iconDelete,

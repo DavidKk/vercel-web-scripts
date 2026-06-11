@@ -11,6 +11,11 @@ describe('admin-hash', () => {
     it('should parse top-level admin tabs', () => {
       expect(parseAdminHash('#scripts')).toEqual({ tab: 'scripts', rules: { kind: 'empty' } })
       expect(parseAdminHash('#rules')).toEqual({ tab: 'rules', rules: { kind: 'empty' } })
+      expect(parseAdminHash('#logs')).toEqual({ tab: 'logs', rules: { kind: 'empty' } })
+    })
+
+    it('should map legacy scripts/logs hash to logs tab', () => {
+      expect(parseAdminHash('#scripts/logs')).toEqual({ tab: 'logs', rules: { kind: 'empty' } })
     })
 
     it('should parse rules sub-routes under rules/ prefix', () => {
@@ -37,10 +42,14 @@ describe('admin-hash', () => {
 
   describe('buildAdminHash', () => {
     it('should round-trip top-level tabs', () => {
-      for (const tab of ['servers', 'scripts', 'rules'] as const) {
+      for (const tab of ['servers', 'scripts', 'rules', 'logs'] as const) {
         const hash = buildAdminHash({ tab, rules: { kind: 'empty' } })
         expect(parseAdminHash(hash).tab).toBe(tab)
       }
+    })
+
+    it('should build logs tab hash', () => {
+      expect(buildAdminHash({ tab: 'logs' })).toBe('#logs')
     })
 
     it('should round-trip rules sub-routes', () => {
@@ -55,6 +64,7 @@ describe('admin-hash', () => {
   describe('buildAdminPageUrl', () => {
     it('should build extension-relative admin urls', () => {
       expect(buildAdminPageUrl({ tab: 'scripts' })).toBe('admin.html#scripts')
+      expect(buildAdminPageUrl({ tab: 'logs' })).toBe('admin.html#logs')
       expect(buildAdminPageUrl({ tab: 'rules', rules: { kind: 'script', scriptValue: 'k|f.ts' } })).toBe('admin.html#rules/script/k%7Cf.ts')
     })
   })

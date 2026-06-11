@@ -1,1 +1,1 @@
-export { defineMmFormComponents, MmButton, MmField, MmInput, MmSearchSelect, MmSelect, MmSwitch } from './mm-form-components/index'
+export { defineMmFormComponents, MmButton, MmCheckbox, MmField, MmInput, MmSearchSelect, MmSelect, MmSwitch } from './mm-form-components/index'

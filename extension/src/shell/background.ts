@@ -44,17 +44,48 @@ import {
   resetTabTriggerCountsForPageLoad,
 } from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
-import { SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
+import { SHELL_LOG_OUTPUT_MODE_KEY, shouldLogToMemoryForMode } from '@shared/shell-log-output'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
+import type { DebugLogAppendInput } from '../shared/debug-log-types'
+import { DEBUG_LOG_PORT_NAME } from '../shared/debug-log-types'
+import { buildDebugLogMetaFromTab } from '../shared/debug-log-utils'
 import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { extensionLogger } from '../shared/logger'
-import { refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
+import { getCachedShellLogOutputMode, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { initBadgeNavigationListeners } from './badge-navigation'
+import {
+  appendDebugLog,
+  attachDebugLogPort,
+  clearDebugLogs,
+  getDebugLogSnapshot,
+  initDebugLogStore,
+  normalizeDebugLogAppendDetails,
+  setDebugLogCollectionGate,
+} from './debug-log-store'
 import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
 
 void DEV_BUILD_STAMP
+
+setDebugLogCollectionGate(() => shouldLogToMemoryForMode(getCachedShellLogOutputMode()))
+
+function enrichDebugLogFromSender(entry: DebugLogAppendInput, sender: chrome.runtime.MessageSender): DebugLogAppendInput {
+  const tab = sender.tab
+  if (!tab) {
+    return entry
+  }
+  const tabMeta = buildDebugLogMetaFromTab(tab.url, tab.id)
+  return { ...entry, meta: { ...tabMeta, ...entry.meta } }
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === DEBUG_LOG_PORT_NAME) {
+    void initDebugLogStore().then(() => {
+      attachDebugLogPort(port)
+    })
+  }
+})
 
 async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }>['details']): Promise<ShellResponse> {
   const method = (details.method ?? 'GET').toUpperCase()
@@ -258,15 +289,24 @@ async function refreshAllBadges(): Promise<void> {
   await Promise.all(tabs.map((t) => (t.id != null ? updateBadgeForTab(t.id, t.url) : Promise.resolve())))
 }
 
-async function initBadgeDefaults(): Promise<void> {
+async function initBackgroundDefaults(): Promise<void> {
   await refreshShellLogOutputModeCache()
   await hydrateTabTriggerCounts()
   void applyBadgeColors({})
   void refreshAllBadges()
 }
 
-chrome.runtime.onInstalled.addListener(initBadgeDefaults)
-chrome.runtime.onStartup.addListener(initBadgeDefaults)
+async function initExtensionInstall(): Promise<void> {
+  clearDebugLogs()
+  await initBackgroundDefaults()
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  void initExtensionInstall()
+})
+chrome.runtime.onStartup.addListener(() => {
+  void initDebugLogStore().then(() => initBackgroundDefaults())
+})
 
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   void chrome.tabs.get(tabId).then((tab) => updateBadgeForTab(tabId, tab.url))
@@ -557,6 +597,23 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           }
           markTabTriggerError(tab.id, tab.url)
           await updateBadgeForTab(tab.id, tab.url)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'APPEND_DEBUG_LOG': {
+          await initDebugLogStore()
+          const entries = normalizeDebugLogAppendDetails(message.details).map((entry) => enrichDebugLogFromSender(entry, _sender))
+          appendDebugLog(entries)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'GET_DEBUG_LOGS': {
+          await initDebugLogStore()
+          sendResponse({ ok: true, debugLogs: getDebugLogSnapshot() } satisfies ShellResponse)
+          return
+        }
+        case 'CLEAR_DEBUG_LOGS': {
+          clearDebugLogs()
           sendResponse({ ok: true } satisfies ShellResponse)
           return
         }

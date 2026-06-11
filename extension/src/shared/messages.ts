@@ -1,5 +1,7 @@
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
+import type { DebugLogAppendInput, DebugLogEntry } from './debug-log-types'
+
 /** Background ↔ popup/content message types (MVP). */
 export interface BridgeXhrDetails {
   method?: string
@@ -61,6 +63,9 @@ export type ShellMessage =
   | { type: 'TAB_PAGE_LOAD'; details: { url: string } }
   | { type: 'SCRIPT_TRIGGERED'; details: ScriptTriggeredDetails }
   | { type: 'SCRIPT_FAILED'; details: ScriptTriggeredDetails }
+  | { type: 'APPEND_DEBUG_LOG'; details: DebugLogAppendInput | { entries: DebugLogAppendInput[] } }
+  | { type: 'GET_DEBUG_LOGS' }
+  | { type: 'CLEAR_DEBUG_LOGS' }
 
 export interface ShellStatus {
   configured: boolean
@@ -112,6 +117,7 @@ export type ShellResponse =
   | { ok: true; xhr: BridgeXhrResponse }
   | { ok: true; quickAddRuleContext?: { activeTabUrl: string; items: QuickAddRuleContextItem[] } }
   | { ok: true; shellEnabled?: boolean }
+  | { ok: true; debugLogs?: DebugLogEntry[] }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

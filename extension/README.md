@@ -42,6 +42,7 @@ Admin URLs use hash routes on a single page:
 | Servers | `admin.html#servers`                                                                                        |
 | Scripts | `admin.html#scripts`                                                                                        |
 | Rules   | `admin.html#rules` (optional sub-path: `#rules/new`, `#rules/rule/{id}`, `#rules/script/{scriptKey\|file}`) |
+| Logs    | `admin.html#logs`                                                                                           |
 
 ## Build
 
@@ -141,6 +142,20 @@ Design notes and task checklist: **[docs/multi-service-tasks.md](./docs/multi-se
 ## Scripts page (`admin.html#scripts`)
 
 Per-script enable/disable scoped by scriptKey (`vws_script_enabled:{scriptKey}:{file}`). Same scriptKey across multiple Services shares one toggle group. Does not edit source — use the web editor.
+
+### Debug logs (`admin.html#logs`)
+
+Session-only debug log viewer backed by a background ring buffer (max 1000 entries). **Collection runs in the background** and does not depend on opening the Logs tab — popup, admin, content, inject, and page/preset logs are captured whenever log mode is Console or Viewer.
+
+The Logs tab only reads and displays that store. Refreshing the admin page or switching to the Logs tab loads the full history via `GET_DEBUG_LOGS`. Live updates use a background port subscription.
+
+**Cleared when:** the browser session ends (close browser) or the extension is reloaded/reinstalled (`onInstalled`). The Logs toolbar **Clear filters** button resets filters only — it does not clear stored logs. **Not cleared when:** refreshing the Logs tab or navigating away from admin. MV3 service worker restarts restore the buffer from `chrome.storage.session` within the same browser session.
+
+Collection follows popup log mode: **Console** and **Viewer** collect; **Off** disables all capture.
+
+Logs include background, popup, admin, content relay, inject bootstrap, and page/preset/script lines. Each row shows `host` and `tabId` when available (page logs get tab context from the content relay + background sender enrichment).
+
+Legacy `#scripts/logs` redirects to the logs tab.
 
 ## Tampermonkey vs extension
 

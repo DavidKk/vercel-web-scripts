@@ -1,7 +1,7 @@
 import { parseAdminHash } from './mm-admin-hash'
 import { bindAdminNavIndicator } from './mm-admin-nav'
 
-type AdminTabKey = 'servers' | 'scripts' | 'rules'
+type AdminTabKey = 'servers' | 'scripts' | 'rules' | 'logs'
 
 const REPO_URL = 'https://github.com/DavidKk/vercel-web-scripts'
 
@@ -9,6 +9,7 @@ const TAB_CONFIG: Array<{ key: AdminTabKey; label: string; hash: string }> = [
   { key: 'servers', label: 'Servers', hash: '#servers' },
   { key: 'scripts', label: 'Scripts', hash: '#scripts' },
   { key: 'rules', label: 'Rules', hash: '#rules' },
+  { key: 'logs', label: 'Logs', hash: '#logs' },
 ]
 
 export class MmAdminTabs extends HTMLElement {
@@ -67,7 +68,7 @@ export class MmAdminTabs extends HTMLElement {
 
   private syncCurrentTab(): void {
     const currentAttr = (this.getAttribute('current') || 'servers').toLowerCase()
-    const current = (['servers', 'scripts', 'rules'] as const).includes(currentAttr as AdminTabKey) ? (currentAttr as AdminTabKey) : 'servers'
+    const current = (['servers', 'scripts', 'rules', 'logs'] as const).includes(currentAttr as AdminTabKey) ? (currentAttr as AdminTabKey) : 'servers'
 
     for (const link of this.querySelectorAll<HTMLAnchorElement>('.mm-admin-nav-link[data-admin-tab]')) {
       if (link.dataset.adminTab === current) {

@@ -1,4 +1,7 @@
+import { DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE, DEBUG_LOG_MESSAGE_TYPE } from '@shared/launcher-constants'
+
 import { BRIDGE_MESSAGE_SOURCE, REQUEST_EVENT } from './constants'
+import { handleDebugLogMessage } from './debug-log-relay'
 import { handleBridgeRequest } from './gm-storage-bridge'
 import { handleScriptLifecycleMessage } from './script-trigger-reporter'
 import { handleWebInstallMessage, isWebInstallMessage } from './web-install-bridge'
@@ -19,6 +22,10 @@ function handlePageBridgeMessage(event: MessageEvent): void {
   }
 
   if (typeof data.type === 'string') {
+    if (data.type === DEBUG_LOG_MESSAGE_TYPE || data.type === DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE) {
+      handleDebugLogMessage(data.type, data.payload)
+      return
+    }
     handleScriptLifecycleMessage(data.type, data.payload)
     if (data.type !== REQUEST_EVENT) {
       return

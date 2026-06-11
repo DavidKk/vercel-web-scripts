@@ -18,5 +18,6 @@ export default (): Config.InitialOptions => ({
     ...pathsToModuleNameMapper(tsconfigPaths, {
       prefix: '<rootDir>',
     }),
+    '^@ext/(.*)$': '<rootDir>/extension/src/$1',
   },
 })

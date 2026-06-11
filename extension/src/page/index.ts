@@ -3,9 +3,11 @@
  */
 
 import { extensionLogger } from '@ext/shared/logger'
-import { syncShellLogOutputModeFromGmStore } from '@ext/shared/shell-log-output-cache'
+import { shouldExtensionCollectDebugLogs, syncShellLogOutputModeFromGmStore } from '@ext/shared/shell-log-output-cache'
 import type { PageBootstrapConfig, ScriptKeyBootstrapEntry } from '@ext/types'
+import { BOOT_LOG_KEY } from '@shared/launcher-constants'
 
+import { flushBootDebugLogs } from '../bridge/debug-log-relay'
 import { buildLauncherUrls } from './config'
 import { installGmApiOnPage } from './gm-bridge'
 import { startLauncher } from './launcher-runtime'
@@ -106,4 +108,16 @@ function main(): void {
   }
 }
 
+function replayBootDebugLogs(): void {
+  if (!shouldExtensionCollectDebugLogs()) {
+    return
+  }
+  const raw = (globalThis as Record<string, unknown>)[BOOT_LOG_KEY]
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return
+  }
+  flushBootDebugLogs(raw as Array<{ t?: number; level?: string; message?: string }>)
+}
+
 main()
+queueMicrotask(() => replayBootDebugLogs())
