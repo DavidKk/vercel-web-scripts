@@ -14,7 +14,6 @@ import { initMmTooltipDelegation } from './mm-tooltip'
 
 const ALL_SOURCES: DebugLogSource[] = ['background', 'popup', 'admin', 'content', 'inject', 'page']
 const PORT_RECONNECT_MS = 500
-const RENDER_DEBOUNCE_MS = 80
 
 type LogsQuickFilter = 'source' | 'scope' | 'host' | 'tab'
 
@@ -31,7 +30,6 @@ export class MmLogsApp extends HTMLElement {
   private unsubscribeAdminView: (() => void) | undefined
   private scrollIndicatorRefresh: (() => void) | undefined
   private portReconnectTimer: ReturnType<typeof setTimeout> | undefined
-  private renderDebounceTimer: ReturnType<typeof setTimeout> | undefined
   private lastSourceOptionsKey = ''
   private lastScopeOptionsKey = ''
   private lastHostOptionsKey = ''
@@ -63,7 +61,6 @@ export class MmLogsApp extends HTMLElement {
     this.unsubscribeAdminView?.()
     this.unsubscribeAdminView = undefined
     this.clearPortReconnectTimer()
-    this.clearRenderDebounceTimer()
     this.port?.disconnect()
     this.port = undefined
   }
@@ -81,7 +78,7 @@ export class MmLogsApp extends HTMLElement {
       return
     }
     btn.setAttribute('aria-pressed', this.autoScroll ? 'true' : 'false')
-    btn.title = this.autoScroll ? 'Following new log entries' : 'Paused — scroll position kept'
+    btn.setAttribute('data-mm-tooltip', this.autoScroll ? 'Auto-scroll to newest entries' : 'Paused — click to follow new entries')
   }
 
   private bindEvents(): void {
@@ -219,7 +216,7 @@ export class MmLogsApp extends HTMLElement {
         while (this.entries.length > MAX_DEBUG_LOG_ENTRIES) {
           this.entries.shift()
         }
-        this.scheduleViewUpdate()
+        this.flushViewUpdate()
       }
     })
     this.port.onDisconnect.addListener(() => {
@@ -251,30 +248,10 @@ export class MmLogsApp extends HTMLElement {
     }
   }
 
-  private scheduleViewUpdate(): void {
-    if (this.renderDebounceTimer) {
-      return
-    }
-    this.renderDebounceTimer = setTimeout(() => {
-      this.renderDebounceTimer = undefined
-      this.syncFilterSelectOptions()
-      this.renderList()
-      this.renderFooter()
-    }, RENDER_DEBOUNCE_MS)
-  }
-
   private flushViewUpdate(): void {
-    this.clearRenderDebounceTimer()
     this.syncFilterSelectOptions()
     this.renderList()
     this.renderFooter()
-  }
-
-  private clearRenderDebounceTimer(): void {
-    if (this.renderDebounceTimer) {
-      clearTimeout(this.renderDebounceTimer)
-      this.renderDebounceTimer = undefined
-    }
   }
 
   private getHostSelect(): MmSearchSelect | null {
@@ -414,13 +391,14 @@ export class MmLogsApp extends HTMLElement {
     return source.charAt(0).toUpperCase() + source.slice(1)
   }
 
-  private renderQuickFilterCell(className: string, filter: LogsQuickFilter, value: string, display: string, title?: string): string {
+  private renderQuickFilterCell(className: string, filter: LogsQuickFilter, value: string, display: string, tooltip?: string): string {
     const trimmed = value.trim()
     if (!trimmed || trimmed === '—') {
       return `<span class="mm-logs-cell ${className}">${this.escapeHtml(display)}</span>`
     }
-    const filterTitle = title ?? `Filter by ${display}`
-    return `<button type="button" class="mm-logs-cell ${className} mm-logs-cell--filter-link" data-action="quick-filter" data-filter="${filter}" data-value="${this.escapeAttr(trimmed)}" title="${this.escapeAttr(filterTitle)}">${this.escapeHtml(display)}</button>`
+    const filterTooltip = tooltip ?? `Filter by ${display}`
+    const wide = filter === 'tab' ? ' data-mm-tooltip-wide' : ''
+    return `<button type="button" class="mm-logs-cell ${className} mm-logs-cell--filter-link" data-action="quick-filter" data-filter="${filter}" data-value="${this.escapeAttr(trimmed)}" data-mm-tooltip="${this.escapeAttr(filterTooltip)}" data-mm-tooltip-placement="bottom"${wide}>${this.escapeHtml(display)}</button>`
   }
 
   private renderList(): void {
@@ -447,12 +425,12 @@ export class MmLogsApp extends HTMLElement {
             : `<span class="mm-logs-cell mm-logs-cell--tab">${this.escapeHtml(tabId)}</span>`
         return `<div class="mm-logs-row mm-logs-row--${entry.level}" role="row">
           <span class="mm-logs-cell mm-logs-cell--time" data-mm-tooltip="${this.escapeAttr(this.formatTimeFull(entry.t))}" data-mm-tooltip-placement="bottom" data-mm-tooltip-align="center" data-mm-tooltip-wide role="gridcell">${this.formatTime(entry.t)}</span>
-          <span class="mm-logs-cell mm-logs-cell--level" data-level="${entry.level}" role="gridcell">${entry.level}</span>
-          ${this.renderQuickFilterCell('mm-logs-cell--source', 'source', entry.source, entry.source)}
-          ${this.renderQuickFilterCell('mm-logs-cell--scope', 'scope', entry.scope, entry.scope)}
-          ${this.renderQuickFilterCell('mm-logs-cell--host', 'host', host === '—' ? '' : host, host)}
+          <span class="mm-logs-cell mm-logs-cell--level" data-level="${entry.level}" data-mm-tooltip="${this.escapeAttr(`${entry.level} level`)}" data-mm-tooltip-placement="bottom" role="gridcell">${entry.level}</span>
+          ${this.renderQuickFilterCell('mm-logs-cell--source', 'source', entry.source, entry.source, `Filter by source ${entry.source}`)}
+          ${this.renderQuickFilterCell('mm-logs-cell--scope', 'scope', entry.scope, entry.scope, `Filter by scope ${entry.scope.trim()}`)}
+          ${this.renderQuickFilterCell('mm-logs-cell--host', 'host', host === '—' ? '' : host, host, host === '—' ? undefined : `Filter by host ${host}`)}
           ${tabCell}
-          <span class="mm-logs-cell mm-logs-cell--message" role="gridcell">${this.escapeHtml(entry.message)}</span>
+          <span class="mm-logs-cell mm-logs-cell--message" role="gridcell" data-mm-tooltip="${this.escapeAttr(entry.message)}" data-mm-tooltip-placement="bottom" data-mm-tooltip-align="start" data-mm-tooltip-wide>${this.escapeHtml(entry.message)}</span>
         </div>`
       })
       .join('')
