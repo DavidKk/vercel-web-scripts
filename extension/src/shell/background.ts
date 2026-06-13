@@ -56,6 +56,7 @@ import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { extensionLogger } from '../shared/logger'
 import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { initBadgeNavigationListeners } from './badge-navigation'
+import { disableCspStripForPageUrl } from './csp-dnr-rules'
 import { reloadTabOnceForCsp } from './csp-tab-reload'
 import { CSP_RELOAD_SCHEDULED_MESSAGE, executeInMainWorldScript } from './csp-user-script-executor'
 import {
@@ -665,6 +666,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           const source = mode === 'preset' ? { decls: message.details.decls, presetCode: message.details.presetCode } : { withBody: message.details.withBody }
           const result = await executeInMainWorldScript(tabId, mode, source)
           if (result.ok) {
+            await disableCspStripForPageUrl(tabUrl)
             sendResponse({ ok: true, message: 'Main-world execute complete.' } satisfies ShellResponse)
             return
           }
@@ -674,6 +676,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
               sendResponse({ ok: true, message: CSP_RELOAD_SCHEDULED_MESSAGE } satisfies ShellResponse)
               return
             }
+            await disableCspStripForPageUrl(tabUrl)
             markTabTriggerError(tabId, tabUrl)
             await updateBadgeForTab(tabId, tabUrl)
             sendResponse({
@@ -683,6 +686,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
             return
           }
           markTabTriggerError(tabId, tabUrl)
+          await disableCspStripForPageUrl(tabUrl)
           await updateBadgeForTab(tabId, tabUrl)
           sendResponse({ ok: false, error: result.message } satisfies ShellResponse)
           return

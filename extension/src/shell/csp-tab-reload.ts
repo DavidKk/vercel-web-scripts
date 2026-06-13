@@ -1,3 +1,5 @@
+import { enableCspStripForPageUrl } from './csp-dnr-rules'
+
 const CSP_RELOAD_SESSION_PREFIX = 'vws_csp_reload:'
 
 function sessionKey(tabId: number, url: string): string {
@@ -14,6 +16,7 @@ export async function reloadTabOnceForCsp(tabId: number, url: string): Promise<'
     return 'already-reloaded'
   }
   await chrome.storage.session.set({ [key]: true })
+  await enableCspStripForPageUrl(url)
   await chrome.tabs.reload(tabId)
   return 'reloaded'
 }

@@ -13,6 +13,7 @@ const tsconfigPaths = compilerOptions.paths!
 export default (): Config.InitialOptions => ({
   preset: 'ts-jest',
   testEnvironment: 'node',
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   testMatch: ['<rootDir>/__tests__/**/*.spec.ts', '<rootDir>/__tests__/**/*.spec.tsx'],
   moduleNameMapper: {
     ...pathsToModuleNameMapper(tsconfigPaths, {

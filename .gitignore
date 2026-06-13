@@ -77,3 +77,10 @@ playwright/.cache
 
 # Cursor local MCP config
 .cursor/mcp.json
+
+# Stray TypeScript emit beside .ts sources (Jest resolves .js first and breaks tests)
+shared/**/*.js
+extension/src/**/*.js
+extension/vite-plugins/**/*.js
+extension/vite.config.js
+extension/tailwind.config.js

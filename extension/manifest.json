@@ -5,15 +5,6 @@
   "description": "Native Chrome shell for MagickMonkey: OTA preset and scripts without Tampermonkey.",
   "permissions": ["storage", "tabs", "webNavigation", "scripting", "declarativeNetRequest", "declarativeNetRequestWithHostAccess", "userScripts"],
   "host_permissions": ["<all_urls>"],
-  "declarative_net_request": {
-    "rule_resources": [
-      {
-        "id": "strip_csp",
-        "enabled": true,
-        "path": "rules/strip-csp-rules.json"
-      }
-    ]
-  },
   "background": {
     "service_worker": "background.js"
   },
@@ -41,7 +32,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["page-launcher.js"],
+      "resources": ["page-launcher.js", "navigation-guard.js"],
       "matches": ["<all_urls>"]
     }
   ],
