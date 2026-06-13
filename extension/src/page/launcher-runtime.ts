@@ -19,11 +19,12 @@ import {
   PRESET_UPDATED_NOTIFY_KEY,
   REMOTE_SCRIPT_CACHE_KEY,
   REMOTE_SCRIPT_ETAG_KEY,
-  RUNTIME_STATE_KEY_PREFIX,
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
+import { ensurePresetCoreInjectionGate } from '@shared/preset-core-injection-gate'
 import { buildPresetLauncherDecls } from '@shared/preset-launcher-decls'
+import { clearAllRuntimeGmCaches } from '@shared/runtime-cache-clear'
 import { PRESET_CORE_SCRIPT_FILE, reportExtensionScriptFailed } from '@shared/script-trigger-log'
 
 import type { LauncherUrls } from './config'
@@ -79,6 +80,29 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   let runtimeScriptUrl = globals.__SCRIPT_URL__ as string
   let pendingManifestEtag = ''
   let skipPresetExecute = false
+
+  const PRESET_RUN_ATTEMPTED_KEY = '__VWS_PRESET_RUN_ATTEMPTED__'
+  const PRESET_IN_FLIGHT_KEY = '__VWS_PRESET_EXECUTE_IN_FLIGHT__'
+
+  function isPresetRunAttemptedOnDocument(): boolean {
+    return (globalThis as Record<string, unknown>)[PRESET_RUN_ATTEMPTED_KEY] === true
+  }
+
+  function markPresetRunAttemptedOnDocument(): void {
+    ;(globalThis as Record<string, unknown>)[PRESET_RUN_ATTEMPTED_KEY] = true
+  }
+
+  function markPresetExecutedOnDocument(): void {
+    skipPresetExecute = true
+  }
+
+  function isPresetExecuteInFlight(): boolean {
+    return (globalThis as Record<string, unknown>)[PRESET_IN_FLIGHT_KEY] === true
+  }
+
+  function setPresetExecuteInFlight(inFlight: boolean): void {
+    ;(globalThis as Record<string, unknown>)[PRESET_IN_FLIGHT_KEY] = inFlight
+  }
 
   function reloadIfTabActive(reason: string): void {
     bootLog('info', MODULE_LOG_PREFIX, reason)
@@ -193,6 +217,12 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   }
 
   function runPreset(presetCode: string): void {
+    const injectionGate = ensurePresetCoreInjectionGate()
+    if (isPresetRunAttemptedOnDocument() || isPresetExecuteInFlight()) {
+      bootLog('info', `execute:skipped duplicate bytes=${presetCode?.length ?? 0}`)
+      return
+    }
+    markPresetRunAttemptedOnDocument()
     const bytes = presetCode?.length ?? 0
     bootLog('info', `execute:start bytes=${bytes}`)
     const g = globalThis as Record<string, unknown>
@@ -204,7 +234,9 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     const decls = buildPresetLauncherDecls(PRESET_VAR_NAMES)
     try {
       const mode = executePresetInPageContext(g, decls, presetCode)
+      markPresetExecutedOnDocument()
       bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
+      injectionGate.markReady()
     } catch (e) {
       if (!isCspExtensionFallbackRequired(e)) {
         const em = e instanceof Error ? e.message : String(e)
@@ -212,8 +244,10 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
         bootLog('fail', 'execute:failed', em + cspHint)
         launcherLogger.error(`[${scriptKey}] preset run failed:`, em, e)
         reportPresetFailure()
+        injectionGate.markReady()
         return
       }
+      setPresetExecuteInFlight(true)
       void executePresetWithGResilient(g, decls, presetCode, {
         gmScope,
         scriptKey,
@@ -225,6 +259,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
             bootLog('info', 'execute:csp-reload tab reload scheduled (DNR strips CSP on next load)')
             return
           }
+          markPresetExecutedOnDocument()
           bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
         })
         .catch((fallbackError) => {
@@ -236,6 +271,10 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
           }
           launcherLogger.error(`[${scriptKey}] preset run failed:`, em, fallbackError)
           reportPresetFailure()
+        })
+        .finally(() => {
+          setPresetExecuteInFlight(false)
+          injectionGate.markReady()
         })
     }
   }
@@ -547,7 +586,9 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   function loadAndRun(skipConditionalRequest = false): void {
     pendingManifestEtag = ''
-    skipPresetExecute = false
+    if (!skipConditionalRequest) {
+      skipPresetExecute = false
+    }
     const presetCode = readScopedValue(scopedPresetCacheKey, PRESET_CACHE_KEY, '') as string
     const localPresetHash = normalizeEtag(readScopedValue(scopedPresetEtagKey, PRESET_ETAG_KEY, '') as string)
     const manifestEtagStored = normalizeEtag(readScopedValue(scopedModuleManifestEtagKey, MODULE_MANIFEST_ETAG_KEY, '') as string)
@@ -572,7 +613,6 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     if (presetCode) {
       bootLog('info', MODULE_LOG_PREFIX, `load:cache-first bytes=${presetCode.length}`)
       runPreset(presetCode)
-      skipPresetExecute = true
     } else {
       bootLog('info', MODULE_LOG_PREFIX, 'load:remote-first no local preset cache — fetch from server before execute')
     }
@@ -581,23 +621,15 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   }
 
   function resetRuntimeState(): void {
-    const confirmed = window.confirm('Reset runtime state? This clears cached preset/script state and reloads this page.')
+    const confirmed = window.confirm('Reset runtime state? This clears all OTA caches (preset, remote script, optional UI, rules) and reloads this page.')
     if (!confirmed) return
     try {
-      const shellNetwork = gm.GM_getValue(SHELL_NETWORK_ENABLED_KEY)
-      const legacyAutoUpdate = gm.GM_getValue(LEGACY_AUTO_UPDATE_SCRIPT_KEY)
-      const keys = gm.GM_listValues()
-      let removed = 0
-      for (const key of keys) {
-        if (typeof key === 'string' && key.startsWith(RUNTIME_STATE_KEY_PREFIX)) {
-          gm.GM_deleteValue(key)
-          removed++
-        }
-      }
-      gm.GM_setValue(SHELL_NETWORK_ENABLED_KEY, shellNetwork === true || shellNetwork === false ? shellNetwork : true)
-      if (legacyAutoUpdate === true || legacyAutoUpdate === false) {
-        gm.GM_setValue(LEGACY_AUTO_UPDATE_SCRIPT_KEY, legacyAutoUpdate)
-      }
+      const removed = clearAllRuntimeGmCaches({
+        listValues: () => gm.GM_listValues(),
+        getValue: (key) => gm.GM_getValue(key),
+        deleteValue: (key) => gm.GM_deleteValue(key),
+        setValue: (key, value) => gm.GM_setValue(key, value),
+      })
       launcherLogger.warn('Runtime state reset complete. Removed keys:', removed)
     } catch (e) {
       launcherLogger.error('Runtime state reset failed:', e)
@@ -607,18 +639,16 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   gm.GM_addValueChangeListener(PRESET_UPDATE_CHANNEL_KEY, (_name, _oldVal, newVal) => {
     if (newVal == null || !shellNetworkOn()) return
-    gm.GM_deleteValue(scopedPresetCacheKey)
-    gm.GM_deleteValue(scopedPresetEtagKey)
-    gm.GM_deleteValue(scopedPresetActivatedHashKey)
-    gm.GM_deleteValue(scopedPresetPreviousHashKey)
-    gm.GM_deleteValue(scopedModuleManifestEtagKey)
-    gm.GM_deleteValue(scopedScriptBundleUrlKey)
-    gm.GM_deleteValue(PRESET_CACHE_KEY)
-    gm.GM_deleteValue(PRESET_ETAG_KEY)
-    gm.GM_deleteValue(PRESET_ACTIVATED_HASH_KEY)
-    gm.GM_deleteValue(PRESET_PREVIOUS_HASH_KEY)
-    gm.GM_deleteValue(MODULE_MANIFEST_ETAG_KEY)
-    gm.GM_deleteValue(SCRIPT_BUNDLE_URL_KEY)
+    try {
+      clearAllRuntimeGmCaches({
+        listValues: () => gm.GM_listValues(),
+        getValue: (key) => gm.GM_getValue(key),
+        deleteValue: (key) => gm.GM_deleteValue(key),
+        setValue: (key, value) => gm.GM_setValue(key, value),
+      })
+    } catch {
+      // ignore
+    }
     if (!isTabActive()) return
     gm.GM_setValue(scopedPresetUpdatedNotifyKey, 1)
     gm.GM_setValue(PRESET_UPDATED_NOTIFY_KEY, 1)

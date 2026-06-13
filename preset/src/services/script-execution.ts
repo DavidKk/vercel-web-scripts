@@ -3,7 +3,7 @@
  */
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
-import { buildGrantsFromGlobal, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
+import { buildGrantsFromGlobal, type CspScriptExecuteMode, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
 
 import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@/constants'
@@ -84,7 +84,7 @@ function writeRemoteScriptCache(content: string, etag: string): void {
  * GM_* may be in script scope only; we merge them onto global so with(global) resolves them.
  * @param content Script content to execute
  */
-export function executeScript(content: string): void {
+export async function executeScript(content: string): Promise<void> {
   // When run by launcher, use __GLOBAL__ (launcher's g) so remote script runs in the same sandbox as preset (matchRule, GM_*, etc.)
   const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {}) as Record<
     string,
@@ -100,19 +100,21 @@ export function executeScript(content: string): void {
   const prev = g.__IS_REMOTE_EXECUTE__
   const prevCreateGMELogger = g.createGMELogger
   const scriptCreateGMELogger = g.createScriptGMELogger
+  let executeMode: CspScriptExecuteMode = 'function'
   try {
     Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
     if (typeof scriptCreateGMELogger === 'function') {
       g.createGMELogger = scriptCreateGMELogger
     }
     try {
-      executeWithGlobal(g, executableContent)
+      executeMode = executeWithGlobal(g, executableContent)
     } catch (error) {
       if (!isCspExtensionFallbackRequired(error)) {
         throw error
       }
-      void executeWithGlobalResilient(g, executableContent).catch(() => undefined)
+      executeMode = await executeWithGlobalResilient(g, executableContent)
     }
+    GME_debug(`[Remote script] execute:finished mode=${executeMode} modules=${countCompiledRemoteModules(executableContent)} bytes=${executableContent.length}`)
   } finally {
     g.__IS_REMOTE_EXECUTE__ = prev
     if (prevCreateGMELogger === undefined) {
@@ -198,8 +200,9 @@ export async function executeRemoteScript(url?: string): Promise<void> {
 
   if (cached?.content && isShellNetworkEffectivelyEnabled()) {
     GME_debug(`[Remote script] load:cache-first bytes=${cached.content.length} modules=${countCompiledRemoteModules(cached.content)} rules=${getRulesCacheStats().ruleCount}`)
+    GME_debug(`[Remote script] execute:start bytes=${cached.content.length} modules=${countCompiledRemoteModules(cached.content)} scripts=${getRulesCacheStats().scriptCount}`)
     GME_ok('Remote script ready.')
-    executeScript(cached.content)
+    await executeScript(cached.content)
     void refreshRemoteScriptInBackground(scriptUrl, cached)
     return
   }
@@ -244,7 +247,7 @@ export async function executeRemoteScript(url?: string): Promise<void> {
 
   GME_debug(`[Remote script] execute:start bytes=${content.length} modules=${countCompiledRemoteModules(content)} scripts=${getRulesCacheStats().scriptCount}`)
   GME_ok('Remote script ready.')
-  executeScript(content)
+  await executeScript(content)
 }
 
 /**
@@ -277,7 +280,7 @@ export async function executeLocalScript(): Promise<void> {
   }
 
   GME_ok('[Local Dev Mode] Local script ready, executing...')
-  executeScript(compiledContent)
+  await executeScript(compiledContent)
 }
 
 /**
@@ -333,7 +336,7 @@ export async function executeEditorScript(): Promise<boolean> {
     ;(window as any).__WEB_SCRIPT_EDITOR_LAST_MODIFIED__ = lastModified
 
     GME_ok('[Editor Dev Mode] Executing editor script')
-    executeScript(compiledContent)
+    await executeScript(compiledContent)
     GME_ok('[Editor Dev Mode] Editor script executed successfully')
     return true
   } catch (error: any) {

@@ -157,16 +157,23 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
   }
 }
 
-/** Reset runtime state keys while keeping extension config and rules. */
+/** Reset runtime state and clear module caches for all enabled scriptKeys. */
+export async function resetRuntimeStateForEnabledScriptKeys(): Promise<void> {
+  await clearAllRuntimeCachesForEnabledScriptKeys()
+}
+
+/** Wipe OTA GM caches + module keys for every enabled scriptKey (Update runtime / Reset runtime). */
+export async function clearAllRuntimeCachesForEnabledScriptKeys(): Promise<number> {
+  await wipeGlobalRuntimeStorage()
+  const count = await clearRuntimeModuleCachesForEnabledScriptKeys()
+  await chrome.storage.local.set({ [gmStorageKey(PRESET_UPDATE_CHANNEL_KEY)]: Date.now() })
+  return count
+}
+
+/** @deprecated Use {@link clearAllRuntimeCachesForEnabledScriptKeys} */
 export async function resetRuntimeState(config: ExtensionConfig): Promise<void> {
   await wipeGlobalRuntimeStorage()
   await clearRuntimeModuleCache(config)
-}
-
-/** Reset runtime state and clear module caches for all enabled scriptKeys. */
-export async function resetRuntimeStateForEnabledScriptKeys(): Promise<void> {
-  await wipeGlobalRuntimeStorage()
-  await clearRuntimeModuleCachesForEnabledScriptKeys()
 }
 
 /**

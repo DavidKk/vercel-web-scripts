@@ -253,7 +253,7 @@ class ScriptUpdate {
    * Execute script content (no fetch). Keeps original script running until this runs.
    * @param content Script source code to execute
    */
-  private executeScriptContent(content: string): void {
+  private async executeScriptContent(content: string): Promise<void> {
     const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {}) as Record<
       string,
       unknown
@@ -268,7 +268,7 @@ class ScriptUpdate {
         if (!isCspExtensionFallbackRequired(error)) {
           throw error
         }
-        void executeWithGlobalResilient(g, content).catch(() => undefined)
+        await executeWithGlobalResilient(g, content)
       }
     } finally {
       g.__IS_REMOTE_EXECUTE__ = prev
@@ -289,7 +289,7 @@ class ScriptUpdate {
       }
 
       GME_ok('[Script Update] Remote script fetched successfully, executing...')
-      this.executeScriptContent(content)
+      await this.executeScriptContent(content)
       GME_ok('[Script Update] Script updated and executed successfully')
       GME_notification('Script updated successfully', 'success', 3000)
     } catch (error: any) {

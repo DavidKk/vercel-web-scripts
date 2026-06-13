@@ -21,7 +21,9 @@ export function buildPresetLauncherDecls(presetVarNames: readonly string[]): str
  * @returns Single-line decl staging `__GLOBAL__` for UI bundle eval
  */
 export function buildPresetUiExecDecls(): string {
-  return 'var __GLOBAL__ = global;'
+  // Match preset-core launcher decls: `var __GLOBAL__` hoists to the user-script IIFE scope so
+  // nested preset-ui bundle functions resolve the staged sandbox via closure (not only via with()).
+  return ['var __GLOBAL__ = global;', 'global.__GLOBAL__ = global;'].join('\n')
 }
 
 /**
@@ -32,7 +34,6 @@ export function isLikelyPresetUiBundle(content: string): boolean {
   if (!content || content.length < 1024) {
     return false
   }
-  const hasUiTag = content.includes('vercel-web-script')
-  const hasRuntimeHook = content.includes('__VWS_CORE__') && content.includes('preset-ui')
-  return hasUiTag || hasRuntimeHook
+  // Minified: e.register("preset-ui",{…}). Unminified (watch): .register(\n  "preset-ui", — allow whitespace.
+  return /\.register\s*\(\s*['"]preset-ui['"]/.test(content)
 }

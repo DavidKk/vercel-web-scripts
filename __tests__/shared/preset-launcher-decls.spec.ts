@@ -11,14 +11,16 @@ describe('preset-launcher-decls', () => {
   })
 
   it('buildPresetUiExecDecls stages __GLOBAL__ for optional UI eval', () => {
-    expect(buildPresetUiExecDecls()).toBe('var __GLOBAL__ = global;')
+    expect(buildPresetUiExecDecls()).toContain('var __GLOBAL__ = global;')
+    expect(buildPresetUiExecDecls()).toContain('global.__GLOBAL__ = global;')
   })
 
   it('isLikelyPresetUiBundle rejects stubs and accepts UI tags', () => {
     expect(isLikelyPresetUiBundle('')).toBe(false)
     expect(isLikelyPresetUiBundle('console.warn("missing");')).toBe(false)
     expect(isLikelyPresetUiBundle(`(${'x'.repeat(2000)})`)).toBe(false)
-    expect(isLikelyPresetUiBundle(`(function(){${'x'.repeat(2000)} vercel-web-script-command-palette })()`)).toBe(true)
-    expect(isLikelyPresetUiBundle(`(function(){${'x'.repeat(2000)} __VWS_CORE__ preset-ui })()`)).toBe(true)
+    expect(isLikelyPresetUiBundle(`(function(){${'x'.repeat(2000)} __VWS_CORE__ preset-ui })()`)).toBe(false)
+    expect(isLikelyPresetUiBundle(`(function(){${'x'.repeat(2000)} e.register("preset-ui") })()`)).toBe(true)
+    expect(isLikelyPresetUiBundle(`(function(){${'x'.repeat(2000)} e.register(\n  "preset-ui",\n  {}) })()`)).toBe(true)
   })
 })

@@ -1,8 +1,10 @@
 import { executeWithGlobal, executeWithGlobalResilient, isCspEvalError, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { buildPresetUiExecDecls, isLikelyPresetUiBundle } from '@shared/preset-launcher-decls'
 
+import { GME_fetch } from '@/helpers/http'
 import { parseStaticKeyFromScriptUrl, readLauncherBaseUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { createGMELogger } from '@/helpers/logger'
+import { ensureRuntimeCore, type RuntimeCoreApi } from '@/services/runtime-core'
 import { shouldLogToConsole } from '@/services/shell-log-settings'
 import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 import { GME_notification } from '@/ui/notification/index'
@@ -20,6 +22,9 @@ const { GME_debug, GME_warn } = createGMELogger('ModuleLoad:preset-ui')
 const OPTIONAL_UI_CACHE_KEY_PREFIX = 'vws_optional_ui'
 const OPTIONAL_UI_REFRESH_LOCK_KEY = 'vws_optional_ui_refreshing'
 const OPTIONAL_UI_REFRESH_LOCK_TTL_MS = 15_000
+
+/** Coalesce concurrent ensureOptionalUi() calls (avoids double CSP user-script global attempts). */
+let ensureOptionalUiInflight: Promise<OptionalUiApi | null> | null = null
 
 /**
  * Parse Tampermonkey script key for optional-ui cache scope.
@@ -51,15 +56,22 @@ function buildModuleManifestUrl(): string | null {
 }
 
 /**
- * Resolve Preset UI script URL (content-addressed `?h=` when manifest provides it).
- * @returns Absolute URL to fetch for preset-ui.js
+ * @returns True when URL targets preset-ui.js (not script-bundle or preset-core).
  */
-async function resolvePresetUiScriptUrl(): Promise<string> {
+function isPresetUiModuleUrl(url: string): boolean {
+  return /\/preset-ui\.js(?:$|[?#])/i.test(url)
+}
+
+/**
+ * Resolve Preset UI script URL (content-addressed `?h=` when manifest provides it).
+ * @returns Absolute URL to fetch for preset-ui.js, or null when base URL cannot be resolved
+ */
+async function resolvePresetUiScriptUrl(): Promise<string | null> {
   const staticKey = resolveOptionalUiScriptKey()
   const base = readLauncherBaseUrl()
   /** When key cannot be parsed, path still matches `/static/[key]/...` shape so the server returns 404 instead of a wrong route. */
   const keyForFallback = staticKey || '__missing_script_key__'
-  const fallback = base.length > 0 ? `${base}/static/${keyForFallback}/${STATIC_PENDING_SEGMENT}/preset-ui.js` : ''
+  const fallback = base.length > 0 ? `${base}/static/${keyForFallback}/${STATIC_PENDING_SEGMENT}/preset-ui.js` : null
   const manifestUrl = buildModuleManifestUrl()
   if (!manifestUrl) {
     return fallback
@@ -75,10 +87,12 @@ async function resolvePresetUiScriptUrl(): Promise<string> {
   }
   for (let i = 0; i < modules.length; i++) {
     const mod = modules[i]
-    if (mod && mod.id === 'preset-ui' && typeof mod.url === 'string' && mod.url.length > 0) {
+    if (mod && mod.id === 'preset-ui' && typeof mod.url === 'string' && mod.url.length > 0 && isPresetUiModuleUrl(mod.url)) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} resolve:url ${shortUrlLabel(mod.url, 120)}`)
       return mod.url
     }
   }
+  GME_debug(`${OPTIONAL_UI_LOG_PREFIX} resolve:fallback manifest missing preset-ui url`)
   return fallback
 }
 
@@ -137,6 +151,17 @@ function readOptionalUiCache(): OptionalUiCacheRecord | null {
   }
 }
 
+function clearOptionalUiCache(): void {
+  try {
+    const keys = getOptionalUiCacheKeys()
+    GM_deleteValue(keys.content)
+    GM_deleteValue(keys.url)
+    GM_deleteValue(keys.etag)
+  } catch {
+    /* ignore */
+  }
+}
+
 function writeOptionalUiCache(content: string, url: string, etag: string): void {
   try {
     const keys = getOptionalUiCacheKeys()
@@ -148,34 +173,172 @@ function writeOptionalUiCache(content: string, url: string, etag: string): void 
   }
 }
 
-function executeOptionalUiContent(content: string): OptionalUiApi | null {
+function readRegisteredPresetUi(core: { get?: (id: string) => unknown } | undefined): OptionalUiApi | null {
+  const loaded = core?.get ? (core.get('preset-ui') as OptionalUiApi | undefined) : undefined
+  return loaded ?? null
+}
+
+function isRuntimeCoreLike(value: unknown): value is { get?: (id: string) => unknown } {
+  return !!value && typeof value === 'object' && typeof (value as { get?: unknown }).get === 'function'
+}
+
+function getRuntimeCoreHosts(g: Record<string, unknown>): Record<string, unknown>[] {
+  const hosts: Record<string, unknown>[] = [g]
+  try {
+    if (typeof __GLOBAL__ !== 'undefined' && __GLOBAL__ && __GLOBAL__ !== g) {
+      hosts.push(__GLOBAL__ as unknown as Record<string, unknown>)
+    }
+  } catch {
+    // __GLOBAL__ may be undeclared in some eval contexts
+  }
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis !== g) {
+      hosts.push(globalThis as unknown as Record<string, unknown>)
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const win = typeof window !== 'undefined' ? (window as unknown as Record<string, unknown>) : null
+    const root = typeof globalThis !== 'undefined' ? (globalThis as unknown as Record<string, unknown>) : null
+    if (win && win !== g && win !== root) {
+      hosts.push(win)
+    }
+  } catch {
+    // ignore
+  }
+  return hosts
+}
+
+function synchronizeRuntimeCoreHosts(g: Record<string, unknown>): void {
+  const hosts = getRuntimeCoreHosts(g)
+  const coreHost = hosts.find((host) => isRuntimeCoreLike(host.__VWS_CORE__))
+  const core = coreHost?.__VWS_CORE__
+  if (!core) {
+    return
+  }
+  for (const host of hosts) {
+    if (!isRuntimeCoreLike(host.__VWS_CORE__)) {
+      host.__VWS_CORE__ = core
+    }
+  }
+}
+
+/**
+ * Mirror runtime sandbox onto page MAIN world hosts so preset-ui bundle IIFEs can resolve __VWS_CORE__
+ * when `__GLOBAL__` is unavailable in their lexical scope (CSP user-script path).
+ * @param g Launcher sandbox
+ * @param core Runtime core registry
+ */
+function mirrorPresetUiRuntimeToPageWorld(g: Record<string, unknown>, core: RuntimeCoreApi): void {
+  g.__GLOBAL__ = g
+  g.__VWS_CORE__ = core
+  synchronizeRuntimeCoreHosts(g)
+  try {
+    if (typeof window !== 'undefined') {
+      const w = window as unknown as Record<string, unknown>
+      w.__GLOBAL__ = g
+      w.__VWS_CORE__ = core
+    }
+  } catch {
+    // ignore cross-realm access
+  }
+}
+
+function formatRuntimeCoreRef(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return 'none'
+  }
+  const getFn = (value as { get?: unknown }).get
+  const hasPresetUi = typeof getFn === 'function' ? Boolean((value as { get: (id: string) => unknown }).get('preset-ui')) : false
+  return `obj preset-ui=${hasPresetUi ? 'yes' : 'no'}`
+}
+
+/** Temporary DEBUG: trace sandbox/core visibility across hosts during preset-ui load. */
+function debugPresetUiRuntimeState(label: string, g: Record<string, unknown>, expectedCore: RuntimeCoreApi | undefined): void {
+  const hosts = getRuntimeCoreHosts(g)
+  const parts = hosts.map((host, index) => {
+    const hostCore = host.__VWS_CORE__
+    const same = hostCore === expectedCore
+    return `[${index}]core=${formatRuntimeCoreRef(hostCore)} sameRef=${same ? 'yes' : 'no'}`
+  })
+  const globalDecl = (() => {
+    try {
+      return typeof __GLOBAL__ !== 'undefined' ? 'defined' : 'undefined'
+    } catch {
+      return 'error'
+    }
+  })()
+  GME_debug(
+    `${OPTIONAL_UI_LOG_PREFIX} debug:${label} globalDecl=${globalDecl} gCore=${formatRuntimeCoreRef(g.__VWS_CORE__)} expected=${formatRuntimeCoreRef(expectedCore)} hosts=${parts.join(' ')}`
+  )
+}
+
+function readRegisteredPresetUiFromGlobal(g: Record<string, unknown>): OptionalUiApi | null {
+  for (const host of getRuntimeCoreHosts(g)) {
+    const loaded = readRegisteredPresetUi(host.__VWS_CORE__ as { get?: (id: string) => unknown } | undefined)
+    if (loaded) {
+      if (!isRuntimeCoreLike(g.__VWS_CORE__) && isRuntimeCoreLike(host.__VWS_CORE__)) {
+        g.__VWS_CORE__ = host.__VWS_CORE__
+      }
+      return loaded
+    }
+  }
+  return null
+}
+
+function reportFinishedWithoutRegister(): void {
+  reportPresetUiLoadFailure(
+    'execute:finished-without-register',
+    'Script ran but did not register preset-ui on __VWS_CORE__ (bundle may be wrong or threw before register).',
+    'Optional UI script ran but did not register. Rebuild preset-ui or check the bundle.'
+  )
+}
+
+async function executeOptionalUiContent(content: string, sourceUrl?: string): Promise<OptionalUiApi | null> {
   if (!isLikelyPresetUiBundle(content)) {
     reportPresetUiLoadFailure(
       'execute:invalid-bundle',
-      `bytes=${content?.length ?? 0} url=${shortUrlLabel(resolveLauncherScriptUrl(), 120)}`,
-      'Optional UI bundle looks invalid (wrong file or truncated download).'
+      `bytes=${content?.length ?? 0} url=${shortUrlLabel(sourceUrl ?? '', 120) || '(unknown)'}`,
+      'Optional UI bundle looks invalid (wrong file or truncated download). Use Reset Runtime State or Update runtime to refetch.'
     )
     return null
   }
   const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as Record<string, unknown>
-  const core = g.__VWS_CORE__ as { get?: (id: string) => unknown } | undefined
+  const core = ensureRuntimeCore()
+  mirrorPresetUiRuntimeToPageWorld(g, core)
+  debugPresetUiRuntimeState('execute:before', g, core)
   const body = `${buildPresetUiExecDecls()}\n${content}`
+  GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:start bytes=${content.length} url=${shortUrlLabel(sourceUrl ?? '', 120) || '(cache)'}`)
   try {
     const mode = executeWithGlobal(g, body)
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
-    const loaded = core?.get ? (core.get('preset-ui') as OptionalUiApi | undefined) : undefined
-    return loaded ?? null
+    debugPresetUiRuntimeState('execute:after-sync', g, core)
+    const loaded = readRegisteredPresetUi(core) || readRegisteredPresetUiFromGlobal(g)
+    if (!loaded) {
+      reportFinishedWithoutRegister()
+    }
+    return loaded
   } catch (error) {
     if (isCspExtensionFallbackRequired(error)) {
-      void executeWithGlobalResilient(g, body)
-        .then((mode) => {
-          GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
-        })
-        .catch((fallbackError) => {
-          const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
-          reportPresetUiLoadFailure('execute:csp-fallback-failed', message, `Optional UI CSP extension fallback failed: ${message.slice(0, 120)}`)
-        })
-      return core?.get ? ((core.get('preset-ui') as OptionalUiApi | undefined) ?? null) : null
+      try {
+        mirrorPresetUiRuntimeToPageWorld(g, core)
+        debugPresetUiRuntimeState('execute:before-user-script', g, core)
+        const mode = await executeWithGlobalResilient(g, body)
+        GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
+        debugPresetUiRuntimeState('execute:after-user-script', g, core)
+      } catch (fallbackError) {
+        const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+        reportPresetUiLoadFailure('execute:csp-fallback-failed', message, `Optional UI CSP extension fallback failed: ${message.slice(0, 120)}`)
+        return null
+      }
+      synchronizeRuntimeCoreHosts(g)
+      const loaded = readRegisteredPresetUi(core) || readRegisteredPresetUiFromGlobal(g)
+      if (!loaded) {
+        debugPresetUiRuntimeState('execute:finished-without-register', g, core)
+        reportFinishedWithoutRegister()
+      }
+      return loaded
     }
     const message = error instanceof Error ? error.message : String(error)
     const context = isCspEvalError(error) ? 'execute:csp-fallback-failed' : 'execute:cache-exception'
@@ -193,6 +356,10 @@ async function refreshOptionalUiInBackground(previousCache: OptionalUiCacheRecor
   GM_setValue(OPTIONAL_UI_REFRESH_LOCK_KEY, now + OPTIONAL_UI_REFRESH_LOCK_TTL_MS)
   try {
     const url = await resolvePresetUiScriptUrl()
+    if (!url) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:skip no-url base=${readLauncherBaseUrl() || '(none)'} key=${resolveOptionalUiScriptKey() || '(none)'}`)
+      return
+    }
     const headers: Record<string, string> = {}
     if (previousCache?.etag) {
       headers['If-None-Match'] = previousCache.etag
@@ -233,6 +400,16 @@ async function refreshOptionalUiInBackground(previousCache: OptionalUiCacheRecor
  * @returns Optional UI API if available
  */
 export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
+  if (ensureOptionalUiInflight) {
+    return ensureOptionalUiInflight
+  }
+  ensureOptionalUiInflight = ensureOptionalUiOnce().finally(() => {
+    ensureOptionalUiInflight = null
+  })
+  return ensureOptionalUiInflight
+}
+
+async function ensureOptionalUiOnce(): Promise<OptionalUiApi | null> {
   GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:start`)
   const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as any
   const core = g.__VWS_CORE__
@@ -247,11 +424,20 @@ export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
   // Prefer local cache for instant availability; refresh in background when network is on.
   const cache = readOptionalUiCache()
   if (cache?.content) {
-    const loadedFromCache = executeOptionalUiContent(cache.content)
-    if (loadedFromCache) {
-      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-hit`)
+    if (!isLikelyPresetUiBundle(cache.content)) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-stale clearing invalid cached bytes=${cache.content.length}`)
+      clearOptionalUiCache()
+    } else {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-first bytes=${cache.content.length} url=${shortUrlLabel(cache.url, 120) || '(none)'}`)
+      const loadedFromCache = await executeOptionalUiContent(cache.content, cache.url)
+      if (loadedFromCache) {
+        GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-hit`)
+        void refreshOptionalUiInBackground(cache)
+        return loadedFromCache
+      }
+      // Valid cached bundle already consumed one CSP user-script attempt — do not fetch and re-execute the same bytes.
       void refreshOptionalUiInBackground(cache)
-      return loadedFromCache
+      return null
     }
   }
 
@@ -267,6 +453,14 @@ export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
   try {
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} fetch:start`)
     const url = await resolvePresetUiScriptUrl()
+    if (!url) {
+      reportPresetUiLoadFailure(
+        'fetch:no-url',
+        `base=${readLauncherBaseUrl() || '(none)'} key=${resolveOptionalUiScriptKey() || '(none)'} — cannot resolve preset-ui URL (check __BASE_URL__ / module-manifest)`,
+        'Optional UI URL could not be resolved. Reload the page or use Reset Runtime State.'
+      )
+      return null
+    }
     const response = await GME_fetch(url, { method: 'GET' })
     if (!response.ok) {
       const hint = response.status === 503 || response.status === 500 ? 'Often means preset-ui was not built (pnpm run build:preset).' : 'Check network and module-manifest URL.'
@@ -278,21 +472,22 @@ export async function ensureOptionalUi(): Promise<OptionalUiApi | null> {
       return null
     }
     const content = await response.text()
-    GME_debug(`${OPTIONAL_UI_LOG_PREFIX} fetch:success bytes=${content.length}`)
+    GME_debug(`${OPTIONAL_UI_LOG_PREFIX} fetch:success bytes=${content.length} url=${shortUrlLabel(url, 120)}`)
+    if (!isLikelyPresetUiBundle(content)) {
+      reportPresetUiLoadFailure(
+        'fetch:invalid-bundle',
+        `bytes=${content.length} url=${shortUrlLabel(url, 120)} (response is not preset-ui.js — check module-manifest preset-ui url)`,
+        'Optional UI download looks invalid. Use Reset Runtime State, then hard-refresh the page.'
+      )
+      return null
+    }
     const etag = String(response.headers.get('etag') || '').trim()
     writeOptionalUiCache(content, url, etag)
-    GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:start`)
-    const loaded = executeOptionalUiContent(content) ?? undefined
+    const loaded = await executeOptionalUiContent(content, url)
     if (loaded) {
       GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:success`)
-    } else {
-      reportPresetUiLoadFailure(
-        'execute:finished-without-register',
-        'Script ran but did not register preset-ui on __VWS_CORE__ (bundle may be wrong or threw before register).',
-        'Optional UI script ran but did not register. Rebuild preset-ui or check the bundle.'
-      )
     }
-    return loaded ?? null
+    return loaded
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     reportPresetUiLoadFailure('load:exception', message, `Optional UI load error: ${message.slice(0, 120)}`)

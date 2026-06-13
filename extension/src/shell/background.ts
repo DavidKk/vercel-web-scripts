@@ -1,7 +1,7 @@
 import { defaultDevelopModeForBaseUrl } from '@ext/shared/extension-services'
 import {
   addScriptKeyRule,
-  clearRuntimeModuleCachesForEnabledScriptKeys,
+  clearAllRuntimeCachesForEnabledScriptKeys,
   countEnabledScriptsForEnabledScriptKeys,
   disableShellForTab,
   disableShellGlobally,
@@ -58,7 +58,7 @@ import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIn
 import { initBadgeNavigationListeners } from './badge-navigation'
 import { disableCspStripForPageUrl } from './csp-dnr-rules'
 import { reloadTabOnceForCsp } from './csp-tab-reload'
-import { CSP_RELOAD_SCHEDULED_MESSAGE, executeInMainWorldScript } from './csp-user-script-executor'
+import { CSP_RELOAD_SCHEDULED_MESSAGE, executeInMainWorldScriptForTab } from './csp-user-script-executor'
 import {
   appendDebugLog,
   attachDebugLogPort,
@@ -114,20 +114,30 @@ chrome.runtime.onConnect.addListener((port) => {
 
 async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }>['details']): Promise<ShellResponse> {
   const method = (details.method ?? 'GET').toUpperCase()
+  const url = details.url?.trim()
+  if (!url) {
+    throw new Error('GM_XHR missing URL')
+  }
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined
   const timeout = typeof details.timeout === 'number' && details.timeout > 0 ? details.timeout : 0
   const timer = timeout && controller ? setTimeout(() => controller.abort(), timeout) : undefined
-  const res = await fetch(details.url, {
-    method,
-    headers: details.headers,
-    body: method === 'GET' || method === 'HEAD' ? undefined : details.data,
-    credentials: 'omit',
-    signal: controller?.signal,
-  }).finally(() => {
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method,
+      headers: details.headers,
+      body: method === 'GET' || method === 'HEAD' ? undefined : details.data,
+      credentials: 'omit',
+      signal: controller?.signal,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`GM_XHR fetch failed: ${message} url=${url.slice(0, 180)}`)
+  } finally {
     if (timer) {
       clearTimeout(timer)
     }
-  })
+  }
   const responseText = await res.text()
   const responseHeaders = Array.from(res.headers.entries())
     .map(([k, v]) => `${k}: ${v}`)
@@ -140,7 +150,7 @@ async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }
       statusText: res.statusText,
       responseText,
       responseHeaders,
-      finalUrl: res.url || details.url,
+      finalUrl: res.url || url,
     },
   }
 }
@@ -454,7 +464,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
             sendResponse({ ok: false, error: 'Configure at least one enabled service first.' } satisfies ShellResponse)
             return
           }
-          const cleared = await clearRuntimeModuleCachesForEnabledScriptKeys()
+          const cleared = await clearAllRuntimeCachesForEnabledScriptKeys()
           await invalidateTabMatchCache()
           await clearAllTabTriggerCounts()
           const activeAfterUpdate = await getActiveTab()
@@ -664,7 +674,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           }
           const { mode } = message.details
           const source = mode === 'preset' ? { decls: message.details.decls, presetCode: message.details.presetCode } : { withBody: message.details.withBody }
-          const result = await executeInMainWorldScript(tabId, mode, source)
+          const result = await executeInMainWorldScriptForTab(tabId, mode, source)
           if (result.ok) {
             await disableCspStripForPageUrl(tabUrl)
             sendResponse({ ok: true, message: 'Main-world execute complete.' } satisfies ShellResponse)

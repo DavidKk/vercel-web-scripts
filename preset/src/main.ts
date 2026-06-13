@@ -4,6 +4,7 @@
  */
 
 import { PRESET_PROJECT_VERSION_KEY } from '@shared/launcher-constants'
+import { waitForPresetCoreInjectionReady } from '@shared/preset-core-injection-gate'
 
 import { shouldSkipNonHtmlDocument } from '@/helpers/dom'
 import { detectDevelopModePresence, ensureWebScriptInitialized, getWebScriptId, isDevelopMode, isRemoteScript } from '@/helpers/env'
@@ -23,7 +24,7 @@ import {
   tryExecuteEditorScript,
   tryExecuteLocalScript,
 } from '@/services/dev-mode'
-import { deleteLauncherBootstrapStorage } from '@/services/launcher-bootstrap-storage'
+import { clearAllRuntimeGmCachesInPage } from '@/services/launcher-bootstrap-storage'
 import { registerBasicMenus } from '@/services/menu'
 import { ensureOptionalUi } from '@/services/optional-ui'
 import { logAndClearPresetUpdatedNotify, subscribePresetBuiltSSE } from '@/services/preset-built-sse'
@@ -142,11 +143,6 @@ async function main(): Promise<void> {
     } satisfies ActiveDevScriptPresence)
   }
 
-  // Auto-ensure optional UI on page startup so command-palette entries
-  // registered by preset-ui (e.g. Log Viewer) are restored after refresh.
-  // This is non-blocking and uses cache-first behavior in ensureOptionalUi().
-  void ensureOptionalUi()
-
   if (IS_DEVELOP_MODE && isShellNetworkEnabled()) {
     subscribePresetBuiltSSE(__BASE_URL__)
   }
@@ -161,7 +157,7 @@ async function main(): Promise<void> {
     } catch (e) {
       GME_fail('[Main] replaceState failed:', e instanceof Error ? e.message : String(e))
     }
-    deleteLauncherBootstrapStorage()
+    clearAllRuntimeGmCachesInPage()
     window.location.reload()
     return
   }
@@ -218,12 +214,14 @@ async function main(): Promise<void> {
     GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
       handleLocalDevModeUpdate(oldValue, newValue, false)
     })
+    void ensureOptionalUi()
     return
   }
 
   const editorScriptResult = await tryExecuteEditorScript()
   if (editorScriptResult) {
     registerBasicMenus()
+    void ensureOptionalUi()
     return
   }
 
@@ -234,6 +232,7 @@ async function main(): Promise<void> {
     if (isEditorPage()) {
       GME_debug('[Dev Mode] Current page is editor page (HOST), skipping remote script execution')
       getScriptUpdate()
+      void ensureOptionalUi()
       return
     }
     GME_debug('[Main] Non-editor page in dev mode, initializing services and executing remote script')
@@ -243,6 +242,7 @@ async function main(): Promise<void> {
     }
     GME_info('Development mode')
     executeRemoteScript()
+    void ensureOptionalUi()
     return
   }
 
@@ -264,13 +264,18 @@ async function main(): Promise<void> {
   if (typeof __INLINE_GIST__ !== 'undefined' && __INLINE_GIST__) {
     executeGistScripts()
   } else {
-    executeRemoteScript()
+    await waitForPresetCoreInjectionReady()
+    await executeRemoteScript()
   }
 
   registerBasicMenus()
   GM_addValueChangeListener(LOCAL_DEV_EVENT_KEY, (name, oldValue, newValue) => {
     handleLocalDevModeUpdate(oldValue, newValue, false)
   })
+
+  // After preset-core MAIN-world injection completes (main yielded on first await above).
+  // Cache-first preset-ui must not overlap preset-core userScripts.execute on strict CSP (GitHub).
+  void ensureOptionalUi()
 }
 
 main()

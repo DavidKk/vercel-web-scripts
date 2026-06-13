@@ -57,6 +57,22 @@ export function readHostScriptUrl(): string {
 }
 
 /**
+ * Read origin from an absolute script URL (no dependency on {@link readLauncherBaseUrl}).
+ * @param scriptUrl Absolute HTTP(S) script URL
+ */
+function readOriginFromScriptUrl(scriptUrl: string): string {
+  try {
+    const origin = new URL(scriptUrl).origin
+    if (!origin || origin === 'null') {
+      return ''
+    }
+    return origin.replace(/\/+$/, '')
+  } catch {
+    return ''
+  }
+}
+
+/**
  * Read MagickMonkey server base URL from preset decls or launcher globals.
  * @returns Origin without trailing slash
  */
@@ -73,6 +89,24 @@ export function readLauncherBaseUrl(): string {
     if (typeof value === 'string' && value.trim()) {
       return value.trim().replace(/\/+$/, '')
     }
+  }
+  const hostScriptUrl = readHostScriptUrl()
+  if (hostScriptUrl) {
+    const origin = readOriginFromScriptUrl(hostScriptUrl)
+    if (origin) {
+      return origin
+    }
+  }
+  try {
+    const legacyBundle = String(GM_getValue(SCRIPT_BUNDLE_URL_KEY, '') || '').trim()
+    if (legacyBundle) {
+      const origin = readOriginFromScriptUrl(legacyBundle)
+      if (origin) {
+        return origin
+      }
+    }
+  } catch {
+    // GM_* may be unavailable
   }
   return ''
 }
@@ -173,8 +207,14 @@ export function resolveLauncherScriptUrl(url?: unknown): string {
   return readHostScriptUrl() || readScriptUrlFromGmStorage() || buildDefaultRemoteScriptUrl()
 }
 
-/** Shorten a URL for log output. */
+/** Shorten a URL for log output (keep filename suffix when truncated). */
 export function shortUrlLabel(url: string, max = 80): string {
   if (!url) return '(none)'
-  return url.length > max ? `${url.slice(0, max)}...` : url
+  if (url.length <= max) return url
+  const tail = url.match(/\/(?:[a-f0-9]{40}\/)?[^/?#]+\.js(?:[?#].*)?$/)?.[0]
+  if (tail && tail.length + 3 <= max) {
+    return `...${tail}`
+  }
+  const head = Math.max(20, Math.floor((max - 3) / 2))
+  return `${url.slice(0, head)}...${url.slice(-(max - 3 - head))}`
 }

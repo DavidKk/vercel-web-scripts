@@ -4,8 +4,10 @@ import {
   getLauncherBootstrapCacheScope,
   parseStaticKeyFromScriptUrl,
   readHostScriptUrl,
+  readLauncherBaseUrl,
   readScriptUrlFromGmStorage,
   resolveLauncherScriptUrl,
+  shortUrlLabel,
 } from '../../preset/src/helpers/launcher-script-url'
 
 describe('launcher-script-url', () => {
@@ -63,5 +65,17 @@ describe('launcher-script-url', () => {
     ;(globalThis as Record<string, unknown>).GM_getValue = (storageKey: string, defaultValue?: unknown) => (storageKey in store ? store[storageKey] : defaultValue)
     expect(readScriptUrlFromGmStorage()).toBe(versionedUrl)
     expect(resolveLauncherScriptUrl()).toBe(versionedUrl)
+  })
+
+  it('readLauncherBaseUrl derives origin from host __SCRIPT_URL__ when __BASE_URL__ is unset', () => {
+    ;(globalThis as Record<string, unknown>).__GLOBAL__ = {
+      __SCRIPT_URL__: versionedUrl,
+    }
+    expect(readLauncherBaseUrl()).toBe(base)
+  })
+
+  it('shortUrlLabel keeps preset-ui.js suffix when truncating', () => {
+    const presetUiUrl = `${base}/static/${key}/a6fe51e10d08cde745c94ea25438a2f9eadf0257/preset-ui.js`
+    expect(shortUrlLabel(presetUiUrl, 60)).toBe('.../a6fe51e10d08cde745c94ea25438a2f9eadf0257/preset-ui.js')
   })
 })

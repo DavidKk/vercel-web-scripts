@@ -5,7 +5,7 @@
 import { GME_debug, GME_fail } from '@/helpers/logger'
 import { fetchAndCacheRules } from '@/rules'
 import { EDITOR_DEV_EVENT_KEY, getActiveDevMode, getEditorDevHost, isEditorDevMode } from '@/services/dev-mode'
-import { deleteLauncherBootstrapStorage } from '@/services/launcher-bootstrap-storage'
+import { clearAllRuntimeGmCachesInPage } from '@/services/launcher-bootstrap-storage'
 import { openOptionalLogViewer } from '@/services/optional-ui'
 import { getScriptUpdate } from '@/services/script-update'
 import { isShellNetworkEnabled, runWithShellNetworkAsync, setShellNetworkEnabled } from '@/services/shell-network-settings'
@@ -53,7 +53,7 @@ export function registerBasicMenus(): void {
     try {
       GME_debug('[Update Script] Starting in-place update...')
       await runWithShellNetworkAsync(async () => {
-        deleteLauncherBootstrapStorage()
+        clearAllRuntimeGmCachesInPage()
         await getScriptUpdate().update(__SCRIPT_URL__)
       })
     } catch (error: unknown) {

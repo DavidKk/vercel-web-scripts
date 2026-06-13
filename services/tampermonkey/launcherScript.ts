@@ -21,9 +21,12 @@ import {
   REMOTE_SCRIPT_CACHE_KEY,
   REMOTE_SCRIPT_ETAG_KEY,
   SCRIPT_BUNDLE_URL_KEY,
+  SHELL_LOG_PERSIST_ENABLED_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@/shared/launcher-constants'
 
+import { RULE_CACHE_KEY_PREFIX, SCRIPT_UPDATE_HOST_KEY } from '../../shared/runtime-cache-clear'
+import { SHELL_INCOGNITO_LOG_COLLECTION_KEY, SHELL_LOG_OUTPUT_MODE_KEY } from '../../shared/shell-log-output'
 import { buildPresetGlobalAssignments, PRESET_VAR_NAMES } from './gmCore'
 import { GRANTS } from './grant'
 
@@ -147,6 +150,50 @@ ${grantLines}
   var runtimeScriptUrl = DEFAULT_SCRIPT_URL;
   const MODULE_LOG_PREFIX = '[ModuleLoad][preset-core]';
   const RUNTIME_STATE_KEY_PREFIX = 'vws_';
+  const RULE_CACHE_KEY_PREFIX = ${JSON.stringify(RULE_CACHE_KEY_PREFIX)};
+  const SCRIPT_UPDATE_HOST_KEY = ${JSON.stringify(SCRIPT_UPDATE_HOST_KEY)};
+  const SHELL_LOG_OUTPUT_MODE_KEY = ${JSON.stringify(SHELL_LOG_OUTPUT_MODE_KEY)};
+  const SHELL_LOG_PERSIST_ENABLED_KEY = ${JSON.stringify(SHELL_LOG_PERSIST_ENABLED_KEY)};
+  const SHELL_INCOGNITO_LOG_COLLECTION_KEY = ${JSON.stringify(SHELL_INCOGNITO_LOG_COLLECTION_KEY)};
+  function isRuntimeCacheGmKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    if (key === ${JSON.stringify(SHELL_NETWORK_ENABLED_KEY)} || key === ${JSON.stringify(LEGACY_AUTO_UPDATE_SCRIPT_KEY)}) return false;
+    if (key === SHELL_LOG_OUTPUT_MODE_KEY || key === SHELL_LOG_PERSIST_ENABLED_KEY || key === SHELL_INCOGNITO_LOG_COLLECTION_KEY) return false;
+    if (key.indexOf(RUNTIME_STATE_KEY_PREFIX) === 0) return true;
+    if (key.indexOf(RULE_CACHE_KEY_PREFIX) === 0) return true;
+    if (key === SCRIPT_UPDATE_HOST_KEY) return true;
+    return false;
+  }
+  function clearAllRuntimeGmCaches() {
+    var shellNetwork = GM_getValue(${JSON.stringify(SHELL_NETWORK_ENABLED_KEY)});
+    var legacyAutoUpdate = GM_getValue(${JSON.stringify(LEGACY_AUTO_UPDATE_SCRIPT_KEY)});
+    var logOutputMode = GM_getValue(SHELL_LOG_OUTPUT_MODE_KEY);
+    var logPersist = GM_getValue(SHELL_LOG_PERSIST_ENABLED_KEY);
+    var incognitoLogCollection = GM_getValue(SHELL_INCOGNITO_LOG_COLLECTION_KEY);
+    var keys = GM_listValues();
+    var removed = 0;
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (isRuntimeCacheGmKey(key)) {
+        GM_deleteValue(key);
+        removed++;
+      }
+    }
+    GM_setValue(${JSON.stringify(SHELL_NETWORK_ENABLED_KEY)}, shellNetwork === true || shellNetwork === false ? shellNetwork : true);
+    if (legacyAutoUpdate === true || legacyAutoUpdate === false) {
+      GM_setValue(${JSON.stringify(LEGACY_AUTO_UPDATE_SCRIPT_KEY)}, legacyAutoUpdate);
+    }
+    if (logOutputMode === 'console' || logOutputMode === 'logviewer' || logOutputMode === 'none') {
+      GM_setValue(SHELL_LOG_OUTPUT_MODE_KEY, logOutputMode);
+    }
+    if (logPersist === true || logPersist === false) {
+      GM_setValue(SHELL_LOG_PERSIST_ENABLED_KEY, logPersist);
+    }
+    if (incognitoLogCollection === true || incognitoLogCollection === false) {
+      GM_setValue(SHELL_INCOGNITO_LOG_COLLECTION_KEY, incognitoLogCollection);
+    }
+    return removed;
+  }
   /** Ring buffer on globalThis for log-store replay (key must match preset VWS_BOOT_LOG_GLOBAL_KEY). */
   var BOOT_LOG_MAX = 200;
   var BOOT_LOG_KEY = '__VWS_BOOT_LOG__';
@@ -710,27 +757,12 @@ ${grantLines}
   function resetRuntimeState() {
     var confirmed = true;
     if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      confirmed = window.confirm('Reset runtime state? This clears cached preset/script state and reloads this page.');
+      confirmed = window.confirm('Reset runtime state? This clears all OTA caches (preset, remote script, optional UI, rules) and reloads this page.');
     }
     if (!confirmed) return;
 
     try {
-      var shellNetwork = GM_getValue(${JSON.stringify(SHELL_NETWORK_ENABLED_KEY)});
-      var legacyAutoUpdate = GM_getValue(${JSON.stringify(LEGACY_AUTO_UPDATE_SCRIPT_KEY)});
-      var keys = GM_listValues();
-      var removed = 0;
-      for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
-        if (typeof key === 'string' && key.indexOf(RUNTIME_STATE_KEY_PREFIX) === 0) {
-          GM_deleteValue(key);
-          removed++;
-        }
-      }
-      // Keep network behavior after reset; if nothing was set before, default to online so runtime can bootstrap.
-      GM_setValue(${JSON.stringify(SHELL_NETWORK_ENABLED_KEY)}, shellNetwork === true || shellNetwork === false ? shellNetwork : true);
-      if (legacyAutoUpdate === true || legacyAutoUpdate === false) {
-        GM_setValue(${JSON.stringify(LEGACY_AUTO_UPDATE_SCRIPT_KEY)}, legacyAutoUpdate);
-      }
+      var removed = clearAllRuntimeGmCaches();
       console.warn('[Launcher] Runtime state reset complete. Removed keys:', removed);
     } catch (e) {
       console.error('[Launcher] Runtime state reset failed:', e && e.message ? e.message : String(e));
@@ -748,18 +780,11 @@ ${grantLines}
     if (!shellNetworkOn()) {
       return;
     }
-    GM_deleteValue(PRESET_CACHE_KEY_SCOPED);
-    GM_deleteValue(PRESET_ETAG_KEY_SCOPED);
-    GM_deleteValue(PRESET_ACTIVATED_HASH_KEY_SCOPED);
-    GM_deleteValue(PRESET_PREVIOUS_HASH_KEY_SCOPED);
-    GM_deleteValue(MODULE_MANIFEST_ETAG_KEY_SCOPED);
-    GM_deleteValue(SCRIPT_BUNDLE_URL_KEY_SCOPED);
-    GM_deleteValue(${JSON.stringify(PRESET_CACHE_KEY)});
-    GM_deleteValue(${JSON.stringify(PRESET_ETAG_KEY)});
-    GM_deleteValue(${JSON.stringify(PRESET_ACTIVATED_HASH_KEY)});
-    GM_deleteValue(${JSON.stringify(PRESET_PREVIOUS_HASH_KEY)});
-    GM_deleteValue(${JSON.stringify(MODULE_MANIFEST_ETAG_KEY)});
-    GM_deleteValue(${JSON.stringify(SCRIPT_BUNDLE_URL_KEY)});
+    try {
+      clearAllRuntimeGmCaches();
+    } catch (e) {
+      console.warn('[Launcher] clear caches on preset update failed:', e && e.message ? e.message : String(e));
+    }
     if (!isTabActive()) {
       return;
     }

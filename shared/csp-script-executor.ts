@@ -1,7 +1,11 @@
 import { CSP_EXTENSION_EXECUTE_EVENT, CSP_EXTENSION_EXECUTE_RESPONSE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE } from './launcher-constants'
 
-/** Temporary global for nonce-based dynamic script execution (CSP-safe fallback). */
-export const CSP_EXEC_GLOBAL_KEY = '__VWS_CSP_EXEC_G__'
+/** Temporary global for preset-core dynamic execution (CSP-safe fallback). */
+export const CSP_EXEC_PRESET_GLOBAL_KEY = '__VWS_CSP_PRESET_G__'
+/** Temporary global for optional/global module dynamic execution (CSP-safe fallback). */
+export const CSP_EXEC_MODULE_GLOBAL_KEY = '__VWS_CSP_MODULE_G__'
+/** @deprecated Use the preset/module specific staging keys instead. */
+export const CSP_EXEC_GLOBAL_KEY = CSP_EXEC_PRESET_GLOBAL_KEY
 
 const CSP_EVAL_RE = /unsafe-eval|Content Security Policy/i
 
@@ -26,6 +30,58 @@ export class CspUserScriptExhausted extends Error {
 
 const CSP_USER_SCRIPT_ATTEMPT_PREFIX = 'vws_csp_user_script:'
 
+/** Per-document attempt set (resets on navigation; unlike sessionStorage which survives F5). */
+const CSP_ATTEMPTS_WINDOW_KEY = '__VWS_CSP_USER_SCRIPT_ATTEMPTED__'
+
+function getCspUserScriptAttemptSet(): Set<string> {
+  if (typeof window === 'undefined') {
+    return new Set()
+  }
+  const host = window as unknown as Record<string, unknown>
+  let set = host[CSP_ATTEMPTS_WINDOW_KEY] as Set<string> | undefined
+  if (!set) {
+    set = new Set()
+    host[CSP_ATTEMPTS_WINDOW_KEY] = set
+    migrateLegacySessionStorageAttempts()
+  }
+  return set
+}
+
+/** One-time migration from sessionStorage keys (survived F5 and blocked retries). */
+function migrateLegacySessionStorageAttempts(): void {
+  if (typeof sessionStorage === 'undefined') {
+    return
+  }
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i)
+      if (key?.startsWith(CSP_USER_SCRIPT_ATTEMPT_PREFIX)) {
+        sessionStorage.removeItem(key)
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function cspUserScriptAttemptKey(tabUrl: string, mode: string): string {
+  return `${mode}:${tabUrl}`
+}
+
+function hasCspUserScriptBeenAttempted(tabUrl: string, mode: string): boolean {
+  if (!tabUrl) {
+    return false
+  }
+  return getCspUserScriptAttemptSet().has(cspUserScriptAttemptKey(tabUrl, mode))
+}
+
+function markCspUserScriptAttempted(tabUrl: string, mode: string): void {
+  if (!tabUrl) {
+    return
+  }
+  getCspUserScriptAttemptSet().add(cspUserScriptAttemptKey(tabUrl, mode))
+}
+
 /** Optional launcher metadata (reserved for future bridge extensions). */
 export interface CspExtensionExecuteContext {
   gmScope?: string
@@ -39,6 +95,15 @@ export type CspExtensionExecuteBridgePayload = { requestId: number; mode: 'prese
 
 /** Bridge request body without correlation id (added by {@link requestExtensionUserScriptExecute}). */
 export type CspExtensionExecuteBridgeRequest = { mode: 'preset'; decls: string; presetCode: string } | { mode: 'global'; withBody: string }
+
+/**
+ * Whether a successful user-script fallback should block later fallback requests on the same page.
+ * Preset-core is a document startup path and must not be re-entered; optional global modules are idempotent/lazy.
+ * @param mode CSP user-script execute mode
+ */
+export function shouldRememberCspUserScriptAttempt(mode: CspExtensionExecuteBridgeRequest['mode']): boolean {
+  return mode === 'preset'
+}
 
 /** Wrap MAIN-world IIFE body and rethrow so userScripts InjectionResult captures failures. */
 export function wrapUserScriptIifeBody(innerTryBlock: string): string {
@@ -70,52 +135,44 @@ export function isCspUserScriptExhausted(error: unknown): boolean {
   return error instanceof CspUserScriptExhausted
 }
 
-function cspUserScriptAttemptKey(tabUrl: string, mode: string): string {
-  return `${CSP_USER_SCRIPT_ATTEMPT_PREFIX}${mode}:${tabUrl}`
+/** Serialize page-world CSP bridge requests (remote script + preset-ui share mode=global). */
+let cspUserScriptBridgeTail: Promise<void> = Promise.resolve()
+
+type CspUserScriptSandboxStaging = {
+  key: string
+  sandbox: Record<string, unknown>
 }
 
-function hasCspUserScriptBeenAttempted(tabUrl: string, mode: string): boolean {
-  if (!tabUrl || typeof sessionStorage === 'undefined') {
-    return false
-  }
-  try {
-    return sessionStorage.getItem(cspUserScriptAttemptKey(tabUrl, mode)) === '1'
-  } catch {
-    return false
-  }
-}
-
-function markCspUserScriptAttempted(tabUrl: string, mode: string): void {
-  if (!tabUrl || typeof sessionStorage === 'undefined') {
-    return
-  }
-  try {
-    sessionStorage.setItem(cspUserScriptAttemptKey(tabUrl, mode), '1')
-  } catch {
-    // ignore quota errors
-  }
-}
-
-let cspUserScriptInFlight: string | null = null
-
-async function requestExtensionUserScriptExecuteOnce(payload: CspExtensionExecuteBridgeRequest): Promise<{ cspReload: boolean }> {
+async function requestExtensionUserScriptExecuteOnce(payload: CspExtensionExecuteBridgeRequest, staging?: CspUserScriptSandboxStaging): Promise<{ cspReload: boolean }> {
   const tabUrl = typeof location !== 'undefined' ? location.href : ''
-  const inFlightKey = `${payload.mode}:${tabUrl}`
-  if (hasCspUserScriptBeenAttempted(tabUrl, payload.mode)) {
+  const rememberAttempt = shouldRememberCspUserScriptAttempt(payload.mode)
+  if (rememberAttempt && hasCspUserScriptBeenAttempted(tabUrl, payload.mode)) {
     throw new CspUserScriptExhausted()
   }
-  if (cspUserScriptInFlight === inFlightKey) {
-    throw new CspUserScriptExhausted()
+
+  const previous = cspUserScriptBridgeTail
+  let release!: () => void
+  const current = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  cspUserScriptBridgeTail = current
+  await previous
+
+  const host = globalThis as Record<string, unknown>
+  if (staging) {
+    host[staging.key] = staging.sandbox
   }
-  cspUserScriptInFlight = inFlightKey
   try {
     const result = await requestExtensionUserScriptExecute(payload)
-    markCspUserScriptAttempted(tabUrl, payload.mode)
+    if (rememberAttempt) {
+      markCspUserScriptAttempted(tabUrl, payload.mode)
+    }
     return result
   } finally {
-    if (cspUserScriptInFlight === inFlightKey) {
-      cspUserScriptInFlight = null
+    if (staging && host[staging.key] === staging.sandbox) {
+      delete host[staging.key]
     }
+    release()
   }
 }
 
@@ -193,16 +250,8 @@ export async function executeWithGlobalResilient(global: Record<string, unknown>
     if (!isCspExtensionFallbackRequired(error)) {
       throw error
     }
-    const host = (typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {}) as Record<string, unknown>
-    host[CSP_EXEC_GLOBAL_KEY] = global
-    try {
-      const result = await requestExtensionUserScriptExecuteOnce({ mode: 'global', withBody })
-      return result.cspReload ? 'csp-reload' : 'user-script'
-    } finally {
-      if (CSP_EXEC_GLOBAL_KEY in host) {
-        delete host[CSP_EXEC_GLOBAL_KEY]
-      }
-    }
+    const result = await requestExtensionUserScriptExecuteOnce({ mode: 'global', withBody }, { key: CSP_EXEC_MODULE_GLOBAL_KEY, sandbox: global })
+    return result.cspReload ? 'csp-reload' : 'user-script'
   }
 }
 
@@ -220,7 +269,7 @@ export async function executePresetWithGResilient(
     if (!isCspExtensionFallbackRequired(error)) {
       throw error
     }
-    const result = await requestExtensionUserScriptExecuteOnce({ mode: 'preset', decls, presetCode })
+    const result = await requestExtensionUserScriptExecuteOnce({ mode: 'preset', decls, presetCode }, { key: CSP_EXEC_PRESET_GLOBAL_KEY, sandbox: g })
     return result.cspReload ? 'csp-reload' : 'user-script'
   }
 }
@@ -280,7 +329,8 @@ export function buildGrantsFromGlobal(host: Record<string, unknown>, grantsStrin
  */
 export function buildWithGlobalScriptSource(withBody: string): string {
   const inner = escapeInlineScriptText(`with(global){${withBody}}`)
-  return `(function(){var global=window[${JSON.stringify(CSP_EXEC_GLOBAL_KEY)}];try{${inner}}finally{delete window[${JSON.stringify(CSP_EXEC_GLOBAL_KEY)}];}})();`
+  const key = JSON.stringify(CSP_EXEC_MODULE_GLOBAL_KEY)
+  return `(function(){var global=window[${key}];try{${inner}}finally{delete window[${key}];}})();`
 }
 
 /** USER_SCRIPT world: run with(window) without staging globals on window. */
@@ -290,11 +340,11 @@ export function buildWithGlobalWindowScriptSource(withBody: string): string {
 }
 
 /**
- * USER_SCRIPT world: run with staged sandbox on window[{@link CSP_EXEC_GLOBAL_KEY}].
+ * USER_SCRIPT world: run with staged sandbox on window[{@link CSP_EXEC_MODULE_GLOBAL_KEY}].
  * Page MAIN world must set the key before requesting background execute.
  */
 export function buildWithGlobalStagedScriptSource(withBody: string): string {
-  const key = JSON.stringify(CSP_EXEC_GLOBAL_KEY)
+  const key = JSON.stringify(CSP_EXEC_MODULE_GLOBAL_KEY)
   const inner = escapeInlineScriptText(`with(global){${withBody}}`)
   const staged = escapeInlineScriptText(
     `var global=window[${key}];if(!global){throw new Error('CSP user-script sandbox missing on window');}${inner};try{delete window[${key}]}catch(_){}`
@@ -318,14 +368,14 @@ export function runWithGlobalViaNonceScript(global: Record<string, unknown>, wit
   }
 
   const host = globalThis as Record<string, unknown>
-  host[CSP_EXEC_GLOBAL_KEY] = global
+  host[CSP_EXEC_MODULE_GLOBAL_KEY] = global
   const script = document.createElement('script')
   script.nonce = nonce
   script.textContent = buildWithGlobalScriptSource(withBody)
   root.appendChild(script)
   script.remove()
-  if (CSP_EXEC_GLOBAL_KEY in host) {
-    delete host[CSP_EXEC_GLOBAL_KEY]
+  if (host[CSP_EXEC_MODULE_GLOBAL_KEY] === global) {
+    delete host[CSP_EXEC_MODULE_GLOBAL_KEY]
   }
 }
 
@@ -354,7 +404,8 @@ export function executeWithGlobal(global: Record<string, unknown>, withBody: str
  */
 export function buildPresetWithGScriptSource(decls: string, presetCode: string): string {
   const inner = escapeInlineScriptText(`with(g) {\n${decls}\n${presetCode}\n}`)
-  return `(function(){var g=window[${JSON.stringify(CSP_EXEC_GLOBAL_KEY)}];try{${inner}}finally{delete window[${JSON.stringify(CSP_EXEC_GLOBAL_KEY)}];}})();`
+  const key = JSON.stringify(CSP_EXEC_PRESET_GLOBAL_KEY)
+  return `(function(){var g=window[${key}];try{${inner}}finally{delete window[${key}];}})();`
 }
 
 /** USER_SCRIPT world: preset uses window (GM APIs already installed in page MAIN world). */
@@ -387,14 +438,14 @@ export function executePresetWithG(g: Record<string, unknown>, decls: string, pr
       throw new Error('document not ready for preset script injection')
     }
     const host = globalThis as Record<string, unknown>
-    host[CSP_EXEC_GLOBAL_KEY] = g
+    host[CSP_EXEC_PRESET_GLOBAL_KEY] = g
     const script = document.createElement('script')
     script.nonce = nonce
     script.textContent = buildPresetWithGScriptSource(decls, presetCode)
     root.appendChild(script)
     script.remove()
-    if (CSP_EXEC_GLOBAL_KEY in host) {
-      delete host[CSP_EXEC_GLOBAL_KEY]
+    if (host[CSP_EXEC_PRESET_GLOBAL_KEY] === g) {
+      delete host[CSP_EXEC_PRESET_GLOBAL_KEY]
     }
     return 'nonce-script'
   }
