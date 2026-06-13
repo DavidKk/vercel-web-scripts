@@ -247,11 +247,11 @@ export default function EditorHeader({
     if (isSaving) return
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/')
+      router.push('/login')
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Logout failed:', error)
-      router.push('/')
+      router.push('/login')
     }
   }
 

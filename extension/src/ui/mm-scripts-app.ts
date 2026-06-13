@@ -21,7 +21,7 @@ import { buildRulesPageScriptUrl } from './mm-rules-hash'
 import { createMmSwitch } from './mm-switch'
 import { MmToast } from './mm-toast'
 import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
-import { getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
+import { createMockScriptKeyScriptsGroups, getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
 
 type ScriptRow = {
   scriptKey: string
@@ -417,6 +417,12 @@ export class MmScriptsApp extends HTMLElement {
 
     if (debug.forceError !== null) {
       this.presentError(debug.forceError || debug.errorMessage)
+      return
+    }
+
+    if (debug.mockSampleRows) {
+      await this.applyScriptGroups(createMockScriptKeyScriptsGroups(), emptyEl)
+      this.setLoading(false)
       return
     }
 

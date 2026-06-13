@@ -17,7 +17,7 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 /* Override browser autofill background color and font size */
@@ -51,4 +51,47 @@ input:-webkit-autofill:active:not(:focus) {
   100% {
     transform: translateX(400%);
   }
+}
+
+/* Homepage scrollbar — canvas #111318, border #2a303a, brand #60a5fa */
+html:has(.home-landing) {
+  --home-scrollbar-track: #111318;
+  --home-scrollbar-thumb: #2a303a;
+  --home-scrollbar-thumb-hover: #3f4a5c;
+  --home-scrollbar-thumb-active: #60a5fa;
+  scrollbar-color: var(--home-scrollbar-thumb) var(--home-scrollbar-track);
+  scrollbar-gutter: stable;
+}
+
+html:has(.home-landing)::-webkit-scrollbar,
+.home-landing ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html:has(.home-landing)::-webkit-scrollbar-track,
+.home-landing ::-webkit-scrollbar-track {
+  background: var(--home-scrollbar-track);
+}
+
+html:has(.home-landing)::-webkit-scrollbar-thumb,
+.home-landing ::-webkit-scrollbar-thumb {
+  background-color: var(--home-scrollbar-thumb);
+  border: 2px solid var(--home-scrollbar-track);
+  border-radius: 9999px;
+}
+
+html:has(.home-landing)::-webkit-scrollbar-thumb:hover,
+.home-landing ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--home-scrollbar-thumb-hover);
+}
+
+html:has(.home-landing)::-webkit-scrollbar-thumb:active,
+.home-landing ::-webkit-scrollbar-thumb:active {
+  background-color: var(--home-scrollbar-thumb-active);
+}
+
+html:has(.home-landing)::-webkit-scrollbar-corner,
+.home-landing ::-webkit-scrollbar-corner {
+  background: var(--home-scrollbar-track);
 }

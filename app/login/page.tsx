@@ -9,7 +9,7 @@ interface LoginPageProps {
 
 export default async function LoginPage(props: LoginPageProps) {
   const { searchParams } = props
-  const { redirectUrl: url = '/' } = await searchParams
+  const { redirectUrl: url = '/editor' } = await searchParams
   const redirectUrl = decodeURIComponent(url)
   await checkUnAccess({ redirectUrl, isApiRouter: false })
   const vercel2FAOrigin = getSignetAuthCenterOrigin()

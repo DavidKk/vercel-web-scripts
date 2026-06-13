@@ -23,7 +23,7 @@ export interface LoginFormProps {
 }
 
 function LoginForm(props: LoginFormProps) {
-  const { enable2FA, redirectUrl = '/', vercel2FAOrigin, signetSdkModuleUrl } = props
+  const { enable2FA, redirectUrl = '/editor', vercel2FAOrigin, signetSdkModuleUrl } = props
   const oauth = useOAuthLoginContext()
 
   if (oauth.isHandlingCallback) {

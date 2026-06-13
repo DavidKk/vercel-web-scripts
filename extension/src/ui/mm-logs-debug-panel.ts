@@ -18,6 +18,17 @@ export class MmLogsDebugPanel extends HTMLElement {
   private dragStartBottom = 0
   private unsubscribeDebug: (() => void) | undefined
   private unsubscribeVisibility: (() => void) | undefined
+  private readonly handleDocumentPointerDown = (event: PointerEvent): void => {
+    if (!this.open) {
+      return
+    }
+    const path = event.composedPath()
+    if (path.includes(this)) {
+      return
+    }
+    this.open = false
+    this.syncSheetVisibility(this.querySelector('[data-ref="sheet"]') as HTMLElement | null, this.querySelector('[data-ref="trigger"]') as HTMLButtonElement | null)
+  }
 
   connectedCallback(): void {
     if (this.bound) {
@@ -25,12 +36,14 @@ export class MmLogsDebugPanel extends HTMLElement {
     }
     this.bound = true
     this.render()
+    document.addEventListener('pointerdown', this.handleDocumentPointerDown, true)
     this.unsubscribeDebug = subscribeLogsDebug(() => this.syncControls())
     this.unsubscribeVisibility = bindDebugPanelToAdminTab(this, 'logs')
     this.syncControls()
   }
 
   disconnectedCallback(): void {
+    document.removeEventListener('pointerdown', this.handleDocumentPointerDown, true)
     this.unsubscribeDebug?.()
     this.unsubscribeVisibility?.()
   }
@@ -108,7 +121,7 @@ export class MmLogsDebugPanel extends HTMLElement {
     this.querySelector('[data-ref="force-loading"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       if (checked) {
-        setLogsDebugOverrides({ forceLoading: true, forceError: null, forceEmpty: false })
+        setLogsDebugOverrides({ forceLoading: true, forceError: null, forceEmpty: false, mockSampleEntries: false })
       } else {
         setLogsDebugOverrides({ forceLoading: false })
       }
@@ -121,6 +134,7 @@ export class MmLogsDebugPanel extends HTMLElement {
         setLogsDebugOverrides({
           forceLoading: false,
           forceEmpty: false,
+          mockSampleEntries: false,
           forceError: errorMessage || DEFAULT_LOGS_DEBUG_ERROR_MESSAGE,
         })
       } else {
@@ -139,7 +153,7 @@ export class MmLogsDebugPanel extends HTMLElement {
     this.querySelector('[data-ref="force-empty"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       if (checked) {
-        setLogsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: true })
+        setLogsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: true, mockSampleEntries: false })
       } else {
         setLogsDebugOverrides({ forceEmpty: false })
       }
@@ -147,7 +161,11 @@ export class MmLogsDebugPanel extends HTMLElement {
 
     this.querySelector('[data-ref="mock-sample-entries"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
-      setLogsDebugOverrides({ mockSampleEntries: checked })
+      if (checked) {
+        setLogsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: false, mockSampleEntries: true })
+      } else {
+        setLogsDebugOverrides({ mockSampleEntries: false })
+      }
     })
 
     this.querySelector('[data-ref="reset"]')?.addEventListener('click', () => {

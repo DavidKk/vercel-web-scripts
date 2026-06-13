@@ -1,5 +1,12 @@
+import { getExtensionVersion } from '@ext/bridge/extension-context'
 import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
-import { buildQuickRuleScriptSelectOptions, countEnabledScriptsForEnabledScriptKeys } from '@ext/shared/extension-storage'
+import {
+  buildQuickRuleScriptSelectOptions,
+  countEnabledScriptsForEnabledScriptKeys,
+  loadExtensionConfig,
+  loadGmScopeForScriptKey,
+  readPresetProjectVersion,
+} from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
@@ -7,6 +14,7 @@ import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from './mm-admin-nav'
 import { hydrateIconSlot, hydrateMmIcons, setIconSlotLoading } from './mm-icons'
+import { formatPopupVersionFooter } from './popup-version-footer'
 
 type SearchSelectOption = { value: string; label: string }
 type SearchSelectElement = HTMLElement & {
@@ -40,6 +48,8 @@ export class MmPopupApp extends HTMLElement {
       bindAdminNavIndicator(logNav)
     }
     this.bindEvents()
+    this.ensureVersionFooterInitial()
+    void this.hydrateCachedPresetVersion()
     void this.refresh().then(() => {
       requestAnimationFrame(() => {
         this.captureDefaultPopupSize()
@@ -331,10 +341,7 @@ export class MmPopupApp extends HTMLElement {
       network.checked = s.networkEnabled
     }
     this.syncLogOutputTabs(s.logOutputMode)
-    const version = this.querySelector('[data-ref="version"]')
-    if (version) {
-      version.textContent = this.formatVersionFooter(s.extensionVersion, s.presetVersion)
-    }
+    this.renderVersionFooter({ presetVersion: s.presetVersion, presetLoading: false })
     this.renderExtensionUpdateHint(s)
     this.syncShellMasterSwitch(s)
     this.quickRuleCurrentUrl = s.activeTabUrl || ''
@@ -438,6 +445,38 @@ export class MmPopupApp extends HTMLElement {
     }
   }
 
+  private ensureVersionFooterInitial(): void {
+    const version = this.querySelector('[data-ref="version"]') as HTMLElement | null
+    if (!version?.textContent?.trim()) {
+      this.renderVersionFooter({ presetLoading: true })
+    }
+  }
+
+  private renderVersionFooter(options?: { presetVersion?: string | null; presetLoading?: boolean }): void {
+    const version = this.querySelector('[data-ref="version"]') as HTMLElement | null
+    if (!version) {
+      return
+    }
+    const presetVersion = options?.presetVersion
+    const presetLoading = options?.presetLoading === true && !presetVersion?.trim()
+    version.textContent = formatPopupVersionFooter(getExtensionVersion(), presetVersion, { presetLoading })
+    version.classList.toggle('mm-popup-footer-version-loading', presetLoading)
+  }
+
+  /** Read last-known preset semver from local storage before background GET_STATUS returns. */
+  private async hydrateCachedPresetVersion(): Promise<void> {
+    try {
+      const config = await loadExtensionConfig()
+      const gmScope = config.scriptKey.trim() ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
+      const presetVersion = await readPresetProjectVersion(config, gmScope)
+      if (presetVersion?.trim()) {
+        this.renderVersionFooter({ presetVersion })
+      }
+    } catch {
+      // Keep manifest + loading placeholder until refresh() resolves.
+    }
+  }
+
   private async downloadExtensionUpdate(): Promise<void> {
     const url = this.extensionDownloadUrl
     if (!url) {
@@ -448,12 +487,6 @@ export class MmPopupApp extends HTMLElement {
     } catch {
       this.showToast('Failed to open download', true)
     }
-  }
-
-  private formatVersionFooter(extensionVersion: string, presetVersion: string | null): string {
-    const ext = extensionVersion.trim() || '0.0.0'
-    const preset = presetVersion?.trim() || '—'
-    return `Preset v${preset} · Extension v${ext}`
   }
 
   private formatRuntimeSummary(serverCount: number, scriptCount: number): string {

@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import ejs from 'ejs'
 
+import pkg from '../../package.json'
+
 const PAGE_OUTPUT = {
   popup: 'popup.html',
   admin: 'admin.html',
@@ -43,17 +45,21 @@ export function compileExtensionHtml(extensionDir, outDir) {
       continue
     }
 
-    const html = ejs.render(
-      readFileSync(src, 'utf-8'),
-      {},
-      {
-        filename: src,
-        views: [pagesDir, partialsDir],
-        root: htmlRoot,
-        async: false,
-        cache: false,
-      }
-    )
+    const templateData =
+      pageName === 'popup'
+        ? {
+            extensionVersion: pkg.version ?? '0.1.0',
+            projectVersion: pkg.version ?? '0.1.0',
+          }
+        : {}
+
+    const html = ejs.render(readFileSync(src, 'utf-8'), templateData, {
+      filename: src,
+      views: [pagesDir, partialsDir],
+      root: htmlRoot,
+      async: false,
+      cache: false,
+    })
 
     writeFileSync(dest, html, 'utf-8')
   }

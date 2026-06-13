@@ -25,7 +25,7 @@ export interface UseOAuthLoginResult {
 }
 
 export function useOAuthLogin(options: UseOAuthLoginOptions = {}): UseOAuthLoginResult {
-  const { redirectUrl = '/' } = options
+  const { redirectUrl = '/editor' } = options
   const isConfigReady = Boolean(OAUTH_SERVER_PUBLIC_KEY)
   const initialError = isConfigReady ? null : 'NEXT_PUBLIC_OAUTH_SERVER_PUBLIC_KEY is not configured. Third-party login is disabled.'
   const router = useRouter()

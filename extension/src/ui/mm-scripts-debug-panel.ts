@@ -20,6 +20,17 @@ export class MmScriptsDebugPanel extends HTMLElement {
   private dragStartBottom = 0
   private unsubscribeDebug: (() => void) | undefined
   private unsubscribeVisibility: (() => void) | undefined
+  private readonly handleDocumentPointerDown = (event: PointerEvent): void => {
+    if (!this.open) {
+      return
+    }
+    const path = event.composedPath()
+    if (path.includes(this)) {
+      return
+    }
+    this.open = false
+    this.syncSheetVisibility(this.querySelector('[data-ref="sheet"]') as HTMLElement | null, this.querySelector('[data-ref="trigger"]') as HTMLButtonElement | null)
+  }
 
   connectedCallback(): void {
     if (this.bound) {
@@ -27,12 +38,14 @@ export class MmScriptsDebugPanel extends HTMLElement {
     }
     this.bound = true
     this.render()
+    document.addEventListener('pointerdown', this.handleDocumentPointerDown, true)
     this.unsubscribeDebug = subscribeScriptsDebug(() => this.syncControls())
     this.unsubscribeVisibility = bindDebugPanelToAdminTab(this, 'scripts')
     this.syncControls()
   }
 
   disconnectedCallback(): void {
+    document.removeEventListener('pointerdown', this.handleDocumentPointerDown, true)
     this.unsubscribeDebug?.()
     this.unsubscribeVisibility?.()
   }
@@ -54,6 +67,10 @@ export class MmScriptsDebugPanel extends HTMLElement {
           <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-empty" />
             <span class="mm-checkbox-label">Force empty (no data)</span>
+          </label>
+          <label class="mm-debug-panel-row mm-checkbox">
+            <input type="checkbox" data-ref="mock-sample-rows" />
+            <span class="mm-checkbox-label">Mock script rows</span>
           </label>
           <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-inactive-groups" />
@@ -110,7 +127,7 @@ export class MmScriptsDebugPanel extends HTMLElement {
     this.querySelector('[data-ref="force-loading"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       if (checked) {
-        setScriptsDebugOverrides({ forceLoading: true, forceError: null, forceEmpty: false })
+        setScriptsDebugOverrides({ forceLoading: true, forceError: null, forceEmpty: false, mockSampleRows: false })
       } else {
         setScriptsDebugOverrides({ forceLoading: false })
       }
@@ -123,6 +140,7 @@ export class MmScriptsDebugPanel extends HTMLElement {
         setScriptsDebugOverrides({
           forceLoading: false,
           forceEmpty: false,
+          mockSampleRows: false,
           forceError: errorMessage || DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE,
         })
       } else {
@@ -141,9 +159,18 @@ export class MmScriptsDebugPanel extends HTMLElement {
     this.querySelector('[data-ref="force-empty"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       if (checked) {
-        setScriptsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: true })
+        setScriptsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: true, mockSampleRows: false })
       } else {
         setScriptsDebugOverrides({ forceEmpty: false })
+      }
+    })
+
+    this.querySelector('[data-ref="mock-sample-rows"]')?.addEventListener('change', (e) => {
+      const checked = (e.target as HTMLInputElement).checked
+      if (checked) {
+        setScriptsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: false, mockSampleRows: true })
+      } else {
+        setScriptsDebugOverrides({ mockSampleRows: false })
       }
     })
 
@@ -157,6 +184,7 @@ export class MmScriptsDebugPanel extends HTMLElement {
         forceLoading: false,
         forceError: null,
         forceEmpty: false,
+        mockSampleRows: false,
         forceInactiveGroups: false,
         errorMessage: DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE,
       })
@@ -175,10 +203,11 @@ export class MmScriptsDebugPanel extends HTMLElement {
   }
 
   private syncControls(): void {
-    const { forceLoading, forceError, forceEmpty, forceInactiveGroups, errorMessage } = getScriptsDebugOverrides()
+    const { forceLoading, forceError, forceEmpty, mockSampleRows, forceInactiveGroups, errorMessage } = getScriptsDebugOverrides()
     const loadingEl = this.querySelector('[data-ref="force-loading"]') as HTMLInputElement | null
     const errorEl = this.querySelector('[data-ref="force-error"]') as HTMLInputElement | null
     const emptyEl = this.querySelector('[data-ref="force-empty"]') as HTMLInputElement | null
+    const mockEl = this.querySelector('[data-ref="mock-sample-rows"]') as HTMLInputElement | null
     const inactiveEl = this.querySelector('[data-ref="force-inactive-groups"]') as HTMLInputElement | null
     const messageEl = this.querySelector('[data-ref="error-message"]') as HTMLInputElement | null
     const dot = this.querySelector('[data-ref="dot"]') as HTMLElement | null
@@ -191,6 +220,9 @@ export class MmScriptsDebugPanel extends HTMLElement {
     }
     if (emptyEl) {
       emptyEl.checked = forceEmpty
+    }
+    if (mockEl) {
+      mockEl.checked = mockSampleRows
     }
     if (inactiveEl) {
       inactiveEl.checked = forceInactiveGroups

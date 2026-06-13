@@ -29,7 +29,7 @@ export async function validateCookie() {
 }
 
 export async function checkAccess(options?: CheckAccessOptions) {
-  const { redirectUrl = '/', loginUrl = '/login', isApiRouter = true } = options || {}
+  const { redirectUrl = '/editor', loginUrl = '/login', isApiRouter = true } = options || {}
   if (await validateCookie()) {
     return true
   }
@@ -48,7 +48,7 @@ export interface CheckUnAccessOptions {
 }
 
 export async function checkUnAccess(options?: CheckUnAccessOptions) {
-  const { redirectUrl = '/', isApiRouter = true } = options || {}
+  const { redirectUrl = '/editor', isApiRouter = true } = options || {}
 
   if (!(await validateCookie())) {
     return true

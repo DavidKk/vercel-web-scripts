@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'MagickMonkey',
-  description: 'MagickMonkey is a script management and deployment workspace.',
+  description: 'Self-hosted userscript workspace — editor, Chrome extension, Tampermonkey launcher, and MCP on your own infrastructure.',
   manifest: '/site.webmanifest',
   icons: {
     icon: [
@@ -41,7 +41,7 @@ export default function RootLayout(props: Readonly<RootLayoutProps>) {
     <html lang="en" suppressHydrationWarning>
       <Analytics />
       <SpeedInsights />
-      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-black`}>
+      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-[#111318]`}>
         {children}
       </body>
     </html>

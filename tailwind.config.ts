@@ -8,6 +8,10 @@ export default {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
       },
+      fontFamily: {
+        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
+      },
       keyframes: {
         'fade-out': {
           '0%': { opacity: '1' },

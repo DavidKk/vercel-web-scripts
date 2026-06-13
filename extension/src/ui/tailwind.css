@@ -2317,7 +2317,11 @@
   }
 
   .mm-debug-panel-row.mm-checkbox .mm-checkbox-control {
-    @apply h-4 w-4 shrink-0;
+    @apply h-4 w-4 shrink-0 border-slate-400 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_0_0_1px_rgba(100,116,139,0.16)];
+  }
+
+  .mm-debug-panel-row.mm-checkbox .mm-checkbox-input:checked + .mm-checkbox-control {
+    @apply border-mm-accent bg-mm-accent;
   }
 
   .mm-primary-btn {
@@ -2707,7 +2711,15 @@
   }
 
   .mm-popup-footer-version {
-    @apply flex w-full items-center justify-center gap-0.5 font-mono text-[10px] leading-none tabular-nums text-mm-text-muted;
+    @apply flex w-full min-h-[10px] items-center justify-center gap-0.5 font-mono text-[10px] leading-[10px] tabular-nums text-mm-text-muted;
+  }
+
+  .mm-popup-footer-version-text {
+    @apply inline-block min-h-[10px] whitespace-nowrap;
+  }
+
+  .mm-popup-footer-version-text.mm-popup-footer-version-loading {
+    @apply text-mm-text-muted;
   }
 
   .mm-popup-footer-update {
