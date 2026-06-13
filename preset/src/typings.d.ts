@@ -17,6 +17,8 @@ declare const __IS_REMOTE_EXECUTE__: boolean
 declare const __INLINE_GIST__: boolean | undefined
 /** When preset is run by launcher, launcher injects __GLOBAL__ = g so preset and remote script share the same global object (sandbox) */
 declare const __GLOBAL__: typeof globalThis | undefined
+/** Extension launcher injects active Tampermonkey script key for scoped storage / URL fallbacks */
+declare const __VWS_SCRIPT_KEY__: string | undefined
 
 declare function GM_getValue<T = any>(key: string, defaultValue?: T): T
 declare function GM_setValue(key: string, value: any): void

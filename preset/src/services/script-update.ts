@@ -4,7 +4,7 @@
  * Editor page does not trigger GIST update (it is HOST for preset/Editor Dev Mode only).
  */
 
-import { buildGrantsFromGlobal, executeWithGlobal } from '@shared/csp-script-executor'
+import { buildGrantsFromGlobal, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 
 import { GME_debug, GME_fail, GME_info, GME_ok } from '@/helpers/logger'
 import { fetchScript } from '@/scripts'
@@ -262,7 +262,14 @@ class ScriptUpdate {
     const prev = g.__IS_REMOTE_EXECUTE__
     try {
       Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
-      executeWithGlobal(g, content)
+      try {
+        executeWithGlobal(g, content)
+      } catch (error) {
+        if (!isCspExtensionFallbackRequired(error)) {
+          throw error
+        }
+        void executeWithGlobalResilient(g, content).catch(() => undefined)
+      }
     } finally {
       g.__IS_REMOTE_EXECUTE__ = prev
     }

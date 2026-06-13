@@ -23,12 +23,14 @@ import {
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
+import { buildPresetLauncherDecls } from '@shared/preset-launcher-decls'
+import { PRESET_CORE_SCRIPT_FILE, reportExtensionScriptFailed } from '@shared/script-trigger-log'
 
 import type { LauncherUrls } from './config'
 import { PRESET_VAR_NAMES } from './config'
 import { setActiveGmScope } from './gm-bridge'
 import type { GMApi, GMRequestDetails } from './gm-types'
-import { executePresetInPageContext, isCspEvalError } from './preset-executor'
+import { executePresetInPageContext, executePresetWithGResilient, isCspEvalError, isCspExtensionFallbackRequired, isCspUserScriptExhausted } from './preset-executor'
 
 export interface LauncherStartOptions {
   scriptKey: string
@@ -180,7 +182,14 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     for (const [k, v] of Object.entries(globals)) {
       g[k] = v
     }
-    g.__SCRIPT_URL__ = runtimeScriptUrl
+    const scriptUrl = String(runtimeScriptUrl || globals.__SCRIPT_URL__ || '').trim()
+    if (scriptUrl) {
+      g.__SCRIPT_URL__ = scriptUrl
+    }
+  }
+
+  function reportPresetFailure(): void {
+    reportExtensionScriptFailed(PRESET_CORE_SCRIPT_FILE, 'failed', scriptKey)
   }
 
   function runPreset(presetCode: string): void {
@@ -192,15 +201,42 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     g.__VWS_SCRIPT_KEY__ = scriptKey
     g.__VWS_ENABLED_SCRIPTS__ = enabledScripts
     setActiveGmScope(gmScope)
+    const decls = buildPresetLauncherDecls(PRESET_VAR_NAMES)
     try {
-      const decls = PRESET_VAR_NAMES.map((n) => `var ${n} = g.${n};`).join('\n')
       const mode = executePresetInPageContext(g, decls, presetCode)
       bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
     } catch (e) {
-      const em = e instanceof Error ? e.message : String(e)
-      const cspHint = isCspEvalError(e) ? ' (CSP: eval blocked; nonce fallback failed or unavailable)' : ''
-      bootLog('fail', 'execute:failed', em + cspHint)
-      launcherLogger.error(`[${scriptKey}] preset run failed:`, em, e)
+      if (!isCspExtensionFallbackRequired(e)) {
+        const em = e instanceof Error ? e.message : String(e)
+        const cspHint = isCspEvalError(e) ? ' (CSP: eval blocked; nonce fallback failed or unavailable)' : ''
+        bootLog('fail', 'execute:failed', em + cspHint)
+        launcherLogger.error(`[${scriptKey}] preset run failed:`, em, e)
+        reportPresetFailure()
+        return
+      }
+      void executePresetWithGResilient(g, decls, presetCode, {
+        gmScope,
+        scriptKey,
+        enabledScripts,
+        launcherGlobals: { ...globals, __SCRIPT_URL__: runtimeScriptUrl },
+      })
+        .then((mode) => {
+          if (mode === 'csp-reload') {
+            bootLog('info', 'execute:csp-reload tab reload scheduled (DNR strips CSP on next load)')
+            return
+          }
+          bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
+        })
+        .catch((fallbackError) => {
+          const em = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+          if (isCspUserScriptExhausted(fallbackError)) {
+            bootLog('fail', 'execute:failed', `${em} (user-script fallback already attempted this load)`)
+          } else {
+            bootLog('fail', 'execute:failed', `${em} (CSP: user-script fallback failed)`)
+          }
+          launcherLogger.error(`[${scriptKey}] preset run failed:`, em, fallbackError)
+          reportPresetFailure()
+        })
     }
   }
 

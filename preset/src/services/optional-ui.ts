@@ -1,5 +1,7 @@
-import { executeWithGlobal, isCspEvalError } from '@shared/csp-script-executor'
+import { executeWithGlobal, executeWithGlobalResilient, isCspEvalError, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
+import { buildPresetUiExecDecls, isLikelyPresetUiBundle } from '@shared/preset-launcher-decls'
 
+import { parseStaticKeyFromScriptUrl, readLauncherBaseUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { createGMELogger } from '@/helpers/logger'
 import { shouldLogToConsole } from '@/services/shell-log-settings'
 import { isShellNetworkEnabled } from '@/services/shell-network-settings'
@@ -20,31 +22,25 @@ const OPTIONAL_UI_REFRESH_LOCK_KEY = 'vws_optional_ui_refreshing'
 const OPTIONAL_UI_REFRESH_LOCK_TTL_MS = 15_000
 
 /**
- * Parse Tampermonkey script key from remote or launcher URL under `/static/[key]/...`.
- * @param scriptUrl Full script URL
+ * Parse Tampermonkey script key for optional-ui cache scope.
  * @returns Key segment or null
  */
-function parseStaticKeyFromScriptUrl(scriptUrl: string): string | null {
-  const remote = scriptUrl.match(/\/static\/([^/]+)\/(?:[a-f0-9]{40}\/)?tampermonkey-remote\.js(?:$|[?#])/i)
-  if (remote?.[1]) {
-    return remote[1]
-  }
-  const launcher = scriptUrl.match(/\/static\/([^/]+)\/tampermonkey\.user\.js(?:$|[?#])/i)
-  return launcher?.[1] ?? null
+function resolveOptionalUiScriptKey(): string | null {
+  const scriptUrl = resolveLauncherScriptUrl()
+  return parseStaticKeyFromScriptUrl(scriptUrl) || readLauncherScriptKey() || null
 }
 
 /**
- * Build module-manifest.json URL from the configured remote script URL.
- * @returns Absolute manifest URL or null when script URL shape is unknown
+ * Build module-manifest.json URL from launcher globals.
+ * @returns Absolute manifest URL or null when script key cannot be resolved
  */
 function buildModuleManifestUrl(): string | null {
   try {
-    const scriptUrl = String(typeof __SCRIPT_URL__ !== 'undefined' ? __SCRIPT_URL__ : '')
-    const key = parseStaticKeyFromScriptUrl(scriptUrl)
+    const key = resolveOptionalUiScriptKey()
     if (!key) {
       return null
     }
-    const base = String(typeof __BASE_URL__ !== 'undefined' ? __BASE_URL__ : '')
+    const base = readLauncherBaseUrl()
     if (!base) {
       return null
     }
@@ -59,9 +55,8 @@ function buildModuleManifestUrl(): string | null {
  * @returns Absolute URL to fetch for preset-ui.js
  */
 async function resolvePresetUiScriptUrl(): Promise<string> {
-  const scriptUrlForKey = String(typeof __SCRIPT_URL__ !== 'undefined' ? __SCRIPT_URL__ : '')
-  const staticKey = parseStaticKeyFromScriptUrl(scriptUrlForKey)
-  const base = String(typeof __BASE_URL__ !== 'undefined' ? __BASE_URL__ : '')
+  const staticKey = resolveOptionalUiScriptKey()
+  const base = readLauncherBaseUrl()
   /** When key cannot be parsed, path still matches `/static/[key]/...` shape so the server returns 404 instead of a wrong route. */
   const keyForFallback = staticKey || '__missing_script_key__'
   const fallback = base.length > 0 ? `${base}/static/${keyForFallback}/${STATIC_PENDING_SEGMENT}/preset-ui.js` : ''
@@ -117,9 +112,7 @@ interface OptionalUiCacheRecord {
 }
 
 function getOptionalUiScopeKey(): string {
-  const scriptUrl = String(typeof __SCRIPT_URL__ !== 'undefined' ? __SCRIPT_URL__ : '')
-  const key = parseStaticKeyFromScriptUrl(scriptUrl)
-  return key || '__default__'
+  return resolveOptionalUiScriptKey() || '__default__'
 }
 
 function getOptionalUiCacheKeys(): { content: string; etag: string; url: string } {
@@ -156,14 +149,34 @@ function writeOptionalUiCache(content: string, url: string, etag: string): void 
 }
 
 function executeOptionalUiContent(content: string): OptionalUiApi | null {
+  if (!isLikelyPresetUiBundle(content)) {
+    reportPresetUiLoadFailure(
+      'execute:invalid-bundle',
+      `bytes=${content?.length ?? 0} url=${shortUrlLabel(resolveLauncherScriptUrl(), 120)}`,
+      'Optional UI bundle looks invalid (wrong file or truncated download).'
+    )
+    return null
+  }
+  const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as Record<string, unknown>
+  const core = g.__VWS_CORE__ as { get?: (id: string) => unknown } | undefined
+  const body = `${buildPresetUiExecDecls()}\n${content}`
   try {
-    const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : globalThis) as Record<string, unknown>
-    const core = g.__VWS_CORE__ as { get?: (id: string) => unknown } | undefined
-    const mode = executeWithGlobal(g, content)
+    const mode = executeWithGlobal(g, body)
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
     const loaded = core?.get ? (core.get('preset-ui') as OptionalUiApi | undefined) : undefined
     return loaded ?? null
   } catch (error) {
+    if (isCspExtensionFallbackRequired(error)) {
+      void executeWithGlobalResilient(g, body)
+        .then((mode) => {
+          GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
+        })
+        .catch((fallbackError) => {
+          const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+          reportPresetUiLoadFailure('execute:csp-fallback-failed', message, `Optional UI CSP extension fallback failed: ${message.slice(0, 120)}`)
+        })
+      return core?.get ? ((core.get('preset-ui') as OptionalUiApi | undefined) ?? null) : null
+    }
     const message = error instanceof Error ? error.message : String(error)
     const context = isCspEvalError(error) ? 'execute:csp-fallback-failed' : 'execute:cache-exception'
     reportPresetUiLoadFailure(context, message, `Optional UI cache execution error: ${message.slice(0, 120)}`)

@@ -54,3 +54,9 @@ export const SCRIPT_FAILED_MESSAGE_TYPE = 'vws-script-failed'
 export const DEBUG_LOG_MESSAGE_TYPE = 'vws-debug-log'
 /** Page world → content: batch replay of launcher boot buffer rows. */
 export const DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE = 'vws-debug-log-boot-flush'
+/** DOM CustomEvent type for CSP user-script execute bridge (shared across isolated/page worlds). */
+export const CSP_EXTENSION_EXECUTE_EVENT = 'vws-csp-extension-execute'
+/** Content → page world: result of CSP extension execute. */
+export const CSP_EXTENSION_EXECUTE_RESPONSE_TYPE = 'vws-csp-extension-execute-response'
+/** USER_SCRIPT world → extension: preset/script runtime error (requires configureWorld messaging). */
+export const USER_SCRIPT_RUNTIME_ERROR_TYPE = 'vws-user-script-runtime-error'

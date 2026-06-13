@@ -2,8 +2,8 @@
 // Logging Functions
 // ============================================================================
 
-import { DEBUG_LOG_MESSAGE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_FAILED_MESSAGE_TYPE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
-import { parseScriptExecutingFailureLog, parseScriptExecutingLog } from '@shared/script-trigger-log'
+import { DEBUG_LOG_MESSAGE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
+import { parseScriptExecutingFailureLog, parseScriptExecutingLog, reportExtensionScriptFailed } from '@shared/script-trigger-log'
 import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
 import { logStore } from '@/services/log-store'
@@ -51,29 +51,11 @@ function notifyExtensionScriptTriggered(contents: unknown[]): void {
 }
 
 function notifyExtensionScriptFailed(contents: unknown[]): void {
-  if (typeof window === 'undefined') {
-    return
-  }
-  const pageConfig = (window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__
-  if (!pageConfig) {
-    return
-  }
   const file = parseScriptExecutingFailureLog(contents[0])
   if (!file) {
     return
   }
-  try {
-    window.postMessage(
-      {
-        source: EXTENSION_BRIDGE_MESSAGE_SOURCE,
-        type: SCRIPT_FAILED_MESSAGE_TYPE,
-        payload: { file, runAt: 'failed' },
-      },
-      '*'
-    )
-  } catch {
-    // ignore bridge errors
-  }
+  reportExtensionScriptFailed(file)
 }
 
 function isExtensionPageContext(): boolean {

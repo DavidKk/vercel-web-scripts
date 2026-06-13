@@ -110,6 +110,6 @@ export class MarkerLabel extends HTMLElement {
 }
 
 // Register custom element
-if (!customElements.get(MarkerLabel.TAG_NAME)) {
+if (typeof customElements !== 'undefined' && customElements != null && !customElements.get(MarkerLabel.TAG_NAME)) {
   customElements.define(MarkerLabel.TAG_NAME, MarkerLabel)
 }

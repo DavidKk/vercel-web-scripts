@@ -328,6 +328,6 @@ export class MarkerXPathPanel extends HTMLElement {
 }
 
 // Register custom element
-if (!customElements.get(MarkerXPathPanel.TAG_NAME)) {
+if (typeof customElements !== 'undefined' && customElements != null && !customElements.get(MarkerXPathPanel.TAG_NAME)) {
   customElements.define(MarkerXPathPanel.TAG_NAME, MarkerXPathPanel)
 }

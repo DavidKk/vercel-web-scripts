@@ -3,11 +3,12 @@
  */
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
-import { buildGrantsFromGlobal, executeWithGlobal } from '@shared/csp-script-executor'
+import { buildGrantsFromGlobal, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
 
 import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@/constants'
 import { GME_fetch } from '@/helpers/http'
+import { getLauncherBootstrapCacheScope, parseStaticKeyFromScriptUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
 import { getRulesCacheStats } from '@/rules'
 import { fetchScript } from '@/scripts'
@@ -27,9 +28,12 @@ interface RemoteScriptCacheRecord {
  * @returns Encoded `baseUrl|scriptKey` scope
  */
 function getRemoteScriptCacheScope(): string {
-  const scriptUrl = String(typeof __SCRIPT_URL__ !== 'undefined' ? __SCRIPT_URL__ : '')
-  const keyMatch = scriptUrl.match(/\/static\/([^/]+)\//)
-  const key = keyMatch?.[1] ?? '__default__'
+  const scope = getLauncherBootstrapCacheScope()
+  if (scope) {
+    return scope
+  }
+  const scriptUrl = resolveLauncherScriptUrl()
+  const key = parseStaticKeyFromScriptUrl(scriptUrl) || readLauncherScriptKey() || '__default__'
   const base = String(typeof __BASE_URL__ !== 'undefined' ? __BASE_URL__ : '')
   return encodeURIComponent(`${base}|${key}`)
 }
@@ -101,7 +105,14 @@ export function executeScript(content: string): void {
     if (typeof scriptCreateGMELogger === 'function') {
       g.createGMELogger = scriptCreateGMELogger
     }
-    executeWithGlobal(g, executableContent)
+    try {
+      executeWithGlobal(g, executableContent)
+    } catch (error) {
+      if (!isCspExtensionFallbackRequired(error)) {
+        throw error
+      }
+      void executeWithGlobalResilient(g, executableContent).catch(() => undefined)
+    }
   } finally {
     g.__IS_REMOTE_EXECUTE__ = prev
     if (prevCreateGMELogger === undefined) {
@@ -123,7 +134,7 @@ function logRemoteScriptCacheInventory(cached: RemoteScriptCacheRecord | null, u
       modules,
       rules: rules.ruleCount,
       scripts: rules.scriptCount,
-      url: url.length > 80 ? `${url.slice(0, 80)}...` : url,
+      url: shortUrlLabel(url),
     })}`
   )
 }
@@ -176,15 +187,20 @@ async function refreshRemoteScriptInBackground(url: string, previousCache: Remot
  * Execute remote script from URL
  * @param url Script URL to fetch and execute
  */
-export async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise<void> {
+export async function executeRemoteScript(url?: string): Promise<void> {
+  const scriptUrl = resolveLauncherScriptUrl(url)
+  if (!scriptUrl) {
+    GME_fail('[Remote script] Missing __SCRIPT_URL__ — cannot load remote bundle')
+    return
+  }
   const cached = readRemoteScriptCache()
-  logRemoteScriptCacheInventory(cached, url)
+  logRemoteScriptCacheInventory(cached, scriptUrl)
 
   if (cached?.content && isShellNetworkEffectivelyEnabled()) {
     GME_debug(`[Remote script] load:cache-first bytes=${cached.content.length} modules=${countCompiledRemoteModules(cached.content)} rules=${getRulesCacheStats().ruleCount}`)
     GME_ok('Remote script ready.')
     executeScript(cached.content)
-    void refreshRemoteScriptInBackground(url, cached)
+    void refreshRemoteScriptInBackground(scriptUrl, cached)
     return
   }
 
@@ -195,7 +211,7 @@ export async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise
     } else {
       GME_debug('[Remote script] Shell network off and no cache, attempting one-time bootstrap fetch')
       try {
-        content = await fetchScript(url)
+        content = await fetchScript(scriptUrl)
         if (content) {
           writeRemoteScriptCache(content, '')
           GME_debug('[Remote script] Bootstrap fetch succeeded, remote script cached')
@@ -207,9 +223,9 @@ export async function executeRemoteScript(url: string = __SCRIPT_URL__): Promise
       }
     }
   } else {
-    GME_debug('[Remote script] load:remote-first no local cache — fetch from server before execute url=' + (url.length > 120 ? url.slice(0, 120) + '...' : url))
+    GME_debug('[Remote script] load:remote-first no local cache — fetch from server before execute url=' + shortUrlLabel(scriptUrl, 120))
     try {
-      content = await fetchScript(url)
+      content = await fetchScript(scriptUrl)
       if (content) {
         writeRemoteScriptCache(content, '')
         GME_debug(`[Remote script] load:remote-first fetch:success bytes=${content.length}`)

@@ -5,6 +5,7 @@
 import { extensionLogger } from '@ext/shared/logger'
 import { shouldExtensionCollectDebugLogs, syncShellLogOutputModeFromGmStore } from '@ext/shared/shell-log-output-cache'
 import type { PageBootstrapConfig, ScriptKeyBootstrapEntry } from '@ext/types'
+import { installCspExtensionBridgeResponseListener } from '@shared/csp-script-executor'
 import { BOOT_LOG_KEY } from '@shared/launcher-constants'
 
 import { flushBootDebugLogs } from '../bridge/debug-log-relay'
@@ -77,6 +78,7 @@ function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<ty
 }
 
 function main(): void {
+  installCspExtensionBridgeResponseListener()
   loadBootstrapData()
   syncShellLogOutputModeFromGmStore()
 

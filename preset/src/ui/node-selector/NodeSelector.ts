@@ -1321,6 +1321,6 @@ export class NodeSelector extends HTMLElement {
 }
 
 // Register custom element
-if (!customElements.get(NodeSelector.TAG_NAME)) {
+if (typeof customElements !== 'undefined' && customElements != null && !customElements.get(NodeSelector.TAG_NAME)) {
   customElements.define(NodeSelector.TAG_NAME, NodeSelector)
 }

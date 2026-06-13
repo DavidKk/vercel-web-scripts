@@ -68,6 +68,7 @@ export type ShellMessage =
   | { type: 'GET_INCOGNITO_LOG_COLLECTION' }
   | { type: 'SET_INCOGNITO_LOG_COLLECTION'; enabled: boolean }
   | { type: 'CLEAR_DEBUG_LOGS' }
+  | { type: 'EXECUTE_USER_SCRIPT'; details: { mode: 'preset'; decls: string; presetCode: string } | { mode: 'global'; withBody: string } }
 
 export interface ShellStatus {
   configured: boolean

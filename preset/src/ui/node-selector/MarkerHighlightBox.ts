@@ -711,6 +711,6 @@ export class MarkerHighlightBox extends HTMLElement {
 }
 
 // Register marker highlight box custom element
-if (!customElements.get(MarkerHighlightBox.TAG_NAME)) {
+if (typeof customElements !== 'undefined' && customElements != null && !customElements.get(MarkerHighlightBox.TAG_NAME)) {
   customElements.define(MarkerHighlightBox.TAG_NAME, MarkerHighlightBox)
 }

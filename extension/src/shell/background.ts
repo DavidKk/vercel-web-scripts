@@ -56,6 +56,8 @@ import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { extensionLogger } from '../shared/logger'
 import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { initBadgeNavigationListeners } from './badge-navigation'
+import { reloadTabOnceForCsp } from './csp-tab-reload'
+import { CSP_RELOAD_SCHEDULED_MESSAGE, executeInMainWorldScript } from './csp-user-script-executor'
 import {
   appendDebugLog,
   attachDebugLogPort,
@@ -269,8 +271,8 @@ async function buildStatus(): Promise<ShellStatus> {
 const BADGE_BACKGROUND = '#3b82f6'
 const BADGE_BACKGROUND_ERROR = '#dc2626'
 const BADGE_TEXT_RGBA: [number, number, number, number] = [255, 255, 255, 255]
-/** Non-empty badge text so Chrome shows a red pill when the master switch is off. */
-const BADGE_SHELL_DISABLED_TEXT = '!'
+/** Non-empty badge text so Chrome shows a red pill when shell is off or a script failed with no trigger count. */
+const BADGE_ALERT_TEXT = '!'
 
 function isHttpTabUrl(url: string | undefined): boolean {
   return Boolean(url?.startsWith('http://') || url?.startsWith('https://'))
@@ -294,13 +296,13 @@ async function updateBadgeForTab(tabId: number, url?: string): Promise<void> {
   }
   if (!(await isShellEnabledForTab(tabId))) {
     await chrome.action.setBadgeBackgroundColor({ tabId, color: BADGE_BACKGROUND_ERROR })
-    await chrome.action.setBadgeText({ tabId, text: BADGE_SHELL_DISABLED_TEXT })
+    await chrome.action.setBadgeText({ tabId, text: BADGE_ALERT_TEXT })
     await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_RGBA })
     return
   }
   const n = getTabTriggerCount(tabId)
   const hasError = getTabTriggerHasError(tabId)
-  const text = n > 0 ? String(Math.min(n, 99)) : ''
+  const text = n > 0 ? String(Math.min(n, 99)) : hasError ? BADGE_ALERT_TEXT : ''
   await chrome.action.setBadgeBackgroundColor({ tabId, color: hasError ? BADGE_BACKGROUND_ERROR : BADGE_BACKGROUND })
   await chrome.action.setBadgeText({ tabId, text })
   await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_RGBA })
@@ -650,6 +652,39 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
         case 'CLEAR_DEBUG_LOGS': {
           clearDebugLogs()
           sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'EXECUTE_USER_SCRIPT': {
+          const tabId = _sender?.tab?.id
+          const tabUrl = _sender?.tab?.url ?? ''
+          if (tabId == null) {
+            sendResponse({ ok: false, error: 'No sender tab for main-world execute.' } satisfies ShellResponse)
+            return
+          }
+          const { mode } = message.details
+          const source = mode === 'preset' ? { decls: message.details.decls, presetCode: message.details.presetCode } : { withBody: message.details.withBody }
+          const result = await executeInMainWorldScript(tabId, mode, source)
+          if (result.ok) {
+            sendResponse({ ok: true, message: 'Main-world execute complete.' } satisfies ShellResponse)
+            return
+          }
+          if (result.cspBlocked) {
+            const reload = await reloadTabOnceForCsp(tabId, tabUrl)
+            if (reload === 'reloaded') {
+              sendResponse({ ok: true, message: CSP_RELOAD_SCHEDULED_MESSAGE } satisfies ShellResponse)
+              return
+            }
+            markTabTriggerError(tabId, tabUrl)
+            await updateBadgeForTab(tabId, tabUrl)
+            sendResponse({
+              ok: false,
+              error: 'CSP blocked after tab reload; preset still cannot execute on this page.',
+            } satisfies ShellResponse)
+            return
+          }
+          markTabTriggerError(tabId, tabUrl)
+          await updateBadgeForTab(tabId, tabUrl)
+          sendResponse({ ok: false, error: result.message } satisfies ShellResponse)
           return
         }
         default:

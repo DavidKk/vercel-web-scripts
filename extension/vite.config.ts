@@ -58,6 +58,15 @@ function copyExtensionAssets(watchMode = false): void {
     rmSync(distIconsDir, { recursive: true, force: true })
   }
 
+  const rulesDir = path.join(__dirname, 'rules')
+  const distRulesDir = path.join(distDir, 'rules')
+  if (existsSync(rulesDir)) {
+    rmSync(distRulesDir, { recursive: true, force: true })
+    cpSync(rulesDir, distRulesDir, { recursive: true })
+  } else if (existsSync(distRulesDir)) {
+    rmSync(distRulesDir, { recursive: true, force: true })
+  }
+
   if (watchMode) {
     extensionLog.info('compiled HTML, manifest, icons → dist/')
   }

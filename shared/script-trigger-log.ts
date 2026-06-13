@@ -3,6 +3,11 @@
  * Keep in sync: changing this string requires updating {@link parseScriptExecutingLog}.
  */
 
+import { EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_FAILED_MESSAGE_TYPE } from './launcher-constants'
+
+/** Managed script id for preset-core launcher execution (badge + debug). */
+export const PRESET_CORE_SCRIPT_FILE = 'preset-core'
+
 /**
  * Build the `GME_ok` line emitted when a remote module enters its execution branch.
  * @param file Managed script filename
@@ -44,4 +49,36 @@ export function parseScriptExecutingFailureLog(first: unknown): string | null {
     return null
   }
   return SCRIPT_EXECUTING_FAILURE_LOG_RE.exec(first)?.[1] ?? null
+}
+
+/**
+ * Notify extension content bridge that a script failed (badge error state).
+ * Works from page MAIN world when `__VWS_PAGE_CONFIG__` is present.
+ */
+export function reportExtensionScriptFailed(file: string, runAt = 'failed', scriptKey?: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  const pageConfig = (window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__
+  if (!pageConfig) {
+    return
+  }
+  try {
+    const detail = {
+      file,
+      runAt,
+      ...(scriptKey ? { scriptKey } : {}),
+    }
+    window.dispatchEvent(new CustomEvent(SCRIPT_FAILED_MESSAGE_TYPE, { detail }))
+    window.postMessage(
+      {
+        source: EXTENSION_BRIDGE_MESSAGE_SOURCE,
+        type: SCRIPT_FAILED_MESSAGE_TYPE,
+        payload: detail,
+      },
+      '*'
+    )
+  } catch {
+    // ignore bridge errors
+  }
 }
