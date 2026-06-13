@@ -16,8 +16,10 @@ This file is the rule index for AI tasks in this repository.
   - Then follow `workflow/module-development.md`
 - Module split/merge/load-policy change
   - Read `specs/modules-registry.yaml` and `specs/README.md`
+- Extension shell, admin UI, content inject, debug logs
+  - Read `specs/extension-shell.yaml` and `specs/extension-injection-policy.md`
 - Need project-level context
-  - Read `context/summary.md`
+  - Read `context/summary.md` (stable) or `context/current.md` (focus)
 
 ## One-line reminders
 

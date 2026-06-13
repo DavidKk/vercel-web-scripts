@@ -6,32 +6,38 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 
 1. `INDEX.md` (this file)
 2. `rules/global.md`
-3. `context/current.md`
-4. `workflow/README.md`
-5. task-specific workflow/spec files
+3. `context/summary.md` (stable facts) or `context/current.md` (active focus)
+4. Task-specific spec/workflow below
 
 ## By task
 
+- **Extension shell** (popup, admin, content bridge, logs, inject policy)
+  - Read: `specs/extension-shell.yaml`, `specs/extension-injection-policy.md`
+  - Code: `extension/README.md`, `extension/TODO.md`
+- **Multi-service / scriptKey / Connect**
+  - Read: `extension/docs/multi-service-tasks.md` (repo path, not under `.ai/`)
 - New platform capability or major behavior change
-  - Read: `workflow/requirements-audit.md`
-  - Then: `workflow/module-development.md`
-  - Execute from: `tasks/active/current.md`
-- Split/refactor runtime modules (launcher/core/ui/scripts)
-  - Read: `specs/modules-registry.yaml`, `specs/README.md`
-- Define or update process/rules
-  - Read: `rules/global.md`
+  - Read: `workflow/requirements-audit.md` → `workflow/module-development.md`
+  - Execute: `tasks/active/current.md`
+- Split/refactor **preset OTA** modules (launcher/core/ui/scripts)
+  - Read: `specs/modules-registry.yaml`, `specs/runtime-modularization.md`
 - Align architecture docs with implementation
-  - Read: `specs/modules-registry.yaml`, `context/current.md`, `context/summary.md`
+  - Read: `context/summary.md`, `specs/modules-registry.yaml`, `specs/extension-shell.yaml`
+- Code style / lint / tests (Cursor)
+  - Read: `.cursor/skills/` (typescript-jsdoc, test-naming, code-quality-check)
 
 ## By topic
 
-- Canonical architecture modules: `specs/modules-registry.yaml`
-- Runtime split requirement baseline: `specs/runtime-modularization.md`
-- Runtime compatibility policy: `specs/runtime-compatibility.md`
-- Runtime verification checklist: `specs/runtime-verification-checklist.md`
-- Canonical terminology: `knowledge/glossary.md`
-- Requirements process: `workflow/requirements-audit.md`
-- Execution phases: `workflow/module-development.md`
-- Active pointer for ongoing work: `context/current.md`
-- Active TODO list: `tasks/active/current.md`
-- Project overview for AI: `context/summary.md`
+| Topic                   | File                                      |
+| ----------------------- | ----------------------------------------- |
+| Preset runtime modules  | `specs/modules-registry.yaml`             |
+| Extension shell modules | `specs/extension-shell.yaml`              |
+| HTML-only injection     | `specs/extension-injection-policy.md`     |
+| Runtime split baseline  | `specs/runtime-modularization.md`         |
+| Compatibility policy    | `specs/runtime-compatibility.md`          |
+| Verification checklist  | `specs/runtime-verification-checklist.md` |
+| Terminology             | `knowledge/glossary.md`                   |
+| Requirements process    | `workflow/requirements-audit.md`          |
+| Execution phases        | `workflow/module-development.md`          |
+| Active TODO             | `tasks/active/current.md`                 |
+| Project overview        | `context/summary.md`                      |

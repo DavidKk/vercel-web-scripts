@@ -2,46 +2,52 @@
 
 ## Project
 
-Vercel Web Scripts is a Tampermonkey-oriented script platform with web-based editing, publishing, and runtime distribution.
+Vercel Web Scripts (MagickMonkey) is a Tampermonkey-oriented script platform: web editor, OTA publishing, Chrome extension shell, and preset runtime on customer pages.
 
-## Current status (baseline)
+## Runtime modules (preset OTA)
 
-### What is already done
+Canonical list: `../specs/modules-registry.yaml`
 
-- Initial `.ai` process skeleton has been created for this repository.
-- Canonical high-level runtime modules have been defined in `specs/modules-registry.yaml`:
-  - `launcher`
-  - `preset-core`
-  - `preset-ui`
-  - `script-bundle`
-- Preset bundle size has been reduced significantly by removing heavy UI imports from `preset/src/entry.ts`:
-  - removed `string-tool`
-  - removed `compiled-code-viewer`
-- Publish behavior has been simplified to save-first flow (compile validation removed in editor publish path).
+| Module        | Status in implementation                                     |
+| ------------- | ------------------------------------------------------------ |
+| Launcher      | ✅ Extension `page-launcher.js` + TM install path            |
+| Preset Core   | ✅ OTA `preset-core` via module manifest                     |
+| Preset UI     | ✅ Lazy optional UI bundle                                   |
+| Script Bundle | ✅ OTA remote bundle; aggregate path (match-modular Phase D) |
 
-### What is still true in implementation
+Phase A/B contracts and split foundation: **DONE** (see `../tasks/active/current.md`).
 
-- Runtime is still primarily a single preset build artifact in current code paths.
-- UI capabilities still exist in the repository and have not been fully modularized into a standalone async UI runtime contract yet.
-- Script execution is not yet fully one-script-one-module with match-first lazy loading.
+Phase C (per-module hash update / rollback) and Phase D (match-based script modules): **TODO**.
 
-### Known gaps
+## Extension shell (Chrome MV3)
 
-- No finalized module manifest + loader contract for independent module updates.
-- No finalized hash lifecycle document for per-module atomic update and rollback.
-- Core/UI/script module communication contract still needs to be formalized.
+Canonical map: `../specs/extension-shell.yaml`
 
-## Target architecture direction
+| Area                     | Status                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| Multi-service            | ✅ Service list + scriptKey scope (see `extension/docs/multi-service-tasks.md`) |
+| Admin tabs               | ✅ Servers, Scripts, Rules, **Logs** (`admin.html#…`)                           |
+| Popup                    | ✅ Shell toggle, log mode, reload extension (dev)                               |
+| Debug log viewer         | ✅ Session ring buffer; incognito collection gate; Copy all (TSV)               |
+| HTML-only inject         | ✅ `injection-gate.ts` — non-HTML docs skip launcher                            |
+| Scripts/Logs DEBUG       | ✅ Per-tab floating panels (`mm-*-debug-panel`)                                 |
+| Incognito script toggles | ✅ Separate storage fork for script enabled                                     |
+| Native module-loader     | 🔜 Replace interim page-launcher (see `extension/TODO.md`)                      |
+| Static asset rewrite     | 🔜 Planned separate module (not in launcher path)                               |
 
-- Keep default runtime lightweight.
-- Split runtime into independently deployable modules.
-- Use hash-based per-module caching and updates.
-- Support async optional UI loading.
-- Move business scripts to match-based modular loading.
+## Injection policy (important)
+
+Only **`text/html`** top-level documents receive launcher injection.  
+See `../specs/extension-injection-policy.md`.
+
+## Documentation drift to avoid
+
+- Do **not** describe runtime as a single undifferentiated preset blob; extension already loads `preset-core` + bundle via manifest.
+- Do **not** assume inject on JSON/image/video/SVG URLs.
+- `shouldInjectOnUrl` (RULE) exists but MVP injects all HTML pages; URL match for scripts is preset-side (see multi-service T6.10).
 
 ## Process baseline
 
-- Use requirements audit for material changes.
-- Use phase-based development workflow.
-- Keep module registry and implementation aligned.
-- Keep "current state" and "target state" explicitly separated in docs.
+- Major platform changes: `../workflow/requirements-audit.md` → `../workflow/module-development.md`
+- Extension shell changes: read `extension-shell.yaml` + `extension-injection-policy.md`
+- Terminology: `../knowledge/glossary.md`

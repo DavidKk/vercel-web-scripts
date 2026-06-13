@@ -3,18 +3,32 @@ description: All project rules live in .ai/rules; read global.md first (minimal)
 globs:
 ---
 
-# Rules: .ai/rules (single source of truth)
+# Rules: `.ai/` (single source of truth)
 
 Always read:
 
 - `.ai/rules/global.md`
+- `.ai/INDEX.md` when task scope is unclear
 
 When the task is substantial (new feature, architecture split, loading strategy changes), follow:
 
 - `.ai/workflow/requirements-audit.md`
 - `.ai/workflow/module-development.md`
 
-Use:
+## Extension / admin / inject / logs work
 
-- `.ai/INDEX.md` for task -> file routing
-- `.ai/specs/modules-registry.yaml` for canonical module list
+Read before coding:
+
+- `.ai/specs/extension-shell.yaml`
+- `.ai/specs/extension-injection-policy.md`
+- `extension/README.md`
+
+## Preset OTA / module split
+
+- `.ai/specs/modules-registry.yaml`
+- `.ai/context/summary.md`
+
+## Code standards (Cursor skills)
+
+- `.cursor/skills/code-quality-check/SKILL.md`
+- `.cursor/skills/typescript-jsdoc-standards/SKILL.md` (and related)

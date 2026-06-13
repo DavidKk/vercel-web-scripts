@@ -44,7 +44,7 @@ Status legend:
 
 ## Milestone completion criteria
 
-- [TODO] M1. Docs/contracts are complete and approved.
-- [TODO] M2. Runtime split foundation is running in development.
-- [TODO] M3. Hash update + rollback flow is validated.
-- [TODO] M4. First script-level match-based module path is validated.
+- [DONE] M1. Docs/contracts are complete and approved (Phase A + extension-shell registry).
+- [DONE] M2. Runtime split foundation is running (Launcher → Preset Core + optional UI; extension OTA path).
+- [TODO] M3. Hash update + rollback flow is validated (Phase C).
+- [TODO] M4. First script-level match-based module path is validated (Phase D).

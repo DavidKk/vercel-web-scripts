@@ -63,3 +63,28 @@ Avoid alternative names unless explicitly mapping legacy wording.
 
 - **Match-Based Load**
   - Meaning: load script module only after URL/rule matching.
+
+## Extension shell terms
+
+- **Content Bridge**
+  - Meaning: isolated-world content script (`content-bridge.js`) on `<all_urls>`; wires GM bridge and bootstrap gate.
+  - Avoid saying: "inject script" when referring to the content script itself (launcher is separate).
+
+- **Injection Gate**
+  - Meaning: `isHtmlDocumentForInjection()` — allows page-world launcher only when `document.contentType` is `text/html`.
+  - Non-HTML: JSON, images, SVG, video, audio, raw JS, PDF, etc. are skipped.
+
+- **Page Launcher**
+  - Meaning: page-world script (`page-launcher.js`) that loads OTA preset-core and remote bundle per enabled scriptKey.
+
+- **Service** (extension storage)
+  - Meaning: one connection row (`baseUrl + scriptKey + label + enabled`); UI "Servers" list.
+
+- **ScriptKey scope**
+  - Meaning: shared capability layer — RULE, script list, script enabled toggles keyed by `scriptKey` (not serviceId).
+
+- **Debug Log Store**
+  - Meaning: background session ring buffer; Admin Logs tab reads via port + `GET_DEBUG_LOGS`.
+
+- **Admin DEBUG panel**
+  - Meaning: dev-only floating panel on Scripts or Logs tab; tab-scoped via `mm-admin-debug-panel-visibility`.

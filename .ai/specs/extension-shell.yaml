@@ -1,0 +1,64 @@
+# Chrome extension shell — canonical module map (MagickMonkey MV3)
+# Keep modules sorted by id. Implementation lives under extension/src/
+
+version: 1
+
+injection_policy:
+  html_only: true
+  gate: extension/src/bridge/injection-gate.ts
+  check: document.contentType must match /^text\/html/i (from HTTP Content-Type)
+  skips: [application/json, image/*, video/*, audio/*, application/javascript, text/plain, application/pdf, image/svg+xml]
+  static_asset_rewrite: planned # separate future module — do not inject launcher on non-HTML
+
+modules:
+  - id: background
+    title: Background service worker
+    purpose: Badge, shell messages, debug log store, storage listeners, tab lifecycle
+    path: extension/src/shell/
+
+  - id: content-bridge
+    title: Content bridge (isolated world)
+    purpose: GM/XHR bridge listeners; bootstrap gate; inject page launcher on HTML http(s) pages only
+    path: extension/src/bridge/
+    notes: manifest matches all_urls at document_start; launcher inject gated by injection-gate
+
+  - id: page-launcher
+    title: Page launcher (page world)
+    purpose: OTA preset-core + remote script-bundle load per enabled scriptKey
+    path: extension/src/page/
+
+  - id: admin
+    title: Admin UI (admin.html)
+    purpose: Servers, Scripts, Rules, Logs tabs via hash router
+    path: extension/src/ui/ + extension/src/html/
+
+  - id: popup
+    title: Toolbar popup
+    purpose: Shell controls, log mode, quick rules, extension reload (dev)
+    path: extension/src/ui/mm-popup-app.ts
+
+  - id: debug-log-store
+    title: Session debug log buffer
+    purpose: Ring buffer in background; port subscription for Logs tab; incognito collection gate
+    path: extension/src/shell/debug-log-store.ts
+
+  - id: extension-storage
+    title: Extension storage layer
+    purpose: Multi-service (Service + scriptKey scope), rules, script enabled (incl. incognito fork), OTA caches
+    path: extension/src/shared/extension-storage/
+
+debug_panels:
+  - id: scripts-debug
+    tab: scripts
+    path: extension/src/ui/mm-scripts-debug-panel.ts
+    visibility: admin tab scripts only
+
+  - id: logs-debug
+    tab: logs
+    path: extension/src/ui/mm-logs-debug-panel.ts
+    visibility: admin tab logs only
+
+references:
+  readme: extension/README.md
+  multi_service: extension/docs/multi-service-tasks.md
+  todo: extension/TODO.md
