@@ -3,6 +3,7 @@ import type { ShellResponse } from '../shared/messages'
 import { GM_STORAGE_PREFIX } from './constants'
 import { getExtensionVersion, getRuntimeId, isExtensionContextInvalidated } from './extension-context'
 import { loadGmStore, postStorageChanged } from './gm-storage-bridge'
+import { isHtmlDocumentForInjection } from './injection-gate'
 import { injectPageLauncherWhenReady } from './page-injector'
 
 function isHttpPageUrl(url: string): boolean {
@@ -53,6 +54,9 @@ export async function bootstrapPageBridge(): Promise<void> {
   }
   const url = typeof location !== 'undefined' ? location.href : ''
   if (!isHttpPageUrl(url)) {
+    return
+  }
+  if (!isHtmlDocumentForInjection()) {
     return
   }
 
