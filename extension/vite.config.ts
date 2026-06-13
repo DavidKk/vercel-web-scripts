@@ -157,7 +157,46 @@ function extensionMultiEntryPlugin(devReload: ReturnType<typeof ensureDevReloadS
   let closeBundleQueue: Promise<void> = Promise.resolve()
   let closeNewFileWatcher: (() => void) | undefined
   let touchStampTimer: ReturnType<typeof setTimeout> | undefined
+  let watchSecondaryTimer: ReturnType<typeof setTimeout> | undefined
+  let watchSecondaryWaiters: Array<{ resolve: () => void; reject: (error: unknown) => void }> = []
   const devReloadSseUrl = devReload?.sseUrl ?? ''
+  /** Coalesce rapid watch rebuilds so secondary IIFEs are not interrupted mid-pipeline. */
+  const watchSecondaryDebounceMs = 80
+
+  function enqueueSecondaryBuild(watchMode: boolean): Promise<void> {
+    closeBundleQueue = closeBundleQueue
+      .catch(() => undefined)
+      .then(async () => {
+        await buildSecondaryExtensionEntries(devReloadSseUrl, watchMode)
+        if (watchMode && devReload) {
+          devReload.scheduleBroadcast()
+        }
+      })
+    return closeBundleQueue
+  }
+
+  function scheduleWatchSecondaryBuild(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      watchSecondaryWaiters.push({ resolve, reject })
+      clearTimeout(watchSecondaryTimer)
+      watchSecondaryTimer = setTimeout(() => {
+        watchSecondaryTimer = undefined
+        const waiters = watchSecondaryWaiters
+        watchSecondaryWaiters = []
+        void enqueueSecondaryBuild(true)
+          .then(() => {
+            for (const waiter of waiters) {
+              waiter.resolve()
+            }
+          })
+          .catch((error: unknown) => {
+            for (const waiter of waiters) {
+              waiter.reject(error)
+            }
+          })
+      }, watchSecondaryDebounceMs)
+    })
+  }
 
   return {
     name: 'extension-multi-entry',
@@ -185,22 +224,23 @@ function extensionMultiEntryPlugin(devReload: ReturnType<typeof ensureDevReloadS
     },
     closeBundle() {
       const watchMode = this.meta.watchMode
-      closeBundleQueue = closeBundleQueue
-        .then(() => buildSecondaryExtensionEntries(devReloadSseUrl, watchMode))
-        .then(() => {
-          if (watchMode && devReload) {
-            devReload.scheduleBroadcast()
-          }
-        })
-        .catch((err: unknown) => {
-          // eslint-disable-next-line no-console -- Vite build pipeline error surface
-          console.error('[extension] multi-entry build failed:', err)
-          throw err
-        })
-      return closeBundleQueue
+      const run = watchMode ? scheduleWatchSecondaryBuild() : enqueueSecondaryBuild(false)
+      return run.catch((err: unknown) => {
+        // eslint-disable-next-line no-console -- Vite build pipeline error surface
+        console.error('[extension] multi-entry build failed:', err)
+        throw err
+      })
     },
     closeWatcher() {
       clearTimeout(touchStampTimer)
+      clearTimeout(watchSecondaryTimer)
+      if (watchSecondaryWaiters.length > 0) {
+        const waiters = watchSecondaryWaiters
+        watchSecondaryWaiters = []
+        for (const waiter of waiters) {
+          waiter.reject(new Error('Extension watch build closed'))
+        }
+      }
       closeNewFileWatcher?.()
       closeNewFileWatcher = undefined
     },

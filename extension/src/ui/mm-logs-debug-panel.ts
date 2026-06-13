@@ -1,18 +1,16 @@
+import { DEFAULT_LOGS_DEBUG_ERROR_MESSAGE, getLogsDebugOverrides, isLogsDebugActive, setLogsDebugOverrides, subscribeLogsDebug } from './logs-debug-state'
 import { bindDebugPanelToAdminTab } from './mm-admin-debug-panel-visibility'
 import { enhanceMmCheckboxLabel } from './mm-checkbox'
-import { DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE, getScriptsDebugOverrides, isScriptsDebugActive, setScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
 
 const TRIGGER_SIZE = 36
-/** Always visible on the right edge (extension assets are local; no need to hide off-screen). */
 const PANEL_RIGHT = 10
 const INITIAL_BOTTOM = 96
 
 /**
- * Dev-only floating debug panel for the Scripts page (see openapi DebugPanel pattern).
+ * Dev-only floating debug panel for the Logs page (see Scripts debug panel pattern).
  */
-export class MmScriptsDebugPanel extends HTMLElement {
+export class MmLogsDebugPanel extends HTMLElement {
   private bound = false
-  /** Keep the menu hidden until explicitly opened from the floating trigger. */
   private open = false
   private bottom = INITIAL_BOTTOM
   private dragging = false
@@ -27,8 +25,8 @@ export class MmScriptsDebugPanel extends HTMLElement {
     }
     this.bound = true
     this.render()
-    this.unsubscribeDebug = subscribeScriptsDebug(() => this.syncControls())
-    this.unsubscribeVisibility = bindDebugPanelToAdminTab(this, 'scripts')
+    this.unsubscribeDebug = subscribeLogsDebug(() => this.syncControls())
+    this.unsubscribeVisibility = bindDebugPanelToAdminTab(this, 'logs')
     this.syncControls()
   }
 
@@ -40,7 +38,7 @@ export class MmScriptsDebugPanel extends HTMLElement {
   private render(): void {
     this.innerHTML = `
       <div class="mm-debug-panel-root" data-ref="root">
-        <div class="mm-debug-panel-sheet" data-ref="sheet" role="dialog" aria-label="Scripts debug">
+        <div class="mm-debug-panel-sheet" data-ref="sheet" role="dialog" aria-label="Logs debug">
           <div class="mm-debug-panel-title">DEBUG</div>
           <label class="mm-debug-panel-row mm-checkbox">
             <input type="checkbox" data-ref="force-loading" />
@@ -56,8 +54,8 @@ export class MmScriptsDebugPanel extends HTMLElement {
             <span class="mm-checkbox-label">Force empty (no data)</span>
           </label>
           <label class="mm-debug-panel-row mm-checkbox">
-            <input type="checkbox" data-ref="force-inactive-groups" />
-            <span class="mm-checkbox-label">Mock inactive scriptKey groups</span>
+            <input type="checkbox" data-ref="mock-sample-entries" />
+            <span class="mm-checkbox-label">Mock sample entries</span>
           </label>
           <button type="button" class="mm-debug-panel-reset" data-ref="reset">Reset overrides</button>
         </div>
@@ -110,55 +108,55 @@ export class MmScriptsDebugPanel extends HTMLElement {
     this.querySelector('[data-ref="force-loading"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       if (checked) {
-        setScriptsDebugOverrides({ forceLoading: true, forceError: null, forceEmpty: false })
+        setLogsDebugOverrides({ forceLoading: true, forceError: null, forceEmpty: false })
       } else {
-        setScriptsDebugOverrides({ forceLoading: false })
+        setLogsDebugOverrides({ forceLoading: false })
       }
     })
 
     this.querySelector('[data-ref="force-error"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
-      const { errorMessage } = getScriptsDebugOverrides()
+      const { errorMessage } = getLogsDebugOverrides()
       if (checked) {
-        setScriptsDebugOverrides({
+        setLogsDebugOverrides({
           forceLoading: false,
           forceEmpty: false,
-          forceError: errorMessage || DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE,
+          forceError: errorMessage || DEFAULT_LOGS_DEBUG_ERROR_MESSAGE,
         })
       } else {
-        setScriptsDebugOverrides({ forceError: null })
+        setLogsDebugOverrides({ forceError: null })
       }
     })
 
     this.querySelector('[data-ref="error-message"]')?.addEventListener('input', (e) => {
       const v = (e.target as HTMLInputElement).value
-      setScriptsDebugOverrides({
+      setLogsDebugOverrides({
         errorMessage: v,
-        forceError: getScriptsDebugOverrides().forceError !== null ? v || DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE : null,
+        forceError: getLogsDebugOverrides().forceError !== null ? v || DEFAULT_LOGS_DEBUG_ERROR_MESSAGE : null,
       })
     })
 
     this.querySelector('[data-ref="force-empty"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       if (checked) {
-        setScriptsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: true })
+        setLogsDebugOverrides({ forceLoading: false, forceError: null, forceEmpty: true })
       } else {
-        setScriptsDebugOverrides({ forceEmpty: false })
+        setLogsDebugOverrides({ forceEmpty: false })
       }
     })
 
-    this.querySelector('[data-ref="force-inactive-groups"]')?.addEventListener('change', (e) => {
+    this.querySelector('[data-ref="mock-sample-entries"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
-      setScriptsDebugOverrides({ forceInactiveGroups: checked })
+      setLogsDebugOverrides({ mockSampleEntries: checked })
     })
 
     this.querySelector('[data-ref="reset"]')?.addEventListener('click', () => {
-      setScriptsDebugOverrides({
+      setLogsDebugOverrides({
         forceLoading: false,
         forceError: null,
         forceEmpty: false,
-        forceInactiveGroups: false,
-        errorMessage: DEFAULT_SCRIPTS_DEBUG_ERROR_MESSAGE,
+        mockSampleEntries: false,
+        errorMessage: DEFAULT_LOGS_DEBUG_ERROR_MESSAGE,
       })
     })
 
@@ -175,11 +173,11 @@ export class MmScriptsDebugPanel extends HTMLElement {
   }
 
   private syncControls(): void {
-    const { forceLoading, forceError, forceEmpty, forceInactiveGroups, errorMessage } = getScriptsDebugOverrides()
+    const { forceLoading, forceError, forceEmpty, mockSampleEntries, errorMessage } = getLogsDebugOverrides()
     const loadingEl = this.querySelector('[data-ref="force-loading"]') as HTMLInputElement | null
     const errorEl = this.querySelector('[data-ref="force-error"]') as HTMLInputElement | null
     const emptyEl = this.querySelector('[data-ref="force-empty"]') as HTMLInputElement | null
-    const inactiveEl = this.querySelector('[data-ref="force-inactive-groups"]') as HTMLInputElement | null
+    const mockEl = this.querySelector('[data-ref="mock-sample-entries"]') as HTMLInputElement | null
     const messageEl = this.querySelector('[data-ref="error-message"]') as HTMLInputElement | null
     const dot = this.querySelector('[data-ref="dot"]') as HTMLElement | null
 
@@ -192,15 +190,15 @@ export class MmScriptsDebugPanel extends HTMLElement {
     if (emptyEl) {
       emptyEl.checked = forceEmpty
     }
-    if (inactiveEl) {
-      inactiveEl.checked = forceInactiveGroups
+    if (mockEl) {
+      mockEl.checked = mockSampleEntries
     }
     if (messageEl) {
       messageEl.value = errorMessage
       messageEl.hidden = forceError === null
     }
     if (dot) {
-      dot.hidden = !isScriptsDebugActive()
+      dot.hidden = !isLogsDebugActive()
     }
   }
 
@@ -210,12 +208,12 @@ export class MmScriptsDebugPanel extends HTMLElement {
   }
 }
 
-export function mountScriptsDebugPanel(): void {
-  if (!customElements.get('mm-scripts-debug-panel')) {
-    customElements.define('mm-scripts-debug-panel', MmScriptsDebugPanel)
+export function mountLogsDebugPanel(): void {
+  if (!customElements.get('mm-logs-debug-panel')) {
+    customElements.define('mm-logs-debug-panel', MmLogsDebugPanel)
   }
-  const existing = document.querySelector('mm-scripts-debug-panel')
+  const existing = document.querySelector('mm-logs-debug-panel')
   if (!existing) {
-    document.body.append(document.createElement('mm-scripts-debug-panel'))
+    document.body.append(document.createElement('mm-logs-debug-panel'))
   }
 }

@@ -3,6 +3,7 @@ import { defineMmAdminTabs } from '@ext/ui/mm-admin-tabs'
 import { initAdminPageFocusRefresh } from '@ext/ui/mm-admin-view-lifecycle'
 import { defineMmFormComponents } from '@ext/ui/mm-form-components'
 import { MmLogsApp } from '@ext/ui/mm-logs-app'
+import { mountLogsDebugPanel } from '@ext/ui/mm-logs-debug-panel'
 import { mountMmNotificationHost } from '@ext/ui/mm-notification'
 import { MmOptionsApp } from '@ext/ui/mm-options-app'
 import { MmRulesApp } from '@ext/ui/mm-rules-app'
@@ -28,6 +29,7 @@ if (!customElements.get('mm-logs-app')) {
 }
 
 mountScriptsDebugPanel()
+mountLogsDebugPanel()
 mountMmNotificationHost()
 initAdminRouter()
 initAdminPageFocusRefresh()

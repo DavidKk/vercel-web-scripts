@@ -5,6 +5,8 @@ import { defaultLabelFromBaseUrl, getEnabledScriptKeys, getGmScopeForScriptKey, 
 export const SCRIPTKEY_RULES_PREFIX = 'vws_scriptkey_rules:'
 export const SCRIPTKEY_LIST_CACHE_PREFIX = 'vws_scriptkey_script_list_cache:'
 export const SCRIPT_ENABLED_PREFIX = 'vws_script_enabled:'
+/** Incognito-only fork of per-script toggles; reads fall back to {@link SCRIPT_ENABLED_PREFIX}. */
+export const INCOGNITO_SCRIPT_ENABLED_PREFIX = 'vws_incognito_script_enabled:'
 
 /** Storage key for scriptKey-scoped RULE bucket. */
 export function scriptKeyRulesStorageKey(scriptKey: string): string {
@@ -21,22 +23,55 @@ export function scriptEnabledStorageKey(scriptKey: string, file: string): string
   return `${SCRIPT_ENABLED_PREFIX}${normalizeScriptKey(scriptKey)}:${file}`
 }
 
-/** Parse `vws_script_enabled:{scriptKey}:{file}` or legacy `vws_script_enabled:{file}`. */
-export function parseScriptEnabledStorageKey(key: string): { scriptKey: string | null; file: string } | null {
-  if (!key.startsWith(SCRIPT_ENABLED_PREFIX)) {
+/** Storage key for incognito fork of a scriptKey-scoped per-file enabled toggle. */
+export function incognitoScriptEnabledStorageKey(scriptKey: string, file: string): string {
+  return `${INCOGNITO_SCRIPT_ENABLED_PREFIX}${normalizeScriptKey(scriptKey)}:${file}`
+}
+
+export type ParsedScriptEnabledStorageKey = {
+  scriptKey: string | null
+  file: string
+  /** True when parsed from {@link INCOGNITO_SCRIPT_ENABLED_PREFIX}. */
+  incognito: boolean
+}
+
+/**
+ * Resolve enabled flag with lazy fork: incognito bucket first, then normal scoped/legacy, default true.
+ */
+export function resolveScriptEnabledFlag(params: { incognito?: boolean; incognitoValue: unknown; scopedValue: unknown; legacyValue: unknown }): boolean {
+  if (params.incognito && params.incognitoValue !== undefined) {
+    return params.incognitoValue !== false
+  }
+  if (params.scopedValue !== undefined) {
+    return params.scopedValue !== false
+  }
+  if (params.legacyValue !== undefined) {
+    return params.legacyValue !== false
+  }
+  return true
+}
+
+/** Parse scoped script enabled keys (normal or incognito fork). */
+export function parseScriptEnabledStorageKey(key: string): ParsedScriptEnabledStorageKey | null {
+  let prefix = SCRIPT_ENABLED_PREFIX
+  let incognito = false
+  if (key.startsWith(INCOGNITO_SCRIPT_ENABLED_PREFIX)) {
+    prefix = INCOGNITO_SCRIPT_ENABLED_PREFIX
+    incognito = true
+  } else if (!key.startsWith(SCRIPT_ENABLED_PREFIX)) {
     return null
   }
-  const rest = key.slice(SCRIPT_ENABLED_PREFIX.length)
+  const rest = key.slice(prefix.length)
   const colon = rest.indexOf(':')
   if (colon === -1) {
-    return isManagedScriptFilename(rest) ? { scriptKey: null, file: rest } : null
+    return isManagedScriptFilename(rest) ? { scriptKey: null, file: rest, incognito } : null
   }
   const scriptKey = normalizeScriptKey(rest.slice(0, colon))
   const file = rest.slice(colon + 1)
   if (!scriptKey || !isManagedScriptFilename(file)) {
     return null
   }
-  return { scriptKey, file }
+  return { scriptKey, file, incognito }
 }
 
 export interface ScriptKeyGroupMeta {

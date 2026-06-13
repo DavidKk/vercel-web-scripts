@@ -2,7 +2,10 @@ export type { ScriptKeyGroupMeta } from '../extension-multi-service-pure'
 export {
   buildScriptKeyBootstrapEntriesFromState,
   buildScriptKeyGroupMetaFromState,
+  INCOGNITO_SCRIPT_ENABLED_PREFIX,
+  incognitoScriptEnabledStorageKey,
   parseScriptEnabledStorageKey,
+  resolveScriptEnabledFlag,
   SCRIPT_ENABLED_PREFIX,
   scriptEnabledStorageKey,
   SCRIPTKEY_LIST_CACHE_PREFIX,

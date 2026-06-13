@@ -1,4 +1,6 @@
+import { isDebugLogViewerIncognito } from '@ext/shared/debug-log-utils'
 import {
+  INCOGNITO_SCRIPT_ENABLED_PREFIX,
   loadScriptEnabledMapForScriptKey,
   loadScriptKeyScriptsGroupsFromCache,
   parseScriptEnabledStorageKey,
@@ -48,6 +50,7 @@ export class MmScriptsApp extends HTMLElement {
   private scrollResizeObserver: ResizeObserver | undefined
   private reloadToken = 0
   private unsubscribeAdminView: (() => void) | undefined
+  private readonly scriptTogglesIncognito = isDebugLogViewerIncognito()
   private readonly handleListScroll = (): void => this.updateScrollIndicator()
   private readonly toast = new MmToast(document)
 
@@ -77,11 +80,11 @@ export class MmScriptsApp extends HTMLElement {
       if (keys.length === 0) {
         return
       }
-      const onlyEnabledToggles = keys.every((k) => k.startsWith(SCRIPT_ENABLED_PREFIX))
+      const onlyEnabledToggles = keys.every((key) => this.isScriptEnabledStorageKey(key))
       if (onlyEnabledToggles) {
         for (const key of keys) {
           const parsed = parseScriptEnabledStorageKey(key)
-          if (!parsed) {
+          if (!parsed || parsed.incognito !== this.scriptTogglesIncognito) {
             continue
           }
           const enabled = changes[key].newValue !== false
@@ -121,6 +124,13 @@ export class MmScriptsApp extends HTMLElement {
 
   private enabledMapKey(scriptKey: string, file: string): string {
     return `${scriptKey}:${file}`
+  }
+
+  private isScriptEnabledStorageKey(key: string): boolean {
+    if (this.scriptTogglesIncognito) {
+      return key.startsWith(INCOGNITO_SCRIPT_ENABLED_PREFIX)
+    }
+    return key.startsWith(SCRIPT_ENABLED_PREFIX)
   }
 
   private wrapScriptTextCell(column: 'index' | 'name' | 'file' | 'service' | 'updated', inner: HTMLElement): HTMLDivElement {
@@ -191,7 +201,7 @@ export class MmScriptsApp extends HTMLElement {
       const applyToggle = (): void => {
         void (async () => {
           const enabled = input.checked
-          await setScriptEnabled(item.scriptKey, item.file, enabled)
+          await setScriptEnabled(item.scriptKey, item.file, enabled, { incognito: this.scriptTogglesIncognito })
           this.enabledByKey.set(this.enabledMapKey(item.scriptKey, item.file), enabled)
           item.enabled = enabled
           this.setSwitchTooltip(switchRoot, input, item)
@@ -479,7 +489,8 @@ export class MmScriptsApp extends HTMLElement {
       const groupActive = group.active && !debug.forceInactiveGroups
       const enabledByName = await loadScriptEnabledMapForScriptKey(
         group.scriptKey,
-        group.scripts.map((s) => s.file)
+        group.scripts.map((s) => s.file),
+        { incognito: this.scriptTogglesIncognito }
       )
       const serviceLabel = group.primaryServiceLabel
       const serviceUrl = group.editorBaseUrl.trim().replace(/\/+$/, '')

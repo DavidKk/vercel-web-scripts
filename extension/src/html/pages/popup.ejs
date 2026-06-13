@@ -16,9 +16,11 @@
                 <button type="button" data-action="shell-master" title="Extension enabled" class="mm-icon-btn" aria-haspopup="menu" aria-expanded="false">
                   <span data-ref="shell-master-icon" data-icon="serviceOn" class="mm-icon-slot"></span>
                 </button>
-                <div data-ref="shell-disable-menu" class="mm-shell-disable-menu hidden" role="menu" aria-label="Disable extension">
+                <div data-ref="shell-disable-menu" class="mm-shell-disable-menu hidden" role="menu" aria-label="Extension">
                   <button type="button" data-action="shell-disable-tab" role="menuitem" class="mm-shell-disable-menu-item">This tab only</button>
                   <button type="button" data-action="shell-disable-all" role="menuitem" class="mm-shell-disable-menu-item">All tabs</button>
+                  <div class="mm-shell-disable-menu-divider" role="separator" aria-hidden="true"></div>
+                  <button type="button" data-action="shell-reload" role="menuitem" class="mm-shell-disable-menu-item">Reload extension</button>
                 </div>
               </div>
               <button type="button" data-action="options" title="Servers" class="mm-icon-btn">

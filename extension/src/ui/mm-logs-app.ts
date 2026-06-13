@@ -1,14 +1,25 @@
 import type { DebugLogEntry, DebugLogLevel, DebugLogPortMessage, DebugLogSource } from '@ext/shared/debug-log-types'
 import { DEBUG_LOG_PORT_APPEND, DEBUG_LOG_PORT_NAME, DEBUG_LOG_PORT_SNAPSHOT, MAX_DEBUG_LOG_ENTRIES } from '@ext/shared/debug-log-types'
+import { getIncognitoLogCollectionEnabled, setIncognitoLogCollectionEnabled } from '@ext/shared/extension-storage'
 import { focusTabById } from '@ext/shared/focus-or-open-tab'
 import { sendShellMessage } from '@ext/shared/messages'
-import { getCachedShellLogOutputMode } from '@ext/shared/shell-log-output-cache'
+import { getCachedShellLogOutputMode, setCachedIncognitoLogCollection } from '@ext/shared/shell-log-output-cache'
 
+import { createMockDebugLogEntries, getLogsDebugOverrides, subscribeLogsDebug } from './logs-debug-state'
 import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
 import type { MmSearchSelect } from './mm-form-components/mm-search-select'
 import { bindScrollIndicator } from './mm-form-components/scroll-indicator'
 import { hydrateMmIcons } from './mm-icons'
-import { canDeselectDebugLogLevel, DEFAULT_DEBUG_LOG_LEVEL_FILTER, filterDebugLogEntries, formatDebugLogsFooterText, getDebugLogsEmptyMessage } from './mm-logs-filter'
+import {
+  canDeselectDebugLogLevel,
+  type DebugLogsIncognitoFilter,
+  DEFAULT_DEBUG_LOG_LEVEL_FILTER,
+  filterDebugLogEntries,
+  formatDebugLogsFooterText,
+  formatDebugLogsForClipboard,
+  getDebugLogsEmptyMessage,
+  hasActiveDebugLogFilters,
+} from './mm-logs-filter'
 import { MmToast } from './mm-toast'
 import { initMmTooltipDelegation } from './mm-tooltip'
 
@@ -34,6 +45,8 @@ export class MmLogsApp extends HTMLElement {
   private lastScopeOptionsKey = ''
   private lastHostOptionsKey = ''
   private lastTabOptionsKey = ''
+  private incognitoCollectionEnabled = false
+  private unsubscribeDebug: (() => void) | undefined
   private readonly toast = new MmToast(document)
 
   connectedCallback(): void {
@@ -45,8 +58,11 @@ export class MmLogsApp extends HTMLElement {
     initMmTooltipDelegation(this)
     this.syncLevelFilterUi()
     this.syncFollowToggleUi()
+    this.initIncognitoFilterSelect()
     this.bindEvents()
     this.bindScrollIndicator()
+    this.unsubscribeDebug = subscribeLogsDebug(() => this.flushViewUpdate())
+    void this.syncIncognitoCollectionFromBackground()
     void this.refreshFromBackground()
     this.connectPort()
     this.unsubscribeAdminView = subscribeAdminViewActivated('logs', () => {
@@ -58,6 +74,8 @@ export class MmLogsApp extends HTMLElement {
   }
 
   disconnectedCallback(): void {
+    this.unsubscribeDebug?.()
+    this.unsubscribeDebug = undefined
     this.unsubscribeAdminView?.()
     this.unsubscribeAdminView = undefined
     this.clearPortReconnectTimer()
@@ -123,6 +141,10 @@ export class MmLogsApp extends HTMLElement {
       this.renderList()
       this.renderFooter()
     })
+    this.querySelector('[data-ref="incognito-select"]')?.addEventListener('mm-search-select-change', () => {
+      this.renderList()
+      this.renderFooter()
+    })
     this.querySelector('[data-ref="follow-toggle"]')?.addEventListener('click', (event) => {
       const btn = event.currentTarget as HTMLButtonElement
       this.autoScroll = btn.getAttribute('aria-pressed') !== 'true'
@@ -136,6 +158,15 @@ export class MmLogsApp extends HTMLElement {
     })
     this.querySelector('[data-action="clear-filters"]')?.addEventListener('click', () => {
       this.clearFilters()
+    })
+    this.querySelector('[data-action="copy-logs"]')?.addEventListener('click', () => {
+      void this.copyAllLogs()
+    })
+    this.querySelector('[data-action="clear-logs"]')?.addEventListener('click', () => {
+      void this.clearAllLogs()
+    })
+    this.querySelector('[data-ref="incognito-collect-toggle"]')?.addEventListener('click', () => {
+      void this.toggleIncognitoCollection()
     })
     this.querySelector('[data-ref="rows"]')?.addEventListener('click', (event) => {
       void this.handleListClick(event)
@@ -198,6 +229,53 @@ export class MmLogsApp extends HTMLElement {
       this.renderList()
       this.renderFooter()
     }
+  }
+
+  private async syncIncognitoCollectionFromBackground(): Promise<void> {
+    try {
+      this.incognitoCollectionEnabled = await getIncognitoLogCollectionEnabled()
+      setCachedIncognitoLogCollection(this.incognitoCollectionEnabled)
+      this.syncIncognitoCollectToggleUi()
+    } catch {
+      // ignore storage read errors
+    }
+  }
+
+  private syncIncognitoCollectToggleUi(): void {
+    const btn = this.querySelector<HTMLButtonElement>('[data-ref="incognito-collect-toggle"]')
+    if (!btn) {
+      return
+    }
+    btn.setAttribute('aria-pressed', this.incognitoCollectionEnabled ? 'true' : 'false')
+    btn.setAttribute('data-mm-tooltip', this.incognitoCollectionEnabled ? 'Collecting incognito tab logs' : 'Incognito tab logs are not collected (click to enable)')
+  }
+
+  private async toggleIncognitoCollection(): Promise<void> {
+    const next = !this.incognitoCollectionEnabled
+    try {
+      await setIncognitoLogCollectionEnabled(next)
+    } catch (error) {
+      this.toast.show(error instanceof Error ? error.message : 'Failed to update incognito log collection.', 'warn')
+      return
+    }
+    this.incognitoCollectionEnabled = next
+    setCachedIncognitoLogCollection(next)
+    this.syncIncognitoCollectToggleUi()
+    this.renderFooter()
+    this.toast.show(next ? 'Incognito tab logs will be collected.' : 'Incognito tab logs will no longer be collected.', 'success')
+  }
+
+  private initIncognitoFilterSelect(): void {
+    const select = this.getIncognitoSelect()
+    if (!select) {
+      return
+    }
+    select.setOptions([
+      { value: '', label: 'All contexts' },
+      { value: 'normal', label: 'Normal only' },
+      { value: 'incognito', label: 'Incognito only' },
+    ])
+    select.setValue('')
   }
 
   private connectPort(): void {
@@ -266,23 +344,28 @@ export class MmLogsApp extends HTMLElement {
     return this.querySelector('[data-ref="tab-select"]') as MmSearchSelect | null
   }
 
+  private getIncognitoSelect(): MmSearchSelect | null {
+    return this.querySelector('[data-ref="incognito-select"]') as MmSearchSelect | null
+  }
+
   private getScopeSelect(): MmSearchSelect | null {
     return this.querySelector('[data-ref="scope-select"]') as MmSearchSelect | null
   }
 
   private syncFilterSelectOptions(): void {
-    this.syncSourceSelectOptions()
-    this.syncScopeSelectOptions()
-    this.syncHostSelectOptions()
-    this.syncTabSelectOptions()
+    const entries = this.getDisplayEntries()
+    this.syncSourceSelectOptions(entries)
+    this.syncScopeSelectOptions(entries)
+    this.syncHostSelectOptions(entries)
+    this.syncTabSelectOptions(entries)
   }
 
-  private syncSourceSelectOptions(): void {
+  private syncSourceSelectOptions(entries: DebugLogEntry[] = this.getDisplayEntries()): void {
     const select = this.getSourceSelect()
     if (!select) {
       return
     }
-    const sources = [...new Set(this.entries.map((entry) => entry.source).filter((source): source is DebugLogSource => ALL_SOURCES.includes(source)))].sort((a, b) =>
+    const sources = [...new Set(entries.map((entry) => entry.source).filter((source): source is DebugLogSource => ALL_SOURCES.includes(source)))].sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: 'base' })
     )
     const optionsKey = sources.join('\0')
@@ -296,12 +379,12 @@ export class MmLogsApp extends HTMLElement {
     select.setValue(next)
   }
 
-  private syncHostSelectOptions(): void {
+  private syncHostSelectOptions(entries: DebugLogEntry[] = this.getDisplayEntries()): void {
     const select = this.getHostSelect()
     if (!select) {
       return
     }
-    const hosts = [...new Set(this.entries.map((entry) => entry.meta?.host?.trim()).filter((host): host is string => Boolean(host)))].sort((a, b) =>
+    const hosts = [...new Set(entries.map((entry) => entry.meta?.host?.trim()).filter((host): host is string => Boolean(host)))].sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: 'base' })
     )
     const optionsKey = hosts.join('\0')
@@ -315,12 +398,12 @@ export class MmLogsApp extends HTMLElement {
     select.setValue(next)
   }
 
-  private syncScopeSelectOptions(): void {
+  private syncScopeSelectOptions(entries: DebugLogEntry[] = this.getDisplayEntries()): void {
     const select = this.getScopeSelect()
     if (!select) {
       return
     }
-    const scopes = [...new Set(this.entries.map((entry) => entry.scope?.trim()).filter((scope): scope is string => Boolean(scope)))].sort((a, b) =>
+    const scopes = [...new Set(entries.map((entry) => entry.scope?.trim()).filter((scope): scope is string => Boolean(scope)))].sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: 'base' })
     )
     const optionsKey = scopes.join('\0')
@@ -334,12 +417,12 @@ export class MmLogsApp extends HTMLElement {
     select.setValue(next)
   }
 
-  private syncTabSelectOptions(): void {
+  private syncTabSelectOptions(entries: DebugLogEntry[] = this.getDisplayEntries()): void {
     const select = this.getTabSelect()
     if (!select) {
       return
     }
-    const tabIds = [...new Set(this.entries.filter((entry) => entry.meta?.tabId != null).map((entry) => String(entry.meta!.tabId)))].sort((a, b) => Number(a) - Number(b))
+    const tabIds = [...new Set(entries.filter((entry) => entry.meta?.tabId != null).map((entry) => String(entry.meta!.tabId)))].sort((a, b) => Number(a) - Number(b))
     const optionsKey = tabIds.join('\0')
     if (optionsKey === this.lastTabOptionsKey) {
       return
@@ -358,12 +441,38 @@ export class MmLogsApp extends HTMLElement {
       scopeFilter: this.getScopeSelect()?.getValue() ?? '',
       hostFilter: this.getHostSelect()?.getValue() ?? '',
       tabFilter: this.getTabSelect()?.getValue() ?? '',
+      incognitoFilter: (this.getIncognitoSelect()?.getValue() ?? '') as DebugLogsIncognitoFilter,
       search: this.search,
     }
   }
 
+  private getDisplayEntries(): DebugLogEntry[] {
+    const debug = getLogsDebugOverrides()
+    if (debug.forceEmpty) {
+      return []
+    }
+    if (debug.mockSampleEntries) {
+      return [...createMockDebugLogEntries(), ...this.entries]
+    }
+    return this.entries
+  }
+
   private getFilteredEntries(): DebugLogEntry[] {
-    return filterDebugLogEntries(this.entries, this.getFilterCriteria())
+    return filterDebugLogEntries(this.getDisplayEntries(), this.getFilterCriteria())
+  }
+
+  private syncCopyLogsTooltipUi(): void {
+    const btn = this.querySelector<HTMLButtonElement>('[data-action="copy-logs"]')
+    if (!btn) {
+      return
+    }
+    const criteria = this.getFilterCriteria()
+    if (hasActiveDebugLogFilters(criteria)) {
+      const filteredCount = this.getFilteredEntries().length
+      btn.setAttribute('data-mm-tooltip', `Copy ${filteredCount} filtered log entries to clipboard (TSV)`)
+      return
+    }
+    btn.setAttribute('data-mm-tooltip', `Copy all ${this.getDisplayEntries().length} session log entries to clipboard (TSV)`)
   }
 
   private formatTime(timestamp: number): string {
@@ -401,16 +510,44 @@ export class MmLogsApp extends HTMLElement {
     return `<button type="button" class="mm-logs-cell ${className} mm-logs-cell--filter-link" data-action="quick-filter" data-filter="${filter}" data-value="${this.escapeAttr(trimmed)}" data-mm-tooltip="${this.escapeAttr(filterTooltip)}" data-mm-tooltip-placement="bottom"${wide}>${this.escapeHtml(display)}</button>`
   }
 
+  private renderTabCell(entry: DebugLogEntry): string {
+    const tabId = entry.meta?.tabId != null ? String(entry.meta.tabId) : '—'
+    if (entry.meta?.tabId == null) {
+      return `<span class="mm-logs-cell mm-logs-cell--tab" role="gridcell">${this.escapeHtml(tabId)}</span>`
+    }
+    const filterTooltip = `Filter by tab ${tabId} (⌘/Ctrl+click to focus tab)`
+    const tabLink = `<button type="button" class="mm-logs-cell mm-logs-cell--tab mm-logs-cell--tab-link mm-logs-cell--filter-link" role="gridcell" data-action="quick-filter" data-filter="tab" data-value="${this.escapeAttr(tabId)}" data-mm-tooltip="${this.escapeAttr(filterTooltip)}" data-mm-tooltip-placement="bottom" data-mm-tooltip-wide>${this.escapeHtml(tabId)}</button>`
+    if (entry.meta?.incognito !== true) {
+      return tabLink
+    }
+    return `<span class="mm-logs-cell mm-logs-cell--tab mm-logs-cell--tab-row" role="gridcell">${tabLink}<span class="mm-logs-tab-incognito-badge" data-mm-tooltip="Incognito tab" data-mm-tooltip-placement="bottom" aria-label="Incognito tab"><span data-icon="eyeOff" class="mm-icon-slot mm-logs-tab-incognito-icon" aria-hidden="true"></span></span></span>`
+  }
+
   private renderList(): void {
     const rowsRoot = this.querySelector('[data-ref="rows"]') as HTMLElement | null
     const list = this.querySelector('[data-ref="list"]') as HTMLElement | null
     if (!rowsRoot || !list) {
       return
     }
+    const debug = getLogsDebugOverrides()
+    if (debug.forceLoading) {
+      rowsRoot.classList.add('mm-logs-rows--empty')
+      rowsRoot.innerHTML = `<div class="mm-logs-empty">Loading logs…</div>`
+      this.scrollIndicatorRefresh?.()
+      return
+    }
+    if (debug.forceError !== null) {
+      rowsRoot.classList.add('mm-logs-rows--empty')
+      const message = debug.forceError || debug.errorMessage
+      rowsRoot.innerHTML = `<div class="mm-logs-empty mm-logs-error">${this.escapeHtml(message)}</div>`
+      this.scrollIndicatorRefresh?.()
+      return
+    }
+    const displayEntries = this.getDisplayEntries()
     const rows = this.getFilteredEntries()
     if (rows.length === 0) {
       rowsRoot.classList.add('mm-logs-rows--empty')
-      rowsRoot.innerHTML = `<div class="mm-logs-empty">${this.escapeHtml(getDebugLogsEmptyMessage(this.entries.length))}</div>`
+      rowsRoot.innerHTML = `<div class="mm-logs-empty">${this.escapeHtml(getDebugLogsEmptyMessage(displayEntries.length))}</div>`
       this.scrollIndicatorRefresh?.()
       return
     }
@@ -418,25 +555,21 @@ export class MmLogsApp extends HTMLElement {
     rowsRoot.innerHTML = rows
       .map((entry) => {
         const host = entry.meta?.host?.trim() ?? '—'
-        const tabId = entry.meta?.tabId != null ? String(entry.meta.tabId) : '—'
-        const tabCell =
-          entry.meta?.tabId != null
-            ? this.renderQuickFilterCell('mm-logs-cell--tab mm-logs-cell--tab-link', 'tab', tabId, tabId, `Filter by tab ${tabId} (⌘/Ctrl+click to focus tab)`)
-            : `<span class="mm-logs-cell mm-logs-cell--tab">${this.escapeHtml(tabId)}</span>`
         return `<div class="mm-logs-row mm-logs-row--${entry.level}" role="row">
           <span class="mm-logs-cell mm-logs-cell--time" data-mm-tooltip="${this.escapeAttr(this.formatTimeFull(entry.t))}" data-mm-tooltip-placement="bottom" data-mm-tooltip-align="center" data-mm-tooltip-wide role="gridcell">${this.formatTime(entry.t)}</span>
           <span class="mm-logs-cell mm-logs-cell--level" data-level="${entry.level}" data-mm-tooltip="${this.escapeAttr(`${entry.level} level`)}" data-mm-tooltip-placement="bottom" role="gridcell">${entry.level}</span>
           ${this.renderQuickFilterCell('mm-logs-cell--source', 'source', entry.source, entry.source, `Filter by source ${entry.source}`)}
           ${this.renderQuickFilterCell('mm-logs-cell--scope', 'scope', entry.scope, entry.scope, `Filter by scope ${entry.scope.trim()}`)}
           ${this.renderQuickFilterCell('mm-logs-cell--host', 'host', host === '—' ? '' : host, host, host === '—' ? undefined : `Filter by host ${host}`)}
-          ${tabCell}
-          <span class="mm-logs-cell mm-logs-cell--message" role="gridcell" data-mm-tooltip="${this.escapeAttr(entry.message)}" data-mm-tooltip-placement="bottom" data-mm-tooltip-align="start" data-mm-tooltip-wide>${this.escapeHtml(entry.message)}</span>
+          ${this.renderTabCell(entry)}
+          <span class="mm-logs-cell mm-logs-cell--message" role="gridcell">${this.escapeHtml(entry.message)}</span>
         </div>`
       })
       .join('')
     if (this.autoScroll) {
       list.scrollTop = list.scrollHeight
     }
+    hydrateMmIcons(rowsRoot)
     this.scrollIndicatorRefresh?.()
   }
 
@@ -446,13 +579,16 @@ export class MmLogsApp extends HTMLElement {
       return
     }
     const filteredCount = this.getFilteredEntries().length
+    const totalCount = this.getDisplayEntries().length
     const mode = getCachedShellLogOutputMode()
     footer.textContent = formatDebugLogsFooterText({
       filteredCount,
-      totalCount: this.entries.length,
+      totalCount,
       maxEntries: MAX_DEBUG_LOG_ENTRIES,
       logMode: mode,
+      incognitoCollection: this.incognitoCollectionEnabled,
     })
+    this.syncCopyLogsTooltipUi()
   }
 
   private escapeHtml(value: string): string {
@@ -475,7 +611,56 @@ export class MmLogsApp extends HTMLElement {
     this.getScopeSelect()?.setValue('')
     this.getHostSelect()?.setValue('')
     this.getTabSelect()?.setValue('')
+    this.getIncognitoSelect()?.setValue('')
     this.renderList()
     this.renderFooter()
+  }
+
+  private async copyAllLogs(): Promise<void> {
+    const debug = getLogsDebugOverrides()
+    if (debug.forceLoading) {
+      this.toast.show('Logs are still loading.', 'warn')
+      return
+    }
+    if (debug.forceError !== null) {
+      this.toast.show('Cannot copy logs while the error override is active.', 'warn')
+      return
+    }
+    const criteria = this.getFilterCriteria()
+    const filtersActive = hasActiveDebugLogFilters(criteria)
+    const displayEntries = this.getDisplayEntries()
+    const entriesToCopy = filtersActive ? this.getFilteredEntries() : displayEntries
+    if (entriesToCopy.length === 0) {
+      this.toast.show(filtersActive ? 'No filtered logs to copy.' : 'No logs to copy.', 'warn')
+      return
+    }
+    const text = formatDebugLogsForClipboard(entriesToCopy)
+    try {
+      await navigator.clipboard.writeText(text)
+      if (filtersActive && entriesToCopy.length !== displayEntries.length) {
+        this.toast.show(`Copied ${entriesToCopy.length} filtered entries (${displayEntries.length} in session).`, 'success')
+      } else {
+        this.toast.show(`Copied ${entriesToCopy.length} log entries.`, 'success')
+      }
+    } catch {
+      this.toast.show('Failed to copy logs to clipboard.', 'warn')
+    }
+  }
+
+  private async clearAllLogs(): Promise<void> {
+    const response = await sendShellMessage({ type: 'CLEAR_DEBUG_LOGS' })
+    if (!response.ok) {
+      this.toast.show('error' in response ? response.error : 'Failed to clear logs.', 'warn')
+      return
+    }
+    this.entries = []
+    this.lastSourceOptionsKey = ''
+    this.lastScopeOptionsKey = ''
+    this.lastHostOptionsKey = ''
+    this.lastTabOptionsKey = ''
+    this.syncFilterSelectOptions()
+    this.renderList()
+    this.renderFooter()
+    this.toast.show('Session logs cleared.', 'success')
   }
 }

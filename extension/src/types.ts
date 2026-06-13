@@ -72,6 +72,8 @@ export interface ScriptKeyBootstrapEntry {
 /** Injected on page before launcher runs */
 export interface PageBootstrapConfig {
   extensionVersion: string
+  /** Whether the host tab is incognito (for GM_info and debug log routing). */
+  incognito?: boolean
   /** One entry per enabled unique scriptKey (deduped). */
   scriptKeys: ScriptKeyBootstrapEntry[]
   /** @deprecated Legacy single-service mirror of the first scriptKey entry. */

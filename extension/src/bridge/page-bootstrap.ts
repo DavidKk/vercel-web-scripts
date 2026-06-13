@@ -37,6 +37,15 @@ function installGmStorageChangeListener(): void {
   })
 }
 
+async function getCurrentTabIncognito(): Promise<boolean> {
+  try {
+    const tab = await chrome.tabs.getCurrent()
+    return tab?.incognito === true
+  } catch {
+    return false
+  }
+}
+
 /** Load bootstrap config, wire GM storage sync, inject page launcher. */
 export async function bootstrapPageBridge(): Promise<void> {
   if (!getRuntimeId()) {
@@ -53,9 +62,10 @@ export async function bootstrapPageBridge(): Promise<void> {
 
   let bootstrapConfig: Awaited<ReturnType<typeof buildPageBootstrapConfig>>
   let gmStore: Record<string, unknown>
+  const incognito = await getCurrentTabIncognito()
   try {
     const extensionVersion = getExtensionVersion()
-    ;[bootstrapConfig, gmStore] = await Promise.all([buildPageBootstrapConfig(extensionVersion), loadGmStore()])
+    ;[bootstrapConfig, gmStore] = await Promise.all([buildPageBootstrapConfig(extensionVersion, { incognito }), loadGmStore()])
   } catch (error) {
     if (isExtensionContextInvalidated(error)) {
       return
@@ -67,6 +77,8 @@ export async function bootstrapPageBridge(): Promise<void> {
     return
   }
 
+  const pageConfig = incognito ? { ...bootstrapConfig, incognito: true } : bootstrapConfig
+
   try {
     installGmStorageChangeListener()
   } catch (error) {
@@ -76,7 +88,7 @@ export async function bootstrapPageBridge(): Promise<void> {
     throw error
   }
 
-  await injectPageLauncherWhenReady(bootstrapConfig, gmStore)
+  await injectPageLauncherWhenReady(pageConfig, gmStore)
 }
 
 /** Notify background that a top-level http(s) document loaded. */

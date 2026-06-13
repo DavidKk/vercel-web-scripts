@@ -2,6 +2,7 @@ import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
 import { buildQuickRuleScriptSelectOptions, countEnabledScriptsForEnabledScriptKeys } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
+import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from './mm-admin-nav'
@@ -69,6 +70,9 @@ export class MmPopupApp extends HTMLElement {
     this.querySelector('[data-action="shell-disable-all"]')?.addEventListener('click', () => {
       this.closeShellDisableMenu()
       void this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: false, scope: 'global' }), 'shell-master')
+    })
+    this.querySelector('[data-action="shell-reload"]')?.addEventListener('click', () => {
+      void this.reloadExtension()
     })
     this.querySelector('[data-action="update"]')?.addEventListener('click', () => {
       void this.run(() => sendShellMessage({ type: 'UPDATE_RUNTIME' }), 'update')
@@ -222,7 +226,7 @@ export class MmPopupApp extends HTMLElement {
       if (btn) {
         btn.disabled = loading
       }
-      this.querySelectorAll('[data-action="shell-disable-tab"], [data-action="shell-disable-all"]').forEach((el) => {
+      this.querySelectorAll('[data-action="shell-disable-tab"], [data-action="shell-disable-all"], [data-action="shell-reload"]').forEach((el) => {
         ;(el as HTMLButtonElement).disabled = loading
       })
       return
@@ -407,6 +411,16 @@ export class MmPopupApp extends HTMLElement {
       document.removeEventListener('click', this.shellDisableMenuOutsideListener, true)
       this.shellDisableMenuOutsideListener = null
     }
+  }
+
+  private async reloadExtension(): Promise<void> {
+    this.closeShellDisableMenu()
+    try {
+      await captureAdminPageForDevReload()
+    } catch {
+      // ignore capture errors; reload should still proceed
+    }
+    chrome.runtime.reload()
   }
 
   private renderExtensionUpdateHint(status: { extensionUpdateAvailable: boolean; latestExtensionVersion: string | null; extensionDownloadUrl: string | null }): void {

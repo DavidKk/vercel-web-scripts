@@ -65,6 +65,8 @@ export type ShellMessage =
   | { type: 'SCRIPT_FAILED'; details: ScriptTriggeredDetails }
   | { type: 'APPEND_DEBUG_LOG'; details: DebugLogAppendInput | { entries: DebugLogAppendInput[] } }
   | { type: 'GET_DEBUG_LOGS' }
+  | { type: 'GET_INCOGNITO_LOG_COLLECTION' }
+  | { type: 'SET_INCOGNITO_LOG_COLLECTION'; enabled: boolean }
   | { type: 'CLEAR_DEBUG_LOGS' }
 
 export interface ShellStatus {
@@ -118,6 +120,7 @@ export type ShellResponse =
   | { ok: true; quickAddRuleContext?: { activeTabUrl: string; items: QuickAddRuleContextItem[] } }
   | { ok: true; shellEnabled?: boolean }
   | { ok: true; debugLogs?: DebugLogEntry[] }
+  | { ok: true; incognitoLogCollection?: boolean }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

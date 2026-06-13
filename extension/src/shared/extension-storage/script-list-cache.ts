@@ -8,7 +8,9 @@ import {
   fallbackScriptListFromEnabledKeys,
   fallbackScriptListFromEnabledKeysForScriptKey,
   loadScriptEnabledMapForScriptKey,
+  type ScriptEnabledContextOptions,
   scriptNamesFromEnabledStorageKeysForScriptKey,
+  scriptNamesFromIncognitoEnabledStorageKeysForScriptKey,
 } from './script-enabled'
 import { ensureExtensionServicesState, loadScriptKeyGroupMeta, serviceProfileToExtensionConfig } from './services-state'
 import type { ManagedScriptListEntry, ScriptKeyScriptsGroupView, ScriptListCache } from './types'
@@ -244,7 +246,7 @@ export async function loadScriptKeyScriptsGroupsFromCache(): Promise<ScriptKeySc
  * Popup subtitle counts: enabled Servers rows and Manage-scripts toggles on across their scriptKeys.
  * @returns Enabled server count and enabled script file count (deduped per scriptKey, not per server row)
  */
-export async function countEnabledScriptsForEnabledScriptKeys(): Promise<{ serverCount: number; enabledScriptCount: number }> {
+export async function countEnabledScriptsForEnabledScriptKeys(options?: ScriptEnabledContextOptions): Promise<{ serverCount: number; enabledScriptCount: number }> {
   const state = await ensureExtensionServicesState()
   const enabledKeys = getEnabledScriptKeys(state.services)
   const serverCount = state.services.filter((service) => service.enabled).length
@@ -254,7 +256,8 @@ export async function countEnabledScriptsForEnabledScriptKeys(): Promise<{ serve
     const scripts = await loadManagedScriptListFromCacheForScriptKey(normalized)
     const enabledMap = await loadScriptEnabledMapForScriptKey(
       normalized,
-      scripts.map((row) => row.file)
+      scripts.map((row) => row.file),
+      options
     )
     for (const row of scripts) {
       if (enabledMap.get(row.file) !== false) {
@@ -270,21 +273,23 @@ export async function countEnabledScriptsForEnabledScriptKeys(): Promise<{ serve
  * @param extensionVersion Extension manifest version
  * @returns Bootstrap config or null when no enabled scriptKey
  */
-export async function buildPageBootstrapConfig(extensionVersion: string): Promise<PageBootstrapConfig | null> {
+export async function buildPageBootstrapConfig(extensionVersion: string, options?: ScriptEnabledContextOptions): Promise<PageBootstrapConfig | null> {
   const state = await ensureExtensionServicesState()
   const enabledKeys = getEnabledScriptKeys(state.services)
   if (enabledKeys.length === 0) {
     return null
   }
 
+  const incognito = options?.incognito === true
   const listsByScriptKey: Record<string, { files: string[]; enabledByFile: Record<string, boolean> }> = {}
   const allStorageKeys = Object.keys(await chrome.storage.local.get(null))
   for (const scriptKey of enabledKeys) {
     const normalized = normalizeScriptKey(scriptKey)
     const scripts = await loadManagedScriptListFromCacheForScriptKey(normalized)
     const storageToggledFiles = scriptNamesFromEnabledStorageKeysForScriptKey(normalized, allStorageKeys)
-    const filesForEnabledRead = [...new Set([...scripts.map((row) => row.file), ...storageToggledFiles])]
-    const enabledMap = await loadScriptEnabledMapForScriptKey(normalized, filesForEnabledRead)
+    const incognitoToggledFiles = incognito ? scriptNamesFromIncognitoEnabledStorageKeysForScriptKey(normalized, allStorageKeys) : []
+    const filesForEnabledRead = [...new Set([...scripts.map((row) => row.file), ...storageToggledFiles, ...incognitoToggledFiles])]
+    const enabledMap = await loadScriptEnabledMapForScriptKey(normalized, filesForEnabledRead, options)
     const enabledByFile: Record<string, boolean> = {}
     for (const file of filesForEnabledRead) {
       enabledByFile[file] = enabledMap.get(file) !== false

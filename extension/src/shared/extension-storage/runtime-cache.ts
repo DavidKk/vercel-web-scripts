@@ -12,7 +12,13 @@ import {
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
-import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY, type ShellLogOutputMode } from '@shared/shell-log-output'
+import {
+  normalizeIncognitoLogCollection,
+  normalizeShellLogOutputMode,
+  SHELL_INCOGNITO_LOG_COLLECTION_KEY,
+  SHELL_LOG_OUTPUT_MODE_KEY,
+  type ShellLogOutputMode,
+} from '@shared/shell-log-output'
 
 import type { ExtensionConfig } from '../../types'
 import { CONFIG_STORAGE_KEY, SERVICES_STORAGE_KEY } from '../../types'
@@ -49,6 +55,15 @@ export async function getShellLogOutputMode(): Promise<ShellLogOutputMode> {
 
 export async function setShellLogOutputMode(mode: ShellLogOutputMode): Promise<void> {
   await chrome.storage.local.set({ [gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]: mode })
+}
+
+export async function getIncognitoLogCollectionEnabled(): Promise<boolean> {
+  const result = await chrome.storage.local.get(gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY))
+  return normalizeIncognitoLogCollection(result[gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY)])
+}
+
+export async function setIncognitoLogCollectionEnabled(enabled: boolean): Promise<void> {
+  await chrome.storage.local.set({ [gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY)]: enabled })
 }
 
 function scopedKeys(config: ExtensionConfig): string[] {

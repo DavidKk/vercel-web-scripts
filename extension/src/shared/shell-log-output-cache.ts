@@ -1,8 +1,16 @@
-import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY, type ShellLogOutputMode, shouldLogToConsoleForMode, shouldLogToMemoryForMode } from '@shared/shell-log-output'
+import {
+  normalizeIncognitoLogCollection,
+  normalizeShellLogOutputMode,
+  SHELL_LOG_OUTPUT_MODE_KEY,
+  type ShellLogOutputMode,
+  shouldLogToConsoleForMode,
+  shouldLogToMemoryForMode,
+} from '@shared/shell-log-output'
 
-import { getShellLogOutputMode } from './extension-storage/runtime-cache'
+import { getIncognitoLogCollectionEnabled, getShellLogOutputMode } from './extension-storage/runtime-cache'
 
 let cachedMode: ShellLogOutputMode = 'console'
+let cachedIncognitoLogCollection = false
 
 type WindowWithGmStore = Window & { __VWS_GM_STORE__?: Record<string, unknown> }
 
@@ -35,6 +43,13 @@ export async function refreshShellLogOutputModeCache(): Promise<void> {
 }
 
 /**
+ * Refresh incognito log collection cache from extension storage.
+ */
+export async function refreshIncognitoLogCollectionCache(): Promise<void> {
+  cachedIncognitoLogCollection = normalizeIncognitoLogCollection(await getIncognitoLogCollectionEnabled())
+}
+
+/**
  * Seed cache from bootstrap GM payload (page launcher runs before background cache is visible here).
  * @param store Logical GM keys from content-bridge bootstrap
  */
@@ -55,10 +70,25 @@ export function setCachedShellLogOutputMode(mode: ShellLogOutputMode): void {
 }
 
 /**
+ * Update incognito log collection cache after admin toggle or storage change.
+ * @param enabled Whether incognito-tab logs should be collected
+ */
+export function setCachedIncognitoLogCollection(enabled: boolean): void {
+  cachedIncognitoLogCollection = enabled
+}
+
+/**
  * Cached log output mode for sync extension loggers.
  */
 export function getCachedShellLogOutputMode(): ShellLogOutputMode {
   return resolveExtensionLogOutputMode()
+}
+
+/**
+ * Cached incognito log collection preference.
+ */
+export function getCachedIncognitoLogCollection(): boolean {
+  return cachedIncognitoLogCollection
 }
 
 /**
@@ -74,4 +104,11 @@ export function shouldExtensionLogToConsole(): boolean {
  */
 export function shouldExtensionCollectDebugLogs(): boolean {
   return shouldLogToMemoryForMode(resolveExtensionLogOutputMode())
+}
+
+/**
+ * Whether incognito-tab debug logs should be collected in the session store.
+ */
+export function shouldExtensionCollectIncognitoDebugLogs(): boolean {
+  return cachedIncognitoLogCollection
 }

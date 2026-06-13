@@ -21,6 +21,8 @@ export type DebugLogMeta = {
   tabId?: number
   host?: string
   url?: string
+  /** True when the log originated from an incognito tab or extension context. */
+  incognito?: boolean
   scriptKey?: string
   file?: string
 }

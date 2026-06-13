@@ -1,4 +1,10 @@
-import { DEFAULT_SHELL_LOG_OUTPUT_MODE, normalizeShellLogOutputMode, shouldLogToConsoleForMode, shouldLogToMemoryForMode } from '../../shared/shell-log-output'
+import {
+  DEFAULT_SHELL_LOG_OUTPUT_MODE,
+  normalizeIncognitoLogCollection,
+  normalizeShellLogOutputMode,
+  shouldLogToConsoleForMode,
+  shouldLogToMemoryForMode,
+} from '../../shared/shell-log-output'
 
 describe('shell-log-output', () => {
   it('defaults to console mode', () => {
@@ -12,5 +18,11 @@ describe('shell-log-output', () => {
     expect(shouldLogToMemoryForMode('console')).toBe(true)
     expect(shouldLogToMemoryForMode('logviewer')).toBe(true)
     expect(shouldLogToMemoryForMode('none')).toBe(false)
+  })
+
+  it('defaults incognito log collection to off', () => {
+    expect(normalizeIncognitoLogCollection(undefined)).toBe(false)
+    expect(normalizeIncognitoLogCollection(true)).toBe(true)
+    expect(normalizeIncognitoLogCollection('true')).toBe(false)
   })
 })

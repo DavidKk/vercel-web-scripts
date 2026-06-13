@@ -342,6 +342,7 @@ export function installGmApiOnPage(): GMApi {
         description: 'Chrome shell for MagickMonkey preset',
       },
       scriptHandler: 'MagickMonkey',
+      isIncognito: window.__VWS_PAGE_CONFIG__?.incognito === true,
     },
     unsafeWindow: window,
   }

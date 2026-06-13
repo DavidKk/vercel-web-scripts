@@ -1,6 +1,6 @@
-import type { DebugLogAppendInput, DebugLogEntry, DebugLogPortMessage } from '@ext/shared/debug-log-types'
-import { DEBUG_LOG_PORT_APPEND, DEBUG_LOG_PORT_SNAPSHOT, MAX_DEBUG_LOG_ENTRIES } from '@ext/shared/debug-log-types'
-import { truncateDebugLogMessage } from '@ext/shared/debug-log-utils'
+import type { DebugLogAppendInput, DebugLogEntry, DebugLogPortMessage } from '../shared/debug-log-types'
+import { DEBUG_LOG_PORT_APPEND, DEBUG_LOG_PORT_SNAPSHOT, MAX_DEBUG_LOG_ENTRIES } from '../shared/debug-log-types'
+import { dedupeDebugLogEntriesById, truncateDebugLogMessage } from '../shared/debug-log-utils'
 
 export type DebugLogCollectionGate = () => boolean
 
@@ -9,17 +9,30 @@ type DebugLogListener = (entries: DebugLogEntry[]) => void
 /** chrome.storage.session key — survives MV3 service worker restarts within a browser session. */
 export const DEBUG_LOG_SESSION_STORAGE_KEY = 'vws_debug_log_session'
 
+/** Legacy split-buffer keys merged into {@link DEBUG_LOG_SESSION_STORAGE_KEY} on hydrate. */
+const LEGACY_DEBUG_LOG_SESSION_KEYS = ['vws_debug_log_session_incognito'] as const
+
 type DebugLogSessionPayload = {
   nextId: number
   entries: DebugLogEntry[]
 }
 
-let nextId = 1
-const buffer: DebugLogEntry[] = []
+type StoreState = {
+  nextId: number
+  buffer: DebugLogEntry[]
+  ports: Set<chrome.runtime.Port>
+}
+
+const state: StoreState = {
+  nextId: 1,
+  buffer: [],
+  ports: new Set(),
+}
+
 const listeners = new Set<DebugLogListener>()
-const ports = new Set<chrome.runtime.Port>()
 
 let collectionGate: DebugLogCollectionGate = () => true
+let incognitoCollectionGate: DebugLogCollectionGate = () => false
 let hydratePromise: Promise<void> | undefined
 let persistTimer: ReturnType<typeof setTimeout> | undefined
 /** Bumped on extension install/reload so in-flight hydration cannot restore stale session data. */
@@ -34,10 +47,28 @@ export function setDebugLogCollectionGate(gate: DebugLogCollectionGate): void {
 }
 
 /**
+ * Register gate for whether incognito-tab logs are accepted (default off).
+ * @param gate Returns true when incognito log collection is enabled
+ */
+export function setIncognitoLogCollectionGate(gate: DebugLogCollectionGate): void {
+  incognitoCollectionGate = gate
+}
+
+/**
  * @returns Whether debug log collection is currently enabled
  */
 export function isDebugLogCollectionEnabled(): boolean {
   return collectionGate()
+}
+
+function shouldAcceptEntry(input: DebugLogAppendInput): boolean {
+  if (!collectionGate()) {
+    return false
+  }
+  if (input.meta?.incognito === true && !incognitoCollectionGate()) {
+    return false
+  }
+  return true
 }
 
 function normalizeAppendInput(input: DebugLogAppendInput): DebugLogAppendInput {
@@ -57,27 +88,28 @@ function schedulePersistToSession(): void {
   }
   persistTimer = setTimeout(() => {
     persistTimer = undefined
-    const payload: DebugLogSessionPayload = { nextId, entries: buffer.slice() }
+    const payload: DebugLogSessionPayload = { nextId: state.nextId, entries: state.buffer.slice() }
     void chrome.storage.session.set({ [DEBUG_LOG_SESSION_STORAGE_KEY]: payload }).catch(() => undefined)
   }, 200)
 }
 
 function commitEntries(inputs: DebugLogAppendInput[]): DebugLogEntry[] {
-  if (inputs.length === 0 || !collectionGate()) {
+  const accepted = inputs.filter((input) => shouldAcceptEntry(input))
+  if (accepted.length === 0) {
     return []
   }
   const committed: DebugLogEntry[] = []
-  for (const raw of inputs) {
+  for (const raw of accepted) {
     const input = normalizeAppendInput(raw)
     const entry: DebugLogEntry = {
       ...input,
-      id: nextId++,
+      id: state.nextId++,
       t: Date.now(),
     }
-    buffer.push(entry)
+    state.buffer.push(entry)
     committed.push(entry)
-    while (buffer.length > MAX_DEBUG_LOG_ENTRIES) {
-      buffer.shift()
+    while (state.buffer.length > MAX_DEBUG_LOG_ENTRIES) {
+      state.buffer.shift()
     }
   }
   if (committed.length === 0) {
@@ -96,13 +128,30 @@ function broadcastPortAppend(entries: DebugLogEntry[]): void {
     return
   }
   const message: DebugLogPortMessage = { type: DEBUG_LOG_PORT_APPEND, entries }
-  for (const port of ports) {
+  for (const port of state.ports) {
     try {
       port.postMessage(message)
     } catch {
-      ports.delete(port)
+      state.ports.delete(port)
     }
   }
+}
+
+function resetBuffer(): void {
+  state.buffer.length = 0
+  state.nextId = 1
+}
+
+function mergeLegacySessionEntries(payloads: Array<DebugLogSessionPayload | undefined>): DebugLogEntry[] {
+  const merged: DebugLogEntry[] = []
+  for (const payload of payloads) {
+    if (!payload || !Array.isArray(payload.entries)) {
+      continue
+    }
+    merged.push(...payload.entries)
+  }
+  const deduped = dedupeDebugLogEntriesById(merged)
+  return deduped.slice(-MAX_DEBUG_LOG_ENTRIES)
 }
 
 /**
@@ -118,18 +167,24 @@ export async function initDebugLogStore(): Promise<void> {
       return
     }
     try {
-      const result = await chrome.storage.session.get(DEBUG_LOG_SESSION_STORAGE_KEY)
+      const keys = [DEBUG_LOG_SESSION_STORAGE_KEY, ...LEGACY_DEBUG_LOG_SESSION_KEYS]
+      const result = await chrome.storage.session.get(keys)
       if (generationAtStart !== installGeneration) {
         return
       }
-      const payload = result[DEBUG_LOG_SESSION_STORAGE_KEY] as DebugLogSessionPayload | undefined
-      if (!payload || !Array.isArray(payload.entries)) {
-        return
+      const primary = result[DEBUG_LOG_SESSION_STORAGE_KEY] as DebugLogSessionPayload | undefined
+      const legacyPayloads = LEGACY_DEBUG_LOG_SESSION_KEYS.map((key) => result[key] as DebugLogSessionPayload | undefined)
+      const entries = primary && Array.isArray(primary.entries) ? mergeLegacySessionEntries([primary, ...legacyPayloads]) : mergeLegacySessionEntries(legacyPayloads)
+      resetBuffer()
+      state.buffer.push(...entries)
+      const nextIds = [primary?.nextId, ...legacyPayloads.map((payload) => payload?.nextId)].filter((value): value is number => typeof value === 'number' && value > 0)
+      if (nextIds.length > 0) {
+        state.nextId = Math.max(...nextIds, ...entries.map((entry) => entry.id + 1), 1)
+      } else if (entries.length > 0) {
+        state.nextId = Math.max(...entries.map((entry) => entry.id + 1), 1)
       }
-      buffer.length = 0
-      buffer.push(...payload.entries.slice(-MAX_DEBUG_LOG_ENTRIES))
-      if (typeof payload.nextId === 'number' && payload.nextId > 0) {
-        nextId = payload.nextId
+      if (legacyPayloads.some(Boolean)) {
+        void chrome.storage.session.remove([...LEGACY_DEBUG_LOG_SESSION_KEYS]).catch(() => undefined)
       }
     } catch {
       // ignore hydration errors
@@ -145,38 +200,39 @@ export async function initDebugLogStore(): Promise<void> {
  */
 export function appendDebugLog(input: DebugLogAppendInput | DebugLogAppendInput[]): DebugLogEntry[] {
   const entries = Array.isArray(input) ? input : [input]
-  if (entries.length === 0 || !collectionGate()) {
+  if (entries.length === 0) {
     return []
   }
   return commitEntries(entries)
 }
 
 /**
- * @returns Snapshot copy of all buffered debug log entries
+ * @returns Snapshot copy of buffered debug log entries
  */
 export function getDebugLogSnapshot(): DebugLogEntry[] {
-  return buffer.slice()
+  return state.buffer.slice()
 }
 
-/** Clear all session debug logs and notify subscribers. */
+/**
+ * Clear session debug logs and notify subscribers.
+ */
 export function clearDebugLogs(): void {
   installGeneration++
-  buffer.length = 0
-  nextId = 1
+  for (const port of state.ports) {
+    try {
+      port.postMessage({ type: DEBUG_LOG_PORT_SNAPSHOT, entries: [] } satisfies DebugLogPortMessage)
+    } catch {
+      state.ports.delete(port)
+    }
+  }
+  resetBuffer()
   hydratePromise = undefined
   if (persistTimer) {
     clearTimeout(persistTimer)
     persistTimer = undefined
   }
   if (typeof chrome !== 'undefined' && chrome.storage?.session) {
-    void chrome.storage.session.remove(DEBUG_LOG_SESSION_STORAGE_KEY).catch(() => undefined)
-  }
-  for (const port of ports) {
-    try {
-      port.postMessage({ type: DEBUG_LOG_PORT_SNAPSHOT, entries: [] } satisfies DebugLogPortMessage)
-    } catch {
-      ports.delete(port)
-    }
+    void chrome.storage.session.remove([DEBUG_LOG_SESSION_STORAGE_KEY, ...LEGACY_DEBUG_LOG_SESSION_KEYS]).catch(() => undefined)
   }
 }
 
@@ -191,18 +247,18 @@ export function subscribeDebugLogs(listener: DebugLogListener): () => void {
 
 /**
  * Wire chrome.runtime.connect port for admin logs panel live updates.
- * @param port Connected port with name {@link DEBUG_LOG_PORT_NAME}
+ * @param port Connected port with name `debug-logs`
  */
 export function attachDebugLogPort(port: chrome.runtime.Port): void {
-  ports.add(port)
+  state.ports.add(port)
   try {
     port.postMessage({ type: DEBUG_LOG_PORT_SNAPSHOT, entries: getDebugLogSnapshot() } satisfies DebugLogPortMessage)
   } catch {
-    ports.delete(port)
+    state.ports.delete(port)
     return
   }
   port.onDisconnect.addListener(() => {
-    ports.delete(port)
+    state.ports.delete(port)
   })
 }
 

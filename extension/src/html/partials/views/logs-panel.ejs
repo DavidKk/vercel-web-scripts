@@ -1,7 +1,62 @@
         <mm-logs-app class="mm-admin-view-host">
           <div class="mm-logs-main">
-            <div class="mm-logs-head">
-              <div class="mm-logs-head-left">
+            <div class="mm-logs-page-head">
+              <div class="mm-logs-head-copy">
+                <h2 class="mm-servers-pane-title">Logs</h2>
+                <p class="mm-servers-pane-desc">Session debug log buffer from background, admin, content scripts, and pages. Incognito tab logs are off by default.</p>
+              </div>
+              <div class="mm-logs-session-actions" role="group" aria-label="Log viewer">
+                <button
+                  type="button"
+                  class="mm-logs-session-btn mm-logs-follow-toggle"
+                  data-ref="follow-toggle"
+                  aria-pressed="true"
+                  data-mm-tooltip="Auto-scroll to newest entries"
+                  data-mm-tooltip-placement="bottom"
+                >
+                  <span data-icon="follow" class="mm-icon-slot mm-logs-session-btn-icon" aria-hidden="true"></span>
+                  <span>Follow</span>
+                </button>
+                <button
+                  type="button"
+                  class="mm-logs-session-btn mm-logs-copy-logs-btn"
+                  data-action="copy-logs"
+                  data-mm-tooltip="Copy session logs to clipboard (TSV; respects active filters)"
+                  data-mm-tooltip-placement="bottom"
+                  aria-label="Copy all logs"
+                >
+                  <span data-icon="copy" class="mm-icon-slot mm-logs-session-btn-icon" aria-hidden="true"></span>
+                  <span>Copy all</span>
+                </button>
+                <button
+                  type="button"
+                  class="mm-logs-session-btn mm-logs-clear-logs-btn"
+                  data-action="clear-logs"
+                  data-mm-tooltip="Clear all session logs"
+                  data-mm-tooltip-placement="bottom"
+                  aria-label="Clear all logs"
+                >
+                  <span data-icon="clear" class="mm-icon-slot mm-logs-session-btn-icon" aria-hidden="true"></span>
+                  <span>Clear all</span>
+                </button>
+                <button
+                  type="button"
+                  class="mm-logs-session-btn mm-logs-incognito-collect-toggle"
+                  data-ref="incognito-collect-toggle"
+                  aria-pressed="false"
+                  data-mm-tooltip="Incognito tab logs are not collected (click to enable)"
+                  data-mm-tooltip-placement="bottom"
+                  aria-label="Collect incognito tab logs"
+                >
+                  <span data-icon="eyeOff" class="mm-icon-slot mm-logs-session-btn-icon" aria-hidden="true"></span>
+                  <span>Incognito</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="mm-logs-filters">
+              <div class="mm-logs-filters-levels">
+                <p class="mm-logs-filters-title">Filter</p>
                 <div class="mm-logs-level-filter" data-ref="level-filters" role="group" aria-label="Log levels">
                   <button type="button" class="mm-logs-level-chip" data-level="debug" aria-pressed="false" data-mm-tooltip="Toggle debug logs" data-mm-tooltip-placement="bottom">
                     <span class="mm-logs-level-chip-icon" aria-hidden="true"><span data-icon="logDebug"></span></span>
@@ -24,72 +79,69 @@
                     <span class="mm-logs-level-chip-label">Error</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  class="mm-logs-follow-toggle"
-                  data-ref="follow-toggle"
-                  aria-pressed="true"
-                  data-mm-tooltip="Auto-scroll to newest entries"
-                  data-mm-tooltip-placement="bottom"
-                >
-                  <span data-icon="follow" class="mm-icon-slot mm-logs-follow-icon" aria-hidden="true"></span>
-                  <span>Follow</span>
-                </button>
               </div>
               <div class="mm-logs-toolbar" data-ref="toolbar">
-                <mm-input
-                  class="mm-logs-search"
-                  data-mm-tooltip="Search message, scope, source, URL, host, or tab ID"
-                  data-mm-tooltip-placement="bottom"
-                >
-                  <span class="mm-input-icon" aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none">
-                      <path d="m14.1 14.1 3.4 3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-                      <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.7" />
-                    </svg>
-                  </span>
-                  <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Filter messages" autocomplete="off" spellcheck="false" />
-                </mm-input>
-                <mm-search-select
-                  class="mm-logs-source-filter"
-                  data-ref="source-select"
-                  placeholder="All sources"
-                  search-placeholder="Search sources..."
-                  data-mm-tooltip="Filter by log source"
-                  data-mm-tooltip-placement="bottom"
-                ></mm-search-select>
-                <mm-search-select
-                  class="mm-logs-scope-filter"
-                  data-ref="scope-select"
-                  placeholder="All scopes"
-                  search-placeholder="Search scopes..."
-                  data-mm-tooltip="Filter by scope"
-                  data-mm-tooltip-placement="bottom"
-                ></mm-search-select>
-                <mm-search-select
-                  class="mm-logs-host-filter"
-                  data-ref="host-select"
-                  placeholder="All hosts"
-                  search-placeholder="Search hosts..."
-                  data-mm-tooltip="Filter by hostname"
-                  data-mm-tooltip-placement="bottom"
-                ></mm-search-select>
-                <mm-search-select
-                  class="mm-logs-tab-filter"
-                  data-ref="tab-select"
-                  placeholder="All tabs"
-                  search-placeholder="Search tab IDs..."
-                  data-mm-tooltip="Filter by Chrome tab ID"
-                  data-mm-tooltip-placement="bottom"
-                ></mm-search-select>
-                <button
-                  type="button"
-                  class="mm-icon-btn-sm mm-logs-clear-filters-btn"
-                  data-action="clear-filters"
-                  data-mm-tooltip="Clear all level, search, and dropdown filters"
-                  data-mm-tooltip-placement="bottom"
-                  aria-label="Clear filters"
-                >
+                  <mm-input
+                    class="mm-logs-search"
+                    data-mm-tooltip="Search message, scope, source, URL, host, or tab ID"
+                    data-mm-tooltip-placement="bottom"
+                  >
+                    <span class="mm-input-icon" aria-hidden="true">
+                      <svg viewBox="0 0 20 20" fill="none">
+                        <path d="m14.1 14.1 3.4 3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                        <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.7" />
+                      </svg>
+                    </span>
+                    <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Filter messages" autocomplete="off" spellcheck="false" />
+                  </mm-input>
+                  <mm-search-select
+                    class="mm-logs-source-filter"
+                    data-ref="source-select"
+                    placeholder="All sources"
+                    search-placeholder="Search sources..."
+                    data-mm-tooltip="Filter by log source"
+                    data-mm-tooltip-placement="bottom"
+                  ></mm-search-select>
+                  <mm-search-select
+                    class="mm-logs-scope-filter"
+                    data-ref="scope-select"
+                    placeholder="All scopes"
+                    search-placeholder="Search scopes..."
+                    data-mm-tooltip="Filter by scope"
+                    data-mm-tooltip-placement="bottom"
+                  ></mm-search-select>
+                  <mm-search-select
+                    class="mm-logs-host-filter"
+                    data-ref="host-select"
+                    placeholder="All hosts"
+                    search-placeholder="Search hosts..."
+                    data-mm-tooltip="Filter by hostname"
+                    data-mm-tooltip-placement="bottom"
+                  ></mm-search-select>
+                  <mm-search-select
+                    class="mm-logs-tab-filter"
+                    data-ref="tab-select"
+                    placeholder="All tabs"
+                    search-placeholder="Search tab IDs..."
+                    data-mm-tooltip="Filter by Chrome tab ID"
+                    data-mm-tooltip-placement="bottom"
+                  ></mm-search-select>
+                  <mm-search-select
+                    class="mm-logs-incognito-filter"
+                    data-ref="incognito-select"
+                    placeholder="All contexts"
+                    search-placeholder="Filter context..."
+                    data-mm-tooltip="Filter by normal or incognito context"
+                    data-mm-tooltip-placement="bottom"
+                  ></mm-search-select>
+                  <button
+                    type="button"
+                    class="mm-icon-btn-sm mm-logs-clear-filters-btn"
+                    data-action="clear-filters"
+                    data-mm-tooltip="Clear all level, search, and dropdown filters"
+                    data-mm-tooltip-placement="bottom"
+                    aria-label="Clear filters"
+                  >
                   <span data-icon="backspaceOutline" class="mm-icon-slot" aria-hidden="true"></span>
                 </button>
               </div>
@@ -99,13 +151,13 @@
               <div class="mm-scroll-indicator-shell mm-logs-table-scroll-shell" data-ref="scroll-shell">
                 <div class="mm-logs-list mm-scroll-indicator-scroller" data-ref="list" role="grid" aria-label="Debug logs">
                   <div class="mm-logs-table-head" data-ref="table-head" role="row">
-                    <span class="mm-logs-col mm-logs-col--time" role="columnheader" data-mm-tooltip="Local time; hover a row for full timestamp" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Time</span></span>
-                    <span class="mm-logs-col mm-logs-col--level" role="columnheader" data-mm-tooltip="Log severity" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Level</span></span>
-                    <span class="mm-logs-col mm-logs-col--source" role="columnheader" data-mm-tooltip="Where the log was emitted" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Source</span></span>
-                    <span class="mm-logs-col mm-logs-col--scope" role="columnheader" data-mm-tooltip="Logger scope or module name" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Scope</span></span>
-                    <span class="mm-logs-col mm-logs-col--host" role="columnheader" data-mm-tooltip="Page hostname when available" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Host</span></span>
-                    <span class="mm-logs-col mm-logs-col--tab" role="columnheader" data-mm-tooltip="Chrome tab ID; click a cell to filter" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Tab</span></span>
-                    <span class="mm-logs-col mm-logs-col--message" role="columnheader" data-mm-tooltip="Log message text" data-mm-tooltip-placement="bottom"><span class="mm-logs-col-label">Message</span></span>
+                    <span class="mm-logs-col mm-logs-col--time" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Local time; hover a row for full timestamp" data-mm-tooltip-placement="bottom">Time</span></span>
+                    <span class="mm-logs-col mm-logs-col--level" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Log severity" data-mm-tooltip-placement="bottom">Level</span></span>
+                    <span class="mm-logs-col mm-logs-col--source" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Where the log was emitted" data-mm-tooltip-placement="bottom">Source</span></span>
+                    <span class="mm-logs-col mm-logs-col--scope" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Logger scope or module name" data-mm-tooltip-placement="bottom">Scope</span></span>
+                    <span class="mm-logs-col mm-logs-col--host" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Page hostname when available" data-mm-tooltip-placement="bottom">Host</span></span>
+                    <span class="mm-logs-col mm-logs-col--tab" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Chrome tab ID; incognito tabs show a badge; click a cell to filter" data-mm-tooltip-placement="bottom">Tab</span></span>
+                    <span class="mm-logs-col mm-logs-col--message" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Log message text" data-mm-tooltip-placement="bottom" data-mm-tooltip-align="start">Message</span></span>
                   </div>
                   <div class="mm-logs-rows" data-ref="rows" role="rowgroup" aria-live="off"></div>
                 </div>

@@ -229,7 +229,7 @@ function emitScriptLog(scope: string, level: VwsConsoleLogLevel, storeLevel: Gme
   if (shouldLogToMemory()) {
     pushToLogStore(storeLevel, ...contents)
   }
-  forwardExtensionDebugLog('page', scriptScope, storeLevel, ...contents)
+  forwardExtensionDebugLog('page', scope, storeLevel, ...contents)
 }
 
 /**

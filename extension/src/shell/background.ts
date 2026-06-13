@@ -8,6 +8,7 @@ import {
   enableShellMaster,
   ensureExtensionServicesState,
   getEnabledScriptKeys,
+  getIncognitoLogCollectionEnabled,
   getShellGloballyEnabled,
   getShellLogOutputMode,
   getShellNetworkEnabled,
@@ -22,6 +23,7 @@ import {
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
   resolvePresetProjectVersion,
+  setIncognitoLogCollectionEnabled,
   setShellLogOutputMode,
   setShellNetworkEnabled,
   SHELL_DISABLED_TAB_IDS_STORAGE_KEY,
@@ -44,7 +46,7 @@ import {
   resetTabTriggerCountsForPageLoad,
 } from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
-import { SHELL_LOG_OUTPUT_MODE_KEY, shouldLogToMemoryForMode } from '@shared/shell-log-output'
+import { SHELL_INCOGNITO_LOG_COLLECTION_KEY, SHELL_LOG_OUTPUT_MODE_KEY, shouldLogToMemoryForMode } from '@shared/shell-log-output'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
 import type { DebugLogAppendInput } from '../shared/debug-log-types'
@@ -52,7 +54,7 @@ import { DEBUG_LOG_PORT_NAME } from '../shared/debug-log-types'
 import { buildDebugLogMetaFromTab } from '../shared/debug-log-utils'
 import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { extensionLogger } from '../shared/logger'
-import { getCachedShellLogOutputMode, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
+import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { initBadgeNavigationListeners } from './badge-navigation'
 import {
   appendDebugLog,
@@ -62,6 +64,7 @@ import {
   initDebugLogStore,
   normalizeDebugLogAppendDetails,
   setDebugLogCollectionGate,
+  setIncognitoLogCollectionGate,
 } from './debug-log-store'
 import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
@@ -69,22 +72,41 @@ import { initDevExtensionReload } from './dev-extension-reload'
 void DEV_BUILD_STAMP
 
 setDebugLogCollectionGate(() => shouldLogToMemoryForMode(getCachedShellLogOutputMode()))
+setIncognitoLogCollectionGate(() => getCachedIncognitoLogCollection())
 
 function enrichDebugLogFromSender(entry: DebugLogAppendInput, sender: chrome.runtime.MessageSender): DebugLogAppendInput {
   const tab = sender.tab
   if (!tab) {
+    if (entry.meta?.incognito != null) {
+      return entry
+    }
+    try {
+      if (typeof chrome.extension?.inIncognitoContext === 'boolean') {
+        return { ...entry, meta: { ...entry.meta, incognito: chrome.extension.inIncognitoContext } }
+      }
+    } catch {
+      // ignore
+    }
     return entry
   }
-  const tabMeta = buildDebugLogMetaFromTab(tab.url, tab.id)
-  return { ...entry, meta: { ...tabMeta, ...entry.meta } }
+  const tabMeta = buildDebugLogMetaFromTab(tab.url, tab.id, tab.incognito)
+  return {
+    ...entry,
+    meta: {
+      ...tabMeta,
+      ...entry.meta,
+      incognito: entry.meta?.incognito ?? tab.incognito,
+    },
+  }
 }
 
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name === DEBUG_LOG_PORT_NAME) {
-    void initDebugLogStore().then(() => {
-      attachDebugLogPort(port)
-    })
+  if (port.name !== DEBUG_LOG_PORT_NAME) {
+    return
   }
+  void initDebugLogStore().then(() => {
+    attachDebugLogPort(port)
+  })
 })
 
 async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }>['details']): Promise<ShellResponse> {
@@ -194,13 +216,13 @@ async function reloadAllReloadableTabs(): Promise<void> {
 }
 
 async function buildStatus(): Promise<ShellStatus> {
-  const [config, servicesState, tab, networkEnabled, logOutputMode, scriptTotals] = await Promise.all([
+  const tab = await getActiveTab()
+  const [config, servicesState, networkEnabled, logOutputMode, scriptTotals] = await Promise.all([
     loadExtensionConfig(),
     ensureExtensionServicesState(),
-    getActiveTab(),
     getShellNetworkEnabled(),
     getShellLogOutputMode(),
-    countEnabledScriptsForEnabledScriptKeys(),
+    countEnabledScriptsForEnabledScriptKeys({ incognito: tab?.incognito === true }),
   ])
   const gmScope = config.scriptKey ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
   const presetVersion = await resolvePresetProjectVersion(config, gmScope, { allowManifestFetch: networkEnabled })
@@ -290,7 +312,7 @@ async function refreshAllBadges(): Promise<void> {
 }
 
 async function initBackgroundDefaults(): Promise<void> {
-  await refreshShellLogOutputModeCache()
+  await Promise.all([refreshShellLogOutputModeCache(), refreshIncognitoLogCollectionCache()])
   await hydrateTabTriggerCounts()
   void applyBadgeColors({})
   void refreshAllBadges()
@@ -332,6 +354,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
     if (changes[gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]) {
       void refreshShellLogOutputModeCache()
+    }
+    if (changes[gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY)]) {
+      void refreshIncognitoLogCollectionCache()
     }
     if (shouldInvalidateTabMatchCache(changes)) {
       void invalidateTabMatchCache()
@@ -610,6 +635,16 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
         case 'GET_DEBUG_LOGS': {
           await initDebugLogStore()
           sendResponse({ ok: true, debugLogs: getDebugLogSnapshot() } satisfies ShellResponse)
+          return
+        }
+        case 'GET_INCOGNITO_LOG_COLLECTION': {
+          sendResponse({ ok: true, incognitoLogCollection: await getIncognitoLogCollectionEnabled() } satisfies ShellResponse)
+          return
+        }
+        case 'SET_INCOGNITO_LOG_COLLECTION': {
+          await setIncognitoLogCollectionEnabled(message.enabled)
+          await refreshIncognitoLogCollectionCache()
+          sendResponse({ ok: true, incognitoLogCollection: message.enabled } satisfies ShellResponse)
           return
         }
         case 'CLEAR_DEBUG_LOGS': {

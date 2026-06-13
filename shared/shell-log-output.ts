@@ -1,6 +1,9 @@
 /** GM storage key for shell log output destination (global, not per scriptKey). */
 export const SHELL_LOG_OUTPUT_MODE_KEY = 'vws_shell_log_output_mode'
 
+/** GM storage key: collect debug logs from incognito tabs (default off). */
+export const SHELL_INCOGNITO_LOG_COLLECTION_KEY = 'vws_shell_incognito_log_collection'
+
 /** Where preset / shell logs are emitted. */
 export type ShellLogOutputMode = 'console' | 'logviewer' | 'none'
 
@@ -32,4 +35,12 @@ export function shouldLogToConsoleForMode(mode: ShellLogOutputMode): boolean {
  */
 export function shouldLogToMemoryForMode(mode: ShellLogOutputMode): boolean {
   return mode !== 'none'
+}
+
+/**
+ * Normalize stored incognito log collection preference.
+ * @param raw Value from GM storage
+ */
+export function normalizeIncognitoLogCollection(raw: unknown): boolean {
+  return raw === true
 }

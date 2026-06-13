@@ -1,7 +1,9 @@
 import {
   buildScriptKeyBootstrapEntriesFromState,
   buildScriptKeyGroupMetaFromState,
+  incognitoScriptEnabledStorageKey,
   parseScriptEnabledStorageKey,
+  resolveScriptEnabledFlag,
   scriptEnabledStorageKey,
   scriptKeyListCacheStorageKey,
   scriptKeyRulesStorageKey,
@@ -27,6 +29,28 @@ describe('extension-storage pure helpers', () => {
       expect(scriptKeyRulesStorageKey('abc')).toBe('vws_scriptkey_rules:abc')
       expect(scriptKeyListCacheStorageKey('abc')).toBe('vws_scriptkey_script_list_cache:abc')
       expect(scriptEnabledStorageKey('abc', 'foo.js')).toBe('vws_script_enabled:abc:foo.js')
+      expect(incognitoScriptEnabledStorageKey('abc', 'foo.js')).toBe('vws_incognito_script_enabled:abc:foo.js')
+    })
+  })
+
+  describe('resolveScriptEnabledFlag', () => {
+    it('should lazy-fork incognito reads from normal keys', () => {
+      expect(
+        resolveScriptEnabledFlag({
+          incognito: true,
+          incognitoValue: undefined,
+          scopedValue: false,
+          legacyValue: true,
+        })
+      ).toBe(false)
+      expect(
+        resolveScriptEnabledFlag({
+          incognito: true,
+          incognitoValue: true,
+          scopedValue: false,
+          legacyValue: false,
+        })
+      ).toBe(true)
     })
   })
 
@@ -35,6 +59,15 @@ describe('extension-storage pure helpers', () => {
       expect(parseScriptEnabledStorageKey('vws_script_enabled:key-a:demo.js')).toEqual({
         scriptKey: 'key-a',
         file: 'demo.js',
+        incognito: false,
+      })
+    })
+
+    it('should parse incognito fork keys', () => {
+      expect(parseScriptEnabledStorageKey('vws_incognito_script_enabled:key-a:demo.js')).toEqual({
+        scriptKey: 'key-a',
+        file: 'demo.js',
+        incognito: true,
       })
     })
 
@@ -42,6 +75,7 @@ describe('extension-storage pure helpers', () => {
       expect(parseScriptEnabledStorageKey('vws_script_enabled:demo.js')).toEqual({
         scriptKey: null,
         file: 'demo.js',
+        incognito: false,
       })
     })
 
