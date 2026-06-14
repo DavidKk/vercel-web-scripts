@@ -22,6 +22,7 @@ import { getUnsafeWindow } from '@/services/cli-service'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
 import iconNodeSelector from '~icons/mdi/gesture-tap?raw'
+import iconClearMarks from '~icons/mdi/trash-can-outline?raw'
 
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import nodeSelectorCss from './index.css?raw'
@@ -218,6 +219,24 @@ GME_registerCommandPaletteCommand({
           details: [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`],
         }),
       })
+    }
+  },
+})
+
+GME_registerCommandPaletteCommand({
+  id: 'node-selector-clear-all',
+  keywords: ['node', 'selector', 'mark', 'marks', 'clear', 'remove', 'delete', 'all', '清除', '标记'],
+  title: 'Clear All Node Marks',
+  iconHtml: iconClearMarks,
+  hint: 'Remove every node selector mark on this page',
+  action: () => {
+    const count = GME_getMarkedNodes().length
+    GME_clearAllMarks()
+    GME_clearSelection()
+    if (count > 0) {
+      GME_notification(`Cleared ${count} mark${count === 1 ? '' : 's'}`, 'success')
+    } else {
+      GME_notification('No marks to clear', 'info')
     }
   },
 })
