@@ -19,6 +19,8 @@ import { appendToDocumentElement } from '@/helpers/dom'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
 
+import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import cornerWidgetCss from './index.css?raw'
 import cornerWidgetHtml from './index.html?raw'
 
@@ -114,6 +116,7 @@ export class CornerWidget extends HTMLElement {
     })
 
     this.toggle(!!this.#menuItems.length)
+    refreshScrollIndicator(listElement)
   }
 
   /**
@@ -400,6 +403,11 @@ export class CornerWidget extends HTMLElement {
     }
 
     this.#renderMenu()
+
+    const listScroller = this.#shadowRoot.querySelector(CornerWidget.LIST_SELECTOR) as HTMLElement | null
+    if (listScroller) {
+      bindScrollIndicator(listScroller)
+    }
   }
 
   /**
@@ -571,7 +579,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(CornerWidget.TA
 
 if (typeof document !== 'undefined' && !document.querySelector(CornerWidget.TAG_NAME)) {
   const container = document.createElement(CornerWidget.TAG_NAME)
-  container.innerHTML = `<template><style>${cornerWidgetCss}</style>${cornerWidgetHtml}</template>`
+  container.innerHTML = `<template><style>${wrapUiStyles(cornerWidgetCss)}</style>${cornerWidgetHtml}</template>`
   appendToDocumentElement(container)
 }
 

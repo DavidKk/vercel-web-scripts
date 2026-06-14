@@ -26,7 +26,12 @@
         <button type="button" class="log-viewer__icon-btn" data-action="clear" aria-label="Clear all logs" title="Clear all stored logs"></button>
       </div>
     </div>
-    <div class="log-viewer__list" part="list"></div>
+    <div class="log-viewer__list-shell vws-scroll-indicator-shell">
+      <div class="log-viewer__list vws-scroll-indicator-scroller" part="list"></div>
+      <div class="vws-scroll-indicator-track" aria-hidden="true">
+        <span class="vws-scroll-indicator-thumb"></span>
+      </div>
+    </div>
     <div class="log-viewer__footer" part="footer">
       <label class="log-viewer__persist">
         <span class="log-viewer__persist-text">

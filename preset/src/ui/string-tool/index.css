@@ -1,19 +1,19 @@
-/* String Tool: shared tokens; Log Viewer look; aligned with command-palette */
+/* String Tool — dark modal aligned with command-palette / log-viewer */
 .string-tool {
-  --st-radius: 8px;
-  --st-radius-sm: 4px;
+  --st-radius: var(--vws-radius);
+  --st-radius-sm: var(--vws-radius-sm);
   --st-pad: 12px 16px;
   --st-pad-sm: 6px 12px;
   --st-pad-btn: 8px 14px;
   --st-gap: 8px;
   --st-gap-md: 12px;
-  --st-color-text: #1d1d1f;
-  --st-color-muted: #86868b;
-  --st-color-border: rgba(0, 0, 0, 0.08);
-  --st-bg-box: rgba(255, 255, 255, 0.96);
-  --st-bg-btn: rgba(0, 0, 0, 0.08);
-  --st-bg-btn-hover: rgba(0, 0, 0, 0.12);
-  --st-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --st-color-text: var(--vws-text-primary);
+  --st-color-muted: var(--vws-text-muted);
+  --st-color-border: var(--vws-border);
+  --st-bg-box: var(--vws-surface-raised);
+  --st-bg-btn: var(--vws-surface-hover);
+  --st-bg-btn-hover: var(--vws-border-strong);
+  --st-shadow: var(--vws-shadow-md);
   --st-input-height: 120px;
   --st-result-min-height: 60px;
   --st-font-size: 14px;
@@ -33,19 +33,19 @@
 .string-tool__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--vws-backdrop);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
 }
 
-/* Compact single style */
 .string-tool__box {
   position: relative;
   margin: 10vh auto;
   width: 92%;
   max-width: 560px;
   background: var(--st-bg-box);
+  border: 1px solid var(--vws-border);
   border-radius: var(--st-radius);
   box-shadow: var(--st-shadow);
   overflow: hidden;
@@ -74,7 +74,6 @@
   color: var(--st-color-text);
 }
 
-/* Shared button styles; close button styled separately (see Log Viewer) */
 .string-tool__btn,
 .string-tool__uuid-regenerate,
 .string-tool__copy-btn {
@@ -94,7 +93,15 @@
   background: var(--st-bg-btn-hover);
 }
 
-/* Close: X icon (Log Viewer style) */
+.string-tool__btn--primary {
+  background: var(--vws-brand);
+  color: #fff;
+}
+
+.string-tool__btn--primary:hover {
+  background: var(--vws-brand-hover);
+}
+
 .string-tool__close {
   width: 32px;
   height: 32px;
@@ -116,7 +123,6 @@
   background: var(--st-bg-btn);
 }
 
-/* Input slot: show/hide or shrink per layout */
 .string-tool__input-slot {
   min-height: var(--st-input-height);
   border-bottom: 1px solid var(--st-color-border);
@@ -124,6 +130,7 @@
   padding: var(--st-pad);
   font-size: var(--st-font-size);
   color: var(--st-color-muted);
+  background: var(--vws-surface);
 }
 
 .string-tool__input-slot:has(> .string-tool__input-editor),
@@ -142,7 +149,6 @@
   flex-direction: column;
 }
 
-/* json-editor layout: hide result pane; input fills remaining height with max-height */
 .string-tool__box[data-layout='json-editor'] .string-tool__result-wrap {
   display: none;
 }
@@ -176,18 +182,15 @@
   border-radius: var(--st-radius-sm);
   font-size: var(--st-font-size);
   box-sizing: border-box;
+  background: var(--vws-surface-muted);
+  color: var(--st-color-text);
 }
 
 .string-tool__uuid-controls input[type='number']:focus {
   outline: none;
-  border-color: rgba(0, 0, 0, 0.35);
+  border-color: var(--vws-brand);
 }
 
-.string-tool__uuid-regenerate {
-  /* Same as .string-tool__btn above */
-}
-
-/* JSON editor: wrap fills input slot; inner area scrolls */
 .string-tool__json-editor-wrap {
   display: flex;
   flex-direction: column;
@@ -218,6 +221,7 @@
   padding: var(--st-pad);
   flex: 1;
   min-height: var(--st-result-min-height);
+  background: var(--vws-surface);
 }
 
 .string-tool__result-label {
@@ -246,6 +250,8 @@
   resize: vertical;
   box-sizing: border-box;
   outline: none;
+  background: var(--vws-surface);
+  color: var(--st-color-text);
 }
 
 .string-tool__result {
@@ -268,6 +274,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  background: var(--vws-surface);
 }
 
 .string-tool__input-editor .cm-editor {
@@ -275,9 +282,9 @@
   min-height: 0;
   height: 100%;
   display: flex;
-  /* Default row: gutters left, scroller right so line numbers render */
   outline: none;
   background: transparent;
+  color: var(--st-color-text);
 }
 
 .string-tool__input-editor .cm-scroller {
@@ -290,15 +297,13 @@
   line-height: 1.5;
 }
 
-/* Content fills scroller min height (EditorView.theme) */
 .string-tool__input-editor .cm-content {
   min-height: 100%;
 }
 
-/* Line number gutter on the left (string-tool style) */
 .string-tool__input-editor .cm-gutters {
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--vws-surface-muted);
   border-right: 1px solid var(--st-color-border);
 }
 
@@ -323,8 +328,4 @@
   display: flex;
   align-items: center;
   gap: var(--st-gap);
-}
-
-.string-tool__copy-btn {
-  /* Same as shared button styles above */
 }

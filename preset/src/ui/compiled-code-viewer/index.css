@@ -1,16 +1,16 @@
-/* Compact layout; aligned with log-viewer: small title, small buttons, tight padding */
+/* Compact layout; dark modal aligned with project homePalette */
 .compiled-code-viewer {
-  --ccv-radius: 8px;
+  --ccv-radius: var(--vws-radius);
   --ccv-pad-sm: 8px 12px;
-  --ccv-color-text: #1d1d1f;
-  --ccv-color-muted: #86868b;
-  --ccv-color-border: rgba(0, 0, 0, 0.08);
-  --ccv-bg-box: rgba(255, 255, 255, 0.96);
-  --ccv-bg-code: #1e1e1e;
-  --ccv-color-code: #e0e0e0;
+  --ccv-color-text: var(--vws-text-primary);
+  --ccv-color-muted: var(--vws-text-muted);
+  --ccv-color-border: var(--vws-border);
+  --ccv-bg-box: var(--vws-surface-raised);
+  --ccv-bg-code: var(--vws-code-bg);
+  --ccv-color-code: var(--vws-text-secondary);
   --ccv-font-size: 12px;
   --ccv-title-size: 14px;
-  --ccv-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --ccv-shadow: var(--vws-shadow-md);
 
   position: fixed;
   inset: 0;
@@ -24,7 +24,7 @@
 .compiled-code-viewer__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--vws-backdrop);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
@@ -37,6 +37,7 @@
   max-width: 900px;
   max-height: 84vh;
   background: var(--ccv-bg-box);
+  border: 1px solid var(--vws-border);
   border-radius: var(--ccv-radius);
   box-shadow: var(--ccv-shadow);
   overflow: hidden;
@@ -69,12 +70,12 @@
   line-height: 1;
   color: var(--ccv-color-muted);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--vws-radius-sm);
 }
 
 .compiled-code-viewer__close:hover {
   color: var(--ccv-color-text);
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--vws-surface-hover);
 }
 
 .compiled-code-viewer__body {
@@ -85,7 +86,6 @@
   background: var(--ccv-bg-code);
 }
 
-/* CodeMirror read-only JS viewer: fill body, dark theme, scroll */
 .compiled-code-viewer__cm-host {
   min-height: 100%;
   display: flex;
@@ -118,14 +118,14 @@
 
 .compiled-code-viewer__copy {
   border: none;
-  border-radius: 4px;
+  border-radius: var(--vws-radius-sm);
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
   color: #fff;
-  background: #007acc;
+  background: var(--vws-brand);
 }
 
 .compiled-code-viewer__copy:hover {
-  background: #005a9e;
+  background: var(--vws-brand-hover);
 }

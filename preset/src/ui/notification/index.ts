@@ -9,6 +9,7 @@ import iconSuccess from '~icons/mdi/check-circle?raw'
 import iconError from '~icons/mdi/close-circle?raw'
 import iconInfo from '~icons/mdi/information?raw'
 
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import notificationCss from './index.css?raw'
 import notificationHtml from './index.html?raw'
 
@@ -90,6 +91,7 @@ export class NotificationUI extends HTMLElement {
     const node = document.createElement('div')
     node.className = `notification ${type}`
     node.dataset.notificationId = id
+    node.setAttribute('role', 'status')
 
     const iconSpan = document.createElement('span')
     iconSpan.className = 'notification__icon'
@@ -103,11 +105,11 @@ export class NotificationUI extends HTMLElement {
     const content = document.createElement('div')
     content.className = 'notification__content'
 
-    const messageSpan = document.createElement('span')
-    messageSpan.className = 'notification__message'
-    messageSpan.textContent = message
+    const messageEl = document.createElement('p')
+    messageEl.className = 'notification__message'
+    messageEl.textContent = message
 
-    content.appendChild(messageSpan)
+    content.appendChild(messageEl)
 
     const showProgressBar = isLoading && (indeterminate || progress != null)
     if (showProgressBar) {
@@ -124,8 +126,16 @@ export class NotificationUI extends HTMLElement {
       content.appendChild(progressWrap)
     }
 
+    const closeBtn = document.createElement('button')
+    closeBtn.type = 'button'
+    closeBtn.className = 'notification__close'
+    closeBtn.setAttribute('aria-label', 'Dismiss')
+    closeBtn.textContent = '×'
+    closeBtn.addEventListener('click', () => this.close(id))
+
     node.appendChild(iconSpan)
     node.appendChild(content)
+    node.appendChild(closeBtn)
     wrapper.appendChild(node)
 
     requestAnimationFrame(() => node.classList.add('show'))
@@ -224,7 +234,12 @@ export class NotificationUI extends HTMLElement {
 
   #close(node: HTMLElement): void {
     node.classList.remove('show')
-    node.addEventListener('transitionend', () => node.remove())
+    node.classList.add('notification--closing')
+    const remove = (): void => {
+      if (node.isConnected) node.remove()
+    }
+    node.addEventListener('transitionend', remove, { once: true })
+    window.setTimeout(remove, 320)
   }
 }
 
@@ -234,7 +249,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${notificationCss}</style>${notificationHtml}</template>`
+  container.innerHTML = `<template><style>${wrapUiStyles(notificationCss)}</style>${notificationHtml}</template>`
   appendToDocumentElement(container)
 }
 

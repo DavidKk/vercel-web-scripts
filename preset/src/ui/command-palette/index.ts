@@ -8,6 +8,8 @@
 
 import { appendToDocumentElement } from '@/helpers/dom'
 
+import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import paletteCss from './index.css?raw'
 import paletteHtml from './index.html?raw'
 
@@ -170,6 +172,7 @@ export class CommandPaletteUI extends HTMLElement {
 
     if (this.#filteredCommands.length === 0) {
       listEl.innerHTML = '<li class="command-palette__empty">No matching commands</li>'
+      refreshScrollIndicator(listEl)
       return
     }
 
@@ -191,6 +194,7 @@ export class CommandPaletteUI extends HTMLElement {
         `
       listEl.appendChild(li)
     })
+    refreshScrollIndicator(listEl)
   }
 
   /**
@@ -214,6 +218,7 @@ export class CommandPaletteUI extends HTMLElement {
     } else if (itemRect.bottom > listRect.bottom) {
       listEl.scrollTop += itemRect.bottom - listRect.bottom
     }
+    refreshScrollIndicator(listEl)
   }
 
   #executeSelected(): void {
@@ -370,6 +375,11 @@ export class CommandPaletteUI extends HTMLElement {
     backdrop?.addEventListener('click', () => this.close())
     list?.addEventListener('click', this.#listClickHandler)
 
+    const listScroller = this.#shadowRoot?.querySelector('.command-palette__list') as HTMLElement | null
+    if (listScroller) {
+      bindScrollIndicator(listScroller)
+    }
+
     document.addEventListener('keydown', this.#globalKeydownHandler)
     document.addEventListener('keydown', this.#captureKeydownHandler, true)
 
@@ -407,6 +417,8 @@ export class CommandPaletteUI extends HTMLElement {
       const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
       input?.focus()
       input?.select()
+      const listScroller = this.#shadowRoot?.querySelector('.command-palette__list') as HTMLElement | null
+      requestAnimationFrame(() => refreshScrollIndicator(listScroller))
     })
   }
 
@@ -426,7 +438,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${paletteCss}</style>${paletteHtml}</template>`
+  container.innerHTML = `<template><style>${wrapUiStyles(paletteCss)}</style>${paletteHtml}</template>`
   appendToDocumentElement(container)
 }
 

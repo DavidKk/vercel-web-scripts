@@ -24,7 +24,6 @@
     visibility 0s linear 0.12s;
 }
 
-/* Only visible when hovering the target node or the toolbar */
 .nt-host.nt-host--visible {
   pointer-events: auto;
   visibility: visible;
@@ -39,10 +38,11 @@
   align-items: center;
   gap: 4px;
   padding: 4px 6px;
-  background: rgba(30, 32, 36, 0.95);
-  color: #fff;
+  background: color-mix(in srgb, var(--vws-surface-raised) 96%, transparent);
+  color: var(--vws-text-primary);
+  border: 1px solid var(--vws-border);
   border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--vws-shadow-md);
   backdrop-filter: blur(8px);
   white-space: nowrap;
   box-sizing: border-box;
@@ -54,8 +54,8 @@
   gap: 4px;
   padding: 4px 8px;
   border: none;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--vws-radius-sm);
+  background: var(--vws-surface-hover);
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -64,11 +64,11 @@
 }
 
 .nt-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--vws-border-strong);
 }
 
 .nt-btn:active {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--vws-brand-muted);
 }
 
 .nt-btn__icon {

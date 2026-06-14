@@ -8,7 +8,12 @@
     </div>
 
     <div class="corner-widget__panel" part="panel">
-      <ul class="corner-widget__list" part="list"></ul>
+      <div class="corner-widget__list-shell vws-scroll-indicator-shell">
+        <ul class="corner-widget__list vws-scroll-indicator-scroller" part="list"></ul>
+        <div class="vws-scroll-indicator-track" aria-hidden="true">
+          <span class="vws-scroll-indicator-thumb"></span>
+        </div>
+      </div>
     </div>
   </div>
 

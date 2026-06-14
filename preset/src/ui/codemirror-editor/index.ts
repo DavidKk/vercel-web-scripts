@@ -11,6 +11,8 @@
 import type { Extension } from '@/codemirror'
 import { defaultHighlightStyle, EditorState, EditorView, indentUnit, json as jsonLang, lineNumbers, syntaxHighlighting } from '@/codemirror'
 
+import { applyDraggableScroll } from '../shared/scroll-indicator'
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import codemirrorEditorCss from './index.css?raw'
 
 export const CODEMIRROR_EDITOR_TAG = 'gme-codemirror-editor'
@@ -78,7 +80,7 @@ export class CodeMirrorEditorElement extends HTMLElement implements ICodeMirrorE
     super()
     const root = this.attachShadow({ mode: 'closed' })
     const style = document.createElement('style')
-    style.textContent = codemirrorEditorCss
+    style.textContent = wrapUiStyles(codemirrorEditorCss)
     root.appendChild(style)
     this.host = document.createElement('div')
     this.host.className = 'gme-cm-host'
@@ -94,6 +96,7 @@ export class CodeMirrorEditorElement extends HTMLElement implements ICodeMirrorE
     const lang = (this.getAttribute('lang') ?? '').trim().toLowerCase()
     const state = createEditorState(INITIAL_DOC, lang, this.bindOnChange)
     this.view = new EditorView({ state, parent: this.host })
+    applyDraggableScroll(this.view.scrollDOM)
     this.view.focus()
   }
 
@@ -112,6 +115,7 @@ export class CodeMirrorEditorElement extends HTMLElement implements ICodeMirrorE
     const lang = (newVal ?? '').trim().toLowerCase()
     const state = createEditorState(doc || INITIAL_DOC, lang, this.bindOnChange)
     this.view = new EditorView({ state, parent: this.host })
+    applyDraggableScroll(this.view.scrollDOM)
     this.view.focus()
   }
 

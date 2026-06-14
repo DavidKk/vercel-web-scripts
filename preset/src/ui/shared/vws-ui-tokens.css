@@ -1,0 +1,48 @@
+/**
+ * VWS preset UI design tokens — aligned with homepage / editor shell (homePalette).
+ * Canvas: #111318 · Surface: #171a21 / #1b1f27 · Border: #2a303a · Brand: #3b82f6
+ */
+:host,
+.string-tool,
+.compiled-code-viewer,
+.command-palette,
+.nt-host {
+  --vws-canvas: #111318;
+  --vws-surface: #171a21;
+  --vws-surface-raised: #1b1f27;
+  --vws-surface-hover: #222733;
+  --vws-surface-muted: #151820;
+
+  --vws-border: #2a303a;
+  --vws-border-strong: #3f4a5c;
+
+  --vws-brand: #3b82f6;
+  --vws-brand-hover: #2563eb;
+  --vws-brand-soft: #60a5fa;
+  --vws-brand-muted: rgba(59, 130, 246, 0.18);
+
+  --vws-violet: #8b5cf6;
+  --vws-violet-soft: #a78bfa;
+
+  --vws-text-primary: #e6eaf0;
+  --vws-text-secondary: #9aa4b2;
+  --vws-text-muted: #6f7a8a;
+
+  --vws-success: #10b981;
+  --vws-success-soft: rgba(16, 185, 129, 0.18);
+  --vws-danger: #ef4444;
+  --vws-danger-soft: rgba(239, 68, 68, 0.18);
+  --vws-warn: #f59e0b;
+  --vws-warn-soft: rgba(245, 158, 11, 0.18);
+  --vws-info: #60a5fa;
+  --vws-info-soft: rgba(96, 165, 250, 0.18);
+
+  --vws-backdrop: rgba(17, 19, 24, 0.6);
+  --vws-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --vws-shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  --vws-radius: 8px;
+  --vws-radius-sm: 4px;
+
+  --vws-code-bg: #0d0f14;
+}

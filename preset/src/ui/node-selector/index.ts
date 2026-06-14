@@ -23,6 +23,7 @@ import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
 import iconNodeSelector from '~icons/mdi/gesture-tap?raw'
 
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import nodeSelectorCss from './index.css?raw'
 import nodeSelectorHtml from './index.html?raw'
 import { NodeSelector } from './NodeSelector'
@@ -191,7 +192,7 @@ export function GME_isNodeSelectorEnabled(): boolean {
 
 if (typeof document !== 'undefined' && !document.querySelector(NodeSelector.TAG_NAME)) {
   const container = document.createElement(NodeSelector.TAG_NAME)
-  container.innerHTML = `<template><style>${nodeSelectorCss}</style>${nodeSelectorHtml}</template>`
+  container.innerHTML = `<template><style>${wrapUiStyles(nodeSelectorCss)}</style>${nodeSelectorHtml}</template>`
   appendToDocumentElement(container)
 }
 

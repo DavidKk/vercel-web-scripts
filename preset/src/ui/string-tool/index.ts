@@ -10,6 +10,7 @@ import { CODEMIRROR_EDITOR_TAG, type ICodeMirrorEditorElement } from '@/ui/codem
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import iconStringTool from '~icons/mdi/format-text?raw'
 
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import { base64Decode, base64Encode } from './base64'
 import { STRING_COMMANDS } from './commands'
 import { getLayoutForType } from './config'
@@ -162,7 +163,7 @@ function openStringTool(type: StringToolType): void {
   const updateResult = buildUpdateResult(type, () => refs)
 
   const root = document.createElement('div')
-  root.innerHTML = `<style>${stringToolCss}</style>${stringToolHtml}`
+  root.innerHTML = `<style>${wrapUiStyles(stringToolCss)}</style>${stringToolHtml}`
   rootEl = root
 
   const box = root.querySelector('.string-tool__box') as HTMLElement
@@ -328,7 +329,7 @@ function openStringTool(type: StringToolType): void {
       const editorArea = document.createElement('div')
       editorArea.className = 'string-tool__json-editor-area'
       const textarea = document.createElement('textarea')
-      textarea.className = 'string-tool__textarea'
+      textarea.className = 'string-tool__textarea vws-scroll-draggable'
       textarea.placeholder = 'Paste JSON here...'
       editorArea.appendChild(textarea)
       wrap.appendChild(editorArea)
@@ -391,7 +392,7 @@ function openStringTool(type: StringToolType): void {
     } else {
       inputSlot.textContent = ''
       const textarea = document.createElement('textarea')
-      textarea.className = 'string-tool__textarea'
+      textarea.className = 'string-tool__textarea vws-scroll-draggable'
       textarea.placeholder = 'Paste or type content here...'
       inputSlot.appendChild(textarea)
       refs = {

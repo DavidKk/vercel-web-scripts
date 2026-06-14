@@ -20,6 +20,8 @@ import {
 import { EDITOR_DEV_EVENT_KEY, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 
+import { applyDraggableScroll } from '../shared/scroll-indicator'
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import compiledCodeViewerCss from './index.css?raw'
 import compiledCodeViewerHtml from './index.html?raw'
 
@@ -61,7 +63,7 @@ export function openCompiledCodeViewer(): void {
   const content = getCompiledContent()
   const text = content || EMPTY_MESSAGE
   const root = document.createElement('div')
-  root.innerHTML = `<style>${compiledCodeViewerCss}</style>${compiledCodeViewerHtml}`
+  root.innerHTML = `<style>${wrapUiStyles(compiledCodeViewerCss)}</style>${compiledCodeViewerHtml}`
 
   const bodyEl = root.querySelector('.compiled-code-viewer__body') as HTMLElement
   const copyBtn = root.querySelector('.compiled-code-viewer__copy') as HTMLButtonElement
@@ -70,6 +72,7 @@ export function openCompiledCodeViewer(): void {
 
   let view: EditorView | null = null
   if (bodyEl) {
+    applyDraggableScroll(bodyEl)
     const host = document.createElement('div')
     host.className = 'compiled-code-viewer__cm-host'
     bodyEl.innerHTML = ''
@@ -79,6 +82,7 @@ export function openCompiledCodeViewer(): void {
       extensions: buildReadOnlyJsExtensions(),
     })
     view = new EditorView({ state, parent: host })
+    applyDraggableScroll(view.scrollDOM)
   }
 
   function close(): void {

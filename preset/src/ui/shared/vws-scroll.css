@@ -1,0 +1,91 @@
+/**
+ * VWS preset scroll styles — aligned with homepage scrollbar tokens.
+ * - `.vws-scroll-indicator-*`: small widgets, position indicator only (no drag)
+ * - `.vws-scroll-draggable`: large containers, styled native scrollbar with drag
+ */
+
+/* --- Small widget: non-interactive position indicator --- */
+
+.vws-scroll-indicator-shell {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vws-scroll-indicator-scroller {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  box-sizing: border-box;
+}
+
+.vws-scroll-indicator-scroller::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.vws-scroll-indicator-track {
+  pointer-events: none;
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 3px;
+  width: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vws-border) 70%, transparent);
+  z-index: 1;
+}
+
+.vws-scroll-indicator-track.hidden {
+  display: none;
+}
+
+.vws-scroll-indicator-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vws-text-secondary) 75%, transparent);
+  transition:
+    height 120ms ease,
+    transform 80ms linear,
+    opacity 160ms ease;
+}
+
+/* --- Large container: draggable styled native scrollbar --- */
+
+.vws-scroll-draggable {
+  scrollbar-color: var(--vws-border) var(--vws-canvas);
+  scrollbar-gutter: stable;
+}
+
+.vws-scroll-draggable::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.vws-scroll-draggable::-webkit-scrollbar-track {
+  background: var(--vws-canvas);
+}
+
+.vws-scroll-draggable::-webkit-scrollbar-thumb {
+  background-color: var(--vws-border);
+  border: 2px solid var(--vws-canvas);
+  border-radius: 9999px;
+}
+
+.vws-scroll-draggable::-webkit-scrollbar-thumb:hover {
+  background-color: var(--vws-border-strong);
+}
+
+.vws-scroll-draggable::-webkit-scrollbar-thumb:active {
+  background-color: var(--vws-brand-soft);
+}
+
+.vws-scroll-draggable::-webkit-scrollbar-corner {
+  background: var(--vws-canvas);
+}

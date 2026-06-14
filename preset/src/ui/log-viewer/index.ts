@@ -20,6 +20,8 @@ import iconHistory from '~icons/mdi/history?raw'
 import iconInfo from '~icons/mdi/information?raw'
 import iconTrash from '~icons/mdi/trash-can-outline?raw'
 
+import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import logViewerCss from './index.css?raw'
 import logViewerHtml from './index.html?raw'
 
@@ -108,6 +110,11 @@ export class LogViewerUI extends HTMLElement {
     persistInput?.addEventListener('change', () => this.#onPersistChange())
     searchInput?.addEventListener('input', () => this.#render())
     filterInputs.forEach((input) => input.addEventListener('change', () => this.#render()))
+
+    const listScroller = this.#shadowRoot.querySelector('.log-viewer__list') as HTMLElement | null
+    if (listScroller) {
+      bindScrollIndicator(listScroller)
+    }
   }
 
   disconnectedCallback() {
@@ -288,6 +295,7 @@ export class LogViewerUI extends HTMLElement {
       empty.textContent = 'Log store not available (preset core may not be loaded yet)'
       listEl.appendChild(empty)
       if (copyBtn) copyBtn.disabled = true
+      refreshScrollIndicator(listEl)
       return
     }
 
@@ -309,6 +317,7 @@ export class LogViewerUI extends HTMLElement {
         empty.textContent = 'No matching logs'
       }
       listEl.appendChild(empty)
+      refreshScrollIndicator(listEl)
       return
     }
 
@@ -332,6 +341,7 @@ export class LogViewerUI extends HTMLElement {
     })
 
     listEl.scrollTop = listEl.scrollHeight
+    refreshScrollIndicator(listEl)
   }
 }
 
@@ -341,7 +351,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${logViewerCss}</style>${logViewerHtml}</template>`
+  container.innerHTML = `<template><style>${wrapUiStyles(logViewerCss)}</style>${logViewerHtml}</template>`
   appendToDocumentElement(container)
 }
 

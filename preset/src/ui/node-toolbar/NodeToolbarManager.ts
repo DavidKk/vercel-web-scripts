@@ -5,6 +5,7 @@
 
 import { appendToDocumentElement } from '@/helpers/dom'
 
+import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import nodeToolbarCss from './index.css?raw'
 import nodeToolbarHtml from './index.html?raw'
 import type { NodeToolbarOptions, NodeToolbarQuery, QueryRegistration, RegisteredEntry } from './types'
@@ -36,7 +37,7 @@ export class NodeToolbarManager {
     if (this.#host) return this.#host
     this.#host = document.createElement('div')
     this.#host.className = 'nt-host'
-    this.#host.innerHTML = `<style>${nodeToolbarCss}</style>${nodeToolbarHtml}`
+    this.#host.innerHTML = `<style>${wrapUiStyles(nodeToolbarCss)}</style>${nodeToolbarHtml}`
     this.#bar = this.#host.querySelector('.nt-bar')
     if (this.#bar) this.#bar.setAttribute('role', 'toolbar')
     this.#host.addEventListener('mouseenter', this.#onToolbarMouseEnter)

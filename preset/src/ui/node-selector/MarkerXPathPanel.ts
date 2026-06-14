@@ -3,6 +3,8 @@
  * Displays XPath information in a dropdown panel
  * Uses existing .node-selector-xpath-panel styles
  */
+import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
+
 export class MarkerXPathPanel extends HTMLElement {
   /** Custom element tag name */
   static TAG_NAME = 'vercel-web-script-marker-xpath-panel'
@@ -176,6 +178,7 @@ export class MarkerXPathPanel extends HTMLElement {
       if (this.#xpathContainer) {
         this.#xpathContainer.appendChild(emptyState)
       }
+      refreshScrollIndicator(this.#xpathContainer)
       return
     }
 
@@ -202,6 +205,7 @@ export class MarkerXPathPanel extends HTMLElement {
 
     // Update buttons state after updating display
     this.#updateButtonsState()
+    refreshScrollIndicator(this.#xpathContainer)
   }
 
   /**
@@ -209,16 +213,34 @@ export class MarkerXPathPanel extends HTMLElement {
    * @param xpaths XPaths array
    */
   initialize(xpaths: string[]) {
+    if (this.#xpathContainer) {
+      this.setXPaths(xpaths)
+      return
+    }
+
     this.#xpaths = xpaths || []
     this.#selectedIndex = 0
 
     // Add class name to use existing styles
     this.className = 'node-selector-xpath-panel'
 
-    // Create XPath container
+    // Create XPath container inside scroll indicator shell
+    const scrollShell = document.createElement('div')
+    scrollShell.className = 'vws-scroll-indicator-shell node-selector-xpath-panel__scroll-shell'
+
     const container = document.createElement('div')
-    container.className = 'node-selector-xpath-panel__container'
+    container.className = 'node-selector-xpath-panel__container vws-scroll-indicator-scroller'
     this.#xpathContainer = container
+
+    const track = document.createElement('div')
+    track.className = 'vws-scroll-indicator-track'
+    track.setAttribute('aria-hidden', 'true')
+    const thumb = document.createElement('span')
+    thumb.className = 'vws-scroll-indicator-thumb'
+    track.appendChild(thumb)
+
+    scrollShell.appendChild(container)
+    scrollShell.appendChild(track)
 
     // Create footer with buttons
     const footer = document.createElement('div')
@@ -245,12 +267,13 @@ export class MarkerXPathPanel extends HTMLElement {
     // Disable buttons if no XPaths available
     this.#updateButtonsState()
 
-    // Append elements (container first, then buttons at bottom)
-    this.appendChild(container)
+    // Append elements (scroll shell first, then buttons at bottom)
+    this.appendChild(scrollShell)
     this.appendChild(footer)
 
     // Update display
     this.#updateXPathDisplay()
+    bindScrollIndicator(container)
 
     // Set initial state (hidden); CSS class controls display
     this.classList.remove(MarkerXPathPanel.VISIBLE_CLASS)
