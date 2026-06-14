@@ -18,7 +18,10 @@
 import { appendToDocumentElement } from '@/helpers/dom'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
+import iconDrag from '~icons/mdi/drag-vertical?raw'
+import iconHide from '~icons/mdi/eye-off-outline?raw'
 
+import logoSvg from '../../../../public/logo.svg?raw'
 import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import cornerWidgetCss from './index.css?raw'
@@ -26,6 +29,16 @@ import cornerWidgetHtml from './index.html?raw'
 
 /** Menu item ids used by DEBUG demo; remove before re-adding so demo is idempotent */
 const DEBUG_DEMO_IDS = ['debug-demo-1', 'debug-demo-2', 'debug-demo-3'] as const
+
+/** Minimum pointer movement (px) before mini-state interaction counts as drag */
+const MINI_DRAG_THRESHOLD_PX = 4
+
+/** Inline logo SVG tuned for small header mark (keeps viewBox, drops fixed dimensions). */
+const CORNER_WIDGET_LOGO_HTML = `<span class="corner-widget__logo-mark">${logoSvg
+  .replace(/\s+width="[^"]*"/, '')
+  .replace(/\s+height="[^"]*"/, '')
+  .replace(/preserveAspectRatio="none"/, 'preserveAspectRatio="xMidYMid meet"')
+  .replace(/\sstyle="display: block;"/, '')}</span>`
 
 /**
  * Menu item configuration interface
@@ -51,16 +64,21 @@ export interface MenuItem {
 export class CornerWidget extends HTMLElement {
   /** Custom element tag name */
   static TAG_NAME = 'vercel-web-script-corner-widget'
-  /** Drag area selector */
+  /** Expanded-state drag handle */
   static DRAG_SELECTOR = '.corner-widget__drag'
-  /** Toggle button selector */
-  static TOGGLE_SELECTOR = '.corner-widget__header'
+  /** Brand / logo click target (mini state opens menu) */
+  static BRAND_SELECTOR = '.corner-widget__brand'
   /** Hide button selector */
   static HIDE_SELECTOR = '.corner-widget__hide'
-  /** Menu panel selector */
+  /** Mini-state drag surface */
+  static CARD_SELECTOR = '.corner-widget__card'
+  /** Logo mark selector */
+  static LOGO_SELECTOR = '.corner-widget__logo'
   static PANEL_SELECTOR = '.corner-widget__panel'
   /** Menu list container selector */
   static LIST_SELECTOR = '.corner-widget__list'
+  /** CSS class when menu panel is expanded */
+  static MENU_OPEN_CLASS = 'corner-widget--menu-open'
   /** CSS class for open panel state */
   static PANEL_OPEN_CLASS = 'corner-widget__panel--open'
   /** CSS class for dragging state */
@@ -90,10 +108,29 @@ export class CornerWidget extends HTMLElement {
   #currentY = 0
   /** Initial bottom position */
   #initialBottom = 0
+  /** X coordinate at drag start */
+  #dragStartX = 0
+  /** Whether pointer is down for mini drag / click */
+  #pointerDown = false
+  /** Whether pointer moved enough to count as drag */
+  #hasDragged = false
   /** Menu items array */
   #menuItems: MenuItem[] = []
   /** Shadow DOM root */
   #shadowRoot: ShadowRoot | null = null
+
+  /**
+   * Force collapsed mini state (default on mount)
+   */
+  #ensureMiniMenuState() {
+    this.#isMenuOpen = false
+    this.setAttribute('menu-open', 'false')
+    this.classList.remove(CornerWidget.MENU_OPEN_CLASS)
+    this.#removeMenuKeyListener()
+
+    const panel = this.#shadowRoot?.querySelector(CornerWidget.PANEL_SELECTOR)
+    panel?.classList.remove(CornerWidget.PANEL_OPEN_CLASS)
+  }
 
   /**
    * Render the menu list by creating DOM elements for all menu items
@@ -191,11 +228,142 @@ export class CornerWidget extends HTMLElement {
     })
   }
 
+  /** Whether expanded drag is active */
+  #expandedDragActive = false
+
   /**
-   * Handle mouse down event for drag initiation
+   * Apply vertical drag delta and clamp within viewport
+   * @param clientY Current pointer Y
+   */
+  #applyVerticalDrag(clientY: number) {
+    const moveDeltaY = this.#dragStartY - clientY
+    const newBottom = this.#initialBottom + moveDeltaY
+    const maxBottom = window.innerHeight - 100
+    const minBottom = 20
+    const clampedBottom = Math.max(minBottom, Math.min(maxBottom, newBottom))
+    this.style.bottom = `${clampedBottom}px`
+  }
+
+  /**
+   * Handle pointer down in mini state: track drag vs click-to-open on logo
    * @param event Mouse event
    */
-  #mouseDownDragHandler = (event: MouseEvent) => {
+  #miniPointerDownHandler = (event: MouseEvent) => {
+    if (this.#isMenuOpen) {
+      return
+    }
+
+    const targets = event.composedPath()
+    if (!this.#isMatchingTarget(targets, CornerWidget.CARD_SELECTOR)) {
+      return
+    }
+    if (this.#isMatchingTarget(targets, CornerWidget.HIDE_SELECTOR)) {
+      return
+    }
+
+    this.#pointerDown = true
+    this.#hasDragged = false
+    this.#isDragging = false
+    this.#dragStartY = event.clientY
+    this.#dragStartX = event.clientX
+    this.#currentY = event.clientY
+    this.#initialBottom = parseFloat(getComputedStyle(this).bottom) || 0
+
+    document.addEventListener('mousemove', this.#miniPointerMoveHandler)
+    document.addEventListener('mouseup', this.#miniPointerUpHandler)
+  }
+
+  /**
+   * Handle pointer move in mini state
+   * @param event Mouse event
+   */
+  #miniPointerMoveHandler = (event: MouseEvent) => {
+    if (!this.#pointerDown) {
+      return
+    }
+
+    const deltaY = event.clientY - this.#dragStartY
+    const deltaX = event.clientX - this.#dragStartX
+
+    if (!this.#hasDragged && (Math.abs(deltaY) > MINI_DRAG_THRESHOLD_PX || Math.abs(deltaX) > MINI_DRAG_THRESHOLD_PX)) {
+      this.#hasDragged = true
+      this.#isDragging = true
+      this.classList.add(CornerWidget.DRAGGING_CLASS)
+    }
+
+    if (!this.#isDragging) {
+      return
+    }
+
+    event.preventDefault()
+
+    this.#currentY = event.clientY
+    this.#applyVerticalDrag(this.#currentY)
+  }
+
+  /**
+   * Handle pointer up in mini state: open menu on logo click, end drag otherwise
+   * @param event Mouse event
+   */
+  #miniPointerUpHandler = (event: MouseEvent) => {
+    if (!this.#pointerDown) {
+      return
+    }
+
+    const targets = event.composedPath()
+    const didDrag = this.#hasDragged
+
+    this.#pointerDown = false
+    this.#hasDragged = false
+    this.#isDragging = false
+    this.classList.remove(CornerWidget.DRAGGING_CLASS)
+
+    document.removeEventListener('mousemove', this.#miniPointerMoveHandler)
+    document.removeEventListener('mouseup', this.#miniPointerUpHandler)
+
+    if (!didDrag && this.#isMatchingTarget(targets, CornerWidget.BRAND_SELECTOR)) {
+      this.openMenu()
+    }
+  }
+
+  /**
+   * Keyboard activate on brand (mini state)
+   * @param event Keyboard event
+   */
+  #brandKeydownHandler = (event: KeyboardEvent) => {
+    if (this.#isMenuOpen) {
+      return
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return
+    }
+    event.preventDefault()
+    this.openMenu()
+  }
+
+  /** End mini drag if pointer released outside window */
+  #miniPointerCancelHandler = () => {
+    if (!this.#pointerDown) {
+      return
+    }
+
+    this.#pointerDown = false
+    this.#hasDragged = false
+    this.#isDragging = false
+    this.classList.remove(CornerWidget.DRAGGING_CLASS)
+    document.removeEventListener('mousemove', this.#miniPointerMoveHandler)
+    document.removeEventListener('mouseup', this.#miniPointerUpHandler)
+  }
+
+  /**
+   * Handle drag via handle when menu is expanded
+   * @param event Mouse event
+   */
+  #expandedDragDownHandler = (event: MouseEvent) => {
+    if (!this.#isMenuOpen) {
+      return
+    }
+
     const targets = event.composedPath()
     if (!this.#isMatchingTarget(targets, CornerWidget.DRAG_SELECTOR)) {
       return
@@ -204,59 +372,54 @@ export class CornerWidget extends HTMLElement {
     event.preventDefault()
     event.stopPropagation()
 
+    this.#expandedDragActive = true
     this.#isDragging = true
     this.#dragStartY = event.clientY
     this.#currentY = event.clientY
-
-    const currentBottom = parseFloat(getComputedStyle(this).bottom) || 0
-    this.#initialBottom = currentBottom
-
-    this.style.cursor = 'grabbing'
-    this.style.userSelect = 'none'
+    this.#initialBottom = parseFloat(getComputedStyle(this).bottom) || 0
     this.classList.add(CornerWidget.DRAGGING_CLASS)
 
-    document.addEventListener('mousemove', this.#mouseMoveDragHandler)
-    document.addEventListener('mouseup', this.#mouseUpDragHandler)
-    document.addEventListener('mouseleave', this.#mouseUpDragHandler)
+    document.addEventListener('mousemove', this.#expandedDragMoveHandler)
+    document.addEventListener('mouseup', this.#expandedDragUpHandler)
   }
 
   /**
-   * Handle mouse move event during dragging
+   * Handle pointer move while expanded drag is active
    * @param event Mouse event
    */
-  #mouseMoveDragHandler = (event: MouseEvent) => {
-    if (!this.#isDragging) return
+  #expandedDragMoveHandler = (event: MouseEvent) => {
+    if (!this.#expandedDragActive) {
+      return
+    }
 
     event.preventDefault()
-
     this.#currentY = event.clientY
-    const deltaY = this.#dragStartY - this.#currentY
-
-    const newBottom = this.#initialBottom + deltaY
-
-    const maxBottom = window.innerHeight - 100
-    const minBottom = 20
-
-    const clampedBottom = Math.max(minBottom, Math.min(maxBottom, newBottom))
-
-    this.style.bottom = `${clampedBottom}px`
+    this.#applyVerticalDrag(this.#currentY)
   }
 
   /**
-   * Handle mouse up event to end dragging
+   * End expanded drag
    */
-  #mouseUpDragHandler = () => {
-    if (!this.#isDragging) return
+  #expandedDragUpHandler = () => {
+    if (!this.#expandedDragActive) {
+      return
+    }
 
+    this.#expandedDragActive = false
     this.#isDragging = false
-
-    this.style.cursor = ''
-    this.style.userSelect = ''
     this.classList.remove(CornerWidget.DRAGGING_CLASS)
 
-    document.removeEventListener('mousemove', this.#mouseMoveDragHandler)
-    document.removeEventListener('mouseup', this.#mouseUpDragHandler)
-    document.removeEventListener('mouseleave', this.#mouseUpDragHandler)
+    document.removeEventListener('mousemove', this.#expandedDragMoveHandler)
+    document.removeEventListener('mouseup', this.#expandedDragUpHandler)
+  }
+
+  /** End expanded drag if pointer released outside window */
+  #expandedDragCancelHandler = () => {
+    if (!this.#expandedDragActive) {
+      return
+    }
+
+    this.#expandedDragUpHandler()
   }
 
   /** Handle click on hide button: hide widget (visible again after page refresh) */
@@ -287,21 +450,18 @@ export class CornerWidget extends HTMLElement {
     }
   }
 
-  /** Click outside widget: close menu and stop listening */
-  #documentClickCloseMenu = (event: MouseEvent) => {
+  /** Pointer left widget while menu open: collapse to mini (unless dragging) */
+  #hostMouseLeaveHandler = () => {
     if (!this.#isMenuOpen) {
       return
     }
-    const path = event.composedPath()
-    if (path.includes(this)) {
+    if (this.#isDragging || this.#expandedDragActive || this.#pointerDown) {
       return
     }
     this.closeMenu()
-    document.removeEventListener('click', this.#documentClickCloseMenu)
-    document.removeEventListener('keydown', this.#escapeCloseMenu)
   }
 
-  /** Escape key: close menu and stop listening */
+  /** Escape key: close menu */
   #escapeCloseMenu = (event: KeyboardEvent) => {
     if (event.key !== 'Escape') {
       return
@@ -311,29 +471,11 @@ export class CornerWidget extends HTMLElement {
     }
     event.preventDefault()
     this.closeMenu()
-    document.removeEventListener('click', this.#documentClickCloseMenu)
-    document.removeEventListener('keydown', this.#escapeCloseMenu)
   }
 
-  /**
-   * Handle click event to toggle menu panel
-   * @param event Mouse event
-   */
-  #toggleMenuHandler = (event: MouseEvent) => {
-    const targets = event.composedPath()
-    if (!this.#isMatchingTarget(targets, CornerWidget.TOGGLE_SELECTOR)) {
-      return
-    }
-
-    if (this.#isMatchingTarget(targets, CornerWidget.DRAG_SELECTOR)) {
-      return
-    }
-
-    if (this.#isMatchingTarget(targets, CornerWidget.HIDE_SELECTOR)) {
-      return
-    }
-
-    this.toggleMenu()
+  /** Detach escape listener when menu closes */
+  #removeMenuKeyListener() {
+    document.removeEventListener('keydown', this.#escapeCloseMenu)
   }
 
   /**
@@ -381,15 +523,23 @@ export class CornerWidget extends HTMLElement {
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
     this.#shadowRoot.innerHTML = innerHTML
 
-    this.addEventListener('mousedown', this.#mouseDownDragHandler)
-    this.addEventListener('click', this.#toggleMenuHandler)
+    this.#injectHeaderIcons()
+
+    this.addEventListener('mousedown', this.#miniPointerDownHandler)
+    this.addEventListener('mousedown', this.#expandedDragDownHandler)
     this.addEventListener('click', this.#menuItemClickHandler)
+    this.addEventListener('mouseleave', this.#hostMouseLeaveHandler)
+
+    const brand = this.#shadowRoot.querySelector(CornerWidget.BRAND_SELECTOR) as HTMLElement | null
+    brand?.addEventListener('keydown', this.#brandKeydownHandler)
 
     const hideBtn = this.#shadowRoot.querySelector(CornerWidget.HIDE_SELECTOR) as HTMLElement | null
     hideBtn?.addEventListener('click', this.#hideButtonHandler)
 
     document.addEventListener('mouseleave', this.#windowMouseLeaveHandler)
     document.addEventListener('mouseenter', this.#windowMouseEnterHandler)
+    document.addEventListener('mouseleave', this.#miniPointerCancelHandler)
+    document.addEventListener('mouseleave', this.#expandedDragCancelHandler)
     document.addEventListener('fullscreenchange', this.#fullscreenChangeHandler)
     document.addEventListener('webkitfullscreenchange', this.#fullscreenChangeHandler)
 
@@ -408,6 +558,8 @@ export class CornerWidget extends HTMLElement {
     if (listScroller) {
       bindScrollIndicator(listScroller)
     }
+
+    this.#ensureMiniMenuState()
   }
 
   /**
@@ -416,21 +568,54 @@ export class CornerWidget extends HTMLElement {
    */
   disconnectedCallback() {
     this.#isDragging = false
+    this.#pointerDown = false
+    this.#expandedDragActive = false
     this.#isMenuOpen = false
-    document.removeEventListener('click', this.#documentClickCloseMenu)
-    document.removeEventListener('keydown', this.#escapeCloseMenu)
-
+    this.#removeMenuKeyListener()
     document.removeEventListener('mouseleave', this.#windowMouseLeaveHandler)
     document.removeEventListener('mouseenter', this.#windowMouseEnterHandler)
+    document.removeEventListener('mouseleave', this.#miniPointerCancelHandler)
+    document.removeEventListener('mouseleave', this.#expandedDragCancelHandler)
+    document.removeEventListener('mousemove', this.#miniPointerMoveHandler)
+    document.removeEventListener('mouseup', this.#miniPointerUpHandler)
+    document.removeEventListener('mousemove', this.#expandedDragMoveHandler)
+    document.removeEventListener('mouseup', this.#expandedDragUpHandler)
     document.removeEventListener('fullscreenchange', this.#fullscreenChangeHandler)
     document.removeEventListener('webkitfullscreenchange', this.#fullscreenChangeHandler)
+
+    const brand = this.#shadowRoot?.querySelector(CornerWidget.BRAND_SELECTOR) as HTMLElement | null
+    brand?.removeEventListener('keydown', this.#brandKeydownHandler)
 
     const hideBtn = this.#shadowRoot?.querySelector(CornerWidget.HIDE_SELECTOR) as HTMLElement | null
     hideBtn?.removeEventListener('click', this.#hideButtonHandler)
 
-    this.removeEventListener('mousedown', this.#mouseDownDragHandler)
-    this.removeEventListener('click', this.#toggleMenuHandler)
+    this.removeEventListener('mousedown', this.#miniPointerDownHandler)
+    this.removeEventListener('mousedown', this.#expandedDragDownHandler)
     this.removeEventListener('click', this.#menuItemClickHandler)
+    this.removeEventListener('mouseleave', this.#hostMouseLeaveHandler)
+  }
+
+  /**
+   * Inject MDI SVG icons into header controls
+   */
+  #injectHeaderIcons() {
+    if (!this.#shadowRoot) {
+      return
+    }
+
+    const drag = this.#shadowRoot.querySelector(CornerWidget.DRAG_SELECTOR) as HTMLElement | null
+    const logo = this.#shadowRoot.querySelector(CornerWidget.LOGO_SELECTOR) as HTMLElement | null
+    const hideBtn = this.#shadowRoot.querySelector(CornerWidget.HIDE_SELECTOR) as HTMLElement | null
+
+    if (drag) {
+      drag.innerHTML = iconDrag
+    }
+    if (logo) {
+      logo.innerHTML = CORNER_WIDGET_LOGO_HTML
+    }
+    if (hideBtn) {
+      hideBtn.innerHTML = iconHide
+    }
   }
 
   /**
@@ -508,6 +693,7 @@ export class CornerWidget extends HTMLElement {
 
     this.#isMenuOpen = open
     this.setAttribute('menu-open', open ? 'true' : 'false')
+    this.classList.toggle(CornerWidget.MENU_OPEN_CLASS, open)
 
     const panel = this.#shadowRoot?.querySelector(CornerWidget.PANEL_SELECTOR)
     if (!panel) {
@@ -516,16 +702,12 @@ export class CornerWidget extends HTMLElement {
 
     if (open) {
       panel.classList.add(CornerWidget.PANEL_OPEN_CLASS)
-      setTimeout(() => {
-        document.addEventListener('click', this.#documentClickCloseMenu)
-        document.addEventListener('keydown', this.#escapeCloseMenu)
-      }, 0)
+      document.addEventListener('keydown', this.#escapeCloseMenu)
       return
     }
 
     panel.classList.remove(CornerWidget.PANEL_OPEN_CLASS)
-    document.removeEventListener('click', this.#documentClickCloseMenu)
-    document.removeEventListener('keydown', this.#escapeCloseMenu)
+    this.#removeMenuKeyListener()
   }
 
   /**
@@ -639,7 +821,7 @@ export function GME_updateMenuCommand(id: string, updates: Partial<Omit<MenuItem
 
 /**
  * Register DEBUG command in command-palette to open a Corner Widget DEMO (development only).
- * Shows the widget with temporary demo menu items and opens the menu so you can see the effect.
+ * Shows the widget with temporary demo menu items (starts in MINI state).
  */
 /* Dev-only: when __IS_DEVELOP_MODE__ is false, command-palette does not register this item. */
 if (typeof __IS_DEVELOP_MODE__ !== 'undefined' && __IS_DEVELOP_MODE__) {
@@ -679,7 +861,6 @@ if (typeof __IS_DEVELOP_MODE__ !== 'undefined' && __IS_DEVELOP_MODE__) {
         action: () => GME_notification('Demo 3 clicked', 'info', 1500),
       })
       widget.show()
-      widget.openMenu()
     },
   })
 }
