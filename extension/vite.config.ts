@@ -22,7 +22,6 @@ const EXTENSION_ENTRIES = [
   { name: 'admin', input: 'src/pages/admin/admin.ts' },
   { name: 'content-bridge', input: 'src/bridge/content.ts' },
   { name: 'page-launcher', input: 'src/page/index.ts' },
-  { name: 'navigation-guard', input: 'src/page/navigation-guard.ts' },
 ] as const
 
 const sharedResolve: UserConfig['resolve'] = {

@@ -12,6 +12,7 @@ import {
   scriptNamesFromEnabledStorageKeysForScriptKey,
   scriptNamesFromIncognitoEnabledStorageKeysForScriptKey,
 } from './script-enabled'
+import { loadScriptInstalledMapForScriptKey } from './script-installed'
 import { ensureExtensionServicesState, loadScriptKeyGroupMeta, serviceProfileToExtensionConfig } from './services-state'
 import type { ManagedScriptListEntry, ScriptKeyScriptsGroupView, ScriptListCache } from './types'
 
@@ -259,8 +260,12 @@ export async function countEnabledScriptsForEnabledScriptKeys(options?: ScriptEn
       scripts.map((row) => row.file),
       options
     )
+    const installedMap = await loadScriptInstalledMapForScriptKey(
+      normalized,
+      scripts.map((row) => row.file)
+    )
     for (const row of scripts) {
-      if (enabledMap.get(row.file) !== false) {
+      if (installedMap.get(row.file) !== false && enabledMap.get(row.file) !== false) {
         enabledScriptCount += 1
       }
     }
@@ -290,9 +295,12 @@ export async function buildPageBootstrapConfig(extensionVersion: string, options
     const incognitoToggledFiles = incognito ? scriptNamesFromIncognitoEnabledStorageKeysForScriptKey(normalized, allStorageKeys) : []
     const filesForEnabledRead = [...new Set([...scripts.map((row) => row.file), ...storageToggledFiles, ...incognitoToggledFiles])]
     const enabledMap = await loadScriptEnabledMapForScriptKey(normalized, filesForEnabledRead, options)
+    const installedMap = await loadScriptInstalledMapForScriptKey(normalized, filesForEnabledRead)
     const enabledByFile: Record<string, boolean> = {}
     for (const file of filesForEnabledRead) {
-      enabledByFile[file] = enabledMap.get(file) !== false
+      const installed = installedMap.get(file) !== false
+      const enabled = enabledMap.get(file) !== false
+      enabledByFile[file] = installed && enabled
     }
     listsByScriptKey[normalized] = { files: scripts.map((row) => row.file), enabledByFile }
   }

@@ -2,7 +2,7 @@
           <div class="mm-scripts-head">
             <div class="mm-scripts-head-copy">
               <h2 class="mm-servers-pane-title">Scripts</h2>
-              <p class="mm-servers-pane-desc">Browse and toggle scripts from connected servers.</p>
+              <p class="mm-servers-pane-desc">Install scripts to use them (enabled by default). Uninstalled scripts stay listed at the bottom.</p>
             </div>
             <div class="mm-scripts-toolbar mm-scripts-toolbar-skeleton" data-ref="toolbar-skeleton" aria-hidden="true">
               <span class="mm-skeleton mm-skeleton-status"></span>
@@ -23,39 +23,13 @@
               <mm-select>
                 <input type="hidden" data-ref="filter" value="all" />
                 <button type="button" class="mm-select-trigger" data-ref="select-trigger" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="mm-select-leading" aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none">
-                      <path d="M4 5.5h12M6.5 10h7M9 14.5h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-                    </svg>
-                  </span>
                   <span class="mm-select-value" data-ref="select-value">All scripts</span>
                   <%- include('../partials/mm-select-chevron') %>
                 </button>
                 <div class="mm-select-menu" role="listbox">
-                  <button type="button" class="mm-select-option" data-value="all" aria-selected="true">
-                    <span class="mm-select-option-icon" aria-hidden="true">
-                      <svg viewBox="0 0 20 20" fill="none">
-                        <path d="M5 6h10M5 10h10M5 14h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-                      </svg>
-                    </span>
-                    All scripts
-                  </button>
-                  <button type="button" class="mm-select-option" data-value="enabled" aria-selected="false">
-                    <span class="mm-select-option-icon" aria-hidden="true">
-                      <svg viewBox="0 0 20 20" fill="none">
-                        <path d="m5 10.3 3 3 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
-                    </span>
-                    Enabled only
-                  </button>
-                  <button type="button" class="mm-select-option" data-value="disabled" aria-selected="false">
-                    <span class="mm-select-option-icon" aria-hidden="true">
-                      <svg viewBox="0 0 20 20" fill="none">
-                        <path d="M6.5 6.5 13.5 13.5M13.5 6.5 6.5 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                      </svg>
-                    </span>
-                    Disabled only
-                  </button>
+                  <button type="button" class="mm-select-option" data-value="all" aria-selected="true">All scripts</button>
+                  <button type="button" class="mm-select-option" data-value="installed" aria-selected="false">Installed only</button>
+                  <button type="button" class="mm-select-option" data-value="uninstalled" aria-selected="false">Uninstalled only</button>
                 </div>
               </mm-select>
               <mm-search-select
@@ -102,4 +76,6 @@
               </div>
             </div>
           </div>
+
+          <footer class="mm-scripts-footer hidden" data-ref="footer" aria-live="polite"></footer>
         </div>

@@ -8,6 +8,7 @@ import {
   loadScriptKeyRules,
   resolveOtaEndpoint,
   SCRIPT_ENABLED_PREFIX,
+  SCRIPT_INSTALLED_PREFIX,
   SCRIPTKEY_RULES_PREFIX,
   serviceProfileToExtensionConfig,
 } from './extension-storage'
@@ -276,5 +277,8 @@ export async function resolveTabMatchCount(config: ExtensionConfig, url: string,
 /** Whether storage change should invalidate tab-match cache (never TAB_MATCH_CACHE_KEY itself). */
 export function shouldInvalidateTabMatchCache(changes: Record<string, chrome.storage.StorageChange>): boolean {
   const keys = Object.keys(changes)
-  return keys.some((k) => k === CONFIG_STORAGE_KEY || k === SERVICES_STORAGE_KEY || k.startsWith(SCRIPT_ENABLED_PREFIX) || k.startsWith(SCRIPTKEY_RULES_PREFIX))
+  return keys.some(
+    (k) =>
+      k === CONFIG_STORAGE_KEY || k === SERVICES_STORAGE_KEY || k.startsWith(SCRIPT_ENABLED_PREFIX) || k.startsWith(SCRIPT_INSTALLED_PREFIX) || k.startsWith(SCRIPTKEY_RULES_PREFIX)
+  )
 }

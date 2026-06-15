@@ -38,6 +38,8 @@ export const mmPopupIcons = {
   reset: iconDelete,
   scripts: iconCodeTags,
   sync: iconCloudDownloadOutline,
+  install: iconCloudDownloadOutline,
+  uninstall: iconDelete,
   editor: iconPencil,
   settings: iconCog,
   rulesManage: iconShieldOutline,

@@ -7,6 +7,8 @@ export const SCRIPTKEY_LIST_CACHE_PREFIX = 'vws_scriptkey_script_list_cache:'
 export const SCRIPT_ENABLED_PREFIX = 'vws_script_enabled:'
 /** Incognito-only fork of per-script toggles; reads fall back to {@link SCRIPT_ENABLED_PREFIX}. */
 export const INCOGNITO_SCRIPT_ENABLED_PREFIX = 'vws_incognito_script_enabled:'
+/** Per-script install state (`false` = uninstalled / blacklisted). Unset defaults to installed. */
+export const SCRIPT_INSTALLED_PREFIX = 'vws_script_installed:'
 
 /** Storage key for scriptKey-scoped RULE bucket. */
 export function scriptKeyRulesStorageKey(scriptKey: string): string {
@@ -26,6 +28,41 @@ export function scriptEnabledStorageKey(scriptKey: string, file: string): string
 /** Storage key for incognito fork of a scriptKey-scoped per-file enabled toggle. */
 export function incognitoScriptEnabledStorageKey(scriptKey: string, file: string): string {
   return `${INCOGNITO_SCRIPT_ENABLED_PREFIX}${normalizeScriptKey(scriptKey)}:${file}`
+}
+
+/** Storage key for scriptKey-scoped per-file install toggle. */
+export function scriptInstalledStorageKey(scriptKey: string, file: string): string {
+  return `${SCRIPT_INSTALLED_PREFIX}${normalizeScriptKey(scriptKey)}:${file}`
+}
+
+export type ParsedScriptInstalledStorageKey = {
+  scriptKey: string
+  file: string
+}
+
+/** Parse scoped script installed keys. */
+export function parseScriptInstalledStorageKey(key: string): ParsedScriptInstalledStorageKey | null {
+  if (!key.startsWith(SCRIPT_INSTALLED_PREFIX)) {
+    return null
+  }
+  const rest = key.slice(SCRIPT_INSTALLED_PREFIX.length)
+  const colon = rest.indexOf(':')
+  if (colon === -1) {
+    return null
+  }
+  const scriptKey = normalizeScriptKey(rest.slice(0, colon))
+  const file = rest.slice(colon + 1)
+  if (!scriptKey || !isManagedScriptFilename(file)) {
+    return null
+  }
+  return { scriptKey, file }
+}
+
+/**
+ * Resolve installed flag: unset defaults to installed (`true`).
+ */
+export function resolveScriptInstalledFlag(value: unknown): boolean {
+  return value !== false
 }
 
 export type ParsedScriptEnabledStorageKey = {

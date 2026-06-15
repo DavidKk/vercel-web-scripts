@@ -3,8 +3,11 @@ import {
   buildScriptKeyGroupMetaFromState,
   incognitoScriptEnabledStorageKey,
   parseScriptEnabledStorageKey,
+  parseScriptInstalledStorageKey,
   resolveScriptEnabledFlag,
+  resolveScriptInstalledFlag,
   scriptEnabledStorageKey,
+  scriptInstalledStorageKey,
   scriptKeyListCacheStorageKey,
   scriptKeyRulesStorageKey,
 } from '../../extension/src/shared/extension-multi-service-pure'
@@ -30,6 +33,28 @@ describe('extension-storage pure helpers', () => {
       expect(scriptKeyListCacheStorageKey('abc')).toBe('vws_scriptkey_script_list_cache:abc')
       expect(scriptEnabledStorageKey('abc', 'foo.js')).toBe('vws_script_enabled:abc:foo.js')
       expect(incognitoScriptEnabledStorageKey('abc', 'foo.js')).toBe('vws_incognito_script_enabled:abc:foo.js')
+      expect(scriptInstalledStorageKey('abc', 'foo.js')).toBe('vws_script_installed:abc:foo.js')
+    })
+  })
+
+  describe('resolveScriptInstalledFlag', () => {
+    it('should default to installed when unset', () => {
+      expect(resolveScriptInstalledFlag(undefined)).toBe(true)
+      expect(resolveScriptInstalledFlag(true)).toBe(true)
+      expect(resolveScriptInstalledFlag(false)).toBe(false)
+    })
+  })
+
+  describe('parseScriptInstalledStorageKey', () => {
+    it('should parse scoped script installed keys', () => {
+      expect(parseScriptInstalledStorageKey('vws_script_installed:key-a:demo.js')).toEqual({
+        scriptKey: 'key-a',
+        file: 'demo.js',
+      })
+    })
+
+    it('should reject invalid script filenames', () => {
+      expect(parseScriptInstalledStorageKey('vws_script_installed:key-a:not-a-script')).toBeNull()
     })
   })
 

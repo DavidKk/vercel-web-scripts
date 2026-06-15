@@ -5,9 +5,13 @@ export {
   INCOGNITO_SCRIPT_ENABLED_PREFIX,
   incognitoScriptEnabledStorageKey,
   parseScriptEnabledStorageKey,
+  parseScriptInstalledStorageKey,
   resolveScriptEnabledFlag,
+  resolveScriptInstalledFlag,
   SCRIPT_ENABLED_PREFIX,
+  SCRIPT_INSTALLED_PREFIX,
   scriptEnabledStorageKey,
+  scriptInstalledStorageKey,
   SCRIPTKEY_LIST_CACHE_PREFIX,
   SCRIPTKEY_RULES_PREFIX,
   scriptKeyListCacheStorageKey,
@@ -20,6 +24,7 @@ export { applyExtensionServiceConfig, isSameExtensionService, loadExtensionConfi
 export * from './preset-project-version'
 export * from './runtime-cache'
 export * from './script-enabled'
+export * from './script-installed'
 export * from './script-list-cache'
 export { refreshExtensionServiceData } from './service-data-sync'
 export * from './services-crud'
