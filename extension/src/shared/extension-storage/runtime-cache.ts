@@ -22,9 +22,10 @@ import {
 
 import type { ExtensionConfig } from '../../types'
 import { CONFIG_STORAGE_KEY, SERVICES_STORAGE_KEY } from '../../types'
-import { SCRIPT_ENABLED_PREFIX, SCRIPTKEY_RULES_PREFIX } from '../extension-multi-service-pure'
+import { SCRIPT_ENABLED_PREFIX, SCRIPT_INSTALLED_PREFIX, SCRIPTKEY_RULES_PREFIX } from '../extension-multi-service-pure'
 import { getEnabledScriptKeys, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
 import { GM_STORAGE_PREFIX, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY, SHELL_MASTER_ENABLED_STORAGE_KEY } from './constants'
+import { SCRIPT_INSTALL_REGISTRY_KEY } from './script-install-registry'
 import { ensureExtensionServicesState, serviceProfileToExtensionConfig } from './services-state'
 
 export function gmStorageKey(key: string): string {
@@ -136,7 +137,10 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
     if (key === CONFIG_STORAGE_KEY || key === SERVICES_STORAGE_KEY || key === SHELL_MASTER_ENABLED_STORAGE_KEY) {
       continue
     }
-    if (key.startsWith(SCRIPTKEY_RULES_PREFIX) || key.startsWith(SCRIPT_ENABLED_PREFIX)) {
+    if (key.startsWith(SCRIPTKEY_RULES_PREFIX) || key.startsWith(SCRIPT_ENABLED_PREFIX) || key.startsWith(SCRIPT_INSTALLED_PREFIX)) {
+      continue
+    }
+    if (key === SCRIPT_INSTALL_REGISTRY_KEY) {
       continue
     }
     if (key.startsWith(RUNTIME_STATE_KEY_PREFIX) || key.startsWith(GM_STORAGE_PREFIX)) {

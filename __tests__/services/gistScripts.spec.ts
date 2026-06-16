@@ -27,7 +27,10 @@ const scriptContent = `// ==UserScript==
 // @name Demo Script
 // @version 1.0.0
 // @description Copy table data as CSV
+// @author Test Author
+// @icon https://example.com/icon.png
 // @match https://example.com/*
+// @connect example.com
 // @run-at document-idle
 // ==/UserScript==
 
@@ -64,7 +67,10 @@ function buildIndex(files: Record<string, string>, scripts: Array<Record<string,
             description: 'Copy table data as CSV',
             version: '1.0.0',
             runAt: 'document-idle',
-            matches: ['https://example.com/*'],
+            icon: 'https://example.com/icon.png',
+            author: 'Test Author',
+            match: ['https://example.com/*'],
+            connect: ['example.com'],
           }
         : {}),
       ...(filename === 'other.ts'
@@ -73,7 +79,7 @@ function buildIndex(files: Record<string, string>, scripts: Array<Record<string,
             name: 'Other Script',
             description: 'Open another helper',
             version: '1.0.0',
-            matches: ['https://example.org/*'],
+            match: ['https://example.org/*'],
           }
         : {}),
     }))
@@ -143,7 +149,7 @@ describe('gist script token-efficient editing helpers', () => {
       expect(result.matches).toEqual([
         {
           filename: 'demo.ts',
-          line: 9,
+          line: 12,
           column: 16,
           text: "const label = 'Copy CSV'",
           before: [''],
@@ -179,7 +185,10 @@ describe('gist script token-efficient editing helpers', () => {
         description: 'Copy table data as CSV',
         version: '1.0.0',
         runAt: 'document-idle',
-        matches: ['https://example.com/*'],
+        icon: 'https://example.com/icon.png',
+        author: 'Test Author',
+        match: ['https://example.com/*'],
+        connect: ['example.com'],
       })
       expect(result.files[0].contentHash).toHaveLength(64)
     })
@@ -244,7 +253,7 @@ describe('gist script token-efficient editing helpers', () => {
         filename: 'demo.ts',
         startLine: 2,
         endLine: 4,
-        totalLines: 13,
+        totalLines: 16,
         lines: ['// @name Demo Script', '// @version 1.0.0', '// @description Copy table data as CSV'],
       })
     })
@@ -429,6 +438,10 @@ describe('gist script token-efficient editing helpers', () => {
       expect(getWrittenIndex().scripts[0]).toMatchObject({
         filename: 'demo.ts',
         name: 'Demo Script',
+        icon: 'https://example.com/icon.png',
+        author: 'Test Author',
+        match: ['https://example.com/*'],
+        connect: ['example.com'],
       })
 
       mockWriteGistFiles.mockClear()
@@ -479,6 +492,41 @@ describe('gist script token-efficient editing helpers', () => {
       expect(result.header).toEqual({ openCount: 0, closeCount: 0 })
       expect(result.diagnostics).toContain('Userscript header block must be present exactly once')
       expect(result.diagnostics.length).toBeGreaterThan(1)
+    })
+
+    it('rejects non-semver @version values', async () => {
+      mockRead({
+        'bad-version.ts': `// ==UserScript==
+// @name Bad Version
+// @version 0.1
+// @match https://example.com/*
+// ==/UserScript==
+
+console.log('bad')
+`,
+      })
+
+      const result = await validateManagedScriptFile('bad-version.ts')
+
+      expect(result.ok).toBe(false)
+      expect(result.diagnostics).toContain('@version must be semver x.x.x (got "0.1")')
+    })
+
+    it('rejects upsert when @version is not semver x.x.x', async () => {
+      await expect(
+        upsertManagedScriptFile(
+          'bad-version.ts',
+          `// ==UserScript==
+// @name Bad Version
+// @version 0.2
+// @match https://example.com/*
+// ==/UserScript==
+
+console.log('bad')
+`
+        )
+      ).rejects.toThrow('@version must be semver x.x.x (got "0.2")')
+      expect(mockWriteGistFiles).not.toHaveBeenCalled()
     })
   })
 

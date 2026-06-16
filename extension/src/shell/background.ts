@@ -18,6 +18,7 @@ import {
   loadGmScopeForScriptKey,
   loadLocalRulesForEnabledScriptKeys,
   loadQuickAddRuleContext,
+  refreshScriptListsForEnabledScriptKeys,
   removeScriptKeyRule,
   removeShellDisabledTabId,
   resetRuntimeStateForEnabledScriptKeys,
@@ -465,6 +466,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
             return
           }
           const cleared = await clearAllRuntimeCachesForEnabledScriptKeys()
+          await refreshScriptListsForEnabledScriptKeys()
           await invalidateTabMatchCache()
           await clearAllTabTriggerCounts()
           const activeAfterUpdate = await getActiveTab()

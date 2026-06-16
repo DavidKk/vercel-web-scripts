@@ -1,4 +1,4 @@
-import { enrichManagedScriptListWithUpdatedAt } from '../../extension/src/shared/extension-storage/script-list-cache'
+import { enrichManagedScriptListWithUpdatedAt, SCRIPT_LIST_META_SCHEMA, scriptListCacheNeedsMetaRefresh } from '../../extension/src/shared/extension-storage/script-list-cache'
 
 describe('enrichManagedScriptListWithUpdatedAt', () => {
   it('fills missing updatedAt from gist revision time', () => {
@@ -18,5 +18,28 @@ describe('enrichManagedScriptListWithUpdatedAt', () => {
   it('returns rows unchanged when gist revision time is missing', () => {
     const scripts = [{ file: 'a.ts', name: 'A' }]
     expect(enrichManagedScriptListWithUpdatedAt(scripts, 0)).toEqual(scripts)
+  })
+})
+
+describe('scriptListCacheNeedsMetaRefresh', () => {
+  it('requests refresh for legacy caches without metaSchema', () => {
+    expect(
+      scriptListCacheNeedsMetaRefresh({
+        scope: 'http://localhost:3000|key',
+        gistUpdatedAt: 1,
+        scripts: [{ file: 'a.ts', name: 'A' }],
+      })
+    ).toBe(true)
+  })
+
+  it('skips refresh when cache metaSchema is current', () => {
+    expect(
+      scriptListCacheNeedsMetaRefresh({
+        scope: 'http://localhost:3000|key',
+        gistUpdatedAt: 1,
+        metaSchema: SCRIPT_LIST_META_SCHEMA,
+        scripts: [{ file: 'a.ts', name: 'A', version: '1.0.0' }],
+      })
+    ).toBe(false)
   })
 })

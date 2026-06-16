@@ -1,4 +1,4 @@
-import { compareSemver, isSemverNewer } from '../../shared/semver-compare'
+import { compareSemver, isSemverNewer, isStrictSemverVersion } from '../../shared/semver-compare'
 
 describe('semver-compare', () => {
   it('should treat equal versions as not newer', () => {
@@ -14,5 +14,16 @@ describe('semver-compare', () => {
 
   it('should ignore leading v prefix', () => {
     expect(isSemverNewer('v0.2.0', '0.1.0')).toBe(true)
+  })
+
+  it('should validate strict semver x.x.x format', () => {
+    expect(isStrictSemverVersion('1.0.0')).toBe(true)
+    expect(isStrictSemverVersion('v1.2.3')).toBe(true)
+    expect(isStrictSemverVersion('0.12.0')).toBe(true)
+    expect(isStrictSemverVersion('2026.6.15')).toBe(true)
+    expect(isStrictSemverVersion('0.1')).toBe(false)
+    expect(isStrictSemverVersion('0.12')).toBe(false)
+    expect(isStrictSemverVersion('2026-06-15')).toBe(false)
+    expect(isStrictSemverVersion('1.0.0-beta')).toBe(false)
   })
 })

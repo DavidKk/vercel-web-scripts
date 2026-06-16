@@ -1062,7 +1062,7 @@
 
   .mm-scripts-body {
     @apply flex min-h-0 flex-1 flex-col overflow-hidden;
-    --mm-script-grid-cols: 2.25rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 0.75fr) 5.5rem 1.75rem 1.75rem 2.25rem;
+    --mm-script-grid-cols: 2.25rem minmax(0, 1.35fr) minmax(0, 0.75fr) minmax(0, 1.15fr) minmax(4.5rem, 5.5rem) 1.75rem 1.75rem 2.25rem;
   }
 
   .mm-scripts-footer {
@@ -1903,7 +1903,7 @@
     column-gap: 0.625rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 0.75fr) 5.5rem 1.75rem 1.75rem 2.25rem);
+    grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.35fr) minmax(0, 0.75fr) minmax(0, 1.15fr) minmax(4.5rem, 5.5rem) 1.75rem 1.75rem 2.25rem);
   }
 
   .mm-scripts-table-head {
@@ -1919,15 +1919,15 @@
     grid-column: 2;
   }
 
-  .mm-script-cell--file {
+  .mm-script-cell--service {
     grid-column: 3;
   }
 
-  .mm-script-cell--service {
+  .mm-script-cell--file {
     grid-column: 4;
   }
 
-  .mm-script-cell--updated {
+  .mm-script-cell--release {
     grid-column: 5;
   }
 
@@ -1952,9 +1952,9 @@
 
   .mm-script-cell--index,
   .mm-script-cell--name,
+  .mm-script-cell--release,
   .mm-script-cell--file,
-  .mm-script-cell--service,
-  .mm-script-cell--updated {
+  .mm-script-cell--service {
     @apply flex items-center justify-start;
   }
 
@@ -1971,26 +1971,51 @@
   }
 
   .mm-script-cell .mm-script-index,
-  .mm-script-cell .mm-script-name,
+  .mm-script-cell .mm-script-name-title,
+  .mm-script-cell .mm-script-description,
+  .mm-script-cell .mm-script-release-block .mm-script-version,
+  .mm-script-cell .mm-script-release-block .mm-script-updated,
   .mm-script-cell .mm-script-file,
   .mm-script-cell .mm-script-service,
   .mm-script-cell a.mm-script-service-link,
-  .mm-script-cell .mm-script-updated,
   .mm-script-cell .mm-script-col-label {
     @apply inline-block max-w-full truncate text-left;
   }
 
-  .mm-script-cell .mm-script-index,
-  .mm-script-cell .mm-script-updated {
+  .mm-script-name-title {
+    @apply min-w-0 truncate text-[12px] leading-snug;
+  }
+
+  .mm-script-name-title .mm-script-name {
+    @apply font-medium text-mm-secondary;
+  }
+
+  .mm-script-name-title .mm-script-author-suffix {
+    @apply font-normal text-mm-text-muted;
+  }
+
+  .mm-script-name-text .mm-script-description {
+    @apply block truncate text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-script-release-block {
+    @apply flex min-w-0 flex-col justify-center gap-0.5;
+  }
+
+  .mm-script-release-block .mm-script-version {
+    @apply block truncate font-mono text-[12px] font-medium leading-snug text-mm-secondary;
+  }
+
+  .mm-script-release-block .mm-script-updated {
+    @apply block truncate text-[10px] leading-snug text-mm-text-muted tabular-nums;
+  }
+
+  .mm-script-cell .mm-script-index {
     @apply tabular-nums;
   }
 
   .mm-scripts-table-head .mm-script-col-label {
     @apply inline-block max-w-full truncate text-left text-[11px] font-medium leading-none text-mm-text-muted;
-  }
-
-  .mm-script-cell .mm-script-updated {
-    @apply text-[12px] leading-snug text-mm-text-muted;
   }
 
   .mm-script-row .mm-script-rules-link {
@@ -2033,12 +2058,13 @@
     box-sizing: border-box;
     display: grid;
     width: 100%;
-    height: 2.75rem;
+    min-height: 3rem;
+    height: 3rem;
     align-items: center;
     column-gap: 0.625rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 0.75fr) 5.5rem 1.75rem 1.75rem 2.25rem);
+    grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.35fr) minmax(0, 0.75fr) minmax(0, 1.15fr) minmax(4.5rem, 5.5rem) 1.75rem 1.75rem 2.25rem);
   }
 
   .mm-skeleton {
@@ -2056,16 +2082,24 @@
     @apply block h-3.5 w-40 max-w-full;
   }
 
+  .mm-script-name-icon-skeleton {
+    @apply h-8 w-8 shrink-0 rounded-lg;
+  }
+
+  .mm-skeleton-name-stack {
+    @apply block h-8 w-40 max-w-full;
+  }
+
+  .mm-skeleton-release-stack {
+    @apply block h-8 w-12 max-w-full;
+  }
+
   .mm-skeleton-service {
     @apply block h-3.5 w-28 max-w-full;
   }
 
   .mm-skeleton-file {
     @apply block h-3.5 w-48 max-w-full;
-  }
-
-  .mm-skeleton-updated {
-    @apply block h-3.5 w-12 max-w-full;
   }
 
   .mm-skeleton-switch {
@@ -2107,7 +2141,7 @@
   }
 
   .mm-script-row {
-    @apply h-11 overflow-hidden border-0 border-b border-solid border-mm-border-light/40;
+    @apply min-h-12 overflow-hidden border-0 border-b border-solid border-mm-border-light/40 py-1;
     border-bottom-width: 1px;
   }
 
@@ -2123,8 +2157,32 @@
     @apply text-[11px] font-normal leading-none text-mm-label;
   }
 
-  .mm-script-name {
-    @apply text-[13px] font-medium leading-snug text-mm-secondary;
+  .mm-script-name-block {
+    @apply flex min-w-0 items-center gap-2.5;
+  }
+
+  .mm-script-name-icon {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-solid border-mm-border-light/80 bg-mm-muted/50;
+  }
+
+  .mm-script-name-icon-img {
+    @apply h-full w-full object-cover;
+  }
+
+  .mm-script-name-icon--fallback {
+    @apply text-mm-text-muted;
+  }
+
+  .mm-script-name-icon--fallback .mm-icon-slot {
+    @apply h-[18px] w-[18px];
+  }
+
+  .mm-script-name-text {
+    @apply flex min-w-0 flex-1 flex-col justify-center gap-0.5;
+  }
+
+  .mm-script-version {
+    @apply truncate font-mono text-[11px] leading-snug text-mm-secondary;
   }
 
   .mm-script-service {

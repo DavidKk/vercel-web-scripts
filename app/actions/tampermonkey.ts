@@ -2,7 +2,7 @@
 
 import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, SCRIPT_INDEX_FILE, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFile } from '@/services/gist'
-import { buildScriptUpdatedAtMapFromIndexContent } from '@/services/scripts/gistScripts'
+import { buildScriptDisplayMetaByFilenameFromIndexContent, buildScriptUpdatedAtMapFromIndexContent } from '@/services/scripts/gistScripts'
 import { extractMeta } from '@/services/tampermonkey/meta'
 import { isRuleConfig, type RuleConfig } from '@/services/tampermonkey/types'
 
@@ -11,6 +11,16 @@ export interface Script {
   file: string
   /** Last known content change time (epoch ms); falls back to gist `updated_at` when index has no per-file timestamp */
   updatedAt: number
+  /** Userscript @description when available */
+  description?: string
+  /** Userscript @icon URL when available */
+  icon?: string
+  /** Userscript @version when available */
+  version?: string
+  /** Userscript @author when available */
+  author?: string
+  /** SHA-256 from script index when available */
+  contentHash?: string
 }
 
 export async function getScriptsGistUpdatedAt(): Promise<number> {
@@ -24,6 +34,7 @@ export async function getScriptsWithMeta(): Promise<{ scripts: Script[]; gistUpd
   const gist = await fetchGist({ gistId, gistToken })
   const gistUpdatedAt = new Date(gist.updated_at).getTime()
   const updatedAtByFile = buildScriptUpdatedAtMapFromIndexContent(gist.files[SCRIPT_INDEX_FILE]?.content, gistUpdatedAt)
+  const displayMetaByFile = buildScriptDisplayMetaByFilenameFromIndexContent(gist.files[SCRIPT_INDEX_FILE]?.content)
 
   const scripts = Array.from<Script>(
     (function* () {
@@ -33,8 +44,28 @@ export async function getScriptsWithMeta(): Promise<{ scripts: Script[]; gistUpd
         }
 
         const metas = extractMeta(info.content)
-        const name = metas?.name ? (Array.isArray(metas.name) ? metas.name[0] : metas?.name) : file
-        yield { file, name, updatedAt: updatedAtByFile.get(file) ?? gistUpdatedAt } satisfies Script
+        const headerName = metas?.name ? (Array.isArray(metas.name) ? metas.name[0] : metas?.name) : file
+        const indexMeta = displayMetaByFile.get(file)
+        const headerDescription = metas?.description ? (Array.isArray(metas.description) ? metas.description[0] : metas.description) : undefined
+        const headerIcon = metas?.icon ? (Array.isArray(metas.icon) ? metas.icon[0] : metas.icon) : undefined
+        const headerVersion = metas?.version ? (Array.isArray(metas.version) ? metas.version[0] : metas.version) : undefined
+        const headerAuthor = metas?.author ? (Array.isArray(metas.author) ? metas.author[0] : metas.author) : undefined
+        const description = indexMeta?.description ?? (typeof headerDescription === 'string' ? headerDescription : undefined)
+        const icon = indexMeta?.icon ?? (typeof headerIcon === 'string' ? headerIcon : undefined)
+        const version = indexMeta?.version ?? (typeof headerVersion === 'string' ? headerVersion : undefined)
+        const author = indexMeta?.author ?? (typeof headerAuthor === 'string' ? headerAuthor : undefined)
+        const contentHash = indexMeta?.contentHash
+
+        yield {
+          file,
+          name: indexMeta?.name ?? headerName,
+          updatedAt: updatedAtByFile.get(file) ?? gistUpdatedAt,
+          ...(description ? { description } : {}),
+          ...(icon ? { icon } : {}),
+          ...(version ? { version } : {}),
+          ...(author ? { author } : {}),
+          ...(contentHash ? { contentHash } : {}),
+        } satisfies Script
       }
     })()
   )

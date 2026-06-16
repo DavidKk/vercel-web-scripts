@@ -24,6 +24,7 @@ export { applyExtensionServiceConfig, isSameExtensionService, loadExtensionConfi
 export * from './preset-project-version'
 export * from './runtime-cache'
 export * from './script-enabled'
+export * from './script-install-registry'
 export * from './script-installed'
 export * from './script-list-cache'
 export { refreshExtensionServiceData } from './service-data-sync'

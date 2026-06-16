@@ -42,9 +42,30 @@ export function createMockScriptKeyScriptsGroups() {
       primaryServiceLabel: 'Production workspace',
       editorBaseUrl: 'https://scripts.example.com',
       scripts: [
-        { file: 'checkout-helper.ts', name: 'Checkout Helper', updatedAt: now - 1000 * 60 * 8 },
-        { file: 'inventory-badge.ts', name: 'Inventory Badge', updatedAt: now - 1000 * 60 * 42 },
-        { file: 'support-shortcuts.js', name: 'Support Shortcuts', updatedAt: now - 1000 * 60 * 60 * 3 },
+        {
+          file: 'checkout-helper.ts',
+          name: 'Checkout Helper',
+          description: 'Speed up checkout form autofill on storefront pages.',
+          version: '1.2.0',
+          author: 'MagickMonkey',
+          updatedAt: now - 1000 * 60 * 8,
+        },
+        {
+          file: 'inventory-badge.ts',
+          name: 'Inventory Badge',
+          description: 'Show low-stock badges on product cards.',
+          version: '0.9.4',
+          author: 'Store Ops',
+          updatedAt: now - 1000 * 60 * 42,
+        },
+        {
+          file: 'support-shortcuts.js',
+          name: 'Support Shortcuts',
+          description: 'Keyboard shortcuts for support workspace tools.',
+          version: '2.0.1',
+          author: 'Support Team',
+          updatedAt: now - 1000 * 60 * 60 * 3,
+        },
       ],
     },
     {
@@ -54,8 +75,22 @@ export function createMockScriptKeyScriptsGroups() {
       primaryServiceLabel: 'Staging workspace',
       editorBaseUrl: 'https://staging-scripts.example.com',
       scripts: [
-        { file: 'qa-annotator.ts', name: 'QA Annotator', updatedAt: now - 1000 * 60 * 14 },
-        { file: 'theme-preview-tools.ts', name: 'Theme Preview Tools', updatedAt: now - 1000 * 60 * 60 * 9 },
+        {
+          file: 'qa-annotator.ts',
+          name: 'QA Annotator',
+          description: 'Annotate DOM nodes for QA review sessions.',
+          version: '1.0.0',
+          author: 'QA',
+          updatedAt: now - 1000 * 60 * 14,
+        },
+        {
+          file: 'theme-preview-tools.ts',
+          name: 'Theme Preview Tools',
+          description: 'Preview theme tokens without publishing.',
+          version: '0.3.2',
+          author: 'Theme Lab',
+          updatedAt: now - 1000 * 60 * 60 * 9,
+        },
       ],
     },
   ]

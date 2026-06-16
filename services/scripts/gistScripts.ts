@@ -3,6 +3,7 @@ import * as ts from 'typescript'
 
 import { EXCLUDED_FILES, isManagedScriptFilename, SCRIPT_INDEX_FILE } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFiles } from '@/services/gist'
+import { isStrictSemverVersion } from '@/shared/semver-compare'
 
 /** Metadata for one script file in the backing Gist */
 export interface ScriptFileMeta {
@@ -20,12 +21,16 @@ export interface ScriptFileMeta {
   version?: string
   /** Userscript @run-at */
   runAt?: string
+  /** Userscript @icon */
+  icon?: string
+  /** Userscript @author */
+  author?: string
   /** Userscript @match values */
-  matches?: string[]
+  match?: string[]
   /** Userscript @grant values */
   grants?: string[]
   /** Userscript @connect values */
-  connects?: string[]
+  connect?: string[]
   /** Human-maintained search aliases preserved from the index */
   aliases?: string[]
   /** Human-maintained search keywords preserved from the index */
@@ -153,17 +158,17 @@ function parseUserscriptHeader(content: string): Omit<ScriptFileMeta, 'filename'
   }
 
   const metadata: Omit<ScriptFileMeta, 'filename' | 'byteLength' | 'contentHash' | 'aliases' | 'keywords'> = {}
-  const matches: string[] = []
+  const match: string[] = []
   const grants: string[] = []
-  const connects: string[] = []
+  const connect: string[] = []
   const header = content.slice(open, close).split('\n')
 
   for (const line of header) {
-    const match = line.match(/^\s*\/\/\s*@([\w:-]+)\s*(.*)$/)
-    if (!match) continue
+    const matched = line.match(/^\s*\/\/\s*@([\w:-]+)\s*(.*)$/)
+    if (!matched) continue
 
-    const key = match[1]
-    const value = match[2].trim()
+    const key = matched[1]
+    const value = matched[2].trim()
     if (!value) continue
 
     if (key === 'name') {
@@ -174,18 +179,22 @@ function parseUserscriptHeader(content: string): Omit<ScriptFileMeta, 'filename'
       metadata.version = value
     } else if (key === 'run-at') {
       metadata.runAt = value
+    } else if (key === 'icon') {
+      metadata.icon = value
+    } else if (key === 'author') {
+      metadata.author = value
     } else if (key === 'match') {
-      matches.push(value)
+      match.push(value)
     } else if (key === 'grant') {
       grants.push(value)
     } else if (key === 'connect') {
-      connects.push(value)
+      connect.push(value)
     }
   }
 
-  if (matches.length > 0) metadata.matches = uniqueSorted(matches)
+  if (match.length > 0) metadata.match = uniqueSorted(match)
   if (grants.length > 0) metadata.grants = uniqueSorted(grants)
-  if (connects.length > 0) metadata.connects = uniqueSorted(connects)
+  if (connect.length > 0) metadata.connect = uniqueSorted(connect)
 
   return metadata
 }
@@ -249,6 +258,66 @@ export function buildScriptUpdatedAtMapFromIndexContent(indexContent: string | u
   return map
 }
 
+export interface ScriptDisplayMeta {
+  name?: string
+  description?: string
+  icon?: string
+  version?: string
+  author?: string
+  contentHash?: string
+}
+
+/**
+ * Build filename → display metadata map from persisted script index JSON.
+ * @param indexContent Raw `magickmonkey.scripts.index.json` content
+ */
+export function buildScriptDisplayMetaByFilenameFromIndexContent(indexContent: string | undefined): Map<string, ScriptDisplayMeta> {
+  const map = new Map<string, ScriptDisplayMeta>()
+  if (!indexContent) {
+    return map
+  }
+
+  try {
+    const parsed = JSON.parse(indexContent) as Partial<ScriptIndexFile>
+    if (!Array.isArray(parsed.scripts)) {
+      return map
+    }
+
+    for (const script of parsed.scripts) {
+      if (typeof script.filename !== 'string') {
+        continue
+      }
+      const normalized = normalizeScriptIndexEntry(script as ScriptFileMeta & { matches?: string[]; connects?: string[] })
+      const meta: ScriptDisplayMeta = {}
+      if (typeof normalized.name === 'string' && normalized.name.trim()) {
+        meta.name = normalized.name.trim()
+      }
+      if (typeof normalized.description === 'string' && normalized.description.trim()) {
+        meta.description = normalized.description.trim()
+      }
+      if (typeof normalized.icon === 'string' && normalized.icon.trim()) {
+        meta.icon = normalized.icon.trim()
+      }
+      if (typeof normalized.version === 'string' && normalized.version.trim()) {
+        meta.version = normalized.version.trim()
+      }
+      if (typeof normalized.author === 'string' && normalized.author.trim()) {
+        meta.author = normalized.author.trim()
+      }
+      if (typeof normalized.contentHash === 'string' && normalized.contentHash.trim()) {
+        meta.contentHash = normalized.contentHash.trim()
+      }
+      if (Object.keys(meta).length > 0) {
+        map.set(script.filename, meta)
+      }
+    }
+  } catch {
+    /* ignore malformed index */
+  }
+
+  return map
+}
+
 function parseScriptIndex(content?: string): Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>> {
   if (!content) {
     return new Map()
@@ -276,6 +345,15 @@ function parseScriptIndex(content?: string): Map<string, Pick<ScriptFileMeta, 'a
   }
 }
 
+function normalizeScriptIndexEntry(script: ScriptFileMeta & { matches?: string[]; connects?: string[] }): ScriptFileMeta {
+  const { matches, connects, ...rest } = script
+  return {
+    ...rest,
+    ...(rest.match === undefined && matches?.length ? { match: uniqueSorted(matches) } : {}),
+    ...(rest.connect === undefined && connects?.length ? { connect: uniqueSorted(connects) } : {}),
+  }
+}
+
 function parsePersistedScriptIndex(content: string): ScriptIndexFile {
   const parsed = JSON.parse(content) as Partial<ScriptIndexFile>
   if (parsed.version !== 1 || typeof parsed.updatedAt !== 'string' || !Array.isArray(parsed.scripts)) {
@@ -287,11 +365,13 @@ function parsePersistedScriptIndex(content: string): ScriptIndexFile {
     updatedAt: parsed.updatedAt,
     scripts: parsed.scripts
       .filter((script) => typeof script.filename === 'string' && Number.isFinite(script.byteLength))
-      .map((script) => ({
-        ...script,
-        aliases: Array.isArray(script.aliases) ? uniqueSorted(script.aliases) : undefined,
-        keywords: Array.isArray(script.keywords) ? uniqueSorted(script.keywords) : undefined,
-      }))
+      .map((script) =>
+        normalizeScriptIndexEntry({
+          ...script,
+          aliases: Array.isArray(script.aliases) ? uniqueSorted(script.aliases) : undefined,
+          keywords: Array.isArray(script.keywords) ? uniqueSorted(script.keywords) : undefined,
+        })
+      )
       .sort((a, b) => a.filename.localeCompare(b.filename)),
   }
 }
@@ -381,6 +461,16 @@ async function writeManagedScriptFilesWithIndex(
     return
   }
 
+  for (const { file, content } of managedWrites) {
+    if (content === null) {
+      continue
+    }
+    const validation = validateScriptContent(content, file)
+    if (!validation.ok) {
+      throw new Error(`${file}: ${validation.diagnostics.join('; ')}`)
+    }
+  }
+
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
   const nextFiles = applyFileWritesToGistFiles(gist.files, managedWrites)
@@ -465,6 +555,13 @@ function validateScriptContent(content: string, filename?: string): ScriptValida
 
   if (openCount !== 1 || closeCount !== 1) {
     diagnostics.push('Userscript header block must be present exactly once')
+  }
+
+  const headerMeta = parseUserscriptHeader(content)
+  if (!headerMeta.version) {
+    diagnostics.push('@version is required in userscript header')
+  } else if (!isStrictSemverVersion(headerMeta.version)) {
+    diagnostics.push(`@version must be semver x.x.x (got "${headerMeta.version}")`)
   }
 
   const transpileResult = ts.transpileModule(content, {
@@ -601,7 +698,8 @@ export async function findManagedScriptFiles(options: ScriptFindOptions): Promis
       { label: 'description', value: script.description, weight: 5 },
       { label: 'alias', value: script.aliases, weight: 7 },
       { label: 'keyword', value: script.keywords, weight: 6 },
-      { label: 'match', value: script.matches, weight: 2 },
+      { label: 'match', value: script.match, weight: 2 },
+      { label: 'author', value: script.author, weight: 3 },
     ]
     let score = 0
     const reasons: string[] = []
@@ -716,6 +814,10 @@ export async function getManagedScriptSnippet(
 export async function upsertManagedScriptFile(filename: string, content: string): Promise<void> {
   if (!isManagedScriptFilename(filename)) {
     throw new Error('File is not a managed script path')
+  }
+  const validation = validateScriptContent(content, filename)
+  if (!validation.ok) {
+    throw new Error(validation.diagnostics.join('; '))
   }
   await writeManagedScriptFilesWithIndex([{ file: filename, content }])
 }

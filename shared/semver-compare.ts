@@ -1,3 +1,16 @@
+/** Strict userscript @version format: numeric `x.x.x` (optional leading `v`). */
+export const STRICT_SEMVER_X_X_X_PATTERN = /^\d+\.\d+\.\d+$/
+
+/**
+ * Whether a version string is strict semver `x.x.x` (optional leading `v`).
+ * @param version Userscript @version value
+ * @returns True when version matches `x.x.x`
+ */
+export function isStrictSemverVersion(version: string): boolean {
+  const normalized = version.trim().replace(/^v/i, '')
+  return STRICT_SEMVER_X_X_X_PATTERN.test(normalized)
+}
+
 /**
  * Parse semver-like strings into numeric segments for comparison.
  * @param version Version string (optional leading "v")

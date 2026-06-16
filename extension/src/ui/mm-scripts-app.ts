@@ -32,6 +32,11 @@ type ScriptRow = {
   scriptKey: string
   file: string
   label: string
+  description?: string
+  icon?: string
+  version?: string
+  author?: string
+  contentHash?: string
   updatedAt?: number
   serviceLabel: string
   serviceUrl: string
@@ -170,10 +175,111 @@ export class MmScriptsApp extends HTMLElement {
     return key.startsWith(SCRIPT_ENABLED_PREFIX)
   }
 
-  private wrapScriptTextCell(column: 'index' | 'name' | 'file' | 'service' | 'updated', inner: HTMLElement): HTMLDivElement {
+  private wrapScriptTextCell(column: 'index' | 'name' | 'release' | 'file' | 'service', inner: HTMLElement): HTMLDivElement {
     const cell = document.createElement('div')
     cell.className = `mm-script-cell mm-script-cell--${column}`
     cell.append(inner)
+    return cell
+  }
+
+  private buildScriptNameTooltip(item: ScriptRow, nameText: string): string {
+    const authorText = item.author?.trim()
+    const descriptionText = item.description?.trim()
+    const title = authorText ? `${nameText} @${authorText}` : nameText
+    if (!descriptionText) {
+      return title
+    }
+    return `${title}\n${descriptionText}`
+  }
+
+  private renderNameCell(item: ScriptRow): HTMLDivElement {
+    const cell = document.createElement('div')
+    cell.className = 'mm-script-cell mm-script-cell--name'
+
+    const block = document.createElement('div')
+    block.className = 'mm-script-name-block'
+
+    const iconWrap = document.createElement('div')
+    iconWrap.className = 'mm-script-name-icon'
+    if (item.icon) {
+      const img = document.createElement('img')
+      img.className = 'mm-script-name-icon-img'
+      img.src = item.icon
+      img.alt = ''
+      img.loading = 'lazy'
+      img.decoding = 'async'
+      iconWrap.append(img)
+    } else {
+      iconWrap.classList.add('mm-script-name-icon--fallback')
+      const slot = document.createElement('span')
+      slot.className = 'mm-icon-slot'
+      slot.setAttribute('data-icon', 'scripts')
+      iconWrap.append(slot)
+    }
+
+    const text = document.createElement('div')
+    text.className = 'mm-script-name-text'
+
+    const nameText = item.label || item.file
+    const titleLine = document.createElement('div')
+    titleLine.className = 'mm-script-name-title'
+
+    const nameInner = document.createElement('span')
+    nameInner.className = 'mm-script-name'
+    nameInner.textContent = nameText
+    titleLine.append(nameInner)
+
+    const authorText = item.author?.trim()
+    if (authorText) {
+      const authorInner = document.createElement('span')
+      authorInner.className = 'mm-script-author-suffix'
+      authorInner.textContent = ` @${authorText}`
+      titleLine.append(authorInner)
+    }
+
+    text.append(titleLine)
+
+    const descriptionText = item.description?.trim()
+    if (descriptionText) {
+      const descriptionInner = document.createElement('span')
+      descriptionInner.className = 'mm-script-description'
+      descriptionInner.textContent = descriptionText
+      text.append(descriptionInner)
+    }
+
+    this.setFullTextTooltip(text, this.buildScriptNameTooltip(item, nameText))
+
+    block.append(iconWrap, text)
+    cell.append(block)
+    return cell
+  }
+
+  private renderReleaseCell(item: ScriptRow): HTMLDivElement {
+    const cell = document.createElement('div')
+    cell.className = 'mm-script-cell mm-script-cell--release'
+
+    const block = document.createElement('div')
+    block.className = 'mm-script-release-block'
+
+    const versionText = item.version?.trim() ?? ''
+    const versionInner = document.createElement('span')
+    versionInner.className = 'mm-script-version'
+    versionInner.textContent = versionText || '—'
+    block.append(versionInner)
+
+    const updatedLabel = formatScriptUpdatedAt(item.updatedAt)
+    const updatedInner = document.createElement('span')
+    updatedInner.className = 'mm-script-updated'
+    updatedInner.textContent = updatedLabel
+    block.append(updatedInner)
+
+    const releaseTooltipLines = [versionText || '—', updatedLabel]
+    if (typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)) {
+      releaseTooltipLines.push(new Date(item.updatedAt).toLocaleString())
+    }
+    this.setFullTextTooltip(block, releaseTooltipLines.join('\n'))
+
+    cell.append(block)
     return cell
   }
 
@@ -188,24 +294,10 @@ export class MmScriptsApp extends HTMLElement {
     indexInner.className = 'mm-script-index'
     indexInner.textContent = String(index + 1)
 
-    const nameInner = document.createElement('span')
-    nameInner.className = 'mm-script-name'
-    const nameText = item.label || item.file
-    nameInner.textContent = nameText
-    this.setFullTextTooltip(nameInner, nameText)
-
     const fileInner = document.createElement('span')
     fileInner.className = 'mm-script-file'
     fileInner.textContent = item.file
     this.setFullTextTooltip(fileInner, item.file)
-
-    const updatedInner = document.createElement('span')
-    updatedInner.className = 'mm-script-updated'
-    const updatedLabel = formatScriptUpdatedAt(item.updatedAt)
-    updatedInner.textContent = updatedLabel
-    if (typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)) {
-      this.setFullTextTooltip(updatedInner, new Date(item.updatedAt).toLocaleString())
-    }
 
     const installBtn = this.renderInstallButton(item)
 
@@ -227,10 +319,10 @@ export class MmScriptsApp extends HTMLElement {
 
     const rowChildren: HTMLElement[] = [
       this.wrapScriptTextCell('index', indexInner),
-      this.wrapScriptTextCell('name', nameInner),
-      this.wrapScriptTextCell('file', fileInner),
+      this.renderNameCell(item),
       this.renderServiceCell(item),
-      this.wrapScriptTextCell('updated', updatedInner),
+      this.wrapScriptTextCell('file', fileInner),
+      this.renderReleaseCell(item),
       rulesLink,
       installBtn,
     ]
@@ -305,7 +397,7 @@ export class MmScriptsApp extends HTMLElement {
         item.installed = true
         item.enabled = true
       } else {
-        await setScriptInstalled(item.scriptKey, item.file, false)
+        await setScriptInstalled(item.scriptKey, item.file, false, item.contentHash)
         await setScriptEnabled(item.scriptKey, item.file, false, { incognito: this.scriptTogglesIncognito })
         item.installed = false
         item.enabled = false
@@ -743,7 +835,8 @@ export class MmScriptsApp extends HTMLElement {
       )
       const installedByName = await loadScriptInstalledMapForScriptKey(
         group.scriptKey,
-        group.scripts.map((s) => s.file)
+        group.scripts.map((s) => s.file),
+        new Map(group.scripts.map((s) => [s.file, s.contentHash]))
       )
       const serviceLabel = group.primaryServiceLabel
       const serviceUrl = group.editorBaseUrl.trim().replace(/\/+$/, '')
@@ -755,6 +848,11 @@ export class MmScriptsApp extends HTMLElement {
           scriptKey: group.scriptKey,
           file: s.file,
           label: s.name,
+          description: s.description,
+          icon: s.icon,
+          version: s.version,
+          author: s.author,
+          contentHash: s.contentHash,
           updatedAt: s.updatedAt,
           serviceLabel,
           serviceUrl,
@@ -788,7 +886,14 @@ export class MmScriptsApp extends HTMLElement {
         if (serviceFilter !== 'all' && row.serviceLabel !== serviceFilter) {
           return false
         }
-        if (search && !row.file.toLowerCase().includes(search) && !row.label.toLowerCase().includes(search)) {
+        if (
+          search &&
+          !row.file.toLowerCase().includes(search) &&
+          !row.label.toLowerCase().includes(search) &&
+          !(row.description?.toLowerCase().includes(search) ?? false) &&
+          !(row.version?.toLowerCase().includes(search) ?? false) &&
+          !(row.author?.toLowerCase().includes(search) ?? false)
+        ) {
           return false
         }
         if (filter === 'installed') {
