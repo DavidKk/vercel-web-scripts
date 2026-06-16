@@ -5,6 +5,7 @@
  */
 
 import { GME_fail } from '@/helpers/logger'
+import { GME_setInnerHTML } from '@/helpers/safe-inner-html'
 import { GME_debounce, GME_md5, GME_uuid } from '@/helpers/utils'
 import { CODEMIRROR_EDITOR_TAG, type ICodeMirrorEditorElement } from '@/ui/codemirror-editor'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
@@ -163,7 +164,7 @@ function openStringTool(type: StringToolType): void {
   const updateResult = buildUpdateResult(type, () => refs)
 
   const root = document.createElement('div')
-  root.innerHTML = `<style>${wrapUiStyles(stringToolCss)}</style>${stringToolHtml}`
+  GME_setInnerHTML(root, `<style>${wrapUiStyles(stringToolCss)}</style>${stringToolHtml}`)
   rootEl = root
 
   const box = root.querySelector('.string-tool__box') as HTMLElement

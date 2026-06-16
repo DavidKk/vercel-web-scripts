@@ -17,6 +17,7 @@ import {
   oneDarkTheme,
   syntaxHighlighting,
 } from '@/codemirror'
+import { GME_clearElement, GME_setInnerHTML } from '@/helpers/safe-inner-html'
 import { EDITOR_DEV_EVENT_KEY, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 
@@ -63,7 +64,7 @@ export function openCompiledCodeViewer(): void {
   const content = getCompiledContent()
   const text = content || EMPTY_MESSAGE
   const root = document.createElement('div')
-  root.innerHTML = `<style>${wrapUiStyles(compiledCodeViewerCss)}</style>${compiledCodeViewerHtml}`
+  GME_setInnerHTML(root, `<style>${wrapUiStyles(compiledCodeViewerCss)}</style>${compiledCodeViewerHtml}`)
 
   const bodyEl = root.querySelector('.compiled-code-viewer__body') as HTMLElement
   const copyBtn = root.querySelector('.compiled-code-viewer__copy') as HTMLButtonElement
@@ -75,7 +76,7 @@ export function openCompiledCodeViewer(): void {
     applyDraggableScroll(bodyEl)
     const host = document.createElement('div')
     host.className = 'compiled-code-viewer__cm-host'
-    bodyEl.innerHTML = ''
+    GME_clearElement(bodyEl)
     bodyEl.appendChild(host)
     const state = EditorState.create({
       doc: text,

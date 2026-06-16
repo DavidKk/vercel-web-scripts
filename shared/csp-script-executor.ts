@@ -8,6 +8,7 @@ export const CSP_EXEC_MODULE_GLOBAL_KEY = '__VWS_CSP_MODULE_G__'
 export const CSP_EXEC_GLOBAL_KEY = CSP_EXEC_PRESET_GLOBAL_KEY
 
 const CSP_EVAL_RE = /unsafe-eval|Content Security Policy/i
+const TRUSTED_TYPES_ASSIGNMENT_RE = /Trusted(?:HTML|Script)/i
 
 /** How dynamic script code was executed in the page context. */
 export type CspScriptExecuteMode = 'function' | 'nonce-script' | 'user-script' | 'csp-reload'
@@ -88,6 +89,8 @@ export interface CspExtensionExecuteContext {
   scriptKey?: string
   enabledScripts?: Record<string, boolean>
   launcherGlobals?: Record<string, string | boolean | number>
+  /** Prefer extension user-script injection before any page eval/nonce path. */
+  preferUserScript?: boolean
 }
 
 /** Page → content → background user-script execute request (USER_SCRIPT world, CSP-exempt). */
@@ -124,6 +127,25 @@ export function isCspEvalError(error: unknown): boolean {
     return false
   }
   return error.name === 'EvalError' || CSP_EVAL_RE.test(error.message)
+}
+
+/** Whether page Trusted Types blocked script/HTML assignment in the page context. */
+export function isTrustedTypesAssignmentError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  return TRUSTED_TYPES_ASSIGNMENT_RE.test(error.message)
+}
+
+function assignInlineScriptText(script: HTMLScriptElement, text: string): void {
+  try {
+    script.textContent = text
+  } catch (error) {
+    if (isTrustedTypesAssignmentError(error)) {
+      throw new CspExtensionFallbackRequired()
+    }
+    throw error
+  }
 }
 
 /** Whether the error indicates page eval is blocked and extension scripting fallback should be tried. */
@@ -243,7 +265,17 @@ export function requestExtensionUserScriptExecute(payload: CspExtensionExecuteBr
 
 /** Run {@link executeWithGlobal} or defer to extension user-script API when nonce fallback is unavailable. */
 export async function executeWithGlobalResilient(global: Record<string, unknown>, withBody: string, context?: CspExtensionExecuteContext): Promise<CspScriptExecuteMode> {
-  void context
+  if (context?.preferUserScript) {
+    try {
+      const result = await requestExtensionUserScriptExecuteOnce({ mode: 'global', withBody }, { key: CSP_EXEC_MODULE_GLOBAL_KEY, sandbox: global })
+      return result.cspReload ? 'csp-reload' : 'user-script'
+    } catch (error) {
+      if (isCspUserScriptExhausted(error)) {
+        throw error
+      }
+      // Extension path unavailable/failed: fall back to legacy page execution path.
+    }
+  }
   try {
     return executeWithGlobal(global, withBody)
   } catch (error) {
@@ -262,7 +294,17 @@ export async function executePresetWithGResilient(
   presetCode: string,
   context?: CspExtensionExecuteContext
 ): Promise<CspScriptExecuteMode> {
-  void context
+  if (context?.preferUserScript) {
+    try {
+      const result = await requestExtensionUserScriptExecuteOnce({ mode: 'preset', decls, presetCode }, { key: CSP_EXEC_PRESET_GLOBAL_KEY, sandbox: g })
+      return result.cspReload ? 'csp-reload' : 'user-script'
+    } catch (error) {
+      if (isCspUserScriptExhausted(error)) {
+        throw error
+      }
+      // Extension path unavailable/failed: fall back to legacy page execution path.
+    }
+  }
   try {
     return executePresetWithG(g, decls, presetCode)
   } catch (error) {
@@ -371,7 +413,7 @@ export function runWithGlobalViaNonceScript(global: Record<string, unknown>, wit
   host[CSP_EXEC_MODULE_GLOBAL_KEY] = global
   const script = document.createElement('script')
   script.nonce = nonce
-  script.textContent = buildWithGlobalScriptSource(withBody)
+  assignInlineScriptText(script, buildWithGlobalScriptSource(withBody))
   root.appendChild(script)
   script.remove()
   if (host[CSP_EXEC_MODULE_GLOBAL_KEY] === global) {
@@ -441,7 +483,7 @@ export function executePresetWithG(g: Record<string, unknown>, decls: string, pr
     host[CSP_EXEC_PRESET_GLOBAL_KEY] = g
     const script = document.createElement('script')
     script.nonce = nonce
-    script.textContent = buildPresetWithGScriptSource(decls, presetCode)
+    assignInlineScriptText(script, buildPresetWithGScriptSource(decls, presetCode))
     root.appendChild(script)
     script.remove()
     if (host[CSP_EXEC_PRESET_GLOBAL_KEY] === g) {

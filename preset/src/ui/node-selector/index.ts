@@ -18,6 +18,7 @@
 
 import { appendToDocumentElement } from '@/helpers/dom'
 import { GME_info, GME_warn } from '@/helpers/logger'
+import { mountUiTemplateShell } from '@/helpers/safe-inner-html'
 import { getUnsafeWindow } from '@/services/cli-service'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
@@ -193,7 +194,7 @@ export function GME_isNodeSelectorEnabled(): boolean {
 
 if (typeof document !== 'undefined' && !document.querySelector(NodeSelector.TAG_NAME)) {
   const container = document.createElement(NodeSelector.TAG_NAME)
-  container.innerHTML = `<template><style>${wrapUiStyles(nodeSelectorCss)}</style>${nodeSelectorHtml}</template>`
+  mountUiTemplateShell(container, wrapUiStyles(nodeSelectorCss), nodeSelectorHtml)
   appendToDocumentElement(container)
 }
 

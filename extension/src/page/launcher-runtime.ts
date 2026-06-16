@@ -31,7 +31,7 @@ import type { LauncherUrls } from './config'
 import { PRESET_VAR_NAMES } from './config'
 import { setActiveGmScope } from './gm-bridge'
 import type { GMApi, GMRequestDetails } from './gm-types'
-import { executePresetInPageContext, executePresetWithGResilient, isCspEvalError, isCspExtensionFallbackRequired, isCspUserScriptExhausted } from './preset-executor'
+import { executePresetWithGResilient, isCspUserScriptExhausted } from './preset-executor'
 
 export interface LauncherStartOptions {
   scriptKey: string
@@ -232,51 +232,36 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     g.__VWS_ENABLED_SCRIPTS__ = enabledScripts
     setActiveGmScope(gmScope)
     const decls = buildPresetLauncherDecls(PRESET_VAR_NAMES)
-    try {
-      const mode = executePresetInPageContext(g, decls, presetCode)
-      markPresetExecutedOnDocument()
-      bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
-      injectionGate.markReady()
-    } catch (e) {
-      if (!isCspExtensionFallbackRequired(e)) {
-        const em = e instanceof Error ? e.message : String(e)
-        const cspHint = isCspEvalError(e) ? ' (CSP: eval blocked; nonce fallback failed or unavailable)' : ''
-        bootLog('fail', 'execute:failed', em + cspHint)
-        launcherLogger.error(`[${scriptKey}] preset run failed:`, em, e)
-        reportPresetFailure()
-        injectionGate.markReady()
-        return
-      }
-      setPresetExecuteInFlight(true)
-      void executePresetWithGResilient(g, decls, presetCode, {
-        gmScope,
-        scriptKey,
-        enabledScripts,
-        launcherGlobals: { ...globals, __SCRIPT_URL__: runtimeScriptUrl },
+    setPresetExecuteInFlight(true)
+    void executePresetWithGResilient(g, decls, presetCode, {
+      gmScope,
+      scriptKey,
+      enabledScripts,
+      launcherGlobals: { ...globals, __SCRIPT_URL__: runtimeScriptUrl },
+      preferUserScript: true,
+    })
+      .then((mode) => {
+        if (mode === 'csp-reload') {
+          bootLog('info', 'execute:csp-reload tab reload scheduled (DNR strips CSP on next load)')
+          return
+        }
+        markPresetExecutedOnDocument()
+        bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
       })
-        .then((mode) => {
-          if (mode === 'csp-reload') {
-            bootLog('info', 'execute:csp-reload tab reload scheduled (DNR strips CSP on next load)')
-            return
-          }
-          markPresetExecutedOnDocument()
-          bootLog('ok', `execute:success bytes=${bytes} mode=${mode}`)
-        })
-        .catch((fallbackError) => {
-          const em = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
-          if (isCspUserScriptExhausted(fallbackError)) {
-            bootLog('fail', 'execute:failed', `${em} (user-script fallback already attempted this load)`)
-          } else {
-            bootLog('fail', 'execute:failed', `${em} (CSP: user-script fallback failed)`)
-          }
-          launcherLogger.error(`[${scriptKey}] preset run failed:`, em, fallbackError)
-          reportPresetFailure()
-        })
-        .finally(() => {
-          setPresetExecuteInFlight(false)
-          injectionGate.markReady()
-        })
-    }
+      .catch((fallbackError) => {
+        const em = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+        if (isCspUserScriptExhausted(fallbackError)) {
+          bootLog('fail', 'execute:failed', `${em} (user-script fallback already attempted this load)`)
+        } else {
+          bootLog('fail', 'execute:failed', `${em} (CSP: user-script fallback failed)`)
+        }
+        launcherLogger.error(`[${scriptKey}] preset run failed:`, em, fallbackError)
+        reportPresetFailure()
+      })
+      .finally(() => {
+        setPresetExecuteInFlight(false)
+        injectionGate.markReady()
+      })
   }
 
   function getResponseHeader(res: { responseHeaders?: string }, name: string): string | null {

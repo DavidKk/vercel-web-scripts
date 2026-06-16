@@ -4,6 +4,7 @@
  */
 
 import { appendToDocumentElement } from '@/helpers/dom'
+import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTemplateShell } from '@/helpers/safe-inner-html'
 import { getSharedLogStore } from '@/services/log-store/global-access'
 import type { LogStore } from '@/services/log-store/LogStore'
 import type { LogLevel } from '@/services/log-store/types'
@@ -80,11 +81,11 @@ export class LogViewerUI extends HTMLElement {
 
   connectedCallback() {
     const template = this.querySelector('template')
-    const innerHTML = template ? template.innerHTML : ''
-    template?.remove()
-
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
-    this.#shadowRoot.innerHTML = innerHTML
+    if (template instanceof HTMLTemplateElement) {
+      adoptTemplateContent(this.#shadowRoot, template)
+      template.remove()
+    }
 
     this.#store = getSharedLogStore()
 
@@ -97,10 +98,10 @@ export class LogViewerUI extends HTMLElement {
     const searchInput = this.#shadowRoot.querySelector('.log-viewer__search')
     const filterInputs = this.#shadowRoot.querySelectorAll('.log-viewer__filter input')
 
-    if (closeBtn) closeBtn.innerHTML = iconClose
-    if (copyBtn) copyBtn.innerHTML = iconCopy
-    if (includePreviousBtn) includePreviousBtn.innerHTML = iconHistory
-    if (clearBtn) clearBtn.innerHTML = iconTrash
+    if (closeBtn) GME_setInnerHTML(closeBtn, iconClose)
+    if (copyBtn) GME_setInnerHTML(copyBtn, iconCopy)
+    if (includePreviousBtn) GME_setInnerHTML(includePreviousBtn, iconHistory)
+    if (clearBtn) GME_setInnerHTML(clearBtn, iconTrash)
 
     backdrop?.addEventListener('click', () => this.close())
     closeBtn?.addEventListener('click', () => this.close())
@@ -289,7 +290,7 @@ export class LogViewerUI extends HTMLElement {
     const copyBtn = this.#shadowRoot.querySelector('[data-action="copy"]') as HTMLButtonElement | null
 
     if (!this.#store) {
-      listEl.innerHTML = ''
+      GME_clearElement(listEl)
       const empty = document.createElement('div')
       empty.className = 'log-viewer__empty'
       empty.textContent = 'Log store not available (preset core may not be loaded yet)'
@@ -306,7 +307,7 @@ export class LogViewerUI extends HTMLElement {
       copyBtn.disabled = filtered.length === 0
     }
 
-    listEl.innerHTML = ''
+    GME_clearElement(listEl)
 
     if (filtered.length === 0) {
       const empty = document.createElement('div')
@@ -332,11 +333,14 @@ export class LogViewerUI extends HTMLElement {
     filtered.forEach((e) => {
       const row = document.createElement('div')
       row.className = `log-viewer__entry log-viewer__entry--${e.level}`
-      row.innerHTML = `
+      GME_setInnerHTML(
+        row,
+        `
         <span class="log-viewer__entry-time">${this.#formatTime(e.timestamp)}</span>
         <span class="log-viewer__entry-icon">${icons[e.level] ?? ''}</span>
         <span class="log-viewer__entry-msg">${escapeHtml(e.message)}</span>
       `
+      )
       listEl.appendChild(row)
     })
 
@@ -351,7 +355,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${wrapUiStyles(logViewerCss)}</style>${logViewerHtml}</template>`
+  mountUiTemplateShell(container, wrapUiStyles(logViewerCss), logViewerHtml)
   appendToDocumentElement(container)
 }
 

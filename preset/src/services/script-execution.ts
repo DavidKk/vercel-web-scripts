@@ -6,7 +6,7 @@ import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } fro
 import { buildGrantsFromGlobal, type CspScriptExecuteMode, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
 
-import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@/constants'
+import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
 import { getLauncherBootstrapCacheScope, parseStaticKeyFromScriptUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
@@ -107,7 +107,7 @@ export async function executeScript(content: string): Promise<void> {
       g.createGMELogger = scriptCreateGMELogger
     }
     try {
-      executeMode = executeWithGlobal(g, executableContent)
+      executeMode = isExtensionPageContext() ? await executeWithGlobalResilient(g, executableContent, { preferUserScript: true }) : executeWithGlobal(g, executableContent)
     } catch (error) {
       if (!isCspExtensionFallbackRequired(error)) {
         throw error

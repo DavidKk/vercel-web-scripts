@@ -36,6 +36,17 @@ export function isDevelopMode(): boolean {
   return !!(__IS_DEVELOP_MODE__ && __HOSTNAME_PORT__ === window.location.host)
 }
 
+/**
+ * Whether preset is running inside the MagickMonkey Chrome extension page launcher.
+ * @returns True when extension bootstrap config is present on window
+ */
+export function isExtensionPageContext(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return Boolean((window as Window & { __VWS_PAGE_CONFIG__?: unknown }).__VWS_PAGE_CONFIG__)
+}
+
 interface DevProbeCache {
   at: number
   value: boolean

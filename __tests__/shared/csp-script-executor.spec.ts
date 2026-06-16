@@ -10,6 +10,7 @@ import {
   isCspEvalError,
   isCspExtensionFallbackRequired,
   isCspUserScriptExhausted,
+  isTrustedTypesAssignmentError,
   shouldRememberCspUserScriptAttempt,
   wrapUserScriptIifeBody,
 } from '../../shared/csp-script-executor'
@@ -19,6 +20,12 @@ describe('csp-script-executor', () => {
     expect(isCspEvalError(new EvalError('unsafe-eval'))).toBe(true)
     expect(isCspEvalError(new Error('Content Security Policy'))).toBe(true)
     expect(isCspEvalError(new Error('other'))).toBe(false)
+  })
+
+  it('isTrustedTypesAssignmentError detects TrustedHTML and TrustedScript errors', () => {
+    expect(isTrustedTypesAssignmentError(new Error("This document requires 'TrustedHTML' assignment."))).toBe(true)
+    expect(isTrustedTypesAssignmentError(new Error("This document requires 'TrustedScript' assignment."))).toBe(true)
+    expect(isTrustedTypesAssignmentError(new Error('other'))).toBe(false)
   })
 
   it('escapeInlineScriptText escapes closing script tags', () => {

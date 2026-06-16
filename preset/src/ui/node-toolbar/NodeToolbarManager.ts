@@ -4,6 +4,7 @@
  */
 
 import { appendToDocumentElement } from '@/helpers/dom'
+import { GME_clearElement, GME_setInnerHTML } from '@/helpers/safe-inner-html'
 
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import nodeToolbarCss from './index.css?raw'
@@ -37,7 +38,7 @@ export class NodeToolbarManager {
     if (this.#host) return this.#host
     this.#host = document.createElement('div')
     this.#host.className = 'nt-host'
-    this.#host.innerHTML = `<style>${wrapUiStyles(nodeToolbarCss)}</style>${nodeToolbarHtml}`
+    GME_setInnerHTML(this.#host, `<style>${wrapUiStyles(nodeToolbarCss)}</style>${nodeToolbarHtml}`)
     this.#bar = this.#host.querySelector('.nt-bar')
     if (this.#bar) this.#bar.setAttribute('role', 'toolbar')
     this.#host.addEventListener('mouseenter', this.#onToolbarMouseEnter)
@@ -84,7 +85,7 @@ export class NodeToolbarManager {
     }
     const host = this.#getHost()
     const bar = this.#bar!
-    bar.innerHTML = ''
+    GME_clearElement(bar)
     entry.options.buttons.forEach((btn) => {
       const button = document.createElement('button')
       button.type = 'button'
@@ -165,7 +166,7 @@ export class NodeToolbarManager {
       this.#host.classList.remove('nt-host--visible')
     }
     if (this.#bar) {
-      this.#bar.innerHTML = ''
+      GME_clearElement(this.#bar)
     }
     this.#removeScrollResizeListeners()
   }

@@ -3,6 +3,8 @@
  * Displays XPath information in a dropdown panel
  * Uses existing .node-selector-xpath-panel styles
  */
+import { GME_clearElement, GME_setInnerHTML } from '@/helpers/safe-inner-html'
+
 import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
 
 export class MarkerXPathPanel extends HTMLElement {
@@ -153,7 +155,7 @@ export class MarkerXPathPanel extends HTMLElement {
     if (!this.#xpathContainer) return
 
     // Clear container
-    this.#xpathContainer.innerHTML = ''
+    GME_clearElement(this.#xpathContainer)
 
     if (this.#xpaths.length === 0) {
       const emptyState = document.createElement('div')
@@ -161,7 +163,7 @@ export class MarkerXPathPanel extends HTMLElement {
 
       const icon = document.createElement('div')
       icon.className = 'node-selector-xpath-panel__no-data-icon'
-      icon.innerHTML = '<!-- -->'
+      GME_setInnerHTML(icon, '<!-- -->')
 
       const text = document.createElement('div')
       text.className = 'node-selector-xpath-panel__no-data-text'

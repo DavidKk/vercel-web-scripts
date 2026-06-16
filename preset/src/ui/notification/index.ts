@@ -3,6 +3,7 @@
  */
 
 import { appendToDocumentElement } from '@/helpers/dom'
+import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTemplateShell } from '@/helpers/safe-inner-html'
 import { registerCLIModule } from '@/services/cli-service'
 import iconWarn from '~icons/mdi/alert?raw'
 import iconSuccess from '~icons/mdi/check-circle?raw'
@@ -61,11 +62,11 @@ export class NotificationUI extends HTMLElement {
 
   connectedCallback() {
     const template = this.querySelector('template')
-    const innerHTML = template ? template.innerHTML : ''
-    template?.remove()
-
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
-    this.#shadowRoot.innerHTML = innerHTML
+    if (template instanceof HTMLTemplateElement) {
+      adoptTemplateContent(this.#shadowRoot, template)
+      template.remove()
+    }
   }
 
   /**
@@ -97,9 +98,9 @@ export class NotificationUI extends HTMLElement {
     iconSpan.className = 'notification__icon'
     if (isLoading) {
       iconSpan.classList.add('notification__icon--spinner')
-      iconSpan.innerHTML = ''
+      GME_clearElement(iconSpan)
     } else {
-      iconSpan.innerHTML = TYPE_ICONS[type]
+      GME_setInnerHTML(iconSpan, TYPE_ICONS[type])
     }
 
     const content = document.createElement('div')
@@ -171,9 +172,9 @@ export class NotificationUI extends HTMLElement {
       if (iconSpan) {
         iconSpan.classList.toggle('notification__icon--spinner', updates.type === 'loading')
         if (updates.type === 'loading') {
-          iconSpan.innerHTML = ''
+          GME_clearElement(iconSpan)
         } else {
-          iconSpan.innerHTML = TYPE_ICONS[updates.type]
+          GME_setInnerHTML(iconSpan, TYPE_ICONS[updates.type])
         }
       }
       const isNowLoading = updates.type === 'loading'
@@ -249,7 +250,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${wrapUiStyles(notificationCss)}</style>${notificationHtml}</template>`
+  mountUiTemplateShell(container, wrapUiStyles(notificationCss), notificationHtml)
   appendToDocumentElement(container)
 }
 

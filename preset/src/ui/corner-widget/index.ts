@@ -16,6 +16,7 @@
  */
 
 import { appendToDocumentElement } from '@/helpers/dom'
+import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTemplateShell } from '@/helpers/safe-inner-html'
 import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_notification } from '@/ui/notification/index'
 import iconDrag from '~icons/mdi/drag-vertical?raw'
@@ -145,7 +146,7 @@ export class CornerWidget extends HTMLElement {
     if (!listElement) {
       return
     }
-    listElement.innerHTML = ''
+    GME_clearElement(listElement)
 
     this.#menuItems.forEach((item) => {
       const itemElement = this.#createMenuItem(item)
@@ -177,7 +178,7 @@ export class CornerWidget extends HTMLElement {
     const li = document.createElement('li')
     li.className = CornerWidget.ITEM_CLASS
     li.dataset.menuId = item.id
-    li.innerHTML = html
+    GME_setInnerHTML(li, html)
     return li
   }
 
@@ -517,11 +518,11 @@ export class CornerWidget extends HTMLElement {
    */
   connectedCallback() {
     const template = this.querySelector('template')
-    const innerHTML = template ? template.innerHTML : ''
-    template?.remove()
-
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
-    this.#shadowRoot.innerHTML = innerHTML
+    if (template instanceof HTMLTemplateElement) {
+      adoptTemplateContent(this.#shadowRoot, template)
+      template.remove()
+    }
 
     this.#injectHeaderIcons()
 
@@ -608,13 +609,13 @@ export class CornerWidget extends HTMLElement {
     const hideBtn = this.#shadowRoot.querySelector(CornerWidget.HIDE_SELECTOR) as HTMLElement | null
 
     if (drag) {
-      drag.innerHTML = iconDrag
+      GME_setInnerHTML(drag, iconDrag)
     }
     if (logo) {
-      logo.innerHTML = CORNER_WIDGET_LOGO_HTML
+      GME_setInnerHTML(logo, CORNER_WIDGET_LOGO_HTML)
     }
     if (hideBtn) {
-      hideBtn.innerHTML = iconHide
+      GME_setInnerHTML(hideBtn, iconHide)
     }
   }
 
@@ -761,7 +762,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(CornerWidget.TA
 
 if (typeof document !== 'undefined' && !document.querySelector(CornerWidget.TAG_NAME)) {
   const container = document.createElement(CornerWidget.TAG_NAME)
-  container.innerHTML = `<template><style>${wrapUiStyles(cornerWidgetCss)}</style>${cornerWidgetHtml}</template>`
+  mountUiTemplateShell(container, wrapUiStyles(cornerWidgetCss), cornerWidgetHtml)
   appendToDocumentElement(container)
 }
 

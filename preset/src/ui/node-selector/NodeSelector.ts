@@ -4,6 +4,7 @@
  */
 
 import { GME_warn } from '@/helpers/logger'
+import { adoptTemplateContent, GME_clearElement } from '@/helpers/safe-inner-html'
 import { findElementByXPath, generateXPath } from '@/helpers/xpath'
 
 import { MarkerHighlightBox } from './MarkerHighlightBox'
@@ -369,7 +370,7 @@ export class NodeSelector extends HTMLElement {
       if (titleEl) titleEl.textContent = node.tagName.toLowerCase()
       if (subtitleEl) subtitleEl.textContent = node.className || node.id || ''
       if (detailsEl) {
-        detailsEl.innerHTML = ''
+        GME_clearElement(detailsEl)
         const details = [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`]
         details.forEach((detail: string) => {
           const div = document.createElement('div')
@@ -391,7 +392,7 @@ export class NodeSelector extends HTMLElement {
       if (titleEl) titleEl.textContent = info.title
       if (subtitleEl) subtitleEl.textContent = info.subtitle || ''
       if (detailsEl) {
-        detailsEl.innerHTML = ''
+        GME_clearElement(detailsEl)
         if (info.details) {
           info.details.forEach((detail: string) => {
             const div = document.createElement('div')
@@ -892,11 +893,11 @@ export class NodeSelector extends HTMLElement {
    */
   connectedCallback() {
     const template = this.querySelector('template')
-    const innerHTML = template ? template.innerHTML : ''
-    template?.remove()
-
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
-    this.#shadowRoot.innerHTML = innerHTML
+    if (template instanceof HTMLTemplateElement) {
+      adoptTemplateContent(this.#shadowRoot, template)
+      template.remove()
+    }
 
     // Get UI elements
     this.#highlightBox = this.#shadowRoot.querySelector('.node-selector-highlight') as HTMLElement

@@ -1,3 +1,5 @@
+import { GME_setInnerHTML } from '@/helpers/safe-inner-html'
+
 /** Escape HTML entities. */
 export function htmlEscape(str: string): string {
   const div = document.createElement('div')
@@ -8,6 +10,6 @@ export function htmlEscape(str: string): string {
 /** Unescape HTML entities. */
 export function htmlUnescape(str: string): string {
   const div = document.createElement('div')
-  div.innerHTML = str
+  GME_setInnerHTML(div, str)
   return div.textContent ?? ''
 }

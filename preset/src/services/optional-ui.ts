@@ -1,6 +1,7 @@
 import { executeWithGlobal, executeWithGlobalResilient, isCspEvalError, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { buildPresetUiExecDecls, isLikelyPresetUiBundle } from '@shared/preset-launcher-decls'
 
+import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
 import { parseStaticKeyFromScriptUrl, readLauncherBaseUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { createGMELogger } from '@/helpers/logger'
@@ -311,7 +312,7 @@ async function executeOptionalUiContent(content: string, sourceUrl?: string): Pr
   const body = `${buildPresetUiExecDecls()}\n${content}`
   GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:start bytes=${content.length} url=${shortUrlLabel(sourceUrl ?? '', 120) || '(cache)'}`)
   try {
-    const mode = executeWithGlobal(g, body)
+    const mode = isExtensionPageContext() ? await executeWithGlobalResilient(g, body, { preferUserScript: true }) : executeWithGlobal(g, body)
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
     debugPresetUiRuntimeState('execute:after-sync', g, core)
     const loaded = readRegisteredPresetUi(core) || readRegisteredPresetUiFromGlobal(g)

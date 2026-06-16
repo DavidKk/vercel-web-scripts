@@ -7,6 +7,7 @@
  */
 
 import { appendToDocumentElement } from '@/helpers/dom'
+import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTemplateShell } from '@/helpers/safe-inner-html'
 
 import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
@@ -171,13 +172,13 @@ export class CommandPaletteUI extends HTMLElement {
     this.#filteredCommands = this.#filterCommands(query)
 
     if (this.#filteredCommands.length === 0) {
-      listEl.innerHTML = '<li class="command-palette__empty">No matching commands</li>'
+      GME_setInnerHTML(listEl, '<li class="command-palette__empty">No matching commands</li>')
       refreshScrollIndicator(listEl)
       return
     }
 
     this.#selectedIndex = Math.min(this.#selectedIndex, this.#filteredCommands.length - 1)
-    listEl.innerHTML = ''
+    GME_clearElement(listEl)
     this.#filteredCommands.forEach((cmd, i) => {
       const li = document.createElement('li')
       li.className = 'command-palette__item' + (i === this.#selectedIndex ? ' command-palette__item--selected' : '')
@@ -185,13 +186,16 @@ export class CommandPaletteUI extends HTMLElement {
       const iconContent = cmd.iconHtml !== undefined ? cmd.iconHtml : escapeHtml(cmd.icon ?? '◆')
       const hintHtml = cmd.hint ? `<div class="command-palette__item-hint">${escapeHtml(cmd.hint)}</div>` : ''
       const titleText = cmd.title ?? cmd.text ?? ''
-      li.innerHTML = `
+      GME_setInnerHTML(
+        li,
+        `
           <span class="command-palette__item-icon">${iconContent}</span>
           <div class="command-palette__item-content">
             <div class="command-palette__item-title">${escapeHtml(titleText)}</div>
             ${hintHtml}
           </div>
         `
+      )
       listEl.appendChild(li)
     })
     refreshScrollIndicator(listEl)
@@ -361,11 +365,11 @@ export class CommandPaletteUI extends HTMLElement {
 
   connectedCallback(): void {
     const template = this.querySelector('template')
-    const innerHTML = template ? template.innerHTML : ''
-    template?.remove()
-
     this.#shadowRoot = this.attachShadow({ mode: 'open' })
-    this.#shadowRoot.innerHTML = innerHTML
+    if (template instanceof HTMLTemplateElement) {
+      adoptTemplateContent(this.#shadowRoot, template)
+      template.remove()
+    }
 
     const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
     const backdrop = this.#shadowRoot?.querySelector('.command-palette__backdrop')
@@ -438,7 +442,7 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
 
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
-  container.innerHTML = `<template><style>${wrapUiStyles(paletteCss)}</style>${paletteHtml}</template>`
+  mountUiTemplateShell(container, wrapUiStyles(paletteCss), paletteHtml)
   appendToDocumentElement(container)
 }
 
