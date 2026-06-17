@@ -1,12 +1,12 @@
 import { buildQuickRuleScriptSelectOptions } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 
-import { buildAdminHash, parseAdminHash } from './mm-admin-hash'
-import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
-import { hydrateMmIcons } from './mm-icons'
+import { buildAdminHash, parseAdminHash } from '../admin/mm-admin-hash'
+import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
+import { hydrateMmIcons } from '../mm-icons'
+import { MmToast } from '../shared/mm-toast'
+import { initMmTooltipDelegation } from '../shared/mm-tooltip'
 import { type RulesHashRoute } from './mm-rules-hash'
-import { MmToast } from './mm-toast'
-import { initMmTooltipDelegation } from './mm-tooltip'
 
 type SearchSelectOption = { value: string; label: string }
 
@@ -199,10 +199,10 @@ export class MmRulesApp extends HTMLElement {
     }
     const valueEl = templateSelect.querySelector('[data-ref="select-value"]') as HTMLElement | null
     if (valueEl) valueEl.textContent = labelMap[value]
-    templateSelect.querySelectorAll<HTMLElement>('[data-value]').forEach((option) => {
+    templateSelect.querySelectorAll<HTMLElement>('.mm-select-menu [data-value]').forEach((option) => {
       const selected = option.dataset.value === value
       option.setAttribute('aria-selected', String(selected))
-      option.hidden = selected
+      option.removeAttribute('hidden')
     })
   }
 
@@ -213,10 +213,10 @@ export class MmRulesApp extends HTMLElement {
     modeInput.value = value
     const valueEl = modeSelect.querySelector('[data-ref="select-value"]') as HTMLElement | null
     if (valueEl) valueEl.textContent = value === 'exclude' ? 'Exclude' : 'Include'
-    modeSelect.querySelectorAll<HTMLElement>('[data-value]').forEach((option) => {
+    modeSelect.querySelectorAll<HTMLElement>('.mm-select-menu [data-value]').forEach((option) => {
       const selected = option.dataset.value === value
       option.setAttribute('aria-selected', String(selected))
-      option.hidden = selected
+      option.removeAttribute('hidden')
     })
   }
 

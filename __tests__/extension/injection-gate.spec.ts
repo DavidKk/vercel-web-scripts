@@ -1,4 +1,4 @@
-import { isHtmlDocumentForInjection } from '../../extension/src/bridge/injection-gate'
+import { isHtmlDocumentForInjection } from '@ext/bridge/injection-gate'
 
 function mockDoc(contentType: string, root?: { tagName: string; namespaceURI: string | null }): Pick<Document, 'contentType' | 'documentElement'> {
   return {

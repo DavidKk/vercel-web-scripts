@@ -4,7 +4,7 @@ import {
   incrementTabTriggerCount,
   resetTabTriggerCountsForPageLoad,
   syncTabTriggerUrlForClientNavigation,
-} from '../../extension/src/shared/tab-trigger-badge'
+} from '@ext/shared/tab-trigger-badge'
 
 describe('tab-trigger-badge', () => {
   const tabId = 42

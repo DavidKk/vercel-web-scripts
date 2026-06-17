@@ -1,5 +1,14 @@
 const TRUSTED_HTML_POLICY_NAME = 'vwsTrustedHtml'
 
+interface TrustedHtmlPolicy {
+  createHTML(input: string): unknown
+}
+
+interface TrustedTypePolicyFactoryLike {
+  createPolicy(name: string, rules: { createHTML: (input: string) => string }): TrustedHtmlPolicy
+  defaultPolicy?: TrustedHtmlPolicy | null
+}
+
 /**
  * Whether an error was thrown by Trusted Types blocking HTML assignment.
  * @param error Caught DOM assignment error
@@ -11,9 +20,9 @@ export function isTrustedTypesHtmlError(error: unknown): boolean {
   return /TrustedHTML/i.test(error.message)
 }
 
-let trustedHtmlPolicy: TrustedTypePolicy | null | undefined
+let trustedHtmlPolicy: TrustedHtmlPolicy | null | undefined
 
-function getTrustedHtmlPolicy(): TrustedTypePolicy | null {
+function getTrustedHtmlPolicy(): TrustedHtmlPolicy | null {
   if (trustedHtmlPolicy !== undefined) {
     return trustedHtmlPolicy
   }
@@ -23,13 +32,13 @@ function getTrustedHtmlPolicy(): TrustedTypePolicy | null {
     return trustedHtmlPolicy
   }
 
-  const factory = (window as Window & { trustedTypes?: TrustedTypePolicyFactory }).trustedTypes
+  const factory = (window as Window & { trustedTypes?: TrustedTypePolicyFactoryLike }).trustedTypes
   if (!factory?.createPolicy) {
     return trustedHtmlPolicy
   }
 
   try {
-    trustedHtmlPolicy = factory.createPolicy(TRUSTED_HTML_POLICY_NAME, { createHTML: (input) => input })
+    trustedHtmlPolicy = factory.createPolicy(TRUSTED_HTML_POLICY_NAME, { createHTML: (input: string) => input })
   } catch {
     trustedHtmlPolicy = factory.defaultPolicy ?? null
   }

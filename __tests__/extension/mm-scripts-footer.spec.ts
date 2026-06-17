@@ -1,4 +1,4 @@
-import { computeScriptsFooterStats, formatScriptsFooterText } from '../../extension/src/ui/mm-scripts-footer'
+import { computeScriptsFooterStats, formatScriptsFooterText } from '@ext/ui/scripts/mm-scripts-footer'
 
 describe('mm-scripts-footer', () => {
   describe('formatScriptsFooterText', () => {

@@ -3,7 +3,7 @@ import {
   createEmptyScriptInstallRegistry,
   recordScriptUninstallInRegistry,
   resolveInstalledFromRegistry,
-} from '../../extension/src/shared/extension-storage/script-install-registry'
+} from '@ext/shared/extension-storage/script-install-registry'
 
 describe('script-install-registry', () => {
   it('keeps uninstall for the same scriptKey and file', () => {

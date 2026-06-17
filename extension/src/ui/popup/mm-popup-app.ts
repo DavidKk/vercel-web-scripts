@@ -12,8 +12,8 @@ import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
-import { bindAdminNavIndicator, syncAdminNavIndicator } from './mm-admin-nav'
-import { hydrateIconSlot, hydrateMmIcons, setIconSlotLoading } from './mm-icons'
+import { bindAdminNavIndicator, syncAdminNavIndicator } from '../admin/mm-admin-nav'
+import { hydrateIconSlot, hydrateMmIcons, setIconSlotLoading } from '../mm-icons'
 import { formatPopupVersionFooter } from './popup-version-footer'
 
 type SearchSelectOption = { value: string; label: string }
@@ -542,10 +542,10 @@ export class MmPopupApp extends HTMLElement {
     if (valueEl) {
       valueEl.textContent = labelMap[value]
     }
-    templateSelect.querySelectorAll<HTMLElement>('[data-value]').forEach((option) => {
+    templateSelect.querySelectorAll<HTMLElement>('.mm-select-menu [data-value]').forEach((option) => {
       const selected = option.dataset.value === value
       option.setAttribute('aria-selected', String(selected))
-      option.hidden = selected
+      option.removeAttribute('hidden')
     })
   }
 

@@ -5,11 +5,13 @@ import { focusTabById } from '@ext/shared/focus-or-open-tab'
 import { sendShellMessage } from '@ext/shared/messages'
 import { getCachedShellLogOutputMode, setCachedIncognitoLogCollection } from '@ext/shared/shell-log-output-cache'
 
+import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
+import type { MmSearchSelect } from '../mm-form-components/mm-search-select'
+import { bindScrollIndicator } from '../mm-form-components/scroll-indicator'
+import { hydrateMmIcons } from '../mm-icons'
+import { MmToast } from '../shared/mm-toast'
+import { initMmTooltipDelegation } from '../shared/mm-tooltip'
 import { createMockDebugLogEntries, getLogsDebugOverrides, subscribeLogsDebug } from './logs-debug-state'
-import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
-import type { MmSearchSelect } from './mm-form-components/mm-search-select'
-import { bindScrollIndicator } from './mm-form-components/scroll-indicator'
-import { hydrateMmIcons } from './mm-icons'
 import {
   canDeselectDebugLogLevel,
   type DebugLogsIncognitoFilter,
@@ -20,8 +22,6 @@ import {
   getDebugLogsEmptyMessage,
   hasActiveDebugLogFilters,
 } from './mm-logs-filter'
-import { MmToast } from './mm-toast'
-import { initMmTooltipDelegation } from './mm-tooltip'
 
 const ALL_SOURCES: DebugLogSource[] = ['background', 'popup', 'admin', 'content', 'inject', 'page']
 const PORT_RECONNECT_MS = 500

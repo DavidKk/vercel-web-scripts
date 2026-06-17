@@ -37,11 +37,15 @@ export interface ServiceProfile {
   updatedAt: number
 }
 
+import type { ScriptPermissionMode } from '@shared/script-permission'
+
 /** Per scriptKey metadata shared by all Services with the same scriptKey. */
 export interface ScriptKeyMeta {
   scriptKey: string
   /** GM namespace prefix; unique across the extension. */
   gmScope: string
+  /** Full trust auto-allows gated APIs; ask prompts (default). */
+  permissionMode?: ScriptPermissionMode
 }
 
 /** Persisted multi-service state. */
@@ -67,6 +71,8 @@ export interface ScriptKeyBootstrapEntry {
   developMode: boolean
   /** Per-file enable toggles (`vws_script_enabled:{scriptKey}:{file}`). */
   enabledScripts: Record<string, boolean>
+  /** Content hashes for permission registry invalidation. */
+  contentHashByFile?: Record<string, string>
 }
 
 /** Injected on page before launcher runs */
@@ -76,6 +82,8 @@ export interface PageBootstrapConfig {
   incognito?: boolean
   /** One entry per enabled unique scriptKey (deduped). */
   scriptKeys: ScriptKeyBootstrapEntry[]
+  /** Script keys with Servers → Permission mode = Full trust (page-world sync seed). */
+  permissionTrustScriptKeys?: string[]
   /** @deprecated Legacy single-service mirror of the first scriptKey entry. */
   baseUrl?: string
   scriptKey?: string

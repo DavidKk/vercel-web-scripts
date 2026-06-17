@@ -2,21 +2,22 @@
  * GM_* APIs on the page (MAIN world). Storage and XHR are delegated to the isolated content-script bridge.
  */
 
-import { gmLogger } from '@ext/shared/logger'
+import { gmLogger, permissionLogger } from '@ext/shared/logger'
 import { setCachedShellLogOutputMode } from '@ext/shared/shell-log-output-cache'
 import { LEGACY_AUTO_UPDATE_SCRIPT_KEY, SHELL_LOG_PERSIST_ENABLED_KEY, SHELL_NETWORK_ENABLED_KEY } from '@shared/launcher-constants'
+import type { ScriptPermissionRequest } from '@shared/script-permission'
+import { normalizePermissionNetworkHost } from '@shared/script-permission'
 import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 import type { GMApi, GMRequestDetails, GMResponse, GMValue } from './gm-types'
+import { sendPageBridgeRequest, setPageBridgeToken } from './page-bridge-client'
+import { isPagePermissionAllowed, rememberPagePermissionAllow } from './page-permission-allow-cache'
+import { ensureScriptPermission, getActiveScriptPermissionContext, isScriptPermissionEnforced, ScriptPermissionDeniedError } from './script-permission-scope'
 
-const REQUEST_EVENT = 'vws-gm-request'
-const RESPONSE_EVENT = 'vws-gm-response'
 const STORAGE_CHANGED_EVENT = 'vws-gm-storage-changed'
 const BRIDGE_MESSAGE_SOURCE = 'vws-extension-bridge'
 const XHR_CALLBACK_KEYS = new Set(['onabort', 'onerror', 'onload', 'onloadend', 'onloadstart', 'onprogress', 'onreadystatechange', 'ontimeout'])
 
-let requestId = 0
-const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
 const changeListeners = new Map<string, Map<string, (name: string, oldValue: GMValue, newValue: GMValue) => void>>()
 let listenerSeq = 0
 let activeGmScope: string | null = null
@@ -28,6 +29,11 @@ const GM_GLOBAL_KEYS = new Set<string>([SHELL_NETWORK_ENABLED_KEY, SHELL_LOG_PER
  */
 export function setActiveGmScope(gmScope: string | null): void {
   activeGmScope = gmScope?.trim() ? gmScope.trim() : null
+}
+
+/** Set once from bootstrap payload (content script → page launcher). */
+export function setGmBridgeToken(token: string): void {
+  setPageBridgeToken(token)
 }
 
 function physicalGmKey(key: string): string {
@@ -68,35 +74,7 @@ function getStore(): Record<string, GMValue> {
 }
 
 function sendRequest<T>(method: string, args: unknown[]): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const id = ++requestId
-    pending.set(id, { resolve: resolve as (v: unknown) => void, reject })
-    window.postMessage({ source: BRIDGE_MESSAGE_SOURCE, type: REQUEST_EVENT, payload: { id, method, args } }, '*')
-    setTimeout(() => {
-      if (pending.has(id)) {
-        pending.delete(id)
-        reject(new Error(`GM bridge timeout: ${method}`))
-      }
-    }, 30000)
-  })
-}
-
-function handleBridgeResponse(payload: unknown): void {
-  if (!payload || typeof payload !== 'object') {
-    return
-  }
-  const { id, result, error } = payload as { id?: unknown; result?: unknown; error?: unknown }
-  if (typeof id !== 'number') {
-    return
-  }
-  const entry = pending.get(id)
-  if (!entry) return
-  pending.delete(id)
-  if (typeof error === 'string' && error) {
-    entry.reject(new Error(error))
-  } else {
-    entry.resolve(result)
-  }
+  return sendPageBridgeRequest<T>(method, args)
 }
 
 function handleStorageChanged(payload: unknown): void {
@@ -145,6 +123,115 @@ function sanitizeXhrDetails(details: GMRequestDetails): Record<string, unknown> 
   return payload
 }
 
+function buildXhrPermissionRequest(details: GMRequestDetails, context: ReturnType<typeof getActiveScriptPermissionContext>): ScriptPermissionRequest | undefined {
+  if (!context) {
+    return undefined
+  }
+  const networkResource = normalizePermissionNetworkHost(String(details.url ?? ''))
+  if (!networkResource) {
+    return undefined
+  }
+  return {
+    ...context,
+    capability: 'network',
+    resource: networkResource,
+  }
+}
+
+function createUnsafeWindowGate(): Window {
+  type AccessState = 'idle' | 'pending' | 'granted' | 'denied'
+  let state: AccessState = 'idle'
+
+  const denyAccess = (): never => {
+    throw new ScriptPermissionDeniedError('unsafe-window access denied')
+  }
+
+  const ensureAccess = (): void => {
+    if (!isScriptPermissionEnforced()) {
+      return
+    }
+    if (state === 'granted') {
+      return
+    }
+    if (state === 'denied') {
+      denyAccess()
+    }
+    if (state === 'pending') {
+      throw new ScriptPermissionDeniedError('unsafe-window permission pending — retry after granting')
+    }
+    const request = (() => {
+      const ctx = getActiveScriptPermissionContext()
+      if (!ctx) {
+        return null
+      }
+      return { ...ctx, capability: 'unsafe-window' as const, resource: '*' }
+    })()
+    if (!request) {
+      throw new ScriptPermissionDeniedError('No active script permission context')
+    }
+    if (isPagePermissionAllowed(request)) {
+      permissionLogger.debug('unsafeWindow:page-cached-allow', {
+        file: request.file,
+        capability: request.capability,
+        resource: request.resource,
+        scriptKey: request.scriptKey,
+      })
+      state = 'granted'
+      return
+    }
+    state = 'pending'
+    permissionLogger.info('unsafeWindow:request', {
+      file: request.file,
+      capability: request.capability,
+      resource: request.resource,
+      scriptKey: request.scriptKey,
+    })
+    void sendPageBridgeRequest<boolean>('permission', [request], 5 * 60 * 1000).then((allowed) => {
+      state = allowed ? 'granted' : 'denied'
+      if (allowed) {
+        rememberPagePermissionAllow(request)
+      }
+      permissionLogger.info('unsafeWindow:result', { file: request.file, allowed })
+      if (!allowed) {
+        gmLogger.warn('unsafeWindow denied by user or policy')
+      }
+    })
+    throw new ScriptPermissionDeniedError('unsafe-window permission required')
+  }
+
+  return new Proxy(window, {
+    get(target, prop, receiver) {
+      if (!isScriptPermissionEnforced() || state === 'granted') {
+        return Reflect.get(target, prop, receiver)
+      }
+      ensureAccess()
+      return Reflect.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (!isScriptPermissionEnforced() || state === 'granted') {
+        return Reflect.set(target, prop, value, receiver)
+      }
+      ensureAccess()
+      return Reflect.set(target, prop, value, receiver)
+    },
+  })
+}
+
+function isBlobLike(value: unknown): value is Blob {
+  return typeof value === 'object' && value !== null && typeof (value as Blob).size === 'number' && typeof (value as Blob).slice === 'function'
+}
+
+function triggerBrowserDownload(url: string, filename: string): void {
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.rel = 'noopener'
+  anchor.style.display = 'none'
+  document.documentElement.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+}
+
 function buildXhrResponse(
   res: { status: number; statusText?: string; responseText: string; responseHeaders?: string; finalUrl?: string },
   responseType?: GMRequestDetails['responseType']
@@ -169,10 +256,6 @@ function buildXhrResponse(
   }
 }
 
-window.addEventListener(RESPONSE_EVENT, ((event: CustomEvent<{ id: number; result?: unknown; error?: string }>) => {
-  handleBridgeResponse(event.detail)
-}) as EventListener)
-
 window.addEventListener('vws-gm-storage-changed', ((event: CustomEvent<{ key: string; oldValue: GMValue; newValue: GMValue }>) => {
   handleStorageChanged(event.detail)
 }) as EventListener)
@@ -185,9 +268,7 @@ window.addEventListener('message', (event: MessageEvent) => {
   if (source !== BRIDGE_MESSAGE_SOURCE) {
     return
   }
-  if (type === RESPONSE_EVENT) {
-    handleBridgeResponse(payload)
-  } else if (type === STORAGE_CHANGED_EVENT) {
+  if (type === STORAGE_CHANGED_EVENT) {
     handleStorageChanged(payload)
   }
 })
@@ -266,21 +347,38 @@ export function installGmApiOnPage(): GMApi {
     GM_xmlhttpRequest(details: GMRequestDetails): void {
       const { onload, onerror, onprogress, onreadystatechange, ontimeout, onabort } = details
       void onprogress
+      const enforced = isScriptPermissionEnforced()
+      const permissionContext = enforced ? getActiveScriptPermissionContext() : null
       const xhrPayload = sanitizeXhrDetails(details)
-      void sendRequest<{ status: number; statusText?: string; responseText: string; responseHeaders?: string; finalUrl?: string }>('xhr', [xhrPayload])
-        .then((res) => {
+      const permissionRequest = enforced ? buildXhrPermissionRequest(details, permissionContext) : undefined
+      void (async () => {
+        try {
+          if (enforced) {
+            if (!permissionRequest) {
+              throw new ScriptPermissionDeniedError('Invalid request URL for network permission')
+            }
+            await ensureScriptPermission('network', permissionRequest.resource, permissionContext)
+          }
+          const res = await sendRequest<{ status: number; statusText?: string; responseText: string; responseHeaders?: string; finalUrl?: string }>('xhr', [
+            xhrPayload,
+            permissionRequest,
+          ])
           const response = buildXhrResponse(res, details.responseType)
           onreadystatechange?.(response)
           onload?.(response)
-        })
-        .catch((err) => {
+        } catch (err) {
+          if (err instanceof ScriptPermissionDeniedError) {
+            onerror?.(err)
+            return
+          }
           if (err instanceof Error && err.name === 'AbortError') {
             ontimeout?.(err)
             return
           }
           onabort?.(err)
           onerror?.(err)
-        })
+        }
+      })()
     },
     GM_registerMenuCommand(caption: string, onClick: () => void): string {
       gmLogger.debug('Menu registered:', caption)
@@ -323,17 +421,105 @@ export function installGmApiOnPage(): GMApi {
       }
     },
     GM_openInTab(url: string): Window | null {
-      return window.open(url, '_blank', 'noopener,noreferrer')
+      void (async () => {
+        try {
+          if (isScriptPermissionEnforced()) {
+            const permissionContext = getActiveScriptPermissionContext()
+            const tabResource = normalizePermissionNetworkHost(url)
+            if (!tabResource) {
+              throw new ScriptPermissionDeniedError('Invalid URL for open-tab permission')
+            }
+            await ensureScriptPermission('open-tab', tabResource, permissionContext)
+          }
+          window.open(url, '_blank', 'noopener,noreferrer')
+        } catch (error) {
+          gmLogger.warn('openInTab denied:', error)
+        }
+      })()
+      return null
     },
     GM_setClipboard(data: string, _info?: unknown, cb?: () => void): void {
-      const write = navigator.clipboard?.writeText(data) ?? Promise.resolve()
-      void write
-        .catch((e) => {
-          gmLogger.error('setClipboard failed:', e)
-        })
-        .finally(() => {
+      void (async () => {
+        try {
+          if (isScriptPermissionEnforced()) {
+            const permissionContext = getActiveScriptPermissionContext()
+            await ensureScriptPermission('clipboard-write', '*', permissionContext)
+          }
+          const write = navigator.clipboard?.writeText(data) ?? Promise.resolve()
+          await write
           cb?.()
-        })
+        } catch (error) {
+          gmLogger.error('setClipboard failed:', error)
+        }
+      })()
+    },
+    GM_download(
+      details:
+        | string
+        | {
+            url: string | Blob | File
+            name?: string
+            onerror?: (error: { error: string }) => void
+            onload?: () => void
+          },
+      name?: string
+    ): { abort: () => void } {
+      const permissionContext = getActiveScriptPermissionContext()
+      let aborted = false
+      void (async () => {
+        try {
+          if (typeof details === 'string') {
+            if (isScriptPermissionEnforced()) {
+              const resource = normalizePermissionNetworkHost(details)
+              if (!resource) {
+                throw new ScriptPermissionDeniedError('Invalid URL for download permission')
+              }
+              await ensureScriptPermission('download', resource, permissionContext)
+            }
+            if (aborted) {
+              return
+            }
+            triggerBrowserDownload(details, name ?? 'download')
+            return
+          }
+          if (isBlobLike(details.url)) {
+            if (isScriptPermissionEnforced()) {
+              await ensureScriptPermission('download', '*', permissionContext)
+            }
+            if (aborted) {
+              return
+            }
+            const blobUrl = URL.createObjectURL(details.url)
+            triggerBrowserDownload(blobUrl, details.name ?? name ?? 'download')
+            URL.revokeObjectURL(blobUrl)
+            details.onload?.()
+            return
+          }
+          if (isScriptPermissionEnforced()) {
+            const resource = normalizePermissionNetworkHost(details.url)
+            if (!resource) {
+              throw new ScriptPermissionDeniedError('Invalid URL for download permission')
+            }
+            await ensureScriptPermission('download', resource, permissionContext)
+          }
+          if (aborted) {
+            return
+          }
+          triggerBrowserDownload(details.url, details.name ?? name ?? 'download')
+          details.onload?.()
+        } catch (error) {
+          if (typeof details !== 'string') {
+            details.onerror?.({ error: error instanceof Error ? error.message : String(error) })
+          } else {
+            gmLogger.error('download failed:', error)
+          }
+        }
+      })()
+      return {
+        abort: () => {
+          aborted = true
+        },
+      }
     },
     GM_info: {
       script: {
@@ -344,7 +530,7 @@ export function installGmApiOnPage(): GMApi {
       scriptHandler: 'MagickMonkey',
       isIncognito: window.__VWS_PAGE_CONFIG__?.incognito === true,
     },
-    unsafeWindow: window,
+    unsafeWindow: createUnsafeWindowGate(),
   }
 
   const g = globalThis as Record<string, unknown>

@@ -10,9 +10,9 @@ import {
   scriptInstalledStorageKey,
   scriptKeyListCacheStorageKey,
   scriptKeyRulesStorageKey,
-} from '../../extension/src/shared/extension-multi-service-pure'
-import { getGmScopeForScriptKey, resolveActiveServiceForUi } from '../../extension/src/shared/extension-services'
-import type { ExtensionServicesState, ServiceProfile } from '../../extension/src/types'
+} from '@ext/shared/extension-multi-service-pure'
+import { getGmScopeForScriptKey, resolveActiveServiceForUi } from '@ext/shared/extension-services'
+import type { ExtensionServicesState, ServiceProfile } from '@ext/types'
 
 function makeService(partial: Partial<ServiceProfile> & Pick<ServiceProfile, 'id' | 'baseUrl' | 'scriptKey'>): ServiceProfile {
   const now = Date.now()

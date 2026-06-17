@@ -1,4 +1,4 @@
-import { countCompiledRemoteModules, formatCacheInventory, parseRulesCacheStats, shortCacheLabel } from '../../shared/cache-debug'
+import { countCompiledRemoteModules, formatCacheInventory, parseRulesCacheStats, shortCacheLabel } from '@shared/cache-debug'
 
 describe('cache-debug', () => {
   it('counts compiled module markers in remote bundle', () => {

@@ -1,4 +1,4 @@
-import { buildAdminPageUrl } from './mm-admin-hash'
+import { buildAdminPageUrl } from '../admin/mm-admin-hash'
 
 export type RulesHashRoute = { kind: 'empty' } | { kind: 'new' } | { kind: 'rule'; ruleId: string } | { kind: 'script'; scriptValue: string }
 

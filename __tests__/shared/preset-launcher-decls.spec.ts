@@ -1,4 +1,4 @@
-import { buildPresetLauncherDecls, buildPresetUiExecDecls, isLikelyPresetUiBundle, PRESET_LAUNCHER_SANDBOX_DECL_NAMES } from '../../shared/preset-launcher-decls'
+import { buildPresetLauncherDecls, buildPresetUiExecDecls, isLikelyPresetUiBundle, PRESET_LAUNCHER_SANDBOX_DECL_NAMES } from '@shared/preset-launcher-decls'
 
 describe('preset-launcher-decls', () => {
   it('buildPresetLauncherDecls includes sandbox and preset globals', () => {

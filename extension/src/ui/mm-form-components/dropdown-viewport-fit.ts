@@ -57,7 +57,8 @@ export function fitDropdownScrollerToViewport(options: FitDropdownScrollerOption
   const viewportLimit = Math.max(0, window.innerHeight - menuTop - edgePadding)
   const chromeHeight = Math.max(0, menu.offsetHeight - scroller.offsetHeight)
   const maxScrollerHeight = Math.max(0, viewportLimit - chromeHeight)
-  const cappedHeight = Math.min(naturalScrollerHeight, maxScrollerHeight)
+  const minVisibleRowHeight = measureOptionsBlockHeight(scroller, optionSelector, 1) || 32
+  const cappedHeight = Math.max(minVisibleRowHeight, Math.min(naturalScrollerHeight, maxScrollerHeight))
 
   scroller.style.maxHeight = `${cappedHeight}px`
 

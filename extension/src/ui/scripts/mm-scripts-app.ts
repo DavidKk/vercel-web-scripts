@@ -17,15 +17,16 @@ import {
 import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
 
-import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
-import type { MmSearchSelect } from './mm-form-components/mm-search-select'
-import { formatScriptUpdatedAt } from './mm-format-relative-time'
-import { hydrateMmIcons } from './mm-icons'
-import { buildRulesPageScriptUrl } from './mm-rules-hash'
+import { type AdminRoute, buildAdminHash, parseAdminHash } from '../admin/mm-admin-hash'
+import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
+import type { MmSearchSelect } from '../mm-form-components/mm-search-select'
+import { hydrateMmIcons } from '../mm-icons'
+import { buildRulesPageScriptUrl } from '../rules/mm-rules-hash'
+import { formatScriptUpdatedAt } from '../shared/mm-format-relative-time'
+import { createMmSwitch } from '../shared/mm-switch'
+import { MmToast } from '../shared/mm-toast'
+import { initMmTooltipDelegation, updateMmTooltip } from '../shared/mm-tooltip'
 import { computeScriptsFooterStats, formatScriptsFooterText } from './mm-scripts-footer'
-import { createMmSwitch } from './mm-switch'
-import { MmToast } from './mm-toast'
-import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
 import { createMockScriptKeyScriptsGroups, getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
 
 type ScriptRow = {
@@ -62,6 +63,8 @@ export class MmScriptsApp extends HTMLElement {
   private unsubscribeDebug: (() => void) | undefined
   private scrollResizeObserver: ResizeObserver | undefined
   private reloadToken = 0
+  private pendingScriptFocus: { scriptKey: string; file: string } | null = null
+  private focusFilterClearedOnce = false
   private unsubscribeAdminView: (() => void) | undefined
   private masterSwitchInput: HTMLInputElement | null = null
   private masterSwitchRoot: HTMLLabelElement | null = null
@@ -81,7 +84,8 @@ export class MmScriptsApp extends HTMLElement {
     this.bindEvents()
     this.syncServiceFilterOptions()
     this.bindScrollIndicator()
-    this.unsubscribeAdminView = subscribeAdminViewActivated('scripts', () => {
+    this.unsubscribeAdminView = subscribeAdminViewActivated('scripts', (route) => {
+      this.captureScriptFocusFromRoute(route)
       void this.reloadList({ showShell: true })
     })
 
@@ -286,6 +290,8 @@ export class MmScriptsApp extends HTMLElement {
   private renderRow(item: ScriptRow, index: number): HTMLElement {
     const row = document.createElement('div')
     row.className = 'mm-script-row'
+    row.dataset.scriptKey = item.scriptKey
+    row.dataset.scriptFile = item.file
     if (!item.groupActive) {
       row.classList.add('mm-script-row--inactive')
     }
@@ -927,6 +933,98 @@ export class MmScriptsApp extends HTMLElement {
     this.syncMasterSwitchState()
     const hasActiveFilters = Boolean(((this.querySelector('[data-ref="search"]') as HTMLInputElement | null)?.value ?? '').trim()) || filter !== 'all' || serviceFilter !== 'all'
     this.syncScriptsFooter({ visibleCount: visibleRows, filtered: hasActiveFilters })
+    this.revealAndFocusPendingScriptRow(hasActiveFilters)
+  }
+
+  private captureScriptFocusFromRoute(route: AdminRoute): void {
+    if (route.tab !== 'scripts' || route.scripts.kind !== 'script') {
+      return
+    }
+    this.pendingScriptFocus = { scriptKey: route.scripts.scriptKey, file: route.scripts.file }
+    this.focusFilterClearedOnce = false
+  }
+
+  private scriptRowExists(scriptKey: string, file: string): boolean {
+    return this.groups.some((group) => group.rows.some((row) => row.scriptKey === scriptKey && row.file === file))
+  }
+
+  private clearListFilters(): void {
+    const searchInput = this.querySelector('[data-ref="search"]') as HTMLInputElement | null
+    const filterInput = this.querySelector('[data-ref="filter"]') as HTMLInputElement | null
+    if (searchInput) {
+      searchInput.value = ''
+    }
+    if (filterInput) {
+      filterInput.value = 'all'
+    }
+    this.getServiceSelect()?.setValue('all')
+  }
+
+  private findScriptRowElement(scriptKey: string, file: string): HTMLElement | null {
+    const content = this.querySelector('[data-ref="content"]') as HTMLElement | null
+    if (!content) {
+      return null
+    }
+    for (const row of content.querySelectorAll<HTMLElement>('.mm-script-row')) {
+      if (row.dataset.scriptKey === scriptKey && row.dataset.scriptFile === file) {
+        return row
+      }
+    }
+    return null
+  }
+
+  private clearScriptsHashFocus(): void {
+    const route = parseAdminHash(location.hash)
+    if (route.tab === 'scripts' && route.scripts.kind === 'script') {
+      history.replaceState(null, '', buildAdminHash({ tab: 'scripts', scripts: { kind: 'empty' } }))
+    }
+  }
+
+  private playScriptRowFocusAnimation(row: HTMLElement): void {
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    row.classList.remove('mm-script-row--focus')
+    void row.offsetWidth
+    row.classList.add('mm-script-row--focus')
+    row.addEventListener(
+      'animationend',
+      () => {
+        row.classList.remove('mm-script-row--focus')
+      },
+      { once: true }
+    )
+  }
+
+  private revealAndFocusPendingScriptRow(hasActiveFilters: boolean): void {
+    const target = this.pendingScriptFocus
+    if (!target) {
+      return
+    }
+
+    if (!this.scriptRowExists(target.scriptKey, target.file)) {
+      this.pendingScriptFocus = null
+      this.focusFilterClearedOnce = false
+      this.clearScriptsHashFocus()
+      this.toast.show('Script not found in list.', 'error')
+      return
+    }
+
+    if (hasActiveFilters && !this.focusFilterClearedOnce) {
+      this.focusFilterClearedOnce = true
+      this.clearListFilters()
+      this.applyFilters()
+      return
+    }
+
+    const rowEl = this.findScriptRowElement(target.scriptKey, target.file)
+    if (!rowEl) {
+      requestAnimationFrame(() => this.revealAndFocusPendingScriptRow(false))
+      return
+    }
+
+    this.pendingScriptFocus = null
+    this.focusFilterClearedOnce = false
+    this.clearScriptsHashFocus()
+    this.playScriptRowFocusAnimation(rowEl)
   }
 
   private renderGroups(filtered: Array<{ group: ScriptKeyGroupView; rows: ScriptRow[] }>): void {

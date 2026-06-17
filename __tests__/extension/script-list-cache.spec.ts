@@ -1,4 +1,4 @@
-import { enrichManagedScriptListWithUpdatedAt, SCRIPT_LIST_META_SCHEMA, scriptListCacheNeedsMetaRefresh } from '../../extension/src/shared/extension-storage/script-list-cache'
+import { enrichManagedScriptListWithUpdatedAt, SCRIPT_LIST_META_SCHEMA, scriptListCacheNeedsMetaRefresh } from '@ext/shared/extension-storage/script-list-cache'
 
 describe('enrichManagedScriptListWithUpdatedAt', () => {
   it('fills missing updatedAt from gist revision time', () => {

@@ -132,5 +132,8 @@ export const launcherLogger = createExtensionLogger('Launcher')
 /** GM API bridge logs */
 export const gmLogger = createExtensionLogger('GM')
 
+/** Script permission gate / modal logs */
+export const permissionLogger = createExtensionLogger('Permission')
+
 /** Extension shell / bootstrap logs */
 export const extensionLogger = createExtensionLogger('Extension')

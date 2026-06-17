@@ -4,7 +4,7 @@ import {
   markPresetCoreInjectionReady,
   PRESET_CORE_INJECTION_GATE_KEY,
   waitForPresetCoreInjectionReady,
-} from '../../shared/preset-core-injection-gate'
+} from '@shared/preset-core-injection-gate'
 
 describe('preset-core-injection-gate', () => {
   afterEach(() => {

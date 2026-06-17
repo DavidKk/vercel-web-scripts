@@ -92,7 +92,17 @@ export async function bootstrapPageBridge(): Promise<void> {
     throw error
   }
 
-  await injectPageLauncherWhenReady(pageConfig, gmStore)
+  let permissionAllowKeys: string[] = []
+  try {
+    const res = (await chrome.runtime.sendMessage({ type: 'GET_PAGE_PERMISSION_ALLOW_KEYS' })) as ShellResponse
+    if (res.ok && 'permissionAllowKeys' in res && Array.isArray(res.permissionAllowKeys)) {
+      permissionAllowKeys = res.permissionAllowKeys
+    }
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+  }
+
+  await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys)
 }
 
 /** Notify background that a top-level http(s) document loaded. */

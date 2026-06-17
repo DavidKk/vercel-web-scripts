@@ -1,4 +1,4 @@
-import type { DebugLogEntry } from '../../extension/src/shared/debug-log-types'
+import type { DebugLogEntry } from '@ext/shared/debug-log-types'
 import {
   canDeselectDebugLogLevel,
   DEFAULT_DEBUG_LOG_LEVEL_FILTER,
@@ -9,7 +9,7 @@ import {
   formatDebugLogsForClipboard,
   getDebugLogsEmptyMessage,
   hasActiveDebugLogFilters,
-} from '../../extension/src/ui/mm-logs-filter'
+} from '@ext/ui/logs/mm-logs-filter'
 
 function entry(partial: Partial<DebugLogEntry> & Pick<DebugLogEntry, 'id' | 'level' | 'source' | 'scope' | 'message'>): DebugLogEntry {
   return {

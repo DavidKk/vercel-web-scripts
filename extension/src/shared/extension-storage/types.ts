@@ -52,6 +52,8 @@ export interface ScriptKeyScriptsGroupView extends ScriptKeyGroupMeta {
   scripts: ManagedScriptListEntry[]
 }
 
+import type { ScriptPermissionMode } from '@shared/script-permission'
+
 export interface SaveOptionsServiceInput {
   serviceId: string
   label: string
@@ -60,4 +62,5 @@ export interface SaveOptionsServiceInput {
   enabled: boolean
   developMode: boolean
   gmScope?: string
+  permissionMode?: ScriptPermissionMode
 }

@@ -1,4 +1,4 @@
-import { executeInMainWorldScript, isUserScriptsApiAvailable } from '../../extension/src/shell/csp-user-script-executor'
+import { executeInMainWorldScript, isUserScriptsApiAvailable } from '@ext/shell/csp-user-script-executor'
 
 type UserScriptsMock = {
   getScripts: jest.Mock

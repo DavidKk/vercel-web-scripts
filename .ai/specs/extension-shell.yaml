@@ -29,13 +29,21 @@ modules:
 
   - id: admin
     title: Admin UI (admin.html)
-    purpose: Servers, Scripts, Rules, Logs tabs via hash router
+    purpose: Servers, Scripts, Rules, Logs, Permissions tabs via hash router
     path: extension/src/ui/ + extension/src/html/
+
+  - id: script-permissions
+    title: Script permission gate + registry
+    purpose: Tier-1 GM capability prompts; persistent/session/once storage; Admin Permissions tab
+    path: extension/src/shell/permission-manager.ts
+    shared: shared/script-permission.ts
+    admin_tab: permissions
+    doc: tasks/active/script-permissions.md
 
   - id: popup
     title: Toolbar popup
     purpose: Shell controls, log mode, quick rules, extension reload (dev)
-    path: extension/src/ui/mm-popup-app.ts
+    path: extension/src/ui/popup/mm-popup-app.ts
 
   - id: debug-log-store
     title: Session debug log buffer
@@ -50,13 +58,18 @@ modules:
 debug_panels:
   - id: scripts-debug
     tab: scripts
-    path: extension/src/ui/mm-scripts-debug-panel.ts
+    path: extension/src/ui/scripts/mm-scripts-debug-panel.ts
     visibility: admin tab scripts only
 
   - id: logs-debug
     tab: logs
-    path: extension/src/ui/mm-logs-debug-panel.ts
+    path: extension/src/ui/logs/mm-logs-debug-panel.ts
     visibility: admin tab logs only
+
+  - id: permissions-debug
+    tab: permissions
+    path: extension/src/ui/permissions/mm-permissions-debug-panel.ts
+    visibility: admin tab permissions only
 
 references:
   readme: extension/README.md

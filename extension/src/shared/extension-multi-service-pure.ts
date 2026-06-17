@@ -1,4 +1,5 @@
-import { isManagedScriptFilename } from '../../../shared/managed-script-files'
+import { isManagedScriptFilename } from '@shared/managed-script-files'
+
 import type { ExtensionServicesState, ScriptKeyBootstrapEntry } from '../types'
 import { defaultLabelFromBaseUrl, getEnabledScriptKeys, getGmScopeForScriptKey, normalizeScriptKey, resolveOtaEndpoint } from './extension-services'
 
@@ -154,7 +155,7 @@ export function buildScriptKeyGroupMetaFromState(state: ExtensionServicesState):
 /** Build bootstrap entries from services state (pure; for tests and async loader). */
 export function buildScriptKeyBootstrapEntriesFromState(
   state: ExtensionServicesState,
-  listsByScriptKey: Record<string, { files: string[]; enabledByFile: Record<string, boolean> }>
+  listsByScriptKey: Record<string, { files: string[]; enabledByFile: Record<string, boolean>; contentHashByFile?: Record<string, string> }>
 ): ScriptKeyBootstrapEntry[] {
   const entries: ScriptKeyBootstrapEntry[] = []
   for (const scriptKey of getEnabledScriptKeys(state.services)) {
@@ -179,6 +180,7 @@ export function buildScriptKeyBootstrapEntriesFromState(
       gmScope: getGmScopeForScriptKey(normalized, state.scriptKeyMeta, endpoint.label, endpoint.baseUrl),
       developMode: endpoint.developMode === true,
       enabledScripts,
+      ...(list.contentHashByFile && Object.keys(list.contentHashByFile).length > 0 ? { contentHashByFile: list.contentHashByFile } : {}),
     })
   }
   return entries

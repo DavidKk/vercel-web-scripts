@@ -12,6 +12,7 @@ import {
   normalizeScriptKey,
   resolveActiveServiceForUi,
   serviceEndpointKey,
+  setPermissionModeOnState,
 } from '../extension-services'
 import { clearRuntimeModuleCache } from './runtime-cache'
 import { refreshExtensionServiceData } from './service-data-sync'
@@ -237,6 +238,9 @@ export async function saveActiveServiceFromOptions(input: SaveOptionsServiceInpu
   if (input.gmScope?.trim()) {
     setGmScopeOnState(state, scriptKey, input.gmScope.trim())
   }
+  if (input.permissionMode) {
+    setPermissionModeOnState(state, scriptKey, input.permissionMode)
+  }
 
   await saveExtensionServicesState(state)
 
@@ -284,6 +288,9 @@ export async function createServiceFromOptions(input: Omit<SaveOptionsServiceInp
   ensureScriptKeyMetaEntry(state, scriptKey, service.label, service.baseUrl)
   if (input.gmScope?.trim()) {
     setGmScopeOnState(state, scriptKey, input.gmScope.trim())
+  }
+  if (input.permissionMode) {
+    setPermissionModeOnState(state, scriptKey, input.permissionMode)
   }
   await saveExtensionServicesState(state)
   try {

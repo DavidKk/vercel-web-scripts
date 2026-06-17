@@ -1,11 +1,5 @@
-import { DEBUG_LOG_MESSAGE_MAX_CHARS } from '../../extension/src/shared/debug-log-types'
-import {
-  buildDebugLogMetaFromTab,
-  dedupeDebugLogEntriesById,
-  isIncognitoDebugLogEntry,
-  parseDebugLogHost,
-  truncateDebugLogMessage,
-} from '../../extension/src/shared/debug-log-utils'
+import { DEBUG_LOG_MESSAGE_MAX_CHARS } from '@ext/shared/debug-log-types'
+import { buildDebugLogMetaFromTab, dedupeDebugLogEntriesById, isIncognitoDebugLogEntry, parseDebugLogHost, truncateDebugLogMessage } from '@ext/shared/debug-log-utils'
 
 describe('debug-log-utils', () => {
   it('should parse host from http urls', () => {

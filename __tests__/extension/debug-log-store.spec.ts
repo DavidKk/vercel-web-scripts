@@ -1,4 +1,4 @@
-import { appendDebugLog, clearDebugLogs, getDebugLogSnapshot, setDebugLogCollectionGate, setIncognitoLogCollectionGate } from '../../extension/src/shell/debug-log-store'
+import { appendDebugLog, clearDebugLogs, getDebugLogSnapshot, setDebugLogCollectionGate, setIncognitoLogCollectionGate } from '@ext/shell/debug-log-store'
 
 describe('debug-log-store', () => {
   beforeEach(() => {

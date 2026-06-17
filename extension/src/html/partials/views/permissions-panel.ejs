@@ -1,0 +1,61 @@
+        <div class="mm-permissions-main">
+          <div class="mm-permissions-head">
+            <div class="mm-permissions-head-copy">
+              <h2 class="mm-servers-pane-title">Permissions</h2>
+              <p class="mm-servers-pane-desc">Set each permission to <strong>Allow</strong> (always granted), <strong>Ask each time</strong> (prompt on next use — reload the page afterward), or <strong>Deny</strong> (always blocked).</p>
+            </div>
+            <div class="mm-panel-toolbar" data-ref="toolbar">
+              <mm-input>
+                <span class="mm-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" fill="none">
+                    <path d="m14.1 14.1 3.4 3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                    <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.7" />
+                  </svg>
+                </span>
+                <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Search permissions" autocomplete="off" spellcheck="false" />
+              </mm-input>
+              <mm-select>
+                <input type="hidden" data-ref="policy-filter" value="all" aria-label="Filter by policy" />
+                <button type="button" class="mm-select-trigger" data-ref="select-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by policy">
+                  <span class="mm-select-leading mm-icon-slot" data-ref="select-leading" data-icon="permissionMixed" aria-hidden="true"></span>
+                  <span class="mm-select-value" data-ref="select-value">All policies</span>
+                  <%- include('../partials/mm-select-chevron') %>
+                </button>
+                <div class="mm-select-menu" role="listbox">
+                  <button type="button" class="mm-select-option" data-value="all" data-label="All policies" aria-selected="true">
+                    <span class="mm-select-option-icon mm-icon-slot" data-icon="permissionMixed" aria-hidden="true"></span>
+                    <span class="mm-select-option-label">All policies</span>
+                  </button>
+                  <button type="button" class="mm-select-option" data-value="allow" data-label="Allow" aria-selected="false">
+                    <span class="mm-select-option-icon mm-icon-slot" data-icon="permissionAllow" aria-hidden="true"></span>
+                    <span class="mm-select-option-label">Allow</span>
+                  </button>
+                  <button type="button" class="mm-select-option" data-value="ask" data-label="Ask each time" aria-selected="false">
+                    <span class="mm-select-option-icon mm-icon-slot" data-icon="permissionAsk" aria-hidden="true"></span>
+                    <span class="mm-select-option-label">Ask each time</span>
+                  </button>
+                  <button type="button" class="mm-select-option" data-value="deny" data-label="Deny" aria-selected="false">
+                    <span class="mm-select-option-icon mm-icon-slot" data-icon="permissionDeny" aria-hidden="true"></span>
+                    <span class="mm-select-option-label">Deny</span>
+                  </button>
+                </div>
+              </mm-select>
+              <mm-button variant="secondary" class="mm-panel-toolbar-btn-danger">
+                <button
+                  type="button"
+                  data-action="clear-all"
+                  data-mm-tooltip="Clear persistent grants, tab session grants, and history"
+                  data-mm-tooltip-placement="bottom"
+                  aria-label="Clear all permissions"
+                >
+                  <span data-icon="clear" class="mm-icon-slot" aria-hidden="true"></span>
+                  <span>Clear all</span>
+                </button>
+              </mm-button>
+            </div>
+          </div>
+          <div class="mm-permissions-body" data-ref="body">
+            <p class="mm-permissions-empty">Loading…</p>
+          </div>
+          <footer class="mm-permissions-footer hidden" data-ref="footer" aria-live="polite"></footer>
+        </div>

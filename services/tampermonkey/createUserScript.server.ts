@@ -168,6 +168,7 @@ function createScriptCompiler(scriptBuiltAt: number, options?: { strictCompile: 
 
     const connect = !meta.connect ? [] : Array.isArray(meta.connect) ? meta.connect : [meta.connect]
     connect.forEach((connect) => typeof connect === 'string' && connect && connects.add(connect))
+    const connectHosts = connect.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
 
     if (meta.grant) {
       const grant = Array.isArray(meta.grant) ? meta.grant : [meta.grant]
@@ -220,7 +221,7 @@ function createScriptCompiler(scriptBuiltAt: number, options?: { strictCompile: 
       return
     }
 
-    const executionWrapper = getExecutionWrapper(runAt, moduleName, match, file, compiledContent, scriptBuiltAt)
+    const executionWrapper = getExecutionWrapper(runAt, moduleName, match, file, compiledContent, scriptBuiltAt, connectHosts)
 
     return `
       // ${file}
@@ -241,13 +242,16 @@ function createScriptCompiler(scriptBuiltAt: number, options?: { strictCompile: 
  * @param scriptBuiltAt Build timestamp for "Executing script" log
  * @returns Execution wrapper code
  */
-function getExecutionWrapper(runAt: string, moduleName: string, match: string[], file: string, compiledContent: string, scriptBuiltAt: number): string {
+function getExecutionWrapper(runAt: string, moduleName: string, match: string[], file: string, compiledContent: string, scriptBuiltAt: number, connectHosts: string[]): string {
   const builtAtDisplay = scriptBuiltAt > 0 && Number.isFinite(scriptBuiltAt) ? new Date(scriptBuiltAt).toLocaleString() : 'unknown'
+  const connectSeed = connectHosts.length > 0 ? `typeof seedScriptConnectPermissions === 'function' && seedScriptConnectPermissions(${JSON.stringify(connectHosts)});` : ''
   // Shell: preset GME_ok for "Executing script …". Body: enterScriptLogScope so bare GME_* → emitScriptLog.
   const scriptContent = `
         try {${buildExtensionScriptEnabledGuard(file)}
           if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule(${JSON.stringify(file)})) {
             GME_ok(${JSON.stringify(formatScriptExecutingLog(file, builtAtDisplay))});
+            enterScriptPermissionScope(${JSON.stringify(file)});
+            ${connectSeed}
             enterScriptLogScope(${JSON.stringify(moduleName)})
             try {
               ${compiledContent}
@@ -255,6 +259,7 @@ function getExecutionWrapper(runAt: string, moduleName: string, match: string[],
               const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
               GME_fail(${JSON.stringify(formatScriptExecutingFailureLog(file))}, message)
             } finally {
+              exitScriptPermissionScope();
               exitScriptLogScope()
             }
           }

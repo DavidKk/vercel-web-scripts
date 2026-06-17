@@ -14,11 +14,14 @@ import {
   getShellNetworkEnabled,
   gmStorageKey,
   isShellEnabledForTab,
+  listScriptPermissionRegistryRows,
   loadExtensionConfig,
   loadGmScopeForScriptKey,
   loadLocalRulesForEnabledScriptKeys,
   loadQuickAddRuleContext,
+  readScriptPermissionRegistry,
   refreshScriptListsForEnabledScriptKeys,
+  removePersistentPermissionEntryByKey,
   removeScriptKeyRule,
   removeShellDisabledTabId,
   resetRuntimeStateForEnabledScriptKeys,
@@ -32,6 +35,7 @@ import {
   syncRulesForEnabledScriptKeys,
   syncRulesFromServer,
   upsertService,
+  writeScriptPermissionRegistry,
 } from '@ext/shared/extension-storage'
 import { focusOrOpenExtensionPage, focusOrOpenTab } from '@ext/shared/focus-or-open-tab'
 import type { ShellMessage, ShellResponse, ShellStatus } from '@ext/shared/messages'
@@ -47,6 +51,7 @@ import {
   resetTabTriggerCountsForPageLoad,
 } from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
+import { PERMISSION_DENIED_CODE, permissionResourceMatchesUrl } from '@shared/script-permission'
 import { SHELL_INCOGNITO_LOG_COLLECTION_KEY, SHELL_LOG_OUTPUT_MODE_KEY, shouldLogToMemoryForMode } from '@shared/shell-log-output'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
@@ -54,7 +59,7 @@ import type { DebugLogAppendInput } from '../shared/debug-log-types'
 import { DEBUG_LOG_PORT_NAME } from '../shared/debug-log-types'
 import { buildDebugLogMetaFromTab } from '../shared/debug-log-utils'
 import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
-import { extensionLogger } from '../shared/logger'
+import { extensionLogger, permissionLogger } from '../shared/logger'
 import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { initBadgeNavigationListeners } from './badge-navigation'
 import { disableCspStripForPageUrl } from './csp-dnr-rules'
@@ -72,6 +77,25 @@ import {
 } from './debug-log-store'
 import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
+import {
+  applyPermissionModalResult,
+  clearAllScriptPermissions,
+  clearSessionPermissionsForTab,
+  ensureScriptPermissionForTab,
+  hydrateScriptPermissionSession,
+  listAllowedPermissionKeysForTab,
+  listPermissionHistoryEntries,
+  listSessionPermissionEntries,
+  PERMISSION_MODAL_RESULT_MESSAGE_TYPE,
+  PERMISSION_REGISTRY_CHANGED_MESSAGE_TYPE,
+  removeSessionPermissionByKey,
+  removeSessionPermissionByKeyAllTabs,
+  seedSessionConnectAllows,
+  seedTrustedTier1Permissions,
+  setPermissionModalRelay,
+  updateAdminScriptPermissionEntriesBatch,
+  updateAdminScriptPermissionEntry,
+} from './permission-manager'
 
 void DEV_BUILD_STAMP
 
@@ -113,11 +137,20 @@ chrome.runtime.onConnect.addListener((port) => {
   })
 })
 
-async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }>['details']): Promise<ShellResponse> {
+async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM_XHR' }>['details'], tabId?: number): Promise<ShellResponse> {
   const method = (details.method ?? 'GET').toUpperCase()
   const url = details.url?.trim()
   if (!url) {
     throw new Error('GM_XHR missing URL')
+  }
+  if (tabId != null && details.permission) {
+    if (!permissionResourceMatchesUrl(details.permission.resource, url)) {
+      throw new Error(PERMISSION_DENIED_CODE)
+    }
+    const allowed = await ensureScriptPermissionForTab(tabId, details.permission)
+    if (!allowed) {
+      throw new Error(PERMISSION_DENIED_CODE)
+    }
   }
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined
   const timeout = typeof details.timeout === 'number' && details.timeout > 0 ? details.timeout : 0
@@ -197,6 +230,40 @@ async function handleWebConnect(details: Extract<ShellMessage, { type: 'WEB_CONN
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   return tabs[0]
+}
+
+/** Prefer focused http(s) tab for permission debug prompts (admin UI may be the active tab). */
+async function resolveDebugPermissionTargetTab(): Promise<chrome.tabs.Tab | undefined> {
+  const active = await getActiveTab()
+  if (active?.url?.startsWith('http://') || active?.url?.startsWith('https://')) {
+    return active
+  }
+  const tabs = await chrome.tabs.query({ lastFocusedWindow: true })
+  return tabs.find((t) => t.url?.startsWith('http://') || t.url?.startsWith('https://'))
+}
+
+async function resolveDebugPermissionScriptKey(hint?: string): Promise<string> {
+  const trimmed = hint?.trim()
+  if (trimmed) {
+    return trimmed
+  }
+  const enabled = getEnabledScriptKeys((await ensureExtensionServicesState()).services)
+  if (enabled.length === 0) {
+    throw new Error('Configure at least one enabled service (script key).')
+  }
+  return enabled[0]!
+}
+
+/** When debugging from admin, show permission modal on sender tab instead of background storefront tab. */
+function maybeRelayPermissionModalToSender(sender: chrome.runtime.MessageSender, targetTabId: number, focusTab?: boolean): void {
+  if (focusTab) {
+    return
+  }
+  const senderTabId = sender.tab?.id
+  if (senderTabId == null || senderTabId === targetTabId) {
+    return
+  }
+  setPermissionModalRelay(targetTabId, senderTabId)
 }
 
 /** http(s) pages and this extension's own pages (scripts/servers) can be reloaded. */
@@ -327,7 +394,7 @@ async function refreshAllBadges(): Promise<void> {
 
 async function initBackgroundDefaults(): Promise<void> {
   await Promise.all([refreshShellLogOutputModeCache(), refreshIncognitoLogCollectionCache()])
-  await hydrateTabTriggerCounts()
+  await Promise.all([hydrateTabTriggerCounts(), hydrateScriptPermissionSession()])
   void applyBadgeColors({})
   void refreshAllBadges()
 }
@@ -358,6 +425,7 @@ initBadgeNavigationListeners(updateBadgeForTab)
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   clearTabTriggerState(tabId)
+  clearSessionPermissionsForTab(tabId)
   void removeShellDisabledTabId(tabId)
 })
 
@@ -387,7 +455,256 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
     try {
       switch (message.type) {
         case 'GM_XHR': {
-          sendResponse(await handleBridgeXhr(message.details))
+          sendResponse(await handleBridgeXhr(message.details, _sender.tab?.id))
+          return
+        }
+        case 'SCRIPT_PERMISSION_ENSURE': {
+          const tabId = _sender.tab?.id
+          if (tabId == null) {
+            permissionLogger.warn('ensure:no-tab')
+            sendResponse({ ok: false, error: 'No tab for permission request.' } satisfies ShellResponse)
+            return
+          }
+          permissionLogger.debug('message:SCRIPT_PERMISSION_ENSURE', {
+            tabId,
+            file: message.request.file,
+            capability: message.request.capability,
+            resource: message.request.resource,
+          })
+          const allowed = await ensureScriptPermissionForTab(tabId, message.request)
+          sendResponse({ ok: true, allowed } satisfies ShellResponse)
+          return
+        }
+        case PERMISSION_MODAL_RESULT_MESSAGE_TYPE: {
+          await applyPermissionModalResult(message.payload)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'GET_PAGE_PERMISSION_ALLOW_KEYS': {
+          const tabId = _sender.tab?.id
+          if (tabId == null) {
+            sendResponse({ ok: false, error: 'No tab for permission allow keys.' } satisfies ShellResponse)
+            return
+          }
+          const permissionAllowKeys = await listAllowedPermissionKeysForTab(tabId)
+          sendResponse({ ok: true, permissionAllowKeys } satisfies ShellResponse)
+          return
+        }
+        case 'CLEAR_ALL_SCRIPT_PERMISSIONS': {
+          await clearAllScriptPermissions()
+          sendResponse({ ok: true, message: 'All script permissions cleared.' } satisfies ShellResponse)
+          return
+        }
+        case 'GET_SCRIPT_PERMISSION_REGISTRY': {
+          const registry = await readScriptPermissionRegistry()
+          sendResponse({
+            ok: true,
+            scriptPermissionEntries: listScriptPermissionRegistryRows(registry),
+            sessionPermissionEntries: listSessionPermissionEntries(),
+            permissionHistoryEntries: await listPermissionHistoryEntries(),
+          } satisfies ShellResponse)
+          return
+        }
+        case 'REMOVE_SCRIPT_PERMISSION_ENTRY': {
+          const registry = await readScriptPermissionRegistry()
+          const next = removePersistentPermissionEntryByKey(registry, message.key)
+          const removedRegistry = Object.keys(registry.entries).length !== Object.keys(next.entries).length
+          if (removedRegistry) {
+            await writeScriptPermissionRegistry(next)
+          }
+          const removedSession = removeSessionPermissionByKeyAllTabs(message.key)
+          if (removedRegistry || removedSession) {
+            void chrome.runtime.sendMessage({ type: PERMISSION_REGISTRY_CHANGED_MESSAGE_TYPE }).catch(() => undefined)
+          }
+          sendResponse({ ok: true, removed: removedRegistry || removedSession } satisfies ShellResponse)
+          return
+        }
+        case 'REMOVE_SESSION_PERMISSION_ENTRY': {
+          const removed = removeSessionPermissionByKey(message.tabId, message.key)
+          sendResponse({ ok: true, removed } satisfies ShellResponse)
+          return
+        }
+        case 'UPDATE_SCRIPT_PERMISSION_ENTRY': {
+          try {
+            await updateAdminScriptPermissionEntry({
+              registryKey: message.registryKey,
+              request: message.request,
+              scope: message.scope,
+              tabId: message.tabId,
+              decision: message.decision,
+              policy: message.policy,
+            })
+            sendResponse({ ok: true } satisfies ShellResponse)
+          } catch (error) {
+            sendResponse({
+              ok: false,
+              error: error instanceof Error ? error.message : String(error),
+            } satisfies ShellResponse)
+          }
+          return
+        }
+        case 'UPDATE_SCRIPT_PERMISSION_ENTRIES': {
+          try {
+            await updateAdminScriptPermissionEntriesBatch(message.updates)
+            sendResponse({ ok: true } satisfies ShellResponse)
+          } catch (error) {
+            sendResponse({
+              ok: false,
+              error: error instanceof Error ? error.message : String(error),
+            } satisfies ShellResponse)
+          }
+          return
+        }
+        case 'SCRIPT_PERMISSION_SEED_CONNECTS': {
+          const tabId = _sender.tab?.id
+          if (tabId == null) {
+            sendResponse({ ok: false, error: 'No tab for connect seed.' } satisfies ShellResponse)
+            return
+          }
+          await seedSessionConnectAllows(tabId, message.context, message.connects)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'SCRIPT_PERMISSION_SEED_TRUST_TIER1': {
+          const tabId = _sender.tab?.id
+          if (tabId == null) {
+            sendResponse({ ok: false, error: 'No tab for trust tier-1 seed.' } satisfies ShellResponse)
+            return
+          }
+          const grantedKeys = await seedTrustedTier1Permissions(tabId, message.context)
+          sendResponse({ ok: true, grantedKeys } satisfies ShellResponse)
+          return
+        }
+        case 'DEBUG_PERMISSION_PROMPT': {
+          const target = message.details.target === 'sender' ? _sender.tab : await resolveDebugPermissionTargetTab()
+          if (target?.id == null) {
+            sendResponse({
+              ok: false,
+              error: message.details.target === 'sender' ? 'No sender tab for prompt.' : 'No http(s) tab found. Open a storefront tab or use "Show modal here".',
+            } satisfies ShellResponse)
+            return
+          }
+          const focusTab = message.details.focusTab !== false
+          if (focusTab) {
+            await chrome.tabs.update(target.id, { active: true })
+          } else {
+            maybeRelayPermissionModalToSender(_sender, target.id, false)
+          }
+          const forcePrompt = message.details.forcePrompt !== false
+          const scriptKey = await resolveDebugPermissionScriptKey(message.details.scriptKey)
+          const file = message.details.file ?? '__debug-permission-test__.ts'
+          const resource = message.details.resource.trim() || 'example.com'
+          const prompts = message.details.batch
+            ? ([
+                { capability: 'network' as const, resource },
+                { capability: 'clipboard-write' as const, resource: '*' },
+                { capability: 'open-tab' as const, resource },
+              ] as const)
+            : ([{ capability: message.details.capability, resource: message.details.resource }] as const)
+          let lastAllowed = false
+          for (const row of prompts) {
+            lastAllowed = await ensureScriptPermissionForTab(
+              target.id,
+              {
+                scriptKey,
+                file,
+                capability: row.capability,
+                resource: row.resource,
+              },
+              { forcePrompt }
+            )
+          }
+          const tabHint = target.title ? `"${target.title.slice(0, 48)}"` : `tab ${target.id}`
+          const outcome = lastAllowed ? 'allowed' : 'denied/dismissed'
+          sendResponse({
+            ok: true,
+            allowed: lastAllowed,
+            message: message.details.batch
+              ? `${focusTab ? `Switched to ${tabHint}. ` : ''}Batch prompt finished (last: ${outcome}).`
+              : `${focusTab ? `Switched to ${tabHint}. ` : ''}Prompt finished (${outcome}).`,
+          } satisfies ShellResponse)
+          return
+        }
+        case 'DEBUG_CLEAR_TAB_SESSION_PERMISSIONS': {
+          const tab = await resolveDebugPermissionTargetTab()
+          if (tab?.id == null) {
+            sendResponse({ ok: false, error: 'No http(s) tab found.' } satisfies ShellResponse)
+            return
+          }
+          clearSessionPermissionsForTab(tab.id)
+          sendResponse({ ok: true, message: 'Tab session permissions cleared.' } satisfies ShellResponse)
+          return
+        }
+        case 'DEBUG_RUN_GM_PERMISSION_TEST': {
+          const tab = await resolveDebugPermissionTargetTab()
+          if (tab?.id == null) {
+            sendResponse({ ok: false, error: 'No http(s) tab found.' } satisfies ShellResponse)
+            return
+          }
+          if (message.details?.focusTab) {
+            await chrome.tabs.update(tab.id, { active: true })
+          } else {
+            maybeRelayPermissionModalToSender(_sender, tab.id, false)
+          }
+          const test = message.details?.test ?? 'xhr'
+          const file = message.details?.file?.trim() || '__debug-permission-test__.ts'
+          const relayedModal = !message.details?.focusTab && _sender.tab?.id != null && _sender.tab.id !== tab.id
+          let withBody = ''
+          let successMessage = ''
+
+          if (test === 'clipboard-read') {
+            withBody = `(function(){
+  if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+    throw new Error('navigator.clipboard.readText is unavailable on this page.');
+  }
+  void navigator.clipboard.readText().then(function(value) {
+    console.log('[VWS debug] clipboard read:', value);
+  }).catch(function(error) {
+    console.error('[VWS debug] clipboard read failed', error);
+  });
+})();`
+            successMessage = 'Read clipboard dispatched on target tab. Check DevTools console for the value (browser may prompt for clipboard-read).'
+          } else if (test === 'clipboard-write') {
+            const text = message.details?.text?.trim() || '[VWS debug] clipboard write test'
+            withBody = `(function(){
+  if (typeof enterScriptPermissionScope !== 'function' || typeof GM_setClipboard !== 'function') {
+    throw new Error('GM APIs not available — open a page with MagickMonkey shell active.');
+  }
+  enterScriptPermissionScope(${JSON.stringify(file)}, 'debug');
+  GM_setClipboard(${JSON.stringify(text)}, undefined, function() {
+    console.log('[VWS debug] GM_setClipboard allowed:', ${JSON.stringify(text)});
+    exitScriptPermissionScope();
+  });
+})();`
+            successMessage = relayedModal
+              ? 'GM_setClipboard test dispatched. Permission modal should appear on this tab.'
+              : 'GM_setClipboard test dispatched. Check the target tab for the permission modal, then verify paste.'
+          } else {
+            const resource = message.details?.resource?.trim() || 'example.com'
+            const url = resource.includes('://') ? resource : `https://${resource}/`
+            withBody = `(function(){
+  if (typeof enterScriptPermissionScope !== 'function' || typeof GM_xmlhttpRequest !== 'function') {
+    throw new Error('GM APIs not available — open a page with MagickMonkey shell active.');
+  }
+  enterScriptPermissionScope(${JSON.stringify(file)}, 'debug');
+  GM_xmlhttpRequest({
+    method: 'GET',
+    url: ${JSON.stringify(url)},
+    onload: function(){ console.log('[VWS debug] GM_xmlhttpRequest allowed'); exitScriptPermissionScope(); },
+    onerror: function(e){ console.error('[VWS debug] GM_xmlhttpRequest denied', e); exitScriptPermissionScope(); }
+  });
+})();`
+            successMessage = relayedModal
+              ? 'GM_xmlhttpRequest test dispatched. Permission modal should appear on this tab.'
+              : 'GM_xmlhttpRequest test dispatched. Check the target tab for the permission modal.'
+          }
+
+          const result = await executeInMainWorldScriptForTab(tab.id, 'global', { withBody })
+          if (!result.ok) {
+            sendResponse({ ok: false, error: result.message } satisfies ShellResponse)
+            return
+          }
+          sendResponse({ ok: true, message: successMessage } satisfies ShellResponse)
           return
         }
         case 'WEB_CONNECT_EXTENSION': {

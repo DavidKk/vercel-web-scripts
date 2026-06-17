@@ -1,5 +1,5 @@
 import { defineMmFormComponents } from '@ext/ui/mm-form-components'
-import { MmPopupApp } from '@ext/ui/mm-popup-app'
+import { MmPopupApp } from '@ext/ui/popup/mm-popup-app'
 
 defineMmFormComponents()
 

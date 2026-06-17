@@ -1,4 +1,4 @@
-import { buildVwsConsoleLogArgs, buildVwsConsoleMeta, buildVwsConsolePrefix, countVwsConsoleFormatSpecifiers, formatVwsConsolePlainText } from '../../shared/vws-console-log-styles'
+import { buildVwsConsoleLogArgs, buildVwsConsoleMeta, buildVwsConsolePrefix, countVwsConsoleFormatSpecifiers, formatVwsConsolePlainText } from '@shared/vws-console-log-styles'
 
 describe('vws-console-log-styles', () => {
   it('styles tier 1 badge and tier 2 level/scope (color only, no background)', () => {

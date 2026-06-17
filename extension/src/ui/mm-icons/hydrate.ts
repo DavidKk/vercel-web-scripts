@@ -4,8 +4,10 @@ import iconArrowCollapseDown from '~icons/mdi/arrow-collapse-down?raw'
 import iconAsterisk from '~icons/mdi/asterisk?raw'
 import iconBackspaceOutline from '~icons/mdi/backspace-outline?raw'
 import iconBugOutline from '~icons/mdi/bug-outline?raw'
+import iconCancel from '~icons/mdi/cancel?raw'
 import iconCheck from '~icons/mdi/check?raw'
 import iconCheckAll from '~icons/mdi/check-all?raw'
+import iconCheckCircleOutline from '~icons/mdi/check-circle-outline?raw'
 import iconClipboardTextOutline from '~icons/mdi/clipboard-text-outline?raw'
 import iconClose from '~icons/mdi/close?raw'
 import iconCloudDownloadOutline from '~icons/mdi/cloud-download-outline?raw'
@@ -17,6 +19,7 @@ import iconDelete from '~icons/mdi/delete-outline?raw'
 import iconDragVertical from '~icons/mdi/drag-vertical?raw'
 import iconEyeOffOutline from '~icons/mdi/eye-off-outline?raw'
 import iconEyeOutline from '~icons/mdi/eye-outline?raw'
+import iconHelpCircleOutline from '~icons/mdi/help-circle-outline?raw'
 import iconInboxOutline from '~icons/mdi/inbox-outline?raw'
 import iconInformationOutline from '~icons/mdi/information-outline?raw'
 import iconLanCheck from '~icons/mdi/lan-check?raw'
@@ -29,6 +32,7 @@ import iconPower from '~icons/mdi/power?raw'
 import iconPowerOff from '~icons/mdi/power-off?raw'
 import iconReload from '~icons/mdi/reload?raw'
 import iconShieldOutline from '~icons/mdi/shield-outline?raw'
+import iconTuneVariant from '~icons/mdi/tune-variant?raw'
 import iconWeb from '~icons/mdi/web?raw'
 
 /** Popup menu icons (MDI via unplugin-icons). */
@@ -69,6 +73,10 @@ export const mmPopupIcons = {
   serviceOn: iconPower,
   serviceOff: iconPowerOff,
   nodata: iconInboxOutline,
+  permissionAllow: iconCheckCircleOutline,
+  permissionAsk: iconHelpCircleOutline,
+  permissionDeny: iconCancel,
+  permissionMixed: iconTuneVariant,
 } as const
 
 /** Inject Tailwind classes into a raw SVG string from unplugin-icons. */
@@ -95,7 +103,7 @@ export function hydrateIconSlot(el: HTMLElement): void {
 }
 
 export function hydrateMmIcons(root: ParentNode): void {
-  root.querySelectorAll<HTMLElement>('[data-icon]').forEach((el) => {
+  root.querySelectorAll<HTMLElement>('[data-icon]:not(.mm-select-option)').forEach((el) => {
     hydrateIconSlot(el)
   })
 }

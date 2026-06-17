@@ -25,6 +25,7 @@ import {
 import { ensurePresetCoreInjectionGate } from '@shared/preset-core-injection-gate'
 import { buildPresetLauncherDecls } from '@shared/preset-launcher-decls'
 import { clearAllRuntimeGmCaches } from '@shared/runtime-cache-clear'
+import { SCRIPT_CONTENT_HASH_MAP_KEY } from '@shared/script-permission-scope'
 import { PRESET_CORE_SCRIPT_FILE, reportExtensionScriptFailed } from '@shared/script-trigger-log'
 
 import type { LauncherUrls } from './config'
@@ -37,6 +38,7 @@ export interface LauncherStartOptions {
   scriptKey: string
   gmScope: string
   enabledScripts?: Record<string, boolean>
+  contentHashByFile?: Record<string, string>
   /** Override boot log prefix (defaults to MODULE_LOG_PREFIX). */
   logPrefix?: string
 }
@@ -60,9 +62,10 @@ interface ModuleManifest {
  */
 export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherStartOptions): void {
   const logPrefix = options.logPrefix ?? MODULE_LOG_PREFIX
-  const { scriptKey, gmScope, enabledScripts = {} } = options
+  const { scriptKey, gmScope, enabledScripts = {}, contentHashByFile = {} } = options
   setActiveGmScope(gmScope)
   ;(globalThis as Record<string, unknown>).__VWS_SCRIPT_KEY__ = scriptKey
+  ;(globalThis as Record<string, unknown>)[SCRIPT_CONTENT_HASH_MAP_KEY] = contentHashByFile
   const {
     presetUrl,
     moduleManifestUrl,

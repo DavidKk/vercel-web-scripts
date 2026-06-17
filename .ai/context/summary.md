@@ -26,7 +26,8 @@ Canonical map: `../specs/extension-shell.yaml`
 | Area                     | Status                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------- |
 | Multi-service            | ✅ Service list + scriptKey scope (see `extension/docs/multi-service-tasks.md`) |
-| Admin tabs               | ✅ Servers, Scripts, Rules, **Logs** (`admin.html#…`)                           |
+| Admin tabs               | ✅ Servers, Scripts, Rules, **Logs**, **Permissions** (`admin.html#…`)          |
+| Script permissions       | ✅ Tier-1 gate + modal; registry/session/once history; Admin edit + DEBUG       |
 | Popup                    | ✅ Shell toggle, log mode, reload extension (dev)                               |
 | Debug log viewer         | ✅ Session ring buffer; incognito collection gate; Copy all (TSV)               |
 | HTML-only inject         | ✅ `injection-gate.ts` — non-HTML docs skip launcher                            |

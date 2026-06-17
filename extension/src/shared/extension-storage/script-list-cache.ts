@@ -2,7 +2,7 @@ import { isManagedScriptFilename } from '@shared/managed-script-files'
 
 import type { ExtensionConfig, PageBootstrapConfig } from '../../types'
 import { buildScriptKeyBootstrapEntriesFromState, scriptKeyListCacheStorageKey } from '../extension-multi-service-pure'
-import { getEnabledScriptKeys, normalizeScriptKey, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
+import { getEnabledScriptKeys, getPermissionModeForScriptKey, normalizeScriptKey, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
 import { SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY } from './constants'
 import {
   fallbackScriptListFromEnabledKeys,
@@ -398,15 +398,25 @@ export async function buildPageBootstrapConfig(extensionVersion: string, options
     const incognitoToggledFiles = incognito ? scriptNamesFromIncognitoEnabledStorageKeysForScriptKey(normalized, allStorageKeys) : []
     const filesForEnabledRead = [...new Set([...scripts.map((row) => row.file), ...storageToggledFiles, ...incognitoToggledFiles])]
     const enabledMap = await loadScriptEnabledMapForScriptKey(normalized, filesForEnabledRead, options)
-    const contentHashByFile = new Map(scripts.map((row) => [row.file, row.contentHash]))
-    const installedMap = await loadScriptInstalledMapForScriptKey(normalized, filesForEnabledRead, contentHashByFile)
+    const scriptContentHashByFile = new Map(scripts.map((row) => [row.file, row.contentHash]))
+    const installedMap = await loadScriptInstalledMapForScriptKey(normalized, filesForEnabledRead, scriptContentHashByFile)
     const enabledByFile: Record<string, boolean> = {}
     for (const file of filesForEnabledRead) {
       const installed = installedMap.get(file) !== false
       const enabled = enabledMap.get(file) !== false
       enabledByFile[file] = installed && enabled
     }
-    listsByScriptKey[normalized] = { files: scripts.map((row) => row.file), enabledByFile }
+    const contentHashByFile: Record<string, string> = {}
+    for (const row of scripts) {
+      if (row.contentHash) {
+        contentHashByFile[row.file] = row.contentHash
+      }
+    }
+    listsByScriptKey[normalized] = {
+      files: scripts.map((row) => row.file),
+      enabledByFile,
+      ...(Object.keys(contentHashByFile).length > 0 ? { contentHashByFile } : {}),
+    }
   }
 
   const scriptKeys = buildScriptKeyBootstrapEntriesFromState(state, listsByScriptKey)
@@ -415,9 +425,13 @@ export async function buildPageBootstrapConfig(extensionVersion: string, options
   }
 
   const primary = scriptKeys[0]
+  const permissionTrustScriptKeys = enabledKeys
+    .map((scriptKey) => normalizeScriptKey(scriptKey))
+    .filter((scriptKey) => getPermissionModeForScriptKey(scriptKey, state.scriptKeyMeta) === 'trust')
   return {
     extensionVersion,
     scriptKeys,
+    ...(permissionTrustScriptKeys.length > 0 ? { permissionTrustScriptKeys } : {}),
     baseUrl: primary.baseUrl,
     scriptKey: primary.scriptKey,
     developMode: primary.developMode,

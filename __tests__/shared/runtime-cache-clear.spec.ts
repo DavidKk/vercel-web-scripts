@@ -1,5 +1,5 @@
-import { SHELL_NETWORK_ENABLED_KEY } from '../../shared/launcher-constants'
-import { clearAllRuntimeGmCaches, isRuntimeCacheGmKey, listRuntimeCacheGmKeys, RULE_CACHE_KEY } from '../../shared/runtime-cache-clear'
+import { SHELL_NETWORK_ENABLED_KEY } from '@shared/launcher-constants'
+import { clearAllRuntimeGmCaches, isRuntimeCacheGmKey, listRuntimeCacheGmKeys, RULE_CACHE_KEY } from '@shared/runtime-cache-clear'
 
 describe('runtime-cache-clear', () => {
   it('isRuntimeCacheGmKey matches vws_, #Rule, and script-update host', () => {

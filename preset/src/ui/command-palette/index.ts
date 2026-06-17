@@ -11,6 +11,7 @@ import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTempla
 
 import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
+import { registerCommandPalettePermissionDebug } from './debug-permissions'
 import paletteCss from './index.css?raw'
 import paletteHtml from './index.html?raw'
 
@@ -445,6 +446,8 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   mountUiTemplateShell(container, wrapUiStyles(paletteCss), paletteHtml)
   appendToDocumentElement(container)
 }
+
+registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
 
 export function GME_openCommandPalette(): void {
   const el = document.querySelector(TAG) as CommandPaletteUI | null

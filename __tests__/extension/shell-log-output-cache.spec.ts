@@ -1,10 +1,5 @@
-import {
-  setCachedShellLogOutputMode,
-  shouldExtensionCollectDebugLogs,
-  shouldExtensionLogToConsole,
-  syncShellLogOutputModeFromGmStore,
-} from '../../extension/src/shared/shell-log-output-cache'
-import { SHELL_LOG_OUTPUT_MODE_KEY } from '../../shared/shell-log-output'
+import { setCachedShellLogOutputMode, shouldExtensionCollectDebugLogs, shouldExtensionLogToConsole, syncShellLogOutputModeFromGmStore } from '@ext/shared/shell-log-output-cache'
+import { SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 describe('shell-log-output-cache', () => {
   afterEach(() => {

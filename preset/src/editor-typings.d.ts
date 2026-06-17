@@ -826,6 +826,12 @@ declare function enterScriptLogScope(scope: string): void
 /** Pairs with {@link enterScriptLogScope} after module body runs. */
 declare function exitScriptLogScope(): void
 
+/** Begin permission scope for a remote Gist module (pairs with {@link exitScriptPermissionScope}). */
+declare function enterScriptPermissionScope(file: string, contentHash?: string): void
+
+/** End permission scope opened by {@link enterScriptPermissionScope}. */
+declare function exitScriptPermissionScope(): void
+
 /**
  * Log success message
  * @param contents Messages to log

@@ -6,6 +6,8 @@ import {
   SCRIPT_FAILED_MESSAGE_TYPE,
 } from '@shared/launcher-constants'
 
+import { permissionLogger } from '../shared/logger'
+import { isValidBridgeToken } from './bridge-token'
 import { BRIDGE_MESSAGE_SOURCE, REQUEST_EVENT } from './constants'
 import { handleCspExtensionExecuteRequest } from './csp-scripting-bridge'
 import { handleDebugLogMessage } from './debug-log-relay'
@@ -40,6 +42,17 @@ function handlePageBridgeMessage(event: MessageEvent): void {
   }
 
   if (data.type === REQUEST_EVENT) {
+    const bridgeToken = (data as { bridgeToken?: unknown }).bridgeToken
+    if (!isValidBridgeToken(bridgeToken)) {
+      const payload = data.payload as { method?: unknown } | undefined
+      if (payload?.method === 'permission' || payload?.method === 'seedConnects' || payload?.method === 'seedTrustTier1') {
+        permissionLogger.warn('bridge:token-rejected', {
+          method: payload.method,
+          hasToken: typeof bridgeToken === 'string' && bridgeToken.length > 0,
+        })
+      }
+      return
+    }
     handleBridgeRequest(data.payload)
   }
 }
@@ -53,7 +66,10 @@ export function installBridgeListeners(): void {
   }
   bridgeListenersInstalled = true
 
-  window.addEventListener(REQUEST_EVENT, ((event: CustomEvent<{ id: number; method: string; args: unknown[] }>) => {
+  window.addEventListener(REQUEST_EVENT, ((event: CustomEvent<{ id: number; method: string; args: unknown[]; bridgeToken?: string }>) => {
+    if (!isValidBridgeToken(event.detail?.bridgeToken)) {
+      return
+    }
     handleBridgeRequest(event.detail)
   }) as EventListener)
 

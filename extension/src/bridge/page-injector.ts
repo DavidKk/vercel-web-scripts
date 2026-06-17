@@ -1,4 +1,5 @@
 import type { PageBootstrapConfig } from '../types'
+import { getBridgeToken } from './bridge-token'
 import { BOOTSTRAP_DATA_PREFIX, LAUNCHER_SCRIPT_PREFIX } from './constants'
 import { getExtensionResourceUrl, getRuntimeId } from './extension-context'
 
@@ -18,7 +19,7 @@ function waitForDocumentBody(): Promise<void> {
   })
 }
 
-function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>): void {
+function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>, permissionAllowKeys: string[]): void {
   const runtimeId = getRuntimeId()
   if (!runtimeId) {
     return
@@ -36,7 +37,7 @@ function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, u
 
   const data = document.createElement('template')
   data.id = bootstrapId
-  data.textContent = JSON.stringify({ config, gmStore })
+  data.textContent = JSON.stringify({ config, gmStore, bridgeToken: getBridgeToken(), permissionAllowKeys })
   ;(document.documentElement || document.head || document.body).appendChild(data)
 
   const script = document.createElement('script')
@@ -52,7 +53,7 @@ function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, u
 }
 
 /** Load bootstrap payload and inject page-world launcher when extension is configured. */
-export async function injectPageLauncherWhenReady(bootstrapConfig: PageBootstrapConfig, gmStore: Record<string, unknown>): Promise<void> {
+export async function injectPageLauncherWhenReady(bootstrapConfig: PageBootstrapConfig, gmStore: Record<string, unknown>, permissionAllowKeys: string[] = []): Promise<void> {
   await waitForDocumentBody()
-  injectPageScript(bootstrapConfig, gmStore)
+  injectPageScript(bootstrapConfig, gmStore, permissionAllowKeys)
 }

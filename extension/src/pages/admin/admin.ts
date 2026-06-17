@@ -1,15 +1,18 @@
-import { initAdminRouter } from '@ext/ui/mm-admin-router'
-import { defineMmAdminTabs } from '@ext/ui/mm-admin-tabs'
-import { initAdminPageFocusRefresh } from '@ext/ui/mm-admin-view-lifecycle'
+import { installPermissionModalListener } from '@ext/bridge/permission-modal'
+import { initAdminRouter } from '@ext/ui/admin/mm-admin-router'
+import { defineMmAdminTabs } from '@ext/ui/admin/mm-admin-tabs'
+import { initAdminPageFocusRefresh } from '@ext/ui/admin/mm-admin-view-lifecycle'
+import { MmLogsApp } from '@ext/ui/logs/mm-logs-app'
+import { mountLogsDebugPanel } from '@ext/ui/logs/mm-logs-debug-panel'
 import { defineMmFormComponents } from '@ext/ui/mm-form-components'
-import { MmLogsApp } from '@ext/ui/mm-logs-app'
-import { mountLogsDebugPanel } from '@ext/ui/mm-logs-debug-panel'
 import { mountMmNotificationHost } from '@ext/ui/mm-notification'
-import { MmOptionsApp } from '@ext/ui/mm-options-app'
-import { MmRulesApp } from '@ext/ui/mm-rules-app'
-import { MmScriptsApp } from '@ext/ui/mm-scripts-app'
-import { mountScriptsDebugPanel } from '@ext/ui/mm-scripts-debug-panel'
-import { defineMmTooltip } from '@ext/ui/mm-tooltip'
+import { MmPermissionsApp } from '@ext/ui/permissions/mm-permissions-app'
+import { mountPermissionsDebugPanel } from '@ext/ui/permissions/mm-permissions-debug-panel'
+import { MmRulesApp } from '@ext/ui/rules/mm-rules-app'
+import { MmScriptsApp } from '@ext/ui/scripts/mm-scripts-app'
+import { mountScriptsDebugPanel } from '@ext/ui/scripts/mm-scripts-debug-panel'
+import { MmOptionsApp } from '@ext/ui/servers/mm-options-app'
+import { defineMmTooltip } from '@ext/ui/shared/mm-tooltip'
 
 defineMmFormComponents()
 defineMmAdminTabs()
@@ -21,6 +24,9 @@ if (!customElements.get('mm-options-app')) {
 if (!customElements.get('mm-scripts-app')) {
   customElements.define('mm-scripts-app', MmScriptsApp)
 }
+if (!customElements.get('mm-permissions-app')) {
+  customElements.define('mm-permissions-app', MmPermissionsApp)
+}
 if (!customElements.get('mm-rules-app')) {
   customElements.define('mm-rules-app', MmRulesApp)
 }
@@ -30,6 +36,8 @@ if (!customElements.get('mm-logs-app')) {
 
 mountScriptsDebugPanel()
 mountLogsDebugPanel()
+mountPermissionsDebugPanel()
 mountMmNotificationHost()
+installPermissionModalListener()
 initAdminRouter()
 initAdminPageFocusRefresh()

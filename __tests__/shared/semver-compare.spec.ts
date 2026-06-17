@@ -1,4 +1,4 @@
-import { compareSemver, isSemverNewer, isStrictSemverVersion } from '../../shared/semver-compare'
+import { compareSemver, isSemverNewer, isStrictSemverVersion } from '@shared/semver-compare'
 
 describe('semver-compare', () => {
   it('should treat equal versions as not newer', () => {

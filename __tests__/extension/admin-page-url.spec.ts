@@ -1,4 +1,4 @@
-import { ADMIN_PAGE, adminPagePathFromTabUrl, normalizeExtensionPagePath } from '../../extension/src/shared/admin-page-url'
+import { ADMIN_PAGE, adminPagePathFromTabUrl, normalizeExtensionPagePath } from '@ext/shared/admin-page-url'
 
 describe('admin-page-url', () => {
   describe('normalizeExtensionPagePath', () => {

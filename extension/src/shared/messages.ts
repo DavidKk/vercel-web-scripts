@@ -1,5 +1,15 @@
+import type {
+  ScriptPermissionAdminPolicy,
+  ScriptPermissionCapability,
+  ScriptPermissionContext,
+  ScriptPermissionDecision,
+  ScriptPermissionRegistryEntry,
+  ScriptPermissionRemember,
+  ScriptPermissionRequest,
+} from '@shared/script-permission'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
+import type { PermissionModalResultPayload } from '../shell/permission-manager'
 import type { DebugLogAppendInput, DebugLogEntry } from './debug-log-types'
 
 /** Background ↔ popup/content message types (MVP). */
@@ -10,6 +20,8 @@ export interface BridgeXhrDetails {
   data?: string
   timeout?: number
   responseType?: 'arraybuffer' | 'blob' | 'json' | 'stream' | 'text'
+  /** Permission context verified in background before fetch (defense in depth). */
+  permission?: ScriptPermissionRequest
 }
 
 export interface BridgeXhrResponse {
@@ -58,6 +70,69 @@ export type ShellMessage =
   | { type: 'GET_LOCAL_RULES' }
   | { type: 'ADD_LOCAL_RULE'; details: { scriptKey: string; script: string; wildcard: string; mode: 'include' | 'exclude' } }
   | { type: 'REMOVE_LOCAL_RULE'; details: { scriptKey: string; script: string; wildcard: string; mode: 'include' | 'exclude' } }
+  | { type: 'SCRIPT_PERMISSION_ENSURE'; request: ScriptPermissionRequest }
+  | { type: 'GET_SCRIPT_PERMISSION_REGISTRY' }
+  | { type: 'GET_PAGE_PERMISSION_ALLOW_KEYS' }
+  | { type: 'CLEAR_ALL_SCRIPT_PERMISSIONS' }
+  | { type: 'REMOVE_SCRIPT_PERMISSION_ENTRY'; key: string }
+  | { type: 'REMOVE_SESSION_PERMISSION_ENTRY'; tabId: number; key: string }
+  | {
+      type: 'UPDATE_SCRIPT_PERMISSION_ENTRY'
+      registryKey: string
+      request: ScriptPermissionRequest
+      scope: 'persistent' | 'session'
+      tabId?: number
+      decision: ScriptPermissionDecision
+      policy?: ScriptPermissionAdminPolicy
+    }
+  | {
+      type: 'UPDATE_SCRIPT_PERMISSION_ENTRIES'
+      updates: Array<{
+        registryKey: string
+        request: ScriptPermissionRequest
+        scope: 'persistent' | 'session'
+        tabId?: number
+        decision: ScriptPermissionDecision
+        policy?: ScriptPermissionAdminPolicy
+      }>
+    }
+  | {
+      type: 'SCRIPT_PERMISSION_SEED_CONNECTS'
+      context: ScriptPermissionContext
+      connects: string[]
+    }
+  | {
+      type: 'SCRIPT_PERMISSION_SEED_TRUST_TIER1'
+      context: ScriptPermissionContext
+    }
+  | {
+      type: 'DEBUG_PERMISSION_PROMPT'
+      details: {
+        capability: ScriptPermissionCapability
+        resource: string
+        file?: string
+        scriptKey?: string
+        batch?: boolean
+        /** `http` = storefront tab (default); `sender` = tab that sent this message (e.g. admin). */
+        target?: 'http' | 'sender'
+        focusTab?: boolean
+        forcePrompt?: boolean
+      }
+    }
+  | { type: 'DEBUG_CLEAR_TAB_SESSION_PERMISSIONS' }
+  | {
+      type: 'DEBUG_RUN_GM_PERMISSION_TEST'
+      details?: {
+        resource?: string
+        file?: string
+        scriptKey?: string
+        /** Defaults to `xhr`. */
+        test?: 'xhr' | 'clipboard-write' | 'clipboard-read'
+        text?: string
+        focusTab?: boolean
+      }
+    }
+  | { type: 'VWS_PERMISSION_MODAL_RESULT'; payload: PermissionModalResultPayload }
   | { type: 'GM_XHR'; details: BridgeXhrDetails }
   | { type: 'WEB_CONNECT_EXTENSION'; details: WebConnectDetails }
   | { type: 'TAB_PAGE_LOAD'; details: { url: string } }
@@ -122,6 +197,33 @@ export type ShellResponse =
   | { ok: true; shellEnabled?: boolean }
   | { ok: true; debugLogs?: DebugLogEntry[] }
   | { ok: true; incognitoLogCollection?: boolean }
+  | { ok: true; allowed?: boolean }
+  | { ok: true; permissionAllowKeys?: string[] }
+  | { ok: true; grantedKeys?: string[] }
+  | {
+      ok: true
+      scriptPermissionEntries?: Array<{
+        key: string
+        request: ScriptPermissionRequest
+        entry: ScriptPermissionRegistryEntry
+      }>
+      sessionPermissionEntries?: Array<{
+        tabId: number
+        key: string
+        request: ScriptPermissionRequest | null
+        decision: ScriptPermissionDecision
+      }>
+      permissionHistoryEntries?: Array<{
+        id: string
+        tabId: number
+        key: string
+        request: ScriptPermissionRequest
+        decision: ScriptPermissionDecision
+        remember: ScriptPermissionRemember
+        decidedAt: number
+      }>
+    }
+  | { ok: true; removed?: boolean }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

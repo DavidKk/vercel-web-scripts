@@ -1,4 +1,4 @@
-import { filterDisabledRemoteModules, listDisabledRemoteModules } from '../../shared/remote-script-module-filter'
+import { filterDisabledRemoteModules, listDisabledRemoteModules } from '@shared/remote-script-module-filter'
 
 describe('remote-script-module-filter', () => {
   const sampleBundle = `

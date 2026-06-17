@@ -1,7 +1,7 @@
+import type { MmOptionsApp } from '../servers/mm-options-app'
 import { type AdminRoute, type AdminTab, adminTabTitle, buildAdminHash, parseAdminHash } from './mm-admin-hash'
 import { playAdminNavIndicatorEntrance, syncAdminNavIndicator } from './mm-admin-nav'
 import { emitAdminViewActivated } from './mm-admin-view-lifecycle'
-import type { MmOptionsApp } from './mm-options-app'
 
 const VIEW_ATTR = 'data-admin-view'
 

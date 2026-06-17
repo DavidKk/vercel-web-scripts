@@ -3,7 +3,7 @@ import {
   fetchPresetProjectVersionFromManifest,
   resolvePresetProjectVersion,
   writePresetProjectVersionToStorage,
-} from '../../extension/src/shared/extension-storage/preset-project-version'
+} from '@ext/shared/extension-storage/preset-project-version'
 
 function mockChromeStorageLocal(): Map<string, unknown> {
   const store = new Map<string, unknown>()

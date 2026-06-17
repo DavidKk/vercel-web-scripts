@@ -13,7 +13,7 @@ import {
   isTrustedTypesAssignmentError,
   shouldRememberCspUserScriptAttempt,
   wrapUserScriptIifeBody,
-} from '../../shared/csp-script-executor'
+} from '@shared/csp-script-executor'
 
 describe('csp-script-executor', () => {
   it('isCspEvalError detects EvalError and CSP messages', () => {

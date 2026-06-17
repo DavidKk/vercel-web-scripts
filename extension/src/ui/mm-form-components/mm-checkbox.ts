@@ -1,4 +1,4 @@
-import { enhanceMmCheckboxLabel } from '../mm-checkbox'
+import { enhanceMmCheckboxLabel } from '../shared/mm-checkbox'
 import { markReady } from './state'
 
 /**

@@ -1,3 +1,5 @@
+import { DEFAULT_SCRIPT_PERMISSION_MODE, type ScriptPermissionMode } from '@shared/script-permission'
+
 import type { ExtensionServicesState, ScriptKeyMeta, ServiceProfile } from '../types'
 
 /**
@@ -245,6 +247,49 @@ export function getGmScopeForScriptKey(scriptKey: string, meta: ScriptKeyMeta[],
 }
 
 /**
+ * Resolve permission mode for a scriptKey (Servers → Script key scope).
+ * @param scriptKey Script key
+ * @param meta ScriptKey meta rows
+ * @returns trust or ask (default)
+ */
+export function getPermissionModeForScriptKey(scriptKey: string, meta: ScriptKeyMeta[]): ScriptPermissionMode {
+  const normalized = normalizeScriptKey(scriptKey)
+  if (!normalized) {
+    return DEFAULT_SCRIPT_PERMISSION_MODE
+  }
+  const found = meta.find((m) => normalizeScriptKey(m.scriptKey) === normalized)
+  return found?.permissionMode === 'trust' ? 'trust' : DEFAULT_SCRIPT_PERMISSION_MODE
+}
+
+/**
+ * Set permission mode on scriptKey meta (shared across services with the same key).
+ * @param state Services state (mutated in place)
+ * @param scriptKey Script key
+ * @param permissionMode trust or ask
+ */
+export function setPermissionModeOnState(state: ExtensionServicesState, scriptKey: string, permissionMode: ScriptPermissionMode): void {
+  const normalized = normalizeScriptKey(scriptKey)
+  if (!normalized) {
+    return
+  }
+  const existing = state.scriptKeyMeta.find((m) => normalizeScriptKey(m.scriptKey) === normalized)
+  if (existing) {
+    if (permissionMode === DEFAULT_SCRIPT_PERMISSION_MODE) {
+      delete existing.permissionMode
+    } else {
+      existing.permissionMode = permissionMode
+    }
+    return
+  }
+  const seed = 'svc'
+  state.scriptKeyMeta.push({
+    scriptKey: normalized,
+    gmScope: ensureUniqueGmScope(defaultGmScopeFromLabel(seed), normalized, state.scriptKeyMeta),
+    ...(permissionMode !== DEFAULT_SCRIPT_PERMISSION_MODE ? { permissionMode } : {}),
+  })
+}
+
+/**
  * Upsert scriptKey meta entry with a gmScope.
  * @param state Services state (mutated in place)
  * @param scriptKey Script key
@@ -375,5 +420,6 @@ function isValidScriptKeyMeta(value: unknown): value is ScriptKeyMeta {
     return false
   }
   const m = value as ScriptKeyMeta
-  return typeof m.scriptKey === 'string' && typeof m.gmScope === 'string'
+  const mode = m.permissionMode
+  return typeof m.scriptKey === 'string' && typeof m.gmScope === 'string' && (mode === undefined || mode === 'ask' || mode === 'trust')
 }

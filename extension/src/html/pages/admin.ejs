@@ -15,6 +15,11 @@
 <%- include('../partials/views/scripts-panel') %>
           </mm-scripts-app>
         </div>
+        <div class="mm-admin-view" data-admin-view="permissions" hidden>
+          <mm-permissions-app class="mm-admin-view-host">
+<%- include('../partials/views/permissions-panel') %>
+          </mm-permissions-app>
+        </div>
         <div class="mm-admin-view" data-admin-view="rules" hidden>
           <mm-rules-app class="mm-admin-view-host">
 <%- include('../partials/views/rules-panel') %>
@@ -27,6 +32,7 @@
     </div>
     <mm-scripts-debug-panel class="hidden"></mm-scripts-debug-panel>
     <mm-logs-debug-panel class="hidden"></mm-logs-debug-panel>
+    <mm-permissions-debug-panel class="hidden"></mm-permissions-debug-panel>
     <script defer src="./admin.js"></script>
   </body>
 </html>

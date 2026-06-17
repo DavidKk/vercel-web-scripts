@@ -14,6 +14,15 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 - **Extension shell** (popup, admin, content bridge, logs, inject policy)
   - Read: `specs/extension-shell.yaml`, `specs/extension-injection-policy.md`
   - Code: `extension/README.md`, `extension/TODO.md`
+- **Script permissions** (gate, modal, admin Permissions tab)
+  - Read: `tasks/active/script-permissions.md`
+  - Code: `shared/script-permission.ts`, `extension/src/shell/permission-manager.ts`
+- **UI cross-module dedup** (WEB / Extension / Preset shared layer — backlog)
+  - Read: `specs/ui-cross-module-review.md`, `tasks/backlog/ui-cross-module-dedup.md`
+- **Large file split** (>1000 lines → same-folder modules — backlog)
+  - Read: `tasks/backlog/large-file-split.md`
+- **CSS logical properties review** (padding/margin/logical CSS — backlog)
+  - Read: `tasks/backlog/css-logical-properties-review.md`
 - **Multi-service / scriptKey / Connect**
   - Read: `extension/docs/multi-service-tasks.md` (repo path, not under `.ai/`)
 - New platform capability or major behavior change
@@ -28,16 +37,22 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 
 ## By topic
 
-| Topic                   | File                                      |
-| ----------------------- | ----------------------------------------- |
-| Preset runtime modules  | `specs/modules-registry.yaml`             |
-| Extension shell modules | `specs/extension-shell.yaml`              |
-| HTML-only injection     | `specs/extension-injection-policy.md`     |
-| Runtime split baseline  | `specs/runtime-modularization.md`         |
-| Compatibility policy    | `specs/runtime-compatibility.md`          |
-| Verification checklist  | `specs/runtime-verification-checklist.md` |
-| Terminology             | `knowledge/glossary.md`                   |
-| Requirements process    | `workflow/requirements-audit.md`          |
-| Execution phases        | `workflow/module-development.md`          |
-| Active TODO             | `tasks/active/current.md`                 |
-| Project overview        | `context/summary.md`                      |
+| Topic                   | File                                             |
+| ----------------------- | ------------------------------------------------ |
+| Preset runtime modules  | `specs/modules-registry.yaml`                    |
+| Extension shell modules | `specs/extension-shell.yaml`                     |
+| HTML-only injection     | `specs/extension-injection-policy.md`            |
+| Runtime split baseline  | `specs/runtime-modularization.md`                |
+| Compatibility policy    | `specs/runtime-compatibility.md`                 |
+| Verification checklist  | `specs/runtime-verification-checklist.md`        |
+| Terminology             | `knowledge/glossary.md`                          |
+| Requirements process    | `workflow/requirements-audit.md`                 |
+| Execution phases        | `workflow/module-development.md`                 |
+| Active TODO             | `tasks/active/current.md`                        |
+| Script permissions      | `tasks/active/script-permissions.md`             |
+| UI folder restructure   | `tasks/done/ui-folder-restructure.md`            |
+| UI cross-module review  | `specs/ui-cross-module-review.md`                |
+| UI cross-module dedup   | `tasks/backlog/ui-cross-module-dedup.md`         |
+| Large file split        | `tasks/backlog/large-file-split.md`              |
+| CSS logical properties  | `tasks/backlog/css-logical-properties-review.md` |
+| Project overview        | `context/summary.md`                             |

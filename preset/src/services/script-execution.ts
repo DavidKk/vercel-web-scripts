@@ -4,6 +4,7 @@
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
 import { buildGrantsFromGlobal, type CspScriptExecuteMode, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
+import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@shared/launcher-constants'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
 
 import { isExtensionPageContext } from '@/helpers/env'

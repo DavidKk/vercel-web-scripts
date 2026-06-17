@@ -1,5 +1,5 @@
-import type { DebugLogEntry, DebugLogLevel } from '../shared/debug-log-types'
-import { isIncognitoDebugLogEntry } from '../shared/debug-log-utils'
+import type { DebugLogEntry, DebugLogLevel } from '../../shared/debug-log-types'
+import { isIncognitoDebugLogEntry } from '../../shared/debug-log-utils'
 
 /** Default level chips: all except debug. */
 export const DEFAULT_DEBUG_LOG_LEVEL_FILTER: readonly DebugLogLevel[] = ['info', 'ok', 'warn', 'error']

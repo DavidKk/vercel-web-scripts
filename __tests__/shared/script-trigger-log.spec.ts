@@ -4,7 +4,7 @@ import {
   parseScriptExecutingFailureLog,
   parseScriptExecutingLog,
   reportExtensionScriptFailed,
-} from '../../shared/script-trigger-log'
+} from '@shared/script-trigger-log'
 
 describe('script-trigger-log', () => {
   it('formats and parses executing script log lines', () => {

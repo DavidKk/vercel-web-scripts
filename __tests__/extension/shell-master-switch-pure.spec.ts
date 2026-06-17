@@ -1,4 +1,4 @@
-import { isShellEnabledForTabState } from '../../extension/src/shared/extension-storage/shell-master-switch-pure'
+import { isShellEnabledForTabState } from '@ext/shared/extension-storage/shell-master-switch-pure'
 
 describe('shell master switch pure', () => {
   it('should treat missing global enable as off for all tabs', () => {

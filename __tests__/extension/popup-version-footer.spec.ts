@@ -1,4 +1,4 @@
-import { formatPopupVersionFooter, POPUP_PRESET_VERSION_LOADING } from '../../extension/src/ui/popup-version-footer'
+import { formatPopupVersionFooter, POPUP_PRESET_VERSION_LOADING } from '@ext/ui/popup/popup-version-footer'
 
 describe('formatPopupVersionFooter', () => {
   it('should always include extension version from manifest', () => {

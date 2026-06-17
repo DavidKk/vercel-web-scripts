@@ -8,6 +8,7 @@ import {
   formatScriptKeyMasked,
   getEnabledScriptKeys,
   getGmScopeForScriptKey,
+  getPermissionModeForScriptKey,
   isLocalMagickMonkeyBase,
   isValidScriptKeyFormat,
   normalizeBaseUrl,
@@ -15,8 +16,8 @@ import {
   resolveGmScopeSeedLabel,
   resolveOtaEndpoint,
   serviceEndpointKey,
-} from '../../extension/src/shared/extension-services'
-import type { ServiceProfile } from '../../extension/src/types'
+} from '@ext/shared/extension-services'
+import type { ServiceProfile } from '@ext/types'
 
 function makeService(partial: Partial<ServiceProfile> & Pick<ServiceProfile, 'id' | 'baseUrl' | 'scriptKey'>): ServiceProfile {
   const now = Date.now()
@@ -153,6 +154,16 @@ describe('extension-services', () => {
     it('should derive distinct gmScope defaults for different local ports', () => {
       expect(getGmScopeForScriptKey('key-a', [], '', 'http://localhost:3000')).toBe('localhost_3000')
       expect(getGmScopeForScriptKey('key-b', [{ scriptKey: 'key-a', gmScope: 'localhost_3000' }], '', 'http://localhost:5173')).toBe('localhost_5173')
+    })
+  })
+
+  describe('getPermissionModeForScriptKey', () => {
+    it('should default to ask when meta is missing', () => {
+      expect(getPermissionModeForScriptKey('key-a', [])).toBe('ask')
+    })
+
+    it('should return trust when scriptKey meta is trust', () => {
+      expect(getPermissionModeForScriptKey('key-a', [{ scriptKey: 'key-a', gmScope: 'A', permissionMode: 'trust' }])).toBe('trust')
     })
   })
 

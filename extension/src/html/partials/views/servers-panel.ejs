@@ -142,6 +142,29 @@
                           </mm-input>
                           <p class="mm-hint">Prefix for GM storage keys, e.g. <code>A_A</code>. Auto-filled from label or server URL; same script key shares one scope.</p>
                         </mm-field>
+
+                        <mm-field class="mm-options-field">
+                          <label for="permissionMode" class="mm-label">Permission mode</label>
+                          <mm-select id="permissionMode">
+                            <input type="hidden" data-ref="permission-mode" value="ask" aria-label="Permission mode" />
+                            <button type="button" class="mm-select-trigger" data-ref="select-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Permission mode">
+                              <span class="mm-select-leading mm-icon-slot" data-ref="select-leading" data-icon="permissionAsk" aria-hidden="true"></span>
+                              <span class="mm-select-value" data-ref="select-value">Ask each time</span>
+                              <%- include('../partials/mm-select-chevron') %>
+                            </button>
+                            <div class="mm-select-menu" role="listbox">
+                              <button type="button" class="mm-select-option" data-value="ask" data-label="Ask each time" aria-selected="true">
+                                <span class="mm-select-option-icon mm-icon-slot" data-icon="permissionAsk" aria-hidden="true"></span>
+                                <span class="mm-select-option-label">Ask each time</span>
+                              </button>
+                              <button type="button" class="mm-select-option" data-value="trust" data-label="Full trust" aria-selected="false">
+                                <span class="mm-select-option-icon mm-icon-slot" data-icon="permissionAllow" aria-hidden="true"></span>
+                                <span class="mm-select-option-label">Full trust</span>
+                              </button>
+                            </div>
+                          </mm-select>
+                          <p class="mm-hint">Full trust auto-allows gated APIs without prompts; used permissions still appear under <strong>Permissions</strong>.</p>
+                        </mm-field>
                       </div>
                     </section>
 

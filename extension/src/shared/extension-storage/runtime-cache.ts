@@ -26,6 +26,8 @@ import { SCRIPT_ENABLED_PREFIX, SCRIPT_INSTALLED_PREFIX, SCRIPTKEY_RULES_PREFIX 
 import { getEnabledScriptKeys, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
 import { GM_STORAGE_PREFIX, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY, SHELL_MASTER_ENABLED_STORAGE_KEY } from './constants'
 import { SCRIPT_INSTALL_REGISTRY_KEY } from './script-install-registry'
+import { SCRIPT_PERMISSION_HISTORY_KEY } from './script-permission-history'
+import { SCRIPT_PERMISSION_REGISTRY_KEY } from './script-permission-registry'
 import { ensureExtensionServicesState, serviceProfileToExtensionConfig } from './services-state'
 
 export function gmStorageKey(key: string): string {
@@ -140,7 +142,7 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
     if (key.startsWith(SCRIPTKEY_RULES_PREFIX) || key.startsWith(SCRIPT_ENABLED_PREFIX) || key.startsWith(SCRIPT_INSTALLED_PREFIX)) {
       continue
     }
-    if (key === SCRIPT_INSTALL_REGISTRY_KEY) {
+    if (key === SCRIPT_INSTALL_REGISTRY_KEY || key === SCRIPT_PERMISSION_REGISTRY_KEY || key === SCRIPT_PERMISSION_HISTORY_KEY) {
       continue
     }
     if (key.startsWith(RUNTIME_STATE_KEY_PREFIX) || key.startsWith(GM_STORAGE_PREFIX)) {

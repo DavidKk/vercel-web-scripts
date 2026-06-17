@@ -87,4 +87,10 @@ Avoid alternative names unless explicitly mapping legacy wording.
   - Meaning: background session ring buffer; Admin Logs tab reads via port + `GET_DEBUG_LOGS`.
 
 - **Admin DEBUG panel**
-  - Meaning: dev-only floating panel on Scripts or Logs tab; tab-scoped via `mm-admin-debug-panel-visibility`.
+  - Meaning: dev-only floating panel on Scripts, Logs, or Permissions tab; tab-scoped via `mm-admin-debug-panel-visibility`.
+
+- **Script permission gate**
+  - Meaning: Tier-1 capabilities (`network`, clipboard, `open-tab`, `download`, `unsafe-window`) require modal allow/deny inside user-script scope.
+  - **Scope** (UI): how long a grant lasts — `once` (audit only), `session` (this tab), `persistent` (always).
+  - **Resource**: for `network`, the request URL host (not `location.hostname`).
+  - Doc: `tasks/active/script-permissions.md`.

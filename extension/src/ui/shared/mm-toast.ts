@@ -1,4 +1,4 @@
-import { type MmNotificationType, showMmNotification } from './mm-notification/index'
+import { type MmNotificationType, showMmNotification } from '../mm-notification/index'
 
 export type MmToastVariant = MmNotificationType
 
@@ -13,4 +13,4 @@ export class MmToast {
   }
 }
 
-export { type MmNotificationType, showMmNotification } from './mm-notification/index'
+export { type MmNotificationType, showMmNotification } from '../mm-notification/index'

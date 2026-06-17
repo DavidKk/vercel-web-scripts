@@ -4,6 +4,7 @@ import {
   formatScriptKeyMasked,
   formatScriptKeyShort,
   getGmScopeForScriptKey,
+  getPermissionModeForScriptKey,
   isValidScriptKeyFormat,
   resolveOtaEndpoint,
 } from '@ext/shared/extension-services'
@@ -18,11 +19,12 @@ import {
   setServiceEnabled,
 } from '@ext/shared/extension-storage'
 import { DEFAULT_CONFIG, type ScriptKeyMeta, type ServiceProfile, SERVICES_STORAGE_KEY } from '@ext/types'
+import type { ScriptPermissionMode } from '@shared/script-permission'
 
-import { subscribeAdminViewActivated } from './mm-admin-view-lifecycle'
-import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from './mm-icons'
-import { showMmNotification } from './mm-notification'
-import { initMmTooltipDelegation, updateMmTooltip } from './mm-tooltip'
+import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
+import { hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from '../mm-icons'
+import { showMmNotification } from '../mm-notification'
+import { initMmTooltipDelegation, updateMmTooltip } from '../shared/mm-tooltip'
 
 const STATUS_BASE = 'mm-servers-status'
 
@@ -38,6 +40,7 @@ type DetailFormBaseline = {
   baseUrl: string
   scriptKey: string
   gmScope: string
+  permissionMode: ScriptPermissionMode
   enabled: boolean
   developMode: boolean
 }
@@ -74,6 +77,7 @@ export class MmOptionsApp extends HTMLElement {
   private scriptKeyRevealed = true
   private scriptKeyMeta: ScriptKeyMeta[] = []
   private gmScopeTouched = false
+  private permissionModeTouched = false
   private labelTouched = false
   private developModeTouched = false
   private listDragBound = false
@@ -194,6 +198,11 @@ export class MmOptionsApp extends HTMLElement {
     this.querySelector('[data-ref="gm-scope"]')?.addEventListener('input', () => {
       this.gmScopeTouched = true
     })
+    this.querySelector('[data-ref="permission-mode"]')
+      ?.closest('mm-select')
+      ?.addEventListener('mm-select-change', () => {
+        this.permissionModeTouched = true
+      })
     this.querySelector('[data-ref="develop-mode"]')?.addEventListener('change', () => {
       this.developModeTouched = true
     })
@@ -614,6 +623,7 @@ export class MmOptionsApp extends HTMLElement {
     this.setDetailTestState('idle')
     this.labelTouched = false
     this.gmScopeTouched = false
+    this.permissionModeTouched = false
     this.developModeTouched = false
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = ''
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = DEFAULT_CONFIG.baseUrl
@@ -623,6 +633,7 @@ export class MmOptionsApp extends HTMLElement {
     ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = defaultDevelopModeForBaseUrl(DEFAULT_CONFIG.baseUrl)
     this.setScriptKeyBadge(0)
     this.updateSuggestedServiceFields()
+    this.setPermissionModeValue('ask')
     this.syncScriptKeyFieldDisplay()
     this.updateScriptKeyHint()
     this.captureDetailFormBaseline()
@@ -635,12 +646,14 @@ export class MmOptionsApp extends HTMLElement {
     }
     this.labelTouched = false
     this.gmScopeTouched = false
+    this.permissionModeTouched = false
     this.developModeTouched = false
     ;(this.querySelector('[data-ref="label"]') as HTMLInputElement).value = service.label
     ;(this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value = service.baseUrl
     this.scriptKeyStored = service.scriptKey
     this.scriptKeyRevealed = false
     ;(this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value = gmScope
+    this.setPermissionModeValue(getPermissionModeForScriptKey(service.scriptKey, this.scriptKeyMeta))
     ;(this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked = service.enabled
     ;(this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked = service.developMode === true
     this.setScriptKeyBadge(scriptKeyRefCount)
@@ -684,11 +697,15 @@ export class MmOptionsApp extends HTMLElement {
       labelEl.value = defaultLabelFromBaseUrl(baseUrl)
     }
 
+    const scriptKey = this.readScriptKeyValue()
+    if (!this.permissionModeTouched && scriptKey) {
+      this.setPermissionModeValue(getPermissionModeForScriptKey(scriptKey, this.scriptKeyMeta))
+    }
+
     if (this.gmScopeTouched) {
       return
     }
 
-    const scriptKey = this.readScriptKeyValue()
     if (!scriptKey) {
       gmScopeEl.value = ''
       return
@@ -696,6 +713,33 @@ export class MmOptionsApp extends HTMLElement {
 
     gmScopeEl.value = getGmScopeForScriptKey(scriptKey, this.scriptKeyMeta, labelEl.value, baseUrl)
     this.syncDevelopModeDefaultFromBaseUrl()
+  }
+
+  private setPermissionModeValue(value: ScriptPermissionMode): void {
+    const modeInput = this.querySelector('[data-ref="permission-mode"]') as HTMLInputElement | null
+    const modeSelect = modeInput?.closest('mm-select') as HTMLElement | null
+    if (!modeInput || !modeSelect) {
+      return
+    }
+    modeInput.value = value
+    const valueEl = modeSelect.querySelector('[data-ref="select-value"]') as HTMLElement | null
+    if (valueEl) {
+      valueEl.textContent = value === 'trust' ? 'Full trust' : 'Ask each time'
+    }
+    const leadingEl = modeSelect.querySelector('[data-ref="select-leading"]') as HTMLElement | null
+    if (leadingEl) {
+      setIconSlotKey(leadingEl, value === 'trust' ? 'permissionAllow' : 'permissionAsk')
+    }
+    modeSelect.querySelectorAll<HTMLElement>('.mm-select-menu [data-value]').forEach((option) => {
+      const selected = option.dataset.value === value
+      option.setAttribute('aria-selected', String(selected))
+      option.removeAttribute('hidden')
+    })
+  }
+
+  private readPermissionModeValue(): ScriptPermissionMode {
+    const input = this.querySelector('[data-ref="permission-mode"]') as HTMLInputElement | null
+    return input?.value === 'trust' ? 'trust' : 'ask'
   }
 
   /** Keep Extension auto-reload aligned with the service Server URL until the user toggles it. */
@@ -830,6 +874,7 @@ export class MmOptionsApp extends HTMLElement {
     baseUrl: string
     scriptKey: string
     gmScope: string
+    permissionMode: ScriptPermissionMode
     enabled: boolean
     developMode: boolean
   } {
@@ -838,6 +883,7 @@ export class MmOptionsApp extends HTMLElement {
       baseUrl: (this.querySelector('[data-ref="base-url"]') as HTMLInputElement).value.trim().replace(/\/$/, ''),
       scriptKey: this.readScriptKeyValue(),
       gmScope: (this.querySelector('[data-ref="gm-scope"]') as HTMLInputElement).value.trim(),
+      permissionMode: this.readPermissionModeValue(),
       enabled: (this.querySelector('[data-ref="enabled"]') as HTMLInputElement).checked,
       developMode: (this.querySelector('[data-ref="develop-mode"]') as HTMLInputElement).checked,
     }
@@ -964,6 +1010,7 @@ export class MmOptionsApp extends HTMLElement {
       input.baseUrl !== this.detailFormBaseline.baseUrl ||
       input.scriptKey !== this.detailFormBaseline.scriptKey ||
       input.gmScope !== this.detailFormBaseline.gmScope ||
+      input.permissionMode !== this.detailFormBaseline.permissionMode ||
       input.enabled !== this.detailFormBaseline.enabled ||
       input.developMode !== this.detailFormBaseline.developMode
     )
@@ -1443,6 +1490,7 @@ export class MmOptionsApp extends HTMLElement {
           enabled: input.enabled,
           developMode: input.developMode,
           gmScope: input.gmScope,
+          permissionMode: input.permissionMode,
         })
         showMmNotification(existingScriptKey ? 'Service created (shared script key).' : 'Service created.', 'success')
         if (!isValidScriptKeyFormat(input.scriptKey)) {

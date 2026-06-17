@@ -4,7 +4,7 @@ import {
   normalizeShellLogOutputMode,
   shouldLogToConsoleForMode,
   shouldLogToMemoryForMode,
-} from '../../shared/shell-log-output'
+} from '@shared/shell-log-output'
 
 describe('shell-log-output', () => {
   it('defaults to console mode', () => {

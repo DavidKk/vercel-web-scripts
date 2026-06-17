@@ -1,3 +1,5 @@
+import type { ScriptPermissionMode } from '@shared/script-permission'
+
 import type { ExtensionConfig, ExtensionServicesState, ServiceProfile } from '../../types'
 import { CONFIG_STORAGE_KEY, SERVICES_MIGRATION_FLAG_KEY, SERVICES_STORAGE_KEY, UNCONFIGURED_CONFIG } from '../../types'
 import {
@@ -15,6 +17,7 @@ import {
   ensureScriptKeyMetaEntry,
   getEnabledScriptKeys,
   getGmScopeForScriptKey,
+  getPermissionModeForScriptKey,
   normalizeBaseUrl,
   normalizeExtensionServicesState,
   normalizeScriptKey,
@@ -189,6 +192,16 @@ export function serviceProfileToExtensionConfig(service: ServiceProfile): Extens
 export async function loadGmScopeForScriptKey(scriptKey: string, fallbackLabel: string): Promise<string> {
   const state = await ensureExtensionServicesState()
   return getGmScopeForScriptKey(scriptKey, state.scriptKeyMeta, fallbackLabel)
+}
+
+/**
+ * Resolve permission mode for a scriptKey from persisted meta.
+ * @param scriptKey Script key
+ * @returns trust or ask (default)
+ */
+export async function loadPermissionModeForScriptKey(scriptKey: string): Promise<ScriptPermissionMode> {
+  const state = await ensureExtensionServicesState()
+  return getPermissionModeForScriptKey(scriptKey, state.scriptKeyMeta)
 }
 
 export async function loadScriptKeyGroupMeta() {

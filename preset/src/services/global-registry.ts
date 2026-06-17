@@ -12,6 +12,7 @@ import * as dom from '@/helpers/dom'
 import * as http from '@/helpers/http'
 import * as locator from '@/helpers/locator'
 import * as logger from '@/helpers/logger'
+import * as scriptPermissionScope from '@/helpers/script-permission-scope'
 import * as utils from '@/helpers/utils'
 import { findElementByXPath, generateXPath } from '@/helpers/xpath'
 import { fetchAndCacheRules, fetchRulesFromCache, matchUrl } from '@/rules'
@@ -95,6 +96,7 @@ export function registerGlobals(): void {
     ...utils,
     ...http,
     ...logger,
+    ...scriptPermissionScope,
     ...dom,
     ...locator,
     generateXPath,

@@ -1,4 +1,4 @@
-import { fetchExtensionUpdateInfo } from '../../extension/src/shared/extension-update-check'
+import { fetchExtensionUpdateInfo } from '@ext/shared/extension-update-check'
 
 describe('extension-update-check', () => {
   it('should detect newer extension version from API', async () => {

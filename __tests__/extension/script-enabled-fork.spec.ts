@@ -1,4 +1,4 @@
-import { resolveScriptEnabledFlag } from '../../extension/src/shared/extension-multi-service-pure'
+import { resolveScriptEnabledFlag } from '@ext/shared/extension-multi-service-pure'
 
 describe('script enabled incognito fork', () => {
   it('should prefer incognito override when present', () => {

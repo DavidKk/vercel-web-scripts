@@ -1,4 +1,4 @@
-import { buildExtensionScriptEnabledGuard } from '../../shared/extension-script-enabled-guard'
+import { buildExtensionScriptEnabledGuard } from '@shared/extension-script-enabled-guard'
 
 describe('extension-script-enabled-guard', () => {
   it('should skip execution when extension marks script disabled', () => {

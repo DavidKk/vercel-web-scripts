@@ -1,6 +1,6 @@
+import { bindDebugPanelToAdminTab } from '../admin/mm-admin-debug-panel-visibility'
+import { enhanceMmCheckboxLabel } from '../shared/mm-checkbox'
 import { DEFAULT_LOGS_DEBUG_ERROR_MESSAGE, getLogsDebugOverrides, isLogsDebugActive, setLogsDebugOverrides, subscribeLogsDebug } from './logs-debug-state'
-import { bindDebugPanelToAdminTab } from './mm-admin-debug-panel-visibility'
-import { enhanceMmCheckboxLabel } from './mm-checkbox'
 
 const TRIGGER_SIZE = 36
 const PANEL_RIGHT = 10

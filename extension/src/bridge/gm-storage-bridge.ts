@@ -1,4 +1,7 @@
+import type { ScriptPermissionContext, ScriptPermissionRequest } from '@shared/script-permission'
+
 import type { GMRequestDetails } from '../page/gm-types'
+import { permissionLogger } from '../shared/logger'
 import type { ShellResponse } from '../shared/messages'
 import { BRIDGE_MESSAGE_SOURCE, GM_STORAGE_PREFIX, RESPONSE_EVENT, STORAGE_CHANGED_EVENT } from './constants'
 import { isExtensionContextInvalidated } from './extension-context'
@@ -31,7 +34,7 @@ export function postStorageChanged(key: string, oldValue: unknown, newValue: unk
   window.postMessage({ source: BRIDGE_MESSAGE_SOURCE, type: STORAGE_CHANGED_EVENT, payload: { key, oldValue, newValue } }, '*')
 }
 
-async function handleXhr(details: GMRequestDetails): Promise<{ status: number; responseText: string; responseHeaders?: string }> {
+async function handleXhr(details: GMRequestDetails, permission?: ScriptPermissionRequest): Promise<{ status: number; responseText: string; responseHeaders?: string }> {
   const response = (await chrome.runtime.sendMessage({
     type: 'GM_XHR',
     details: {
@@ -41,6 +44,7 @@ async function handleXhr(details: GMRequestDetails): Promise<{ status: number; r
       data: details.data,
       timeout: details.timeout,
       responseType: details.responseType,
+      permission,
     },
   })) as ShellResponse
   if (!response?.ok || !('xhr' in response)) {
@@ -79,9 +83,45 @@ export function handleBridgeRequest(value: unknown): void {
         return
       }
       if (method === 'xhr') {
-        const [details] = args as [GMRequestDetails]
-        const result = await handleXhr(details)
+        const [details, permission] = args as [GMRequestDetails, ScriptPermissionRequest | undefined]
+        const result = await handleXhr(details, permission)
         respond(id, result)
+        return
+      }
+      if (method === 'permission') {
+        const [request] = args as [ScriptPermissionRequest]
+        permissionLogger.info('bridge:permission-received', {
+          file: request.file,
+          capability: request.capability,
+          resource: request.resource,
+          scriptKey: request.scriptKey,
+        })
+        const response = (await chrome.runtime.sendMessage({
+          type: 'SCRIPT_PERMISSION_ENSURE',
+          request,
+        })) as { ok?: boolean; allowed?: boolean }
+        const allowed = response?.ok === true && response.allowed === true
+        permissionLogger.info('bridge:permission-forwarded', { file: request.file, allowed })
+        respond(id, allowed)
+        return
+      }
+      if (method === 'seedConnects') {
+        const [context, connects] = args as [ScriptPermissionContext, string[]]
+        await chrome.runtime.sendMessage({
+          type: 'SCRIPT_PERMISSION_SEED_CONNECTS',
+          context,
+          connects,
+        })
+        respond(id, true)
+        return
+      }
+      if (method === 'seedTrustTier1') {
+        const [context] = args as [ScriptPermissionContext]
+        const response = (await chrome.runtime.sendMessage({
+          type: 'SCRIPT_PERMISSION_SEED_TRUST_TIER1',
+          context,
+        })) as { ok?: boolean; grantedKeys?: string[] }
+        respond(id, response?.ok === true && Array.isArray(response.grantedKeys) ? response.grantedKeys : [])
         return
       }
       respond(id, undefined, `Unknown method: ${method}`)

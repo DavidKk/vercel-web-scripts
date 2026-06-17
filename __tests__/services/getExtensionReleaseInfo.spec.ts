@@ -1,5 +1,6 @@
+import { buildChromeExtensionDownloadUrl } from '@shared/chrome-extension-download'
+
 import { getExtensionReleaseInfo, getExtensionReleaseVersion } from '../../services/extension/getExtensionReleaseInfo'
-import { buildChromeExtensionDownloadUrl } from '../../shared/chrome-extension-download'
 
 describe('getExtensionReleaseInfo', () => {
   it('should build download URL from request origin', async () => {
