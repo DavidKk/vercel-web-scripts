@@ -16,6 +16,7 @@ import {
 } from '@ext/shared/extension-storage'
 import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
+import { computeScrollThumbMetrics } from '@shared/ui/scroll-indicator'
 
 import { type AdminRoute, buildAdminHash, parseAdminHash } from '../admin/mm-admin-hash'
 import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
@@ -1059,8 +1060,15 @@ export class MmScriptsApp extends HTMLElement {
         return
       }
 
-      const { scrollHeight, clientHeight, scrollTop } = scroller
-      const scrollable = scrollHeight > clientHeight + 1
+      const { scrollable, thumbHeight, thumbTop } = computeScrollThumbMetrics(
+        {
+          scrollHeight: scroller.scrollHeight,
+          clientHeight: scroller.clientHeight,
+          scrollTop: scroller.scrollTop,
+          trackHeight: scrollbar.clientHeight,
+        },
+        { minThumbHeight: 18 }
+      )
       scrollbar.classList.toggle('hidden', !scrollable)
       if (!scrollable) {
         thumb.style.height = '0px'
@@ -1068,12 +1076,8 @@ export class MmScriptsApp extends HTMLElement {
         return
       }
 
-      const trackHeight = scrollbar.clientHeight
-      const thumbHeight = Math.max(18, Math.round((clientHeight / scrollHeight) * trackHeight))
-      const maxTop = Math.max(0, trackHeight - thumbHeight)
-      const top = Math.round((scrollTop / (scrollHeight - clientHeight)) * maxTop)
       thumb.style.height = `${thumbHeight}px`
-      thumb.style.transform = `translateY(${top}px)`
+      thumb.style.transform = `translateY(${thumbTop}px)`
     })
   }
 }

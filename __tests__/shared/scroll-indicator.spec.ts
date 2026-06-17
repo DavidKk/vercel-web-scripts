@@ -1,4 +1,4 @@
-import { computeScrollThumbMetrics } from '../../preset/src/ui/shared/scroll-indicator'
+import { computeScrollThumbMetrics } from '@shared/ui/scroll-indicator'
 
 describe('scroll-indicator', () => {
   it('should report not scrollable when content fits the viewport', () => {

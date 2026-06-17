@@ -1,4 +1,4 @@
-import { computeMmTooltipPosition, MM_TOOLTIP_GAP, MM_TOOLTIP_PADDING } from '@ext/ui/shared/mm-tooltip-position'
+import { computeMmTooltipPosition, MM_TOOLTIP_GAP, MM_TOOLTIP_PADDING } from '@shared/ui/tooltip-position'
 
 const rect = (left: number, top: number, width: number, height: number) => ({
   left,
