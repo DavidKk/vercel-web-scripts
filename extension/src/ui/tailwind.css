@@ -175,7 +175,6 @@
 
   .mm-admin-header {
     @apply relative z-20 flex h-[60px] shrink-0 flex-row flex-nowrap items-center justify-between gap-4 border-b border-solid border-mm-border-light bg-mm-surface px-4 py-0;
-    border-bottom-width: 1px;
   }
 
   .mm-admin-brand {
@@ -224,7 +223,6 @@
 
   .mm-permissions-head {
     @apply flex shrink-0 items-center justify-between gap-3 border-0 border-b border-solid border-mm-border-light px-4 py-3;
-    border-bottom-width: 1px;
   }
 
   .mm-permissions-head-copy {
@@ -258,7 +256,6 @@
 
   .mm-permissions-card-head {
     @apply flex items-start gap-3 border-0 border-b border-solid border-mm-border-light/60 bg-mm-muted/15 px-3 py-3.5;
-    border-bottom-width: 1px;
   }
 
   .mm-permissions-card-head-main {
@@ -282,20 +279,15 @@
     column-gap: 0.625rem;
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.95fr) minmax(4.5rem, 5.5rem) minmax(7.5rem, 9rem);
     min-height: 2.75rem;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    @apply py-3 px-3;
   }
 
   .mm-permissions-item-head {
     @apply shrink-0 border-0 border-b border-solid border-mm-border-light/40 text-[10px] font-medium uppercase leading-none tracking-wide text-mm-text-muted;
-    border-bottom-width: 1px;
   }
 
   .mm-permissions-item {
     @apply border-0 border-b border-solid border-mm-border-light/35 text-[12px] leading-snug text-mm-secondary transition-colors last:border-b-0;
-    border-bottom-width: 1px;
   }
 
   .mm-permissions-card:hover .mm-permissions-item {
@@ -376,7 +368,6 @@
 
   .mm-permissions-footer {
     @apply shrink-0 border-0 border-t border-solid border-mm-border-light bg-mm-muted/20 px-4 py-2 text-[11px] leading-snug text-mm-text-muted;
-    border-top-width: 1px;
   }
 
   .mm-logs-main {
@@ -386,7 +377,6 @@
 
   .mm-logs-page-head {
     @apply flex shrink-0 items-center justify-between gap-3 border-0 border-b border-solid border-mm-border-light bg-mm-surface px-4 py-3;
-    border-bottom-width: 1px;
   }
 
   .mm-logs-head-copy {
@@ -399,7 +389,6 @@
 
   .mm-logs-filters {
     @apply flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-0 border-b border-solid border-mm-border-light bg-mm-muted/25 px-4 py-2.5;
-    border-bottom-width: 1px;
   }
 
   .mm-logs-filters-levels {
@@ -413,8 +402,8 @@
   .mm-logs-body {
     @apply flex min-h-0 flex-1 flex-col overflow-hidden;
     --mm-logs-grid-cols: 4.5rem 3.75rem 4rem 5.5rem minmax(5rem, 7.5rem) 6.75rem minmax(0, 1fr);
-    --mm-logs-row-pad-x: 1rem;
-    --mm-logs-row-pad-end: 1rem;
+    --mm-logs-row-pad-left: 1rem;
+    --mm-logs-row-pad-right: 1rem;
   }
 
   .mm-logs-toolbar {
@@ -665,7 +654,6 @@
 
   .mm-logs-table-head {
     @apply sticky top-0 z-[2] h-11 shrink-0 border-0 border-b border-solid border-mm-border-light bg-mm-muted text-[11px] font-medium leading-none text-mm-text-muted;
-    border-bottom-width: 1px;
     box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.04);
   }
 
@@ -720,7 +708,7 @@
 
   .mm-logs-col--time,
   .mm-logs-cell--time {
-    @apply shrink-0 truncate pl-[var(--mm-logs-row-pad-x)] text-mm-text-muted;
+    @apply shrink-0 truncate pl-[var(--mm-logs-row-pad-left)] text-mm-text-muted;
   }
 
   .mm-logs-col--scope,
@@ -742,7 +730,7 @@
   }
 
   .mm-logs-cell--level {
-    @apply inline-flex min-w-[2.75rem] shrink-0 items-center justify-center justify-self-center rounded px-1.5 py-0.5 pr-2.5 text-[10px] font-semibold uppercase leading-none;
+    @apply inline-flex min-w-[2.75rem] shrink-0 items-center justify-center justify-self-center rounded pl-1.5 pr-2.5 py-0.5 text-[10px] font-semibold uppercase leading-none;
   }
 
   .mm-logs-cell--level[data-level='debug'],
@@ -813,7 +801,7 @@
 
   .mm-logs-col--message,
   .mm-logs-cell--message {
-    @apply min-w-0 border-l border-mm-border-light/70 pl-3 pr-[var(--mm-logs-row-pad-end)];
+    @apply min-w-0 border-l border-mm-border-light/70 pl-3 pr-[var(--mm-logs-row-pad-right)];
   }
 
   .mm-logs-col--message {
@@ -874,7 +862,6 @@
 
   .mm-logs-row {
     @apply border-0 border-b border-solid border-mm-border-light/60 py-1.5 text-mm-ink transition-colors last:border-b-0 hover:bg-mm-accent-soft/30;
-    border-bottom-width: 1px;
   }
 
   .mm-logs-row--warn {
@@ -903,7 +890,6 @@
 
   .mm-logs-footer {
     @apply shrink-0 border-0 border-t border-solid border-mm-border-light bg-mm-muted/20 px-4 py-2 text-[11px] leading-none text-mm-text-muted;
-    border-top-width: 1px;
   }
 
   .mm-servers-main {
@@ -1276,7 +1262,6 @@
 
   .mm-scripts-head {
     @apply flex shrink-0 items-center justify-between gap-3 border-0 border-b border-solid border-mm-border-light bg-mm-surface px-4 py-3;
-    border-bottom-width: 1px;
   }
 
   .mm-scripts-head-copy {
@@ -1290,7 +1275,6 @@
 
   .mm-scripts-footer {
     @apply shrink-0 border-0 border-t border-solid border-mm-border-light bg-mm-muted/20 px-4 py-2 text-[11px] leading-snug text-mm-text-muted;
-    border-top-width: 1px;
   }
 
   .mm-scripts-toolbar {
@@ -2153,14 +2137,12 @@
     width: 100%;
     align-items: center;
     column-gap: 0.625rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    @apply px-4;
     grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.35fr) minmax(0, 0.75fr) minmax(0, 1.15fr) minmax(4.5rem, 5.5rem) 1.75rem 1.75rem 2.25rem);
   }
 
   .mm-scripts-table-head {
     @apply h-11 shrink-0 border-0 border-b border-solid border-mm-border-light bg-mm-muted/40 text-[11px] font-medium leading-none text-mm-text-muted;
-    border-bottom-width: 1px;
   }
 
   .mm-script-cell--index {
@@ -2314,8 +2296,7 @@
     height: 3rem;
     align-items: center;
     column-gap: 0.625rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    @apply px-4;
     grid-template-columns: var(--mm-script-grid-cols, 2.25rem minmax(0, 1.35fr) minmax(0, 0.75fr) minmax(0, 1.15fr) minmax(4.5rem, 5.5rem) 1.75rem 1.75rem 2.25rem);
   }
 
@@ -2394,7 +2375,6 @@
 
   .mm-script-row {
     @apply min-h-12 overflow-hidden border-0 border-b border-solid border-mm-border-light/40 py-1;
-    border-bottom-width: 1px;
   }
 
   .mm-script-row:hover {

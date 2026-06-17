@@ -75,7 +75,7 @@ export function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModalProps) {
           Keyboard shortcuts
         </div>
         <div className="relative flex-1 min-h-0">
-          <div ref={scrollRef} className="h-full overflow-y-auto px-4 py-3 pr-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div ref={scrollRef} className="h-full overflow-y-auto pl-4 pr-6 py-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((category) => (
               <div key={category} className="mb-4 last:mb-0">
                 <div className="text-xs font-medium text-[#6f7a8a] uppercase tracking-wide mb-2">{category}</div>
