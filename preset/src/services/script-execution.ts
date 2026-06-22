@@ -6,6 +6,7 @@ import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } fro
 import { buildGrantsFromGlobal, type CspScriptExecuteMode, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@shared/launcher-constants'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
+import { buildWithGlobalExecutionSandbox } from '@shared/with-global-sandbox'
 
 import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
@@ -82,7 +83,8 @@ function writeRemoteScriptCache(content: string, etag: string): void {
 /**
  * Execute script content using the real global (globalThis) so the script
  * sees preset APIs (matchRule, GME_*, etc.) and Tampermonkey GM_* APIs.
- * GM_* may be in script scope only; we merge them onto global so with(global) resolves them.
+ * GM_* may be in script scope only; we merge them onto global and pass a narrowed
+ * sandbox into `with(global)` so native DOM APIs are not shadowed (Illegal invocation).
  * @param content Script content to execute
  */
 export async function executeScript(content: string): Promise<void> {
@@ -107,13 +109,16 @@ export async function executeScript(content: string): Promise<void> {
     if (typeof scriptCreateGMELogger === 'function') {
       g.createGMELogger = scriptCreateGMELogger
     }
+    const withGlobal = buildWithGlobalExecutionSandbox(g, { __IS_REMOTE_EXECUTE__: true })
     try {
-      executeMode = isExtensionPageContext() ? await executeWithGlobalResilient(g, executableContent, { preferUserScript: true }) : executeWithGlobal(g, executableContent)
+      executeMode = isExtensionPageContext()
+        ? await executeWithGlobalResilient(withGlobal, executableContent, { preferUserScript: true })
+        : executeWithGlobal(withGlobal, executableContent)
     } catch (error) {
       if (!isCspExtensionFallbackRequired(error)) {
         throw error
       }
-      executeMode = await executeWithGlobalResilient(g, executableContent)
+      executeMode = await executeWithGlobalResilient(withGlobal, executableContent)
     }
     GME_debug(`[Remote script] execute:finished mode=${executeMode} modules=${countCompiledRemoteModules(executableContent)} bytes=${executableContent.length}`)
   } finally {

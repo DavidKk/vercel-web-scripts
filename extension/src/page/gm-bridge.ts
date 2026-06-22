@@ -8,6 +8,7 @@ import { LEGACY_AUTO_UPDATE_SCRIPT_KEY, SHELL_LOG_PERSIST_ENABLED_KEY, SHELL_NET
 import type { ScriptPermissionRequest } from '@shared/script-permission'
 import { normalizePermissionNetworkHost } from '@shared/script-permission'
 import { normalizeShellLogOutputMode, SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
+import { readBoundProxyTargetProperty } from '@shared/with-global-sandbox'
 
 import type { GMApi, GMRequestDetails, GMResponse, GMValue } from './gm-types'
 import { sendPageBridgeRequest, setPageBridgeToken } from './page-bridge-client'
@@ -200,19 +201,19 @@ function createUnsafeWindowGate(): Window {
   }
 
   return new Proxy(window, {
-    get(target, prop, receiver) {
+    get(target, prop) {
       if (!isScriptPermissionEnforced() || state === 'granted') {
-        return Reflect.get(target, prop, receiver)
+        return readBoundProxyTargetProperty(target, prop)
       }
       ensureAccess()
-      return Reflect.get(target, prop, receiver)
+      return readBoundProxyTargetProperty(target, prop)
     },
-    set(target, prop, value, receiver) {
+    set(target, prop, value) {
       if (!isScriptPermissionEnforced() || state === 'granted') {
-        return Reflect.set(target, prop, value, receiver)
+        return Reflect.set(target, prop, value, target)
       }
       ensureAccess()
-      return Reflect.set(target, prop, value, receiver)
+      return Reflect.set(target, prop, value, target)
     },
   })
 }

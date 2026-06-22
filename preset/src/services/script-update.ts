@@ -5,6 +5,7 @@
  */
 
 import { buildGrantsFromGlobal, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
+import { buildWithGlobalExecutionSandbox } from '@shared/with-global-sandbox'
 
 import { GME_debug, GME_fail, GME_info, GME_ok } from '@/helpers/logger'
 import { fetchScript } from '@/scripts'
@@ -262,13 +263,14 @@ class ScriptUpdate {
     const prev = g.__IS_REMOTE_EXECUTE__
     try {
       Object.assign(g, grants, { __IS_REMOTE_EXECUTE__: true })
+      const withGlobal = buildWithGlobalExecutionSandbox(g, { __IS_REMOTE_EXECUTE__: true })
       try {
-        executeWithGlobal(g, content)
+        executeWithGlobal(withGlobal, content)
       } catch (error) {
         if (!isCspExtensionFallbackRequired(error)) {
           throw error
         }
-        await executeWithGlobalResilient(g, content)
+        await executeWithGlobalResilient(withGlobal, content)
       }
     } finally {
       g.__IS_REMOTE_EXECUTE__ = prev
