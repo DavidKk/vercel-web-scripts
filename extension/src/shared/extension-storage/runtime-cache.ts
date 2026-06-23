@@ -10,6 +10,7 @@ import {
   PRESET_UPDATED_NOTIFY_KEY,
   RUNTIME_STATE_KEY_PREFIX,
   SCRIPT_BUNDLE_URL_KEY,
+  SHELL_LOG_PERSIST_ENABLED_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
 import {
@@ -133,6 +134,9 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
   const all = await chrome.storage.local.get(null)
   const network = all[gmStorageKey(SHELL_NETWORK_ENABLED_KEY)]
   const legacy = all[gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]
+  const logOutputMode = all[gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]
+  const logPersist = all[gmStorageKey(SHELL_LOG_PERSIST_ENABLED_KEY)]
+  const incognitoLogCollection = all[gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY)]
   const shellMasterEnabled = all[SHELL_MASTER_ENABLED_STORAGE_KEY]
   const toRemove: string[] = []
   for (const key of Object.keys(all)) {
@@ -160,6 +164,15 @@ async function wipeGlobalRuntimeStorage(): Promise<void> {
   }
   if (legacy === true || legacy === false) {
     await chrome.storage.local.set({ [gmStorageKey(LEGACY_AUTO_UPDATE_SCRIPT_KEY)]: legacy })
+  }
+  if (logOutputMode === 'console' || logOutputMode === 'logviewer' || logOutputMode === 'none') {
+    await chrome.storage.local.set({ [gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY)]: logOutputMode })
+  }
+  if (logPersist === true || logPersist === false) {
+    await chrome.storage.local.set({ [gmStorageKey(SHELL_LOG_PERSIST_ENABLED_KEY)]: logPersist })
+  }
+  if (incognitoLogCollection === true || incognitoLogCollection === false) {
+    await chrome.storage.local.set({ [gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY)]: incognitoLogCollection })
   }
 }
 

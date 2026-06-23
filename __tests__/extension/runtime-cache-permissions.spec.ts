@@ -1,9 +1,10 @@
 import { GM_STORAGE_PREFIX } from '@ext/shared/extension-storage/constants'
-import { clearAllRuntimeCachesForEnabledScriptKeys } from '@ext/shared/extension-storage/runtime-cache'
+import { clearAllRuntimeCachesForEnabledScriptKeys, gmStorageKey } from '@ext/shared/extension-storage/runtime-cache'
 import { SCRIPT_PERMISSION_HISTORY_KEY } from '@ext/shared/extension-storage/script-permission-history'
 import { SCRIPT_PERMISSION_REGISTRY_KEY } from '@ext/shared/extension-storage/script-permission-registry'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
-import { PRESET_CACHE_KEY } from '@shared/launcher-constants'
+import { PRESET_CACHE_KEY, SHELL_LOG_PERSIST_ENABLED_KEY } from '@shared/launcher-constants'
+import { SHELL_INCOGNITO_LOG_COLLECTION_KEY, SHELL_LOG_OUTPUT_MODE_KEY } from '@shared/shell-log-output'
 
 function mockChromeStorageLocal(): Map<string, unknown> {
   const store = new Map<string, unknown>()
@@ -68,5 +69,21 @@ describe('runtime-cache permissions', () => {
     expect(store.has(SCRIPT_PERMISSION_HISTORY_KEY)).toBe(true)
     expect(store.has(`${GM_STORAGE_PREFIX}${PRESET_CACHE_KEY}`)).toBe(false)
     expect(store.has('vws_preset_etag')).toBe(false)
+  })
+
+  it('should preserve shell log preferences on update runtime', async () => {
+    const store = mockChromeStorageLocal()
+    store.set(SERVICES_STORAGE_KEY, { version: 1, services: [] })
+    store.set(gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY), 'logviewer')
+    store.set(gmStorageKey(SHELL_LOG_PERSIST_ENABLED_KEY), true)
+    store.set(gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY), true)
+    store.set(`${GM_STORAGE_PREFIX}${PRESET_CACHE_KEY}`, 'cached-body')
+
+    await clearAllRuntimeCachesForEnabledScriptKeys()
+
+    expect(store.get(gmStorageKey(SHELL_LOG_OUTPUT_MODE_KEY))).toBe('logviewer')
+    expect(store.get(gmStorageKey(SHELL_LOG_PERSIST_ENABLED_KEY))).toBe(true)
+    expect(store.get(gmStorageKey(SHELL_INCOGNITO_LOG_COLLECTION_KEY))).toBe(true)
+    expect(store.has(`${GM_STORAGE_PREFIX}${PRESET_CACHE_KEY}`)).toBe(false)
   })
 })
