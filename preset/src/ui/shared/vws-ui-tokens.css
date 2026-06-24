@@ -3,8 +3,6 @@
  * Canvas: #111318 · Surface: #171a21 / #1b1f27 · Border: #2a303a · Brand: #3b82f6
  */
 :host,
-.string-tool,
-.compiled-code-viewer,
 .command-palette,
 .nt-host {
   --vws-canvas: #111318;

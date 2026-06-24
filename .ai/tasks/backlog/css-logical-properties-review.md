@@ -43,11 +43,9 @@ Status: **TODO**（审查完成；修复待排期；**不改代码**）
 
 ## 已确认正确
 
-### `padding-inline`（唯一一处）
+### `padding-inline`（唯一一处，已随模块删除）
 
-| 文件                                  | 行  | 用法                              | 判定                            |
-| ------------------------------------- | --- | --------------------------------- | ------------------------------- |
-| `preset/src/ui/string-tool/index.css` | 313 | CodeMirror 行号 gutter 水平内边距 | ✅ 正确（行内方向对称 padding） |
+原 `preset/src/ui/string-tool/index.css` 中 CodeMirror gutter 的 `padding-inline` 用法已确认正确；该模块已于 2026-06 删除（见 `tasks/done/preset-cm-ui-removal.md`）。当前 Preset 无 CM 编辑器 UI，同类审查待未来 `editor-lib` 落地时再覆盖。
 
 ### `inset: 0` 全屏层
 

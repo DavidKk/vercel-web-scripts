@@ -75,14 +75,14 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 
 ### Phase D — 架构决策项（需产品/技术确认后执行）
 
-- [ ] **D1** Preset 孤儿模块：`string-tool` / `compiled-code-viewer` / `codemirror-editor` — 接入 `entry-ui.ts` **或** 归档/删除
+- [x] **D1** Preset 孤儿模块：`string-tool` / `compiled-code-viewer` / `codemirror-editor` — **已删除**（2026-06；见 `../done/preset-cm-ui-removal.md`）
 - [ ] **D2** Modal 行为共享：`shared/ui/modal-behavior.ts`（Escape、backdrop、focus 约定）；CSS 仍按主题分叉
 - [ ] **D3** Form control 工厂：`createSwitch` / `createCheckbox` + 共享 CSS 片段（Preset log-viewer 替换内联）
 - [ ] **D4** WEB login `Alert` vs `Notification` — 合并或明确边界文档
 
 **Phase D 验收**
 
-- [ ] D1 有书面决策（接入 / 归档 / 删除）及理由
+- [x] D1 有书面决策（**删除**）及理由 — `../done/preset-cm-ui-removal.md`
 - [ ] D2–D4 按决策项关闭或拆子任务
 
 ---
