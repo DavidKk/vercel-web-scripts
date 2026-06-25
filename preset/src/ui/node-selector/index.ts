@@ -1,17 +1,8 @@
 /**
  * Node Selector Module
  *
- * Provides a node selector UI component for selecting, highlighting, and marking DOM nodes.
- * All UI elements (highlight box, tooltip, markers) are managed within a single Shadow DOM.
- *
- * Features:
- * - Node detection and highlighting on hover
- * - Adjustable highlight target (support highlighting parent elements)
- * - Tooltip with custom information
- * - Click selection (optional)
- * - Persistent node marking with stable selectors
- * - Auto-restore marks on page load
- * - Plugin element exclusion (cannot select/mark plugin UI elements)
+ * Temporary DOM selection for third-party integrations.
+ * Session-only by default; callers opt in to marking and persistence.
  *
  * @module node-selector
  */
@@ -20,10 +11,6 @@ import { appendToDocumentElement } from '@/helpers/dom'
 import { GME_info, GME_warn } from '@/helpers/logger'
 import { mountUiTemplateShell } from '@/helpers/safe-inner-html'
 import { getUnsafeWindow } from '@/services/cli-service'
-import { GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
-import { GME_notification } from '@/ui/notification/index'
-import iconNodeSelector from '~icons/mdi/gesture-tap?raw'
-import iconClearMarks from '~icons/mdi/trash-can-outline?raw'
 
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import nodeSelectorCss from './index.css?raw'
@@ -31,11 +18,7 @@ import nodeSelectorHtml from './index.html?raw'
 import { NodeSelector } from './NodeSelector'
 import type { MarkedNodeInfo, NodeSelectorOptions } from './types'
 
-// Types and classes are defined in separate files:
-// - types.ts: Interface definitions (NodeInfo, MarkedNodeInfo, NodeSelectorOptions)
-// - MarkerHighlightBox.ts: MarkerHighlightBox custom element class
-// - NodeSelector.ts: NodeSelector custom element class
-// These files are loaded separately and merged at compile time
+export type { MarkedNodeInfo, NodeSelectorClickMode, NodeSelectorOptions } from './types'
 
 /**
  * Enable node selector
@@ -64,7 +47,6 @@ export function GME_disableNodeSelector(): void {
  * Get currently selected node
  * @returns Selected HTMLElement or null
  */
-
 export function GME_getSelectedNode(): HTMLElement | null {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   return selector ? selector.getSelectedNode() : null
@@ -73,7 +55,6 @@ export function GME_getSelectedNode(): HTMLElement | null {
 /**
  * Clear current selection
  */
-
 export function GME_clearSelection(): void {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   if (selector) {
@@ -82,11 +63,11 @@ export function GME_clearSelection(): void {
 }
 
 /**
- * Mark a node with a persistent marker
+ * Mark a node (caller decides when to mark; not automatic on select)
  * @param node Node to mark
- * @param label Optional label text for the marker (if not provided, a hash will be generated as default)
- * @param color Optional custom color for the marker (hex format, e.g., '#8b5cf6'). If not provided, a random unique color will be generated
- * @returns Mark ID or null if failed (will fail if node is a plugin element or excluded)
+ * @param label Optional internal label
+ * @param color Optional custom color (hex format)
+ * @returns Mark ID or null if failed
  */
 export function GME_markNode(node: HTMLElement, label?: string, color?: string): string | null {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
@@ -114,18 +95,14 @@ export function GME_clearAllMarks(): void {
 }
 
 /**
- * Get all marked nodes
+ * Get all marked nodes (current session; includes persisted marks when enabled)
  * @returns Array of marked node information
  */
 export function GME_getMarkedNodes(): MarkedNodeInfo[] {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   if (!selector) return []
-  // Use public method or access through storage
-  // For now, we'll load from storage directly
   try {
-    const storageKey = 'node-selector-marks'
-    const marks = GM_getValue(storageKey, {}) as Record<string, MarkedNodeInfo>
-    return Object.values(marks)
+    return selector.getMarkedNodes()
   } catch (e) {
     GME_warn('[node-selector] GME_getMarkedNodes failed:', e instanceof Error ? e.message : String(e))
     return []
@@ -136,7 +113,6 @@ export function GME_getMarkedNodes(): MarkedNodeInfo[] {
  * Clean up invalid marks (nodes that no longer exist)
  * @returns Number of marks cleaned up
  */
-
 export function GME_cleanupInvalidMarks(): number {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   if (!selector) return 0
@@ -154,7 +130,6 @@ export function GME_cleanupInvalidMarks(): number {
 /**
  * Hide all marks (remove Web Components and stop observers to save resources)
  */
-
 export function GME_hideMarks(): void {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   if (selector) {
@@ -165,7 +140,6 @@ export function GME_hideMarks(): void {
 /**
  * Show all marks (recreate Web Components and restart observers)
  */
-
 export function GME_showMarks(): void {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   if (selector) {
@@ -177,7 +151,6 @@ export function GME_showMarks(): void {
  * Check if marks are currently hidden
  * @returns Whether marks are hidden
  */
-
 export function GME_areMarksHidden(): boolean {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
   return selector ? selector.areMarksHidden() : false
@@ -198,102 +171,70 @@ if (typeof document !== 'undefined' && !document.querySelector(NodeSelector.TAG_
   appendToDocumentElement(container)
 }
 
-GME_registerCommandPaletteCommand({
-  id: 'node-selector-toggle',
-  keywords: ['node', 'selector', 'toggle', 'element', 'picker'],
-  title: 'Toggle Node Selector',
-  iconHtml: iconNodeSelector,
-  hint: 'Enable/disable node selection mode',
-  action: () => {
-    if (GME_isNodeSelectorEnabled()) {
-      GME_disableNodeSelector()
-    } else {
-      GME_enableNodeSelector({
-        enableClickSelection: true,
-        onSelect: (node: HTMLElement) => {
-          const markId = GME_markNode(node, `Mark ${Date.now()}`)
-          if (markId) GME_notification('Node marked', 'success')
-        },
-        getNodeInfo: (node: HTMLElement) => ({
-          title: node.tagName.toLowerCase(),
-          subtitle: node.className || node.id || '',
-          details: [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`],
-        }),
-      })
-    }
-  },
-})
-
-GME_registerCommandPaletteCommand({
-  id: 'node-selector-clear-all',
-  keywords: ['node', 'selector', 'mark', 'marks', 'clear', 'remove', 'delete', 'all', '清除', '标记'],
-  title: 'Clear All Node Marks',
-  iconHtml: iconClearMarks,
-  hint: 'Remove every node selector mark on this page',
-  action: () => {
-    const count = GME_getMarkedNodes().length
-    GME_clearAllMarks()
-    GME_clearSelection()
-    if (count > 0) {
-      GME_notification(`Cleared ${count} mark${count === 1 ? '' : 's'}`, 'success')
-    } else {
-      GME_notification('No marks to clear', 'info')
-    }
-  },
-})
-
 // ============================================================================
-// DEBUG/TEST CODE - for development only, remove in production
+// DEBUG/TEST CODE - for development only
 // ============================================================================
-// Use in browser console: vws.nodeSelector.test.xxx()
-// Help: vws.nodeSelector.help() or vws.help()
 
-/**
- * Register node-selector CLI commands
- * This function is called automatically when the module loads
- */
 function registerNodeSelectorCLI() {
-  // Get unsafeWindow for accessing global functions
   // @ts-ignore
   const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window
 
-  // Check if CLI service is available
   // @ts-ignore
   if (typeof win.registerCLIModule === 'undefined') {
-    // CLI service not loaded, skip registration
     return
   }
 
   // @ts-ignore
   win.registerCLIModule({
     name: 'nodeSelector',
-    description: 'Node selector module for selecting, highlighting, and marking DOM nodes',
+    description: 'Node selector module for temporary DOM selection (third-party initiated)',
     commands: [
       {
+        name: 'enableMark',
+        description: 'Enable mark-only mode (click marks, no onSelect)',
+        category: 'Basic',
+        usage: 'vws.nodeSelector.test.enableMark()',
+        handler: function () {
+          GME_enableNodeSelector({
+            clickMode: 'mark',
+            onMark: (node: HTMLElement, markId: string | null) => {
+              GME_info('Marked node:', node, 'markId:', markId)
+            },
+          })
+          GME_info('Node selector enabled in mark-only mode.')
+        },
+      },
+      {
         name: 'enable',
-        description: 'Enable node selector with basic configuration',
+        description: 'Enable select-only mode (click invokes onSelect, no mark)',
         category: 'Basic',
         usage: 'vws.nodeSelector.test.enable()',
         handler: function () {
           GME_enableNodeSelector({
-            enableClickSelection: true,
+            clickMode: 'select',
             onSelect: (node: HTMLElement) => {
               GME_info('Selected node:', node)
-              const markId = GME_markNode(node, `Test Mark ${Date.now()}`)
-              if (markId) {
-                GME_info('Marked with ID:', markId)
-                GME_notification('Node marked successfully', 'success')
-              }
-            },
-            getNodeInfo: (node: HTMLElement) => {
-              return {
-                title: node.tagName.toLowerCase(),
-                subtitle: node.className || node.id || '',
-                details: [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`],
-              }
             },
           })
-          GME_info('Node selector enabled. Hover over elements and click to mark them.')
+          GME_info('Node selector enabled in select-only mode.')
+        },
+      },
+      {
+        name: 'enableSelectAndMark',
+        description: 'Enable select-and-mark mode',
+        category: 'Basic',
+        usage: 'vws.nodeSelector.test.enableSelectAndMark()',
+        handler: function () {
+          GME_enableNodeSelector({
+            clickMode: 'selectAndMark',
+            onSelect: (node: HTMLElement) => {
+              GME_info('Selected node:', node)
+            },
+            onMark: (node: HTMLElement, markId: string | null) => {
+              GME_info('Marked node:', node, 'markId:', markId)
+            },
+          })
+          GME_info('Node selector enabled in select-and-mark mode.')
         },
       },
       {
@@ -327,216 +268,29 @@ function registerNodeSelectorCLI() {
           GME_info('All marks cleared.')
         },
       },
-      {
-        name: 'reactComponent',
-        description: 'Test React component scenario',
-        category: 'Advanced',
-        usage: 'vws.nodeSelector.test.reactComponent()',
-        handler: function () {
-          GME_enableNodeSelector({
-            enableClickSelection: true,
-            onSelect: (node: HTMLElement) => {
-              GME_info('Selected component:', node)
-              const markId = GME_markNode(node, 'React Component')
-              if (markId) {
-                GME_info('Component marked with ID:', markId)
-              }
-            },
-            getNodeInfo: (hoveredNode: HTMLElement) => {
-              // Try to find React component root
-              let componentRoot: HTMLElement = hoveredNode
-              let current: HTMLElement | null = hoveredNode
-
-              while (current && current !== document.body) {
-                if (current.hasAttribute('data-react-component')) {
-                  componentRoot = current
-                  break
-                }
-                current = current.parentElement
-              }
-
-              if (componentRoot !== hoveredNode && componentRoot.hasAttribute('data-react-component')) {
-                return {
-                  title: 'React Component',
-                  subtitle: componentRoot.getAttribute('data-react-component') || '',
-                  details: [`Component: ${componentRoot.getAttribute('data-react-component')}`, `Hovered: ${hoveredNode.tagName.toLowerCase()}`],
-                  highlightTarget: componentRoot,
-                }
-              }
-
-              return {
-                title: hoveredNode.tagName.toLowerCase(),
-                subtitle: hoveredNode.className || '',
-              }
-            },
-          })
-          GME_info('React component selector enabled. Hover over elements to see component info.')
-        },
-      },
-      {
-        name: 'serviceColor',
-        description: 'Test service-level color (all marks from same service use same color)',
-        category: 'Color',
-        usage: 'vws.nodeSelector.test.serviceColor()',
-        handler: function () {
-          // Test with a specific service color (e.g., blue for this service)
-          GME_enableNodeSelector({
-            enableClickSelection: true,
-            markColor: '#3b82f6', // Blue color for this service
-            onSelect: (node: HTMLElement) => {
-              GME_info('Selected node:', node)
-              // All marks created by this service will use the same blue color
-              const markId = GME_markNode(node, `Service Mark ${Date.now()}`)
-              if (markId) {
-                GME_info(`Marked with ID: ${markId} (using service color: #3b82f6)`)
-              }
-            },
-          })
-          GME_info('Service color test enabled. All marks will use the same blue color (#3b82f6).')
-        },
-      },
-      {
-        name: 'multipleServices',
-        description: 'Show information about testing multiple services with different colors',
-        category: 'Color',
-        usage: 'vws.nodeSelector.test.multipleServices()',
-        handler: function () {
-          GME_info('Testing multiple services with different colors...')
-          GME_info('Service 1: Blue (#3b82f6)')
-          GME_info('Service 2: Green (#10b981)')
-          GME_info('Service 3: Orange (#f59e0b)')
-          GME_info('Note: Each service should register with its own color using markColor option in enable()')
-          GME_info('Example: GME_enableNodeSelector({ markColor: "#3b82f6" })')
-        },
-      },
-      {
-        name: 'hideMarks',
-        description: 'Hide all marks (remove Web Components and stop observers)',
-        category: 'Marks',
-        usage: 'vws.nodeSelector.test.hideMarks()',
-        handler: function () {
-          GME_hideMarks()
-          const isHidden = GME_areMarksHidden()
-          if (isHidden) {
-            GME_info('All marks are now hidden. Web Components removed and observers stopped.')
-          } else {
-            GME_warn('Failed to hide marks.')
-          }
-        },
-      },
-      {
-        name: 'showMarks',
-        description: 'Show all marks (recreate Web Components and restart observers)',
-        category: 'Marks',
-        usage: 'vws.nodeSelector.test.showMarks()',
-        handler: function () {
-          GME_showMarks()
-          const isHidden = GME_areMarksHidden()
-          if (!isHidden) {
-            GME_info('All marks are now visible. Web Components recreated and observers restarted.')
-          } else {
-            GME_warn('Failed to show marks.')
-          }
-        },
-      },
-      {
-        name: 'areMarksHidden',
-        description: 'Check if marks are currently hidden',
-        category: 'Marks',
-        usage: 'vws.nodeSelector.test.areMarksHidden()',
-        handler: function () {
-          const isHidden = GME_areMarksHidden()
-          GME_info(`Marks are currently: ${isHidden ? 'HIDDEN' : 'VISIBLE'}`)
-          return isHidden
-        },
-      },
-      {
-        name: 'hideShowWorkflow',
-        description: 'Test hide/show marks workflow',
-        category: 'Marks',
-        usage: 'vws.nodeSelector.test.hideShowWorkflow()',
-        handler: function () {
-          GME_info('Testing hide/show marks workflow...')
-
-          // First, create some marks if none exist
-          const marks = GME_getMarkedNodes()
-          if (marks.length === 0) {
-            GME_info('No marks found. Please create some marks first using vws.nodeSelector.test.enable()')
-            return
-          }
-
-          GME_info(`Found ${marks.length} marks.`)
-
-          // Check initial state
-          const initialHidden = GME_areMarksHidden()
-          GME_info(`Initial state: ${initialHidden ? 'HIDDEN' : 'VISIBLE'}`)
-
-          // Hide marks
-          GME_info('Hiding marks...')
-          GME_hideMarks()
-          const afterHide = GME_areMarksHidden()
-          GME_info(`After hide: ${afterHide ? 'HIDDEN' : 'VISIBLE'}`)
-
-          // Wait a bit
-          setTimeout(() => {
-            // Show marks
-            GME_info('Showing marks...')
-            GME_showMarks()
-            const afterShow = GME_areMarksHidden()
-            GME_info(`After show: ${afterShow ? 'HIDDEN' : 'VISIBLE'}`)
-            GME_info('Hide/show test completed.')
-          }, 1000)
-        },
-      },
     ],
   })
 }
 
-// Auto-register when module loads
 registerNodeSelectorCLI()
 
-/**
- * Test function: Enable node selector with basic configuration
- * Usage: testNodeSelector() in browser console
- */
 // @ts-ignore
 getUnsafeWindow().testNodeSelector = function () {
   GME_enableNodeSelector({
-    enableClickSelection: true,
+    clickMode: 'select',
     onSelect: (node: HTMLElement) => {
       GME_info('Selected node:', node)
-      const markId = GME_markNode(node, `Test Mark ${Date.now()}`)
-      if (markId) {
-        GME_info('Marked with ID:', markId)
-        // @ts-ignore
-        GME_notification('Node marked successfully', 'success')
-      }
-    },
-    getNodeInfo: (node: HTMLElement) => {
-      return {
-        title: node.tagName.toLowerCase(),
-        subtitle: node.className || node.id || '',
-        details: [`Tag: ${node.tagName}`, `Classes: ${node.className || 'none'}`, `ID: ${node.id || 'none'}`],
-      }
     },
   })
-  GME_info('Node selector enabled. Hover over elements and click to mark them.')
+  GME_info('Node selector enabled in select-only mode.')
 }
 
-/**
- * Test function: Disable node selector
- * Usage: testDisableNodeSelector() in browser console
- */
 // @ts-ignore
 getUnsafeWindow().testDisableNodeSelector = function () {
   GME_disableNodeSelector()
   GME_info('Node selector disabled.')
 }
 
-/**
- * Test function: List all marked nodes
- * Usage: testListMarks() in browser console
- */
 // @ts-ignore
 getUnsafeWindow().testListMarks = function () {
   const marks = GME_getMarkedNodes()
@@ -544,177 +298,8 @@ getUnsafeWindow().testListMarks = function () {
   return marks
 }
 
-/**
- * Test function: Clear all marks
- * Usage: testClearMarks() in browser console
- */
 // @ts-ignore
 getUnsafeWindow().testClearMarks = function () {
   GME_clearAllMarks()
   GME_info('All marks cleared.')
 }
-
-/**
- * Test function: Test React component scenario
- * Usage: testReactComponentSelector() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testReactComponentSelector = function () {
-  GME_enableNodeSelector({
-    enableClickSelection: true,
-    onSelect: (node: HTMLElement) => {
-      GME_info('Selected component:', node)
-      const markId = GME_markNode(node, 'React Component')
-      if (markId) {
-        GME_info('Component marked with ID:', markId)
-      }
-    },
-    getNodeInfo: (hoveredNode: HTMLElement) => {
-      // Try to find React component root
-      let componentRoot: HTMLElement = hoveredNode
-      let current: HTMLElement | null = hoveredNode
-
-      while (current && current !== document.body) {
-        if (current.hasAttribute('data-react-component')) {
-          componentRoot = current
-          break
-        }
-        current = current.parentElement
-      }
-
-      if (componentRoot !== hoveredNode && componentRoot.hasAttribute('data-react-component')) {
-        return {
-          title: 'React Component',
-          subtitle: componentRoot.getAttribute('data-react-component') || '',
-          details: [`Component: ${componentRoot.getAttribute('data-react-component')}`, `Hovered: ${hoveredNode.tagName.toLowerCase()}`],
-          highlightTarget: componentRoot,
-        }
-      }
-
-      return {
-        title: hoveredNode.tagName.toLowerCase(),
-        subtitle: hoveredNode.className || '',
-      }
-    },
-  })
-  GME_info('React component selector enabled. Hover over elements to see component info.')
-}
-
-/**
- * Test function: Test service-level color (all marks from same service use same color)
- * Usage: testServiceColor() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testServiceColor = function () {
-  // Test with a specific service color (e.g., blue for this service)
-  GME_enableNodeSelector({
-    enableClickSelection: true,
-    markColor: '#3b82f6', // Blue color for this service
-    onSelect: (node: HTMLElement) => {
-      GME_info('Selected node:', node)
-      // All marks created by this service will use the same blue color
-      const markId = GME_markNode(node, `Service Mark ${Date.now()}`)
-      if (markId) {
-        GME_info(`Marked with ID: ${markId} (using service color: #3b82f6)`)
-      }
-    },
-  })
-  GME_info('Service color test enabled. All marks will use the same blue color (#3b82f6).')
-}
-
-/**
- * Test function: Test multiple services with different colors
- * Usage: testMultipleServices() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testMultipleServices = function () {
-  GME_info('Testing multiple services with different colors...')
-  GME_info('Service 1: Blue (#3b82f6)')
-  GME_info('Service 2: Green (#10b981)')
-  GME_info('Service 3: Orange (#f59e0b)')
-  GME_info('Note: Each service should register with its own color using markColor option in enable()')
-  GME_info('Example: GME_enableNodeSelector({ markColor: "#3b82f6" })')
-}
-
-/**
- * Test function: Hide all marks
- * Usage: testHideMarks() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testHideMarks = function () {
-  GME_hideMarks()
-  const isHidden = GME_areMarksHidden()
-  if (isHidden) {
-    GME_info('All marks are now hidden. Web Components removed and observers stopped.')
-  } else {
-    GME_warn('Failed to hide marks.')
-  }
-}
-
-/**
- * Test function: Show all marks
- * Usage: testShowMarks() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testShowMarks = function () {
-  GME_showMarks()
-  const isHidden = GME_areMarksHidden()
-  if (!isHidden) {
-    GME_info('All marks are now visible. Web Components recreated and observers restarted.')
-  } else {
-    GME_warn('Failed to show marks.')
-  }
-}
-
-/**
- * Test function: Check if marks are hidden
- * Usage: testAreMarksHidden() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testAreMarksHidden = function () {
-  const isHidden = GME_areMarksHidden()
-  GME_info(`Marks are currently: ${isHidden ? 'HIDDEN' : 'VISIBLE'}`)
-  return isHidden
-}
-
-/**
- * Test function: Test hide/show marks workflow
- * Usage: testHideShowMarks() in browser console
- */
-// @ts-ignore
-getUnsafeWindow().testHideShowMarks = function () {
-  GME_info('Testing hide/show marks workflow...')
-
-  // First, create some marks if none exist
-  const marks = GME_getMarkedNodes()
-  if (marks.length === 0) {
-    GME_info('No marks found. Please create some marks first using testNodeSelector()')
-    return
-  }
-
-  GME_info(`Found ${marks.length} marks.`)
-
-  // Check initial state
-  const initialHidden = GME_areMarksHidden()
-  GME_info(`Initial state: ${initialHidden ? 'HIDDEN' : 'VISIBLE'}`)
-
-  // Hide marks
-  GME_info('Hiding marks...')
-  GME_hideMarks()
-  const afterHide = GME_areMarksHidden()
-  GME_info(`After hide: ${afterHide ? 'HIDDEN' : 'VISIBLE'}`)
-
-  // Wait a bit
-  setTimeout(() => {
-    // Show marks
-    GME_info('Showing marks...')
-    GME_showMarks()
-    const afterShow = GME_areMarksHidden()
-    GME_info(`After show: ${afterShow ? 'HIDDEN' : 'VISIBLE'}`)
-    GME_info('Hide/show test completed.')
-  }, 1000)
-}
-
-// ============================================================================
-// END OF DEBUG/TEST CODE
-// ============================================================================

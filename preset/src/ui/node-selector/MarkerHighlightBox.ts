@@ -1,5 +1,4 @@
 import { MarkerLabel } from './MarkerLabel'
-import { MarkerXPathPanel } from './MarkerXPathPanel'
 
 /**
  * Marker highlight box custom element
@@ -9,8 +8,6 @@ export class MarkerHighlightBox extends HTMLElement {
   /** Custom element tag name */
   static TAG_NAME = 'vercel-web-script-marker-highlight-box'
 
-  /** Target node selector */
-  #targetSelector: string | null = null
   /** Target node reference */
   #targetNode: HTMLElement | null = null
   /** Resize observer */
@@ -27,19 +24,11 @@ export class MarkerHighlightBox extends HTMLElement {
   #pendingUpdate = false
   /** Scrollable parent elements for cleanup */
   #scrollableParents: HTMLElement[] = []
-  /** Marker label web component */
+  /** Marker close button web component */
   #markerLabel: MarkerLabel | null = null
-  /** XPath panel web component */
-  #xpathPanel: MarkerXPathPanel | null = null
   /** Delete callback */
   #deleteCallback: (() => void) | null = null
-  /** XPath value (deprecated, use xpaths instead) */
-  #xpath: string | null = null
-  /** XPaths array (all possible XPaths for this marked node) */
-  #xpaths: string[] = []
-  /** Hide panel timer */
-  #hidePanelTimer: ReturnType<typeof setTimeout> | null = null
-  /** ResizeObserver for marker label and panel */
+  /** ResizeObserver for close button */
   #markerResizeObserver: ResizeObserver | null = null
   /** Update marker position RAF */
   #markerRafId: number | null = null
@@ -52,7 +41,6 @@ export class MarkerHighlightBox extends HTMLElement {
    * Get scrollbar width (cached to avoid repeated calculations)
    */
   #getScrollbarWidth(): number {
-    // Create a temporary div to measure scrollbar width
     const outer = document.createElement('div')
     outer.style.visibility = 'hidden'
     outer.style.overflow = 'scroll'
@@ -69,14 +57,9 @@ export class MarkerHighlightBox extends HTMLElement {
     return scrollbarWidth
   }
 
-  /**
-   * Cached scrollbar width (lazy initialized)
-   */
+  /** Cached scrollbar width (lazy initialized) */
   #scrollbarWidth: number | null = null
 
-  /**
-   * Get scrollbar width (with caching)
-   */
   #getCachedScrollbarWidth(): number {
     if (this.#scrollbarWidth === null) {
       this.#scrollbarWidth = this.#getScrollbarWidth()
@@ -84,21 +67,12 @@ export class MarkerHighlightBox extends HTMLElement {
     return this.#scrollbarWidth
   }
 
-  /**
-   * Check if target element or any of its ancestors has position: fixed or sticky
-   * Returns true if element itself or any ancestor has position: fixed or sticky
-   * Uses the nearest fixed/sticky ancestor (or element itself if fixed/sticky)
-   * @param element Element to check
-   * @returns Whether element or any ancestor has position: fixed or sticky
-   */
   #hasFixedOrStickyPosition(element: HTMLElement): boolean {
-    // Check element itself first
     const elementStyle = window.getComputedStyle(element)
     if (elementStyle.position === 'fixed' || elementStyle.position === 'sticky') {
       return true
     }
 
-    // Check all ancestors up to body
     let current: HTMLElement | null = element.parentElement
     while (current && current !== document.body && current !== document.documentElement) {
       const style = window.getComputedStyle(current)
@@ -110,13 +84,6 @@ export class MarkerHighlightBox extends HTMLElement {
     return false
   }
 
-  /**
-   * Update highlight box position and size (internal, called by RAF)
-   * Dynamically uses fixed or absolute positioning based on target element's position
-   * - If target or any ancestor has position: fixed or sticky, use fixed positioning
-   * - Otherwise, use absolute positioning relative to document
-   * Ensures top-right and bottom-right corners stay within viewport (accounting for scrollbar width)
-   */
   #doUpdatePosition() {
     if (!this.#targetNode) {
       this.classList.add('node-selector-marker-highlight--hidden')
@@ -127,7 +94,6 @@ export class MarkerHighlightBox extends HTMLElement {
     const isFixedOrSticky = this.#hasFixedOrStickyPosition(this.#targetNode)
     const scrollbarWidth = this.#getCachedScrollbarWidth()
 
-    // Viewport dimensions accounting for scrollbar
     const viewportWidth = window.innerWidth - scrollbarWidth
     const viewportHeight = window.innerHeight
 
@@ -136,33 +102,22 @@ export class MarkerHighlightBox extends HTMLElement {
     let width = rect.width
     let height = rect.height
 
-    // Calculate right edge positions (top-right and bottom-right corners)
     const rightEdge = left + width
     const bottomRightY = top + height
 
-    // Constrain: top-right and bottom-right corners must not exceed viewport right edge
     if (rightEdge > viewportWidth) {
-      // Adjust width to keep right edge within viewport
       width = Math.max(0, viewportWidth - left)
     }
 
-    // Also ensure bottom-right corner's Y doesn't exceed viewport bottom
-    // (though this is less common, we check it for completeness)
     if (bottomRightY > viewportHeight) {
-      // Adjust height to keep bottom-right corner within viewport
       height = Math.max(0, viewportHeight - top)
     }
 
     if (isFixedOrSticky) {
-      // For fixed or sticky elements, use fixed positioning (relative to viewport)
-      // Sticky elements behave like fixed when they're "stuck", so use fixed positioning
-      // No need to add scroll offsets
       this.style.position = 'fixed'
       this.style.top = `${top}px`
       this.style.left = `${left}px`
     } else {
-      // For non-fixed/sticky elements, use absolute positioning (relative to document)
-      // Add window scroll to get document-relative position
       const scrollX = window.scrollX || document.documentElement.scrollLeft || 0
       const scrollY = window.scrollY || document.documentElement.scrollTop || 0
       this.style.position = 'absolute'
@@ -172,21 +127,15 @@ export class MarkerHighlightBox extends HTMLElement {
 
     this.style.width = `${width}px`
     this.style.height = `${height}px`
-    // On first successful positioning after (re)initialize, reveal the box.
-    // This avoids showing it at the default (0,0) before we know the correct position.
     if (!this.#hasPositionedOnce) {
       this.classList.remove('node-selector-marker-highlight--hidden')
       this.#hasPositionedOnce = true
     }
     this.#pendingUpdate = false
 
-    // Update marker label and panel position if they exist
     this.#updateMarkerPosition()
   }
 
-  /**
-   * Schedule position update (throttled via RAF to avoid jitter)
-   */
   #updatePosition() {
     if (this.#pendingUpdate) return
     this.#pendingUpdate = true
@@ -199,23 +148,14 @@ export class MarkerHighlightBox extends HTMLElement {
     }
   }
 
-  /**
-   * Public method to trigger position update (for external observers)
-   */
   updatePosition(): void {
     this.#updatePosition()
   }
 
-  /**
-   * Handle scroll event
-   */
   #handleScroll = () => {
     this.#updatePosition()
   }
 
-  /**
-   * Handle window resize
-   */
   #handleResize = () => {
     this.#updatePosition()
   }
@@ -225,26 +165,19 @@ export class MarkerHighlightBox extends HTMLElement {
    * @param selector CSS selector, XPath, or HTMLElement reference
    */
   initialize(selector: string | HTMLElement) {
-    // Clean up observers and event listeners, but keep marker label
-    // Note: #cleanupObservers() only cleans up observers/listeners, it doesn't remove the marker label
     this.#cleanupObservers()
 
     if (selector instanceof HTMLElement) {
       this.#targetNode = selector
-      this.#targetSelector = null
     } else {
-      this.#targetSelector = selector
-      // Check if it's an XPath (starts with / or //)
       if (selector.startsWith('/') || selector.startsWith('//')) {
         try {
           const result = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
           this.#targetNode = result.singleNodeValue as HTMLElement | null
-        } catch (e) {
-          // XPath evaluation failed, fallback to null (will be hidden)
+        } catch {
           this.#targetNode = null
         }
       } else {
-        // CSS selector
         this.#targetNode = document.querySelector(selector) as HTMLElement
       }
     }
@@ -255,21 +188,16 @@ export class MarkerHighlightBox extends HTMLElement {
       return
     }
 
-    // For initialization, keep highlight box hidden until the first position
-    // calculation has run, so we don't briefly show it at (0,0).
     this.#hasPositionedOnce = false
     this.classList.add('node-selector-marker-highlight--hidden')
 
-    // Initial position update
     this.#updatePosition()
 
-    // Create ResizeObserver to track size changes
     this.#resizeObserver = new ResizeObserver(() => {
       this.#updatePosition()
     })
     this.#resizeObserver.observe(this.#targetNode)
 
-    // Create IntersectionObserver to hide when out of viewport
     this.#intersectionObserver = new IntersectionObserver((entries) => {
       const entry = entries[0]
       if (entry.isIntersecting) {
@@ -280,22 +208,15 @@ export class MarkerHighlightBox extends HTMLElement {
     })
     this.#intersectionObserver.observe(this.#targetNode)
 
-    // Set up scroll and resize handlers
     this.#scrollHandler = this.#handleScroll
     this.#resizeHandler = this.#handleResize
 
-    // Always listen to window resize and scroll (needed for position updates)
     window.addEventListener('resize', this.#resizeHandler)
     window.addEventListener('scroll', this.#scrollHandler, true)
 
-    // Find and listen to all scrollable parent containers
-    // This is necessary because elements inside scrollable containers need position updates
-    // when their parent containers scroll
     let parent: HTMLElement | null = this.#targetNode.parentElement
     const scrollableParents: HTMLElement[] = []
 
-    // Traverse up the DOM tree to find all scrollable parents
-    // No depth limit - we need to find all scrollable containers
     while (parent && parent !== document.body && parent !== document.documentElement) {
       const style = window.getComputedStyle(parent)
       const isScrollable =
@@ -314,43 +235,29 @@ export class MarkerHighlightBox extends HTMLElement {
       parent = parent.parentElement
     }
 
-    // Store scrollable parents for cleanup
     this.#scrollableParents = scrollableParents
   }
 
   /**
-   * Set marker label and delete callback
-   * @param label Label text
+   * Set close button and delete callback
    * @param onDelete Delete callback
-   * @param xpaths XPaths array for the marked node (all possible XPaths)
    */
-  setMarkerLabel(label: string, onDelete: () => void, xpaths: string[]) {
+  setCloseButton(onDelete: () => void) {
     this.#deleteCallback = onDelete
-    this.#xpaths = xpaths || []
-    // Keep backward compatibility
-    this.#xpath = this.#xpaths.length > 0 ? this.#xpaths[0] : null
 
-    // Remove existing marker label and panel if any
     if (this.#markerLabel) {
       this.#markerLabel.cleanup()
       this.#markerLabel.remove()
       this.#markerLabel = null
     }
-    if (this.#xpathPanel) {
-      this.#xpathPanel.cleanup()
-      this.#xpathPanel.remove()
-      this.#xpathPanel = null
-    }
 
-    // Cleanup marker observers
     if (this.#markerResizeObserver) {
       this.#markerResizeObserver.disconnect()
       this.#markerResizeObserver = null
     }
 
-    // Create marker label web component
     const marker = document.createElement(MarkerLabel.TAG_NAME) as MarkerLabel
-    marker.initialize(label, () => {
+    marker.initialize(() => {
       if (this.#deleteCallback) {
         this.#deleteCallback()
       }
@@ -358,35 +265,8 @@ export class MarkerHighlightBox extends HTMLElement {
     this.appendChild(marker)
     this.#markerLabel = marker
 
-    // Always create XPath panel (even if no XPaths, show no-data state)
-    const panel = document.createElement(MarkerXPathPanel.TAG_NAME) as MarkerXPathPanel
-    panel.initialize(this.#xpaths)
-    this.appendChild(panel)
-    this.#xpathPanel = panel
-
-    // Add hover event listeners on marker label to show/hide panel
-    marker.addEventListener('mouseenter', () => {
-      this.#cancelHidePanel()
-      this.#showXPathPanel()
-    })
-    marker.addEventListener('mouseleave', () => {
-      // Delay hide to allow mouse to move to panel
-      this.#scheduleHidePanel()
-    })
-
-    // Also listen to mouseenter/leave on panel to keep it visible
-    panel.addEventListener('mouseenter', () => {
-      this.#cancelHidePanel()
-    })
-    panel.addEventListener('mouseleave', () => {
-      this.#scheduleHidePanel()
-    })
-
-    // Initial marker position update
     this.#updateMarkerPosition()
 
-    // Observe marker label size changes.
-    // Avoid observing the panel itself to prevent reposition feedback loops.
     if (this.#markerLabel) {
       this.#markerResizeObserver = new ResizeObserver(() => {
         this.#updateMarkerPosition()
@@ -394,97 +274,23 @@ export class MarkerHighlightBox extends HTMLElement {
       this.#markerResizeObserver.observe(this.#markerLabel)
     }
 
-    // Listen to scroll and resize events for marker positioning
     window.addEventListener('scroll', this.#handleMarkerScroll, true)
     window.addEventListener('resize', this.#handleMarkerResize)
   }
 
-  /**
-   * Update XPaths array (called when XPath changes are detected)
-   * @param xpaths Updated XPaths array
-   */
-  updateXPaths(xpaths: string[]) {
-    this.#xpaths = xpaths || []
-    // Keep backward compatibility
-    this.#xpath = this.#xpaths.length > 0 ? this.#xpaths[0] : null
-
-    // Update panel if it exists
-    if (this.#xpathPanel) {
-      this.#xpathPanel.setXPaths(this.#xpaths)
-      this.#updateMarkerPosition()
-    }
-  }
-
-  /**
-   * Update marker color (e.g. red when invalid so failure is visible at a glance)
-   * @param color CSS color (e.g. '#ef4444' for failed, or original hex for normal)
-   */
   setMarkerColor(color: string) {
     this.style.setProperty('--marker-color', color)
   }
 
-  /**
-   * Show XPath panel
-   */
-  #showXPathPanel() {
-    if (!this.#xpathPanel) return
-    this.#xpathPanel.show()
-    // Reposition once immediately and once on next frame so panel width settles first.
-    this.#updateMarkerPosition()
-    requestAnimationFrame(() => {
-      this.#updateMarkerPosition()
-    })
-  }
-
-  /**
-   * Hide XPath panel
-   */
-  #hideXPathPanel() {
-    if (this.#xpathPanel) {
-      this.#xpathPanel.hide()
-    }
-  }
-
-  /**
-   * Schedule hide panel with delay
-   */
-  #scheduleHidePanel() {
-    this.#cancelHidePanel()
-    this.#hidePanelTimer = setTimeout(() => {
-      this.#hideXPathPanel()
-      this.#hidePanelTimer = null
-    }, 200) // 200ms delay
-  }
-
-  /**
-   * Cancel hide panel timer
-   */
-  #cancelHidePanel() {
-    if (this.#hidePanelTimer !== null) {
-      clearTimeout(this.#hidePanelTimer)
-      this.#hidePanelTimer = null
-    }
-  }
-
-  /**
-   * Handle scroll event for marker positioning
-   */
   #handleMarkerScroll = () => {
     this.#updateMarkerPosition()
   }
 
-  /**
-   * Handle resize event for marker positioning
-   */
   #handleMarkerResize = () => {
-    // Reset scrollbar width cache on resize
     this.#scrollbarWidth = null
     this.#updateMarkerPosition()
   }
 
-  /**
-   * Schedule marker position update (throttled via RAF)
-   */
   #updateMarkerPosition() {
     if (this.#pendingMarkerUpdate) return
     this.#pendingMarkerUpdate = true
@@ -497,119 +303,40 @@ export class MarkerHighlightBox extends HTMLElement {
     }
   }
 
-  /**
-   * Update marker label and panel position to prevent overflow
-   */
   #doUpdateMarkerPosition() {
     if (!this.#markerLabel || !this.#targetNode) {
       this.#pendingMarkerUpdate = false
       return
     }
 
-    // Get highlight box position (this element)
     const highlightRect = this.getBoundingClientRect()
     const scrollbarWidth = this.#getCachedScrollbarWidth()
     const viewportWidth = window.innerWidth - scrollbarWidth
     const viewportHeight = window.innerHeight
 
-    // Get marker label dimensions
     const markerWidth = this.#markerLabel.offsetWidth
     const markerHeight = this.#markerLabel.offsetHeight
-
-    // Get XPath panel dimensions if it exists and is visible
-    let panelWidth = 0
-    let panelHeight = 0
-    if (this.#xpathPanel && this.#xpathPanel.isVisible()) {
-      panelWidth = this.#xpathPanel.offsetWidth
-      panelHeight = this.#xpathPanel.offsetHeight
-    }
-
     const padding = 8
     const gap = 4
 
-    // 8-position candidates around the target.
-    // Priority keeps "left side first" as default behavior:
-    // top-left -> bottom-left -> top-left-corner -> bottom-left-corner -> top-right -> bottom-right -> top-right-corner -> bottom-right-corner
-    const candidateOffsets = [
-      { top: -markerHeight - gap, left: -4 }, // top-left
-      { top: highlightRect.height + gap, left: -4 }, // bottom-left
-      { top: -4, left: -markerWidth - gap }, // top-left (outer)
-      { top: highlightRect.height - markerHeight + 4, left: -markerWidth - gap }, // bottom-left (outer)
-      { top: -markerHeight - gap, left: highlightRect.width - markerWidth + 4 }, // top-right
-      { top: highlightRect.height + gap, left: highlightRect.width - markerWidth + 4 }, // bottom-right
-      { top: -4, left: highlightRect.width + gap }, // top-right (outer)
-      { top: highlightRect.height - markerHeight + 4, left: highlightRect.width + gap }, // bottom-right (outer)
-    ]
+    let markerLeft = highlightRect.width - markerWidth + 4
+    let markerTop = -markerHeight - gap
 
     const markerViewportLeftMin = padding
     const markerViewportLeftMax = Math.max(padding, viewportWidth - padding - markerWidth)
     const markerViewportTopMin = padding
     const markerViewportTopMax = Math.max(padding, viewportHeight - padding - markerHeight)
 
-    let markerLeft = candidateOffsets[0].left
-    let markerTop = candidateOffsets[0].top
-    let bestOverflow = Number.POSITIVE_INFINITY
-
-    for (const candidate of candidateOffsets) {
-      const rawLeft = highlightRect.left + candidate.left
-      const rawTop = highlightRect.top + candidate.top
-      const rawRight = rawLeft + markerWidth
-      const rawBottom = rawTop + markerHeight
-
-      const overflowLeft = Math.max(0, markerViewportLeftMin - rawLeft)
-      const overflowRight = Math.max(0, rawRight - (viewportWidth - padding))
-      const overflowTop = Math.max(0, markerViewportTopMin - rawTop)
-      const overflowBottom = Math.max(0, rawBottom - (viewportHeight - padding))
-      const totalOverflow = overflowLeft + overflowRight + overflowTop + overflowBottom
-
-      if (totalOverflow < bestOverflow) {
-        bestOverflow = totalOverflow
-        markerLeft = candidate.left
-        markerTop = candidate.top
-      }
-
-      if (totalOverflow === 0) {
-        markerLeft = candidate.left
-        markerTop = candidate.top
-        break
-      }
-    }
-
-    // Final clamp (keeps marker as close to the preferred candidate as possible)
     markerLeft = Math.min(Math.max(markerLeft, markerViewportLeftMin - highlightRect.left), markerViewportLeftMax - highlightRect.left)
     markerTop = Math.min(Math.max(markerTop, markerViewportTopMin - highlightRect.top), markerViewportTopMax - highlightRect.top)
 
-    // Apply marker position directly (without translate transform)
     this.#markerLabel.style.transform = 'none'
     this.#markerLabel.style.top = `${markerTop}px`
     this.#markerLabel.style.left = `${markerLeft}px`
 
-    // Position XPath panel below marker, then clamp to viewport
-    if (this.#xpathPanel) {
-      let panelLeft = markerLeft
-      if (panelWidth > 0) {
-        const panelViewportLeftMin = padding
-        const panelViewportLeftMax = Math.max(padding, viewportWidth - padding - panelWidth)
-        panelLeft = Math.min(Math.max(panelLeft, panelViewportLeftMin - highlightRect.left), panelViewportLeftMax - highlightRect.left)
-      }
-
-      let panelTop = markerTop + markerHeight + gap
-      if (panelHeight > 0) {
-        const panelViewportTopMin = padding
-        const panelViewportTopMax = Math.max(padding, viewportHeight - padding - panelHeight)
-        panelTop = Math.min(Math.max(panelTop, panelViewportTopMin - highlightRect.top), panelViewportTopMax - highlightRect.top)
-      }
-
-      this.#xpathPanel.style.top = `${panelTop}px`
-      this.#xpathPanel.style.left = `${panelLeft}px`
-    }
-
     this.#pendingMarkerUpdate = false
   }
 
-  /**
-   * Clean up observers and event listeners (but preserve marker label)
-   */
   #cleanupObservers() {
     if (this.#resizeObserver) {
       this.#resizeObserver.disconnect()
@@ -629,7 +356,6 @@ export class MarkerHighlightBox extends HTMLElement {
         window.removeEventListener('resize', this.#resizeHandler)
       }
 
-      // Remove from stored scrollable parents
       this.#scrollableParents.forEach((parent) => {
         if (this.#scrollHandler) {
           parent.removeEventListener('scroll', this.#scrollHandler, true)
@@ -650,31 +376,20 @@ export class MarkerHighlightBox extends HTMLElement {
     this.#targetNode = null
   }
 
-  /**
-   * Clean up observers, event listeners, and marker label
-   */
   cleanup() {
     this.#cleanupObservers()
 
-    // Clean up marker label and panel
     if (this.#markerLabel) {
       this.#markerLabel.cleanup()
       this.#markerLabel.remove()
       this.#markerLabel = null
     }
-    if (this.#xpathPanel) {
-      this.#xpathPanel.cleanup()
-      this.#xpathPanel.remove()
-      this.#xpathPanel = null
-    }
 
-    // Cleanup marker observers
     if (this.#markerResizeObserver) {
       this.#markerResizeObserver.disconnect()
       this.#markerResizeObserver = null
     }
 
-    // Remove marker scroll/resize listeners
     window.removeEventListener('scroll', this.#handleMarkerScroll, true)
     window.removeEventListener('resize', this.#handleMarkerResize)
 
@@ -683,34 +398,21 @@ export class MarkerHighlightBox extends HTMLElement {
       this.#markerRafId = null
     }
 
-    // Clear hide timer
-    this.#cancelHidePanel()
-
-    // Clear references
     this.#deleteCallback = null
-    this.#xpath = null
   }
 
-  /**
-   * Called when element is inserted into DOM
-   */
   connectedCallback() {
-    // Get selector from attribute if available
     const selector = this.getAttribute('data-target-selector')
     if (selector) {
       this.initialize(selector)
     }
   }
 
-  /**
-   * Called when element is removed from DOM
-   */
   disconnectedCallback() {
     this.cleanup()
   }
 }
 
-// Register marker highlight box custom element
 if (typeof customElements !== 'undefined' && customElements != null && !customElements.get(MarkerHighlightBox.TAG_NAME)) {
   customElements.define(MarkerHighlightBox.TAG_NAME, MarkerHighlightBox)
 }

@@ -5,15 +5,9 @@
  */
 
 /**
- * Node information displayed in tooltip
+ * Node information for highlight target resolution (no tooltip UI)
  */
 export interface NodeInfo {
-  /** Primary information text */
-  title: string
-  /** Optional secondary information */
-  subtitle?: string
-  /** Optional additional details */
-  details?: string[]
   /** Optional target element to highlight (defaults to the hovered node) */
   highlightTarget?: HTMLElement
 }
@@ -26,13 +20,13 @@ export interface MarkedNodeInfo {
   markId: string
   /** Node signature for identification */
   signature: string
-  /** CSS selector for finding the node */
+  /** CSS selector for finding the node (used when persistMarks is enabled) */
   selector: string
-  /** XPath for finding the node (optional, generated when marking) - deprecated, use xpaths instead */
+  /** XPath for finding the node (optional, used when persistMarks is enabled) */
   xpath?: string
-  /** XPath array for finding the node (all possible XPaths recorded over time) */
+  /** XPath array for finding the node (used when persistMarks is enabled) */
   xpaths: string[]
-  /** Label text for the marker (auto-generated hash if not provided) */
+  /** Label text for the marker (internal use) */
   label: string
   /** Timestamp when marked */
   timestamp: number
@@ -45,20 +39,37 @@ export interface MarkedNodeInfo {
 }
 
 /**
+ * Click interaction mode for node selector
+ * - mark: click marks only (no onSelect / selectedNode)
+ * - select: click selects and invokes onSelect (no mark)
+ * - selectAndMark: click selects, invokes onSelect, and marks
+ */
+export type NodeSelectorClickMode = 'mark' | 'select' | 'selectAndMark'
+
+/**
  * Node selector configuration options
  */
 export interface NodeSelectorOptions {
-  /** Whether to enable click selection */
+  /**
+   * Click behavior (preferred over enableClickSelection).
+   * When omitted: enableClickSelection + onSelect → select; enableClickSelection alone → mark.
+   */
+  clickMode?: NodeSelectorClickMode
+  /** @deprecated Use clickMode. Enables click handling when clickMode is omitted. */
   enableClickSelection?: boolean
-  /** Callback when a node is selected by click */
+  /** Callback when a node is selected by click (select / selectAndMark modes) */
   onSelect?: (node: HTMLElement) => void
-  /** Callback to get node information for tooltip */
-  getNodeInfo?: (node: HTMLElement) => NodeInfo
+  /** Callback after a node is marked by click (mark / selectAndMark modes) */
+  onMark?: (node: HTMLElement, markId: string | null) => void
+  /** Callback to resolve highlight target (no tooltip is shown) */
+  getNodeInfo?: (node: HTMLElement) => NodeInfo | null
   /** Custom function to generate stable node signature (default: auto-generate) */
   generateNodeSignature?: (node: HTMLElement) => string
-  /** Storage key for persisting marks (default: 'node-selector-marks') */
+  /** Storage key for persisting marks (only used when persistMarks is true) */
   storageKey?: string
-  /** Whether to auto-restore marks on page load (default: true) */
+  /** Whether to persist marks to GM storage (default: false, session-only) */
+  persistMarks?: boolean
+  /** Whether to auto-restore marks on enable (default: false; requires persistMarks) */
   autoRestoreMarks?: boolean
   /** Custom function to check if a node should be excluded from selection/marking */
   shouldExcludeNode?: (node: HTMLElement) => boolean
