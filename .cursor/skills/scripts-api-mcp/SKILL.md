@@ -29,10 +29,13 @@ If the preset adds/modifies any `GM_*` / `GME_*` interfaces, you must keep docs 
 
 - Update `public/docs/scripts-ai-skill.md` capability summary table.
 - Update `services/scripts/scriptMcpTools.ts` output of `scripts_runtime_summary`.
+- When adding overlay UI in Gist scripts, sync with `public/docs/scripts-ui-skill.md` and MCP resource `skill://magickmonkey/scripts-ui-skill.md`.
 
 ## Human-readable skill copy
 
 See `public/docs/scripts-ai-skill.md` in the repo (also served as static `/docs/scripts-ai-skill.md`). That file includes **Runtime (preset) vs Gist** and a **capability summary** (`GM_*` / `GME_*`); use it when generating or editing scripts so you do not need the full typings in context. For exact signatures, read `preset/src/editor-typings.d.ts` in the repo.
+
+**Overlay UI** (Gist modals/panels): read `public/docs/scripts-ui-skill.md` or MCP `resources/read` → `skill://magickmonkey/scripts-ui-skill.md`. Align with **preset** `vws-ui-tokens.css` (command palette, notification, log viewer) — not light VS Code or WEB-only hex.
 
 ## Chat “function” definitions
 

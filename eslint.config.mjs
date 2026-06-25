@@ -15,6 +15,7 @@ export default [
       'node_modules',
       'preset/dist/**/*',
       'editor-lib/dist/**/*',
+      'explorer-lib/dist/**/*',
       'extension/dist/**/*',
       'test-results/**/*',
       'playwright-report/**/*',

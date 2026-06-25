@@ -74,6 +74,14 @@ export function createIsolatedEditor(options: EditorLibCreateOptions): EditorHan
       return
     }
     const data = event.data
+    if (data.type === `${EDITOR_MSG_PREFIX}-contextmenu`) {
+      const rect = iframe.getBoundingClientRect()
+      options.onContextMenu?.({
+        clientX: rect.left + data.x,
+        clientY: rect.top + data.y,
+      })
+      return
+    }
     if (data.type === `${EDITOR_MSG_PREFIX}-ready`) {
       initEditor()
       return

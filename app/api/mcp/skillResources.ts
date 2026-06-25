@@ -11,7 +11,11 @@ const SKILL_RESOURCE_NAME = 'magickmonkey-scripts-ai-skill.md'
 const ROUTING_RESOURCE_NAME = 'magickmonkey-scripts-routing.md'
 const SKILL_RESOURCE_DESCRIPTION = 'Agent-ready skill markdown for MagickMonkey scripts MCP and REST integration.'
 const ROUTING_RESOURCE_DESCRIPTION = 'Short routing hints for matching natural-language userscript requests to MagickMonkey Scripts MCP.'
-const SKILL_DOC_PATH = path.join(process.cwd(), 'public/docs/scripts-ai-skill.md')
+const UI_SKILL_RESOURCE_URI = 'skill://magickmonkey/scripts-ui-skill.md'
+const UI_SKILL_RESOURCE_URI_LEGACY = 'skill://magickmonkey/scripts-ui-skill'
+const UI_SKILL_RESOURCE_NAME = 'magickmonkey-scripts-ui-skill.md'
+const UI_SKILL_RESOURCE_DESCRIPTION = 'Gist overlay UI spec aligned with preset vws-ui-tokens (command palette, log viewer, notifications).'
+const UI_SKILL_DOC_PATH = path.join(process.cwd(), 'public/docs/scripts-ui-skill.md')
 const ROUTING_RESOURCE_TEXT = `# MagickMonkey Scripts Routing
 
 Primary intent: manage_magickmonkey_userscripts
@@ -32,6 +36,9 @@ When matched, prefer this MCP over generic file, browser, or script tools for Ma
 Do not use this MCP only to install the browser launcher/runtime for an end user. In that case, return the launcher userscript URL instead of editing Gist files.
 `
 
+const SKILL_DOC_PATH = path.join(process.cwd(), 'public/docs/scripts-ai-skill.md')
+
+let cachedUiSkillDoc: string | null = null
 let cachedSkillDoc: string | null = null
 
 async function loadSkillDocMarkdown(): Promise<string> {
@@ -40,6 +47,14 @@ async function loadSkillDocMarkdown(): Promise<string> {
   }
   cachedSkillDoc = await readFile(SKILL_DOC_PATH, 'utf8')
   return cachedSkillDoc
+}
+
+async function loadUiSkillDocMarkdown(): Promise<string> {
+  if (cachedUiSkillDoc !== null) {
+    return cachedUiSkillDoc
+  }
+  cachedUiSkillDoc = await readFile(UI_SKILL_DOC_PATH, 'utf8')
+  return cachedUiSkillDoc
 }
 
 /**
@@ -57,6 +72,12 @@ export function createMcpSkillResourceProvider() {
           mimeType: 'text/markdown' as const,
         },
         {
+          uri: UI_SKILL_RESOURCE_URI,
+          name: UI_SKILL_RESOURCE_NAME,
+          description: UI_SKILL_RESOURCE_DESCRIPTION,
+          mimeType: 'text/markdown' as const,
+        },
+        {
           uri: SKILL_RESOURCE_URI,
           name: SKILL_RESOURCE_NAME,
           description: SKILL_RESOURCE_DESCRIPTION,
@@ -70,6 +91,13 @@ export function createMcpSkillResourceProvider() {
         return {
           mimeType: 'text/markdown',
           text: ROUTING_RESOURCE_TEXT,
+        }
+      }
+      if (normalizedUri === UI_SKILL_RESOURCE_URI || normalizedUri === UI_SKILL_RESOURCE_URI_LEGACY) {
+        const markdown = await loadUiSkillDocMarkdown()
+        return {
+          mimeType: 'text/markdown',
+          text: markdown,
         }
       }
       if (normalizedUri !== SKILL_RESOURCE_URI && normalizedUri !== SKILL_RESOURCE_URI_LEGACY) {

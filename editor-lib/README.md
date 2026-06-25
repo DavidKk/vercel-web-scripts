@@ -46,14 +46,37 @@ const handle = editor?.create({
 
 `plain`, `json`, `javascript`, `html`, `css`, `markdown`
 
-## Built-in shortcuts
+## Built-in shortcuts (VS Code style)
 
-| Shortcut             | Action                                            |
-| -------------------- | ------------------------------------------------- |
-| Cmd/Ctrl+F           | Open search panel                                 |
-| Cmd/Ctrl+G / Shift+G | Next / previous match                             |
-| Cmd/Ctrl+Alt+R/C/W   | Toggle regexp / case / whole word (panel focused) |
-| Cmd/Ctrl+Z / Shift+Z | Undo / redo                                       |
+### 查找 / 替换
+
+| Shortcut                        | Action                                     |
+| ------------------------------- | ------------------------------------------ |
+| Cmd/Ctrl+F                      | 打开搜索                                   |
+| Cmd/Ctrl+H                      | 打开搜索并展开替换（Windows/Linux）        |
+| Cmd/Ctrl+Alt+F / Cmd/Ctrl+Alt+H | 打开搜索并展开替换（macOS）                |
+| Cmd/Ctrl+G / F3                 | 下一个匹配（搜索面板打开时）               |
+| Cmd/Ctrl+Shift+G / Shift+F3     | 上一个匹配                                 |
+| Enter（查找框）                 | 下一个匹配；Shift+Enter 上一个             |
+| Enter（替换框）                 | 替换当前匹配                               |
+| Cmd/Ctrl+D                      | 将下一个相同词加入选区（多光标）           |
+| Cmd/Ctrl+Shift+L                | 选中所有相同词                             |
+| Escape                          | 关闭搜索面板                               |
+| Cmd/Ctrl+Alt+R/C/W              | 切换正则 / 区分大小写 / 全词（搜索面板内） |
+
+搜索面板为紧凑两行布局，**浮动叠在编辑器右上角**（约 420px 宽，不占文档流高度）：查找框内嵌 Aa / 全词 / 正则 **MDI 图标**切换（`unplugin-icons` + `@iconify-json/mdi`，与 preset 一致）；替换与全部替换为图标按钮。上一个、下一个、全部匹配无面板按钮，请用上述快捷键。
+
+### 编辑
+
+| Shortcut                  | Action          |
+| ------------------------- | --------------- |
+| Cmd/Ctrl+L                | 选中当前行      |
+| Alt+↑ / Alt+↓             | 上/下移行       |
+| Shift+Alt+↑ / Shift+Alt+↓ | 上/下复制行     |
+| Shift+Cmd/Ctrl+K          | 删除行          |
+| Cmd/Ctrl+[ / ]            | 减少 / 增加缩进 |
+| Cmd/Ctrl+/                | 切换行注释      |
+| Cmd/Ctrl+Z / Shift+Z      | 撤销 / 重做     |
 
 ## Docs
 

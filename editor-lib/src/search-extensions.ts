@@ -1,6 +1,8 @@
-import { getSearchQuery, search, searchKeymap, searchPanelOpen, SearchQuery, setSearchQuery } from '@codemirror/search'
+import { getSearchQuery, openSearchPanel, search, searchKeymap, searchPanelOpen, SearchQuery, setSearchQuery } from '@codemirror/search'
 import { EditorState, type Extension } from '@codemirror/state'
 import type { Command, KeyBinding } from '@codemirror/view'
+
+import { createVscodeSearchPanel, getVwsSearchPanel } from '@/search-panel'
 
 const searchPhrases = EditorState.phrases.of({
   Find: '查找',
@@ -9,8 +11,8 @@ const searchPhrases = EditorState.phrases.of({
   previous: '上一个',
   all: '全部',
   'match case': '区分大小写',
-  regexp: '正则',
-  'by word': '整词',
+  regexp: '正则表达式',
+  'by word': '全词匹配',
   replace: '替换',
   'replace all': '全部替换',
   close: '关闭',
@@ -47,7 +49,21 @@ export function createToggleSearchFlag(flag: 'regexp' | 'caseSensitive' | 'whole
   }
 }
 
-/** Extra search keybindings (regexp toggle, etc.). */
+/**
+ * Open search panel with replace row expanded (VS Code Ctrl+H style).
+ * @param view Editor view
+ */
+export const openReplacePanel: Command = (view) => {
+  openSearchPanel(view)
+  const panel = getVwsSearchPanel(view)
+  if (panel) {
+    panel.setReplaceExpanded(true)
+    panel.focusReplace()
+  }
+  return true
+}
+
+/** Extra search keybindings (regexp / case / whole-word toggles in search panel). */
 export const editorSearchKeymap: readonly KeyBinding[] = [
   { key: 'Mod-Alt-r', run: createToggleSearchFlag('regexp'), scope: 'editor search-panel' },
   { key: 'Mod-Alt-c', run: createToggleSearchFlag('caseSensitive'), scope: 'editor search-panel' },
@@ -55,11 +71,11 @@ export const editorSearchKeymap: readonly KeyBinding[] = [
 ]
 
 /**
- * Search extension bundle: panel (with regexp) and zh phrases.
+ * Search extension bundle: VS Code–style panel (icon toggles + replace) and zh phrases.
  * @returns Search-related CM6 extensions
  */
 export function editorSearchExtensions(): Extension[] {
-  return [searchPhrases, search({ top: true })]
+  return [searchPhrases, search({ top: true, createPanel: createVscodeSearchPanel })]
 }
 
 /** Re-export default CM search keymap for merging in profiles. */

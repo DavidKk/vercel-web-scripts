@@ -15,6 +15,12 @@ export function runIframeEditorHost(): void {
   document.body.style.background = '#171a21'
   document.body.appendChild(mount)
 
+  const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault()
+    notifyParent({ type: `${EDITOR_MSG_PREFIX}-contextmenu`, x: event.clientX, y: event.clientY })
+  }
+  document.addEventListener('contextmenu', onContextMenu, true)
+
   const notifyParent = (message: EditorIframeMessage) => {
     try {
       window.parent.postMessage(message, '*')

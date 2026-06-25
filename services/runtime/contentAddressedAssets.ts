@@ -35,7 +35,7 @@ export function isSha1ContentHash(s: string): boolean {
 export function buildVersionedStaticModuleUrl(
   baseUrl: string,
   scriptKey: string,
-  file: 'preset.js' | 'preset-ui.js' | 'editor-lib.js' | 'tampermonkey-remote.js',
+  file: 'preset.js' | 'preset-ui.js' | 'editor-lib.js' | 'explorer-lib.js' | 'tampermonkey-remote.js',
   hash: string | null | undefined
 ): string {
   if (!hash || !isSha1ContentHash(hash)) {

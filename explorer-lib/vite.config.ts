@@ -26,11 +26,11 @@ function hashFileStream(filePath: string): Promise<string> {
 }
 
 /**
- * Write editor-lib bundle hash manifest after build.
+ * Write explorer-lib bundle hash manifest after build.
  */
-function editorLibManifestPlugin() {
+function explorerLibManifestPlugin() {
   return {
-    name: 'editor-lib-manifest',
+    name: 'explorer-lib-manifest',
     writeBundle(options: { dir?: string }, bundle: Record<string, unknown>) {
       const outDir = options.dir || process.cwd()
       const jsKeys = Object.keys(bundle).filter((k) => k.endsWith('.js') && !k.endsWith('.map'))
@@ -42,7 +42,7 @@ function editorLibManifestPlugin() {
           .then((contentHash) => {
             writeFileSync(path.resolve(outDir, MANIFEST_FILE), JSON.stringify({ file: key, hash: contentHash }, null, 0), 'utf-8')
             // eslint-disable-next-line no-console
-            console.log(`[editor-lib-manifest] ${key} -> ${contentHash} (${content.length} bytes)`)
+            console.log(`[explorer-lib-manifest] ${key} -> ${contentHash} (${content.length} bytes)`)
           })
       }
     },
@@ -51,14 +51,14 @@ function editorLibManifestPlugin() {
 
 export default defineConfig({
   root: __dirname,
-  plugins: [Icons({ compiler: 'raw', autoInstall: true }), editorLibManifestPlugin()],
+  plugins: [Icons({ compiler: 'raw', autoInstall: true }), explorerLibManifestPlugin()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     lib: {
       entry: path.resolve(__dirname, 'src/entry.ts'),
-      name: 'VWS_EDITOR_LIB',
-      fileName: () => 'editor-lib.js',
+      name: 'VWS_EXPLORER_LIB',
+      fileName: () => 'explorer-lib.js',
       formats: ['iife'],
     },
     rollupOptions: {

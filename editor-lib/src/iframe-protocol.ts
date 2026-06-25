@@ -5,6 +5,7 @@ export type EditorIframeMessageType =
   | `${typeof EDITOR_MSG_PREFIX}-init`
   | `${typeof EDITOR_MSG_PREFIX}-ready`
   | `${typeof EDITOR_MSG_PREFIX}-change`
+  | `${typeof EDITOR_MSG_PREFIX}-contextmenu`
   | `${typeof EDITOR_MSG_PREFIX}-get-value`
   | `${typeof EDITOR_MSG_PREFIX}-value`
   | `${typeof EDITOR_MSG_PREFIX}-set-value`
@@ -39,10 +40,17 @@ export interface EditorIframeRequestMessage {
   requestId?: string
 }
 
+export interface EditorIframeContextMenuMessage {
+  type: `${typeof EDITOR_MSG_PREFIX}-contextmenu`
+  x: number
+  y: number
+}
+
 export type EditorIframeMessage =
   | EditorIframeInitMessage
   | { type: `${typeof EDITOR_MSG_PREFIX}-ready` }
   | EditorIframeChangeMessage
+  | EditorIframeContextMenuMessage
   | EditorIframeValueMessage
   | EditorIframeSetValueMessage
   | EditorIframeRequestMessage

@@ -153,6 +153,8 @@ function buildRuntimeSummary() {
       typingsGenerated: 'lib/tampermonkey-editor-typings.generated.ts',
       humanDocs: 'public/docs/scripts-ai-skill.md',
       editorLibDocs: 'public/docs/editor-lib-skill.md',
+      scriptsUiDocs: 'public/docs/scripts-ui-skill.md',
+      scriptsUiResource: 'skill://magickmonkey/scripts-ui-skill.md',
     },
   }
 }

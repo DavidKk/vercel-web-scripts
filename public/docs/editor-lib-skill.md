@@ -39,17 +39,37 @@ async function mountEditor(host: HTMLElement, initial: string) {
 
 `plain`, `json`, `javascript`, `html`, `css`, `markdown`
 
-## 快捷键（内置）
+## 快捷键（内置，对齐 VS Code）
 
-| 快捷键               | 功能                               |
-| -------------------- | ---------------------------------- |
-| Cmd/Ctrl+F           | 打开内容搜索                       |
-| Cmd/Ctrl+G           | 下一个匹配                         |
-| Cmd/Ctrl+Shift+G     | 上一个匹配                         |
-| Cmd/Ctrl+Alt+R       | 切换**正则**搜索（搜索面板打开时） |
-| Cmd/Ctrl+Alt+C       | 切换区分大小写                     |
-| Cmd/Ctrl+Alt+W       | 切换整词匹配                       |
-| Cmd/Ctrl+Z / Shift+Z | 撤销 / 重做                        |
+### 查找 / 替换
+
+| 快捷键                          | 功能                                       |
+| ------------------------------- | ------------------------------------------ |
+| Cmd/Ctrl+F                      | 打开内容搜索                               |
+| Cmd/Ctrl+H                      | 打开搜索并展开替换（Windows/Linux）        |
+| Cmd/Ctrl+Alt+F / Cmd/Ctrl+Alt+H | 打开搜索并展开替换（macOS）                |
+| Cmd/Ctrl+G / F3                 | 下一个匹配（搜索面板打开时）               |
+| Cmd/Ctrl+Shift+G / Shift+F3     | 上一个匹配                                 |
+| Enter（查找框）                 | 下一个匹配；Shift+Enter 上一个             |
+| Enter（替换框）                 | 替换当前匹配                               |
+| Cmd/Ctrl+D                      | 将下一个相同词加入选区（多光标）           |
+| Cmd/Ctrl+Shift+L                | 选中所有相同词                             |
+| Escape                          | 关闭搜索面板                               |
+| Cmd/Ctrl+Alt+R/C/W              | 切换正则 / 区分大小写 / 全词（搜索面板内） |
+
+搜索面板为紧凑两行布局，**浮动叠在编辑器右上角**（约 420px 宽，不占文档流高度）：查找框内嵌 Aa / 全词 / 正则 **MDI 图标**切换（`editor-lib/src/search-icons.ts`，与 preset `~icons/mdi/*?raw` 同源）；替换与全部替换为图标按钮。上一个、下一个、全部匹配无面板按钮，请用上述快捷键。Gist 脚本图标规范见 `scripts-ui-skill.md`。
+
+### 编辑
+
+| 快捷键                    | 功能            |
+| ------------------------- | --------------- |
+| Cmd/Ctrl+L                | 选中当前行      |
+| Alt+↑ / Alt+↓             | 上/下移行       |
+| Shift+Alt+↑ / Shift+Alt+↓ | 上/下复制行     |
+| Shift+Cmd/Ctrl+K          | 删除行          |
+| Cmd/Ctrl+[ / ]            | 减少 / 增加缩进 |
+| Cmd/Ctrl+/                | 切换行注释      |
+| Cmd/Ctrl+Z / Shift+Z      | 撤销 / 重做     |
 
 搜索面板勾选 **「正则」** 后，查询按 JavaScript `RegExp` 解析（支持捕获组 `$1` 等用于替换）。语法非法时不会跳转匹配。
 

@@ -61,3 +61,21 @@ export function buildEditorLibExecDecls(scriptUrl?: string): string {
   }
   return lines.join('\n')
 }
+
+/**
+ * Heuristic: fetched body looks like the explorer-lib IIFE bundle.
+ * @param content Response body
+ */
+export function isLikelyExplorerLibBundle(content: string): boolean {
+  if (!content || content.length < 512) {
+    return false
+  }
+  return /\.register\s*\(\s*['"]explorer-lib['"]/.test(content)
+}
+
+/**
+ * Build optional explorer-lib execute body prefix (`with(global){...}`).
+ */
+export function buildExplorerLibExecDecls(): string {
+  return ['var __GLOBAL__ = global;', 'global.__GLOBAL__ = global;'].join('\n')
+}

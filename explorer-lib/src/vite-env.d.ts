@@ -1,4 +1,4 @@
-/** unplugin-icons ?raw: import MDI icon as raw SVG string (same as preset). */
+/** unplugin-icons ?raw: import MDI icon as raw SVG string (same as preset / editor-lib). */
 declare module '~icons/*?raw' {
   const src: string
   export default src

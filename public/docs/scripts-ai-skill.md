@@ -193,3 +193,13 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 6. (optional) `scripts_rename` to change the managed filename before editing.
 7. Validate or inspect the final script content with `scripts_validate` or an equivalent local check.
 8. User can publish from UI or rely on Gist sync as configured.
+
+## Overlay UI (Gist modals / panels)
+
+When building **in-page overlay UIs** in Gist scripts (modals, file explorers beside `editor-lib`):
+
+1. Read **`skill://magickmonkey/scripts-ui-skill.md`** via MCP `resources/read` (or static `/docs/scripts-ui-skill.md`).
+2. Use documented `--vws-*` tokens from **`preset/src/ui/shared/vws-ui-tokens.css`** (same shell as command palette / log viewer on injected pages).
+3. Do **not** use light `#fff` / `#f3f3f3` VS Code–style explorer shells unless explicitly requested.
+
+`scripts_runtime_summary` → `references.scriptsUiDocs` / `scriptsUiResource`.

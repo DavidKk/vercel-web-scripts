@@ -81,7 +81,7 @@ describe('createDirectEditorView', () => {
     try {
       openSearchPanel(view)
       expect(searchPanelOpen(view.state)).toBe(true)
-      expect(mount.querySelector('.cm-panel.cm-search')).not.toBeNull()
+      expect(mount.querySelector('.vws-search-panel')).not.toBeNull()
     } finally {
       view.destroy()
     }

@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server'
 
 import { CONTENT_ADDRESSED_CACHE_CONTROL, isContentAddressedMatch, isSha1ContentHash, PENDING_SEGMENT, REVALIDATE_CACHE_CONTROL } from '@/services/runtime/contentAddressedAssets'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
-import { getEditorLibBundle, getEditorLibManifest, getPresetBundle, getPresetManifest, getPresetUiBundle, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
+import {
+  getEditorLibBundle,
+  getEditorLibManifest,
+  getExplorerLibBundle,
+  getExplorerLibManifest,
+  getPresetBundle,
+  getPresetManifest,
+  getPresetUiBundle,
+  getPresetUiManifest,
+} from '@/services/tampermonkey/gmCore'
 
 /**
  * Normalize ETag from If-None-Match (strip W/ and quotes).
@@ -15,7 +24,7 @@ function normalizeEtag(etag: string | null): string | null {
   return s || null
 }
 
-export type PresetOrUiKind = 'preset-core' | 'preset-ui' | 'editor-lib'
+export type PresetOrUiKind = 'preset-core' | 'preset-ui' | 'editor-lib' | 'explorer-lib'
 
 const MODULE_KIND_CONFIG: Record<
   PresetOrUiKind,
@@ -46,6 +55,13 @@ const MODULE_KIND_CONFIG: Record<
     getBundle: getEditorLibBundle,
     warnTag: '[editor-lib.js]',
     logTag: '[editor-lib.js@segment]',
+    normalizeBody: true,
+  },
+  'explorer-lib': {
+    getManifest: getExplorerLibManifest,
+    getBundle: getExplorerLibBundle,
+    warnTag: '[explorer-lib.js]',
+    logTag: '[explorer-lib.js@segment]',
     normalizeBody: true,
   },
 }
@@ -146,7 +162,7 @@ export async function servePresetOrUiBySegment(req: Request, params: { key: stri
     const isMissing = (e as NodeJS.ErrnoException)?.code === 'ENOENT'
     // eslint-disable-next-line no-console -- route errors must be visible in terminal
     console.error(`${logTag} GET failed:`, e)
-    const buildHint = kind === 'editor-lib' ? 'pnpm run build:editor-lib' : 'pnpm run build:preset'
+    const buildHint = kind === 'editor-lib' ? 'pnpm run build:editor-lib' : kind === 'explorer-lib' ? 'pnpm run build:explorer-lib' : 'pnpm run build:preset'
     const body = isMissing ? `console.warn("${warnTag} File not built yet. Run: ${buildHint}");` : `console.error("${warnTag} ${message}");`
     return new NextResponse(body, {
       status: isMissing ? 503 : 500,

@@ -1,3 +1,4 @@
+import { formatDocument } from '@/format-document'
 import { createDirectEditor } from '@/host-direct'
 import { createIsolatedEditor } from '@/host-iframe'
 import type { EditorLibApi, EditorLibCreateOptions } from '@/types'
@@ -18,6 +19,9 @@ export function createEditorLibApi(): EditorLibApi {
         return createIsolatedEditor(options)
       }
       return createDirectEditor(options)
+    },
+    formatDocument(profile, code) {
+      return formatDocument(profile, code)
     },
   }
 }

@@ -965,6 +965,7 @@ interface EditorLibCreateOptions {
   readOnly?: boolean
   value?: string
   onChange?: (value: string) => void
+  onContextMenu?: (coords: { clientX: number; clientY: number }) => void
   isolated?: boolean
 }
 
@@ -979,12 +980,66 @@ interface EditorLibApi {
   version: 1
   ready: true
   create(options: EditorLibCreateOptions): EditorHandle
+  formatDocument(profile: EditorProfile | 'json' | 'css', code: string): { ok: true; text: string } | { ok: false; error: string }
 }
 
 /**
  * Lazily load editor-lib OTA module (CodeMirror 6). Returns null on failure without blocking scripts.
  */
 declare function GME_ensureEditorLib(): Promise<EditorLibApi | null>
+
+interface ExplorerChromeOptions {
+  title?: string
+  searchPlaceholder?: string
+  onSearchChange?: (query: string) => void
+}
+
+interface ExplorerChromeHandle {
+  root: HTMLElement
+  treeHost: HTMLElement
+  getSearchQuery(): string
+  setSearchQuery(query: string): void
+  setSearchOpen(open: boolean): void
+  toggleSearch(): void
+  focusSearch(): void
+  destroy(): void
+}
+
+interface ExplorerLibApi {
+  version: 1
+  ready: true
+  createChrome(parent: HTMLElement, options?: ExplorerChromeOptions): ExplorerChromeHandle
+  createTabBar(parent: HTMLElement, options?: TabBarOptions): TabBarHandle
+  listLoadingHtml(message?: string): string
+  listNoDataHtml(options?: { search?: boolean; title?: string; hint?: string }): string
+}
+
+interface TabBarOptions {
+  onTabSwitch?: (path: string) => void | Promise<void>
+  onTabClose?: (path: string) => void
+  isDirty?: (path: string) => boolean
+  getFileName?: (path: string) => string
+  renderFileIcon?: (fileName: string) => string
+}
+
+interface TabBarHandle {
+  openTab(path: string, options?: { preview?: boolean }): void
+  closeTab(path: string): void
+  switchTab(path: string): void
+  closeAllTabs(): void
+  closeOtherTabs(path: string): void
+  closeTabsToRight(path: string): void
+  getActiveTab(): string | null
+  getOpenTabs(): string[]
+  isTabOpen(path: string): boolean
+  refresh(): void
+  destroy(): void
+}
+
+/**
+ * Lazily load explorer-lib OTA module (file explorer chrome). Returns null on failure.
+ */
+declare function GME_ensureExplorerLib(): Promise<ExplorerLibApi | null>
 
 /**
  * Browser File System Access API type definitions

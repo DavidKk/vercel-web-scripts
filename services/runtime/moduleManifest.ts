@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 
 import { buildVersionedStaticModuleUrl } from '@/services/runtime/contentAddressedAssets'
-import { getEditorLibManifest, getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
+import { getEditorLibManifest, getExplorerLibManifest, getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
 import { buildRemoteScriptBundleFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
 
 import pkg from '../../package.json'
@@ -16,7 +16,7 @@ export type RuntimeModuleHashAlgorithm = 'sha1' | 'none'
 /**
  * Runtime module kind in the modular architecture.
  */
-export type RuntimeModuleKind = 'launcher' | 'preset-core' | 'preset-ui' | 'editor-lib' | 'script-bundle'
+export type RuntimeModuleKind = 'launcher' | 'preset-core' | 'preset-ui' | 'editor-lib' | 'explorer-lib' | 'script-bundle'
 
 /**
  * Hash payload attached to each runtime module.
@@ -68,11 +68,13 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
   const presetManifest = await getPresetManifest()
   const presetUiManifest = await getPresetUiManifest()
   const editorLibManifest = await getEditorLibManifest()
+  const explorerLibManifest = await getExplorerLibManifest()
   const remoteBundle = await buildRemoteScriptBundleFromGist()
   const scriptBundleHash = remoteBundle?.hash ?? null
   const presetCoreHash = presetManifest?.hash ?? null
   const presetUiHash = presetUiManifest?.hash ?? null
   const editorLibHash = editorLibManifest?.hash ?? null
+  const explorerLibHash = explorerLibManifest?.hash ?? null
   const modules: RuntimeModuleDefinition[] = [
     {
       id: 'launcher',
@@ -119,6 +121,18 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
       hash: {
         algorithm: editorLibManifest ? 'sha1' : 'none',
         value: editorLibHash,
+      },
+      dependsOn: [{ id: 'preset-core', minApiVersion: 1 }],
+    },
+    {
+      id: 'explorer-lib',
+      optional: true,
+      lazy: true,
+      apiVersion: 1,
+      url: buildVersionedStaticModuleUrl(baseUrl, key, 'explorer-lib.js', explorerLibHash),
+      hash: {
+        algorithm: explorerLibManifest ? 'sha1' : 'none',
+        value: explorerLibHash,
       },
       dependsOn: [{ id: 'preset-core', minApiVersion: 1 }],
     },

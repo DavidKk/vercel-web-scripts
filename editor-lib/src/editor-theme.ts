@@ -27,9 +27,30 @@ const darkHighlightStyle = HighlightStyle.define([
  * Editor chrome theme (layout + search panel) layered on editor-base.css tokens.
  */
 export const editorChromeTheme = EditorView.theme({
-  '&': { height: '100%', fontSize: '13px' },
+  '&': { height: '100%', fontSize: '13px', position: 'relative' },
   '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' },
   '.cm-content': { minHeight: '120px', caretColor: '#e6eaf0' },
+  /* Overlay panel slot — float on editor, do not push content (VS Code style) */
+  '.cm-panels': {
+    position: 'absolute',
+    left: '0',
+    right: '0',
+    height: '0',
+    minHeight: '0',
+    overflow: 'visible',
+    pointerEvents: 'none',
+    border: 'none',
+    background: 'transparent',
+    zIndex: '30',
+  },
+  '.cm-panels-top': { top: '0' },
+  '.cm-panels-bottom': { bottom: '0' },
+  '.cm-panel.cm-search, .cm-panel.vws-search-panel': {
+    position: 'absolute',
+    top: '0',
+    right: '8px',
+    pointerEvents: 'auto',
+  },
 })
 
 /**

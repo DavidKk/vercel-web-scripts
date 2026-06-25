@@ -27,7 +27,7 @@ handle?.destroy()
 - Failure returns `null` — scripts must handle gracefully
 - No custom CM6 extensions in v1 — use `profile` only
 - WEB Monaco ScriptEditor is separate — do not conflate
-- Built-in search: Cmd/Ctrl+F (content search panel; enable **正则** checkbox or Cmd/Ctrl+Alt+R for regex)
+- Built-in search: Cmd/Ctrl+F — VS Code–style panel with MDI icon toggles (case / whole word / regex) + replace row (Cmd/Ctrl+Alt+H); icons via `search-icons.ts` / unplugin-icons (not hand-written SVG)
 
 ## Build (maintainers)
 

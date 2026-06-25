@@ -33,6 +33,7 @@ import {
   tryExecuteLocalScript,
 } from '@/services/dev-mode'
 import { ensureEditorLib } from '@/services/editor-lib'
+import { ensureExplorerLib } from '@/services/explorer-lib'
 import { logStore } from '@/services/log-store'
 import { registerBasicMenus } from '@/services/menu'
 import { ensureOptionalUi, openOptionalLogViewer } from '@/services/optional-ui'
@@ -180,5 +181,6 @@ export function registerGlobals(): void {
     VWS_ensureOptionalUi: ensureOptionalUi,
     VWS_ensureEditorLib: ensureEditorLib,
     GME_ensureEditorLib: ensureEditorLib,
+    GME_ensureExplorerLib: ensureExplorerLib,
   })
 }

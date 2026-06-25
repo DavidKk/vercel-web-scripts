@@ -25,5 +25,14 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules", ".next/**/*", "preset/**/*", "extension/**/*", "editor-lib/**/*", "__tests__/editor-lib/**/*", "__tests__/preset/command-palette-debug-ota.spec.ts"]
+  "exclude": [
+    "node_modules",
+    ".next/**/*",
+    "preset/**/*",
+    "extension/**/*",
+    "editor-lib/**/*",
+    "explorer-lib/**/*",
+    "__tests__/editor-lib/**/*",
+    "__tests__/preset/command-palette-debug-ota.spec.ts"
+  ]
 }

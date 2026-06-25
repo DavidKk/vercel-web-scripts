@@ -4,6 +4,7 @@ next-env.d.ts
 coverage
 preset/dist
 editor-lib/dist
+explorer-lib/dist
 extension/dist
 extension/preview-dist
 extension/src/dev-build-stamp.ts

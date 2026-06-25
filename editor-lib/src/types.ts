@@ -14,6 +14,8 @@ export interface EditorLibCreateOptions {
   value?: string
   /** Content change callback. */
   onChange?: (value: string) => void
+  /** Right-click in editor surface (iframe coords mapped to parent viewport). */
+  onContextMenu?: (coords: { clientX: number; clientY: number }) => void
   /**
    * true: iframe isolation (recommended for third-party admin pages).
    * false: mount CM6 directly inside parent.
@@ -31,6 +33,8 @@ export interface EditorHandle {
   destroy(): void
 }
 
+import type { FormatDocumentResult } from '@/format-document'
+
 /**
  * Public editor-lib module API (registered on runtime core).
  */
@@ -38,6 +42,8 @@ export interface EditorLibApi {
   version: 1
   ready: true
   create(options: EditorLibCreateOptions): EditorHandle
+  /** Lightweight formatters: JSON (native) and CSS (basic indent). */
+  formatDocument(profile: EditorProfile | 'json' | 'css', code: string): FormatDocumentResult
 }
 
 declare global {

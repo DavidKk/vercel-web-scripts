@@ -31,9 +31,12 @@ const PRESET_UI_BUNDLE_PATH = join(process.cwd(), 'preset/dist/preset-ui.js')
 const PRESET_UI_MANIFEST_PATH = join(process.cwd(), 'preset/dist/manifest-ui.json')
 const EDITOR_LIB_BUNDLE_PATH = join(process.cwd(), 'editor-lib/dist/editor-lib.js')
 const EDITOR_LIB_MANIFEST_PATH = join(process.cwd(), 'editor-lib/dist/manifest.json')
+const EXPLORER_LIB_BUNDLE_PATH = join(process.cwd(), 'explorer-lib/dist/explorer-lib.js')
+const EXPLORER_LIB_MANIFEST_PATH = join(process.cwd(), 'explorer-lib/dist/manifest.json')
 let presetBundleCache: { mtimeMs: number; content: string } | null = null
 let presetUiBundleCache: { mtimeMs: number; content: string } | null = null
 let editorLibBundleCache: { mtimeMs: number; content: string } | null = null
+let explorerLibBundleCache: { mtimeMs: number; content: string } | null = null
 
 /** Manifest shape written by preset/vite build (content hash for ETag / If-None-Match). */
 export interface PresetManifest {
@@ -76,6 +79,18 @@ export async function getPresetUiManifest(): Promise<PresetManifest | null> {
 export async function getEditorLibManifest(): Promise<PresetManifest | null> {
   try {
     const raw = await readFile(EDITOR_LIB_MANIFEST_PATH, 'utf-8')
+    return JSON.parse(raw) as PresetManifest
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Read explorer-lib manifest (content hash). Returns null if not built.
+ */
+export async function getExplorerLibManifest(): Promise<PresetManifest | null> {
+  try {
+    const raw = await readFile(EXPLORER_LIB_MANIFEST_PATH, 'utf-8')
     return JSON.parse(raw) as PresetManifest
   } catch {
     return null
@@ -139,6 +154,24 @@ export async function getEditorLibBundle(): Promise<string> {
     return content
   } catch (e) {
     editorLibBundleCache = null
+    throw e
+  }
+}
+
+/**
+ * Load explorer-lib bundle by reading file at request time.
+ */
+export async function getExplorerLibBundle(): Promise<string> {
+  try {
+    const st = await stat(EXPLORER_LIB_BUNDLE_PATH)
+    if (explorerLibBundleCache && explorerLibBundleCache.mtimeMs === st.mtimeMs) {
+      return explorerLibBundleCache.content
+    }
+    const content = await readFile(EXPLORER_LIB_BUNDLE_PATH, 'utf-8')
+    explorerLibBundleCache = { mtimeMs: st.mtimeMs, content }
+    return content
+  } catch (e) {
+    explorerLibBundleCache = null
     throw e
   }
 }

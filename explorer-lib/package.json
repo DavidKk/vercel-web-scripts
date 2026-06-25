@@ -1,0 +1,15 @@
+{
+  "name": "@magickmonkey/explorer-lib",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.ts"
+  },
+  "devDependencies": {
+    "@iconify-json/mdi": "^1.2.3",
+    "typescript": "^5.7.2",
+    "unplugin-icons": "^22.1.0",
+    "vite": "^6.0.0"
+  }
+}

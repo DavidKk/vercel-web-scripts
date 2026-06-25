@@ -11,6 +11,7 @@ import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutt
 import { darkSyntaxHighlighting, editorChromeTheme, editorDarkTheme } from '@/editor-theme'
 import { editorSearchExtensions, editorSearchKeymap, searchKeymap } from '@/search-extensions'
 import type { EditorProfile } from '@/types'
+import { vscodeEditorKeymap } from '@/vscode-keymap'
 
 import editorBaseCss from './styles/editor-base.css?raw'
 
@@ -35,7 +36,7 @@ export function buildBaseExtensions(readOnly: boolean): Extension[] {
     EditorState.readOnly.of(readOnly),
     EditorView.editable.of(!readOnly),
     editorChromeTheme,
-    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...editorSearchKeymap]),
+    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...editorSearchKeymap, ...vscodeEditorKeymap]),
   ]
   return extensions
 }
@@ -96,7 +97,13 @@ export function injectEditorStyles(parent: Document | ShadowRoot): void {
  */
 export function createDirectEditorView(
   mount: HTMLElement,
-  options: { profile: EditorProfile; readOnly: boolean; value: string; onChange?: (value: string) => void; styleParent?: Document | ShadowRoot }
+  options: {
+    profile: EditorProfile
+    readOnly: boolean
+    value: string
+    onChange?: (value: string) => void
+    styleParent?: Document | ShadowRoot
+  }
 ): EditorView {
   const styleParent = options.styleParent ?? mount.getRootNode()
   if (styleParent instanceof Document || styleParent instanceof ShadowRoot) {
