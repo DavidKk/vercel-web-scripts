@@ -33,6 +33,9 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
   - Read: `tasks/backlog/gist-script-rollback.md`
 - **OTA publish policy** (SERVER per-script autoUpgrade / alpha / version lock)
   - Read: `specs/ota-publish-policy.md`, `tasks/active/ota-publish-policy.md`
+- **Extension 本地 ZIP 自更新**（File System Access 绑定目录 + 内存解压写盘）
+  - Read: `tasks/active/extension-fs-update.md`
+  - Code: `extension/src/shared/extension-update-check.ts`, `app/api/extension/version/route.ts`
 - **Multi-service / scriptKey / Connect**
   - Read: `extension/docs/multi-service-tasks.md` (repo path, not under `.ai/`)
 - New platform capability or major behavior change
@@ -62,6 +65,7 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 | Active TODO             | `tasks/active/current.md`                        |
 | Script permissions      | `tasks/active/script-permissions.md`             |
 | OTA publish policy      | `tasks/active/ota-publish-policy.md`             |
+| Extension FS 自更新     | `tasks/active/extension-fs-update.md`            |
 | UI folder restructure   | `tasks/done/ui-folder-restructure.md`            |
 | UI cross-module review  | `specs/ui-cross-module-review.md`                |
 | Editor lib              | `tasks/done/editor-lib.md`                       |
