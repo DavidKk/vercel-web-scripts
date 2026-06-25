@@ -8,6 +8,7 @@ Harden extension shell (script permissions admin) + continue preset runtime Phas
 
 - `../tasks/active/script-permissions.md` — permission gate + Admin Permissions tab (verify/commit)
 - `../tasks/active/current.md` — Phase C/D preset items
+- `../tasks/active/ota-publish-policy.md` — SERVER OTA policy (alpha / autoUpgrade / version lock); spec `../specs/ota-publish-policy.md`
 - `extension/TODO.md` — extension-specific backlog (native module-loader, etc.)
 
 ## Recently landed (extension — keep docs aligned)
@@ -29,11 +30,12 @@ Harden extension shell (script permissions admin) + continue preset runtime Phas
 ## Next steps
 
 1. Script permissions: run verification checklist in `tasks/active/script-permissions.md`; commit when ready
-2. Phase C: per-module hash compare, atomic switch, rollback (`tasks/active/current.md`)
-3. Extension: native module-loader to replace interim `page-launcher.js`
-4. UI dedup（待排期）: `tasks/backlog/ui-cross-module-dedup.md` + `specs/ui-cross-module-review.md`
-5. 大文件拆分（待排期）: `tasks/backlog/large-file-split.md`
-6. CSS 逻辑属性审查（待排期）: `tasks/backlog/css-logical-properties-review.md` — padding-inline 等用法与冗余声明
+2. OTA publish policy: implement per `specs/ota-publish-policy.md` (`tasks/active/ota-publish-policy.md`)
+3. Phase C: per-module hash compare, atomic switch, rollback (`tasks/active/current.md`)
+4. Extension: native module-loader to replace interim `page-launcher.js`
+5. UI dedup（待排期）: `tasks/backlog/ui-cross-module-dedup.md` + `specs/ui-cross-module-review.md`
+6. 大文件拆分（待排期）: `tasks/backlog/large-file-split.md`
+7. CSS 逻辑属性审查（待排期）: `tasks/backlog/css-logical-properties-review.md` — padding-inline 等用法与冗余声明
 
 ## Notes
 

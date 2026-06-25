@@ -31,6 +31,8 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
   - Read: `tasks/backlog/css-logical-properties-review.md`
 - **Gist script history & rollback** (editor version browse/restore — backlog)
   - Read: `tasks/backlog/gist-script-rollback.md`
+- **OTA publish policy** (SERVER per-script autoUpgrade / alpha / version lock)
+  - Read: `specs/ota-publish-policy.md`, `tasks/active/ota-publish-policy.md`
 - **Multi-service / scriptKey / Connect**
   - Read: `extension/docs/multi-service-tasks.md` (repo path, not under `.ai/`)
 - New platform capability or major behavior change
@@ -52,12 +54,14 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 | HTML-only injection     | `specs/extension-injection-policy.md`            |
 | Runtime split baseline  | `specs/runtime-modularization.md`                |
 | Compatibility policy    | `specs/runtime-compatibility.md`                 |
+| OTA publish policy      | `specs/ota-publish-policy.md`                    |
 | Verification checklist  | `specs/runtime-verification-checklist.md`        |
 | Terminology             | `knowledge/glossary.md`                          |
 | Requirements process    | `workflow/requirements-audit.md`                 |
 | Execution phases        | `workflow/module-development.md`                 |
 | Active TODO             | `tasks/active/current.md`                        |
 | Script permissions      | `tasks/active/script-permissions.md`             |
+| OTA publish policy      | `tasks/active/ota-publish-policy.md`             |
 | UI folder restructure   | `tasks/done/ui-folder-restructure.md`            |
 | UI cross-module review  | `specs/ui-cross-module-review.md`                |
 | Editor lib              | `tasks/done/editor-lib.md`                       |
