@@ -71,6 +71,10 @@ export interface ScriptKeyBootstrapEntry {
   developMode: boolean
   /** Per-file enable toggles (`vws_script_enabled:{scriptKey}:{file}`). */
   enabledScripts: Record<string, boolean>
+  /** Per-file alpha bundle subscription (`vws_accept_alpha:{scriptKey}:{file}`). */
+  acceptAlphaByFile?: Record<string, boolean>
+  /** @deprecated Use {@link acceptAlphaByFile}. */
+  acceptAlpha?: boolean
   /** Content hashes for permission registry invalidation. */
   contentHashByFile?: Record<string, string>
 }

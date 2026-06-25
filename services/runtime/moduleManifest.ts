@@ -1,8 +1,10 @@
 import { createHash } from 'crypto'
 
 import { buildVersionedStaticModuleUrl } from '@/services/runtime/contentAddressedAssets'
+import { readManagedScriptIndex } from '@/services/scripts/gistScripts'
 import { getEditorLibManifest, getExplorerLibManifest, getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
-import { buildRemoteScriptBundleFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
+import { buildRemoteScriptBundlesFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
+import { buildScriptPolicySummary, resolveRuntimeOtaPolicy, type RuntimeOtaPolicy, type ScriptOtaPolicy } from '@/shared/script-ota-policy'
 
 import pkg from '../../package.json'
 
@@ -16,7 +18,7 @@ export type RuntimeModuleHashAlgorithm = 'sha1' | 'none'
 /**
  * Runtime module kind in the modular architecture.
  */
-export type RuntimeModuleKind = 'launcher' | 'preset-core' | 'preset-ui' | 'editor-lib' | 'explorer-lib' | 'script-bundle'
+export type RuntimeModuleKind = 'launcher' | 'preset-core' | 'preset-ui' | 'editor-lib' | 'explorer-lib' | 'script-bundle' | 'script-bundle-alpha'
 
 /**
  * Hash payload attached to each runtime module.
@@ -47,6 +49,9 @@ export interface RuntimeModuleDefinition {
   dependsOn: RuntimeModuleDependency[]
 }
 
+/** Manifest script policy summary keyed by Gist filename. */
+export type RuntimeScriptPolicies = Record<string, ScriptOtaPolicy & { version?: string }>
+
 /**
  * Runtime module manifest response contract.
  */
@@ -55,6 +60,8 @@ export interface RuntimeModuleManifest {
   generatedAt: number
   /** Semver baked into preset at build time; surfaced for popup / diagnostics */
   projectVersion: string
+  runtime: RuntimeOtaPolicy
+  scriptPolicies: RuntimeScriptPolicies
   modules: RuntimeModuleDefinition[]
 }
 
@@ -69,12 +76,24 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
   const presetUiManifest = await getPresetUiManifest()
   const editorLibManifest = await getEditorLibManifest()
   const explorerLibManifest = await getExplorerLibManifest()
-  const remoteBundle = await buildRemoteScriptBundleFromGist()
-  const scriptBundleHash = remoteBundle?.hash ?? null
+  const bundles = await buildRemoteScriptBundlesFromGist()
+  const scriptBundleHash = bundles.stable?.hash ?? null
+  const scriptBundleAlphaHash = bundles.alpha?.hash ?? null
   const presetCoreHash = presetManifest?.hash ?? null
   const presetUiHash = presetUiManifest?.hash ?? null
   const editorLibHash = editorLibManifest?.hash ?? null
   const explorerLibHash = explorerLibManifest?.hash ?? null
+
+  let scriptPolicies: RuntimeScriptPolicies = {}
+  let runtimePolicy: RuntimeOtaPolicy = resolveRuntimeOtaPolicy(null, presetManifest?.projectVersion?.trim() || defaultProjectVersion)
+  try {
+    const index = await readManagedScriptIndex()
+    scriptPolicies = Object.fromEntries(index.scripts.map((script) => [script.filename, buildScriptPolicySummary(script)]))
+    runtimePolicy = resolveRuntimeOtaPolicy(index.runtime ?? null, presetManifest?.projectVersion?.trim() || defaultProjectVersion)
+  } catch {
+    runtimePolicy = resolveRuntimeOtaPolicy(null, presetManifest?.projectVersion?.trim() || defaultProjectVersion)
+  }
+
   const modules: RuntimeModuleDefinition[] = [
     {
       id: 'launcher',
@@ -148,6 +167,18 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
       },
       dependsOn: [{ id: 'preset-core', minApiVersion: 1 }],
     },
+    {
+      id: 'script-bundle-alpha',
+      optional: true,
+      lazy: true,
+      apiVersion: 1,
+      url: buildVersionedStaticModuleUrl(baseUrl, key, 'tampermonkey-remote.alpha.js', scriptBundleAlphaHash),
+      hash: {
+        algorithm: scriptBundleAlphaHash ? 'sha1' : 'none',
+        value: scriptBundleAlphaHash,
+      },
+      dependsOn: [{ id: 'preset-core', minApiVersion: 1 }],
+    },
   ]
 
   const projectVersion = presetManifest?.projectVersion?.trim() || defaultProjectVersion
@@ -156,6 +187,8 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
     manifestVersion: 1,
     generatedAt: Date.now(),
     projectVersion,
+    runtime: runtimePolicy,
+    scriptPolicies,
     modules,
   }
 }
@@ -170,6 +203,8 @@ export function buildRuntimeModuleManifestEtag(manifest: RuntimeModuleManifest):
   const stable = {
     manifestVersion: manifest.manifestVersion,
     projectVersion: manifest.projectVersion,
+    runtime: manifest.runtime,
+    scriptPolicies: manifest.scriptPolicies,
     modules: manifest.modules,
   }
   return createHash('sha1').update(JSON.stringify(stable), 'utf8').digest('hex')

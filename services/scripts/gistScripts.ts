@@ -3,7 +3,16 @@ import * as ts from 'typescript'
 
 import { EXCLUDED_FILES, isManagedScriptFilename, SCRIPT_INDEX_FILE } from '@/constants/file'
 import { fetchGist, getGistInfo, readGistFile, writeGistFiles } from '@/services/gist'
-import { isStrictSemverVersion } from '@/shared/semver-compare'
+import {
+  buildReleaseSnapshotPath,
+  LEGACY_SCRIPT_OTA_DEFAULTS,
+  NEW_SCRIPT_OTA_DEFAULTS,
+  resolveRuntimeOtaPolicy,
+  resolveScriptOtaPolicy,
+  type RuntimeOtaPolicy,
+  type ScriptOtaPolicy,
+} from '@/shared/script-ota-policy'
+import { isScriptSemverVersion, isStrictSemverVersion } from '@/shared/semver-compare'
 
 /** Metadata for one script file in the backing Gist */
 export interface ScriptFileMeta {
@@ -37,6 +46,8 @@ export interface ScriptFileMeta {
   keywords?: string[]
   /** Last content change time for this file (epoch ms) */
   updatedAt?: number
+  /** SERVER OTA publish policy */
+  ota?: ScriptOtaPolicy
 }
 
 /** Result of listing script files */
@@ -82,13 +93,17 @@ export interface ScriptIndexMetadataOptions {
   filename: string
   aliases?: string[]
   keywords?: string[]
+  ota?: Partial<ScriptOtaPolicy>
 }
 
 export interface ScriptIndexFile {
   version: 1
   updatedAt: string
+  runtime?: RuntimeOtaPolicy
   scripts: ScriptFileMeta[]
 }
+
+type ManualScriptIndexMeta = Pick<ScriptFileMeta, 'aliases' | 'keywords' | 'ota'>
 
 export interface ScriptSnippetOptions {
   filename: string
@@ -199,7 +214,7 @@ function parseUserscriptHeader(content: string): Omit<ScriptFileMeta, 'filename'
   return metadata
 }
 
-function parsePreviousScriptIndexEntries(content?: string): Map<string, Pick<ScriptFileMeta, 'contentHash' | 'updatedAt'>> {
+function parsePreviousScriptIndexEntries(content?: string): Map<string, Pick<ScriptFileMeta, 'contentHash' | 'updatedAt' | 'ota'>> {
   if (!content) {
     return new Map()
   }
@@ -218,6 +233,7 @@ function parsePreviousScriptIndexEntries(content?: string): Map<string, Pick<Scr
           {
             contentHash: typeof script.contentHash === 'string' ? script.contentHash : undefined,
             updatedAt: typeof script.updatedAt === 'number' && Number.isFinite(script.updatedAt) ? script.updatedAt : undefined,
+            ota: script.ota && typeof script.ota === 'object' ? resolveScriptOtaPolicy(script.ota as Partial<ScriptOtaPolicy>) : undefined,
           },
         ])
     )
@@ -318,7 +334,7 @@ export function buildScriptDisplayMetaByFilenameFromIndexContent(indexContent: s
   return map
 }
 
-function parseScriptIndex(content?: string): Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>> {
+function parseScriptIndex(content?: string): Map<string, ManualScriptIndexMeta> {
   if (!content) {
     return new Map()
   }
@@ -337,6 +353,7 @@ function parseScriptIndex(content?: string): Map<string, Pick<ScriptFileMeta, 'a
           {
             aliases: Array.isArray(script.aliases) ? uniqueSorted(script.aliases) : undefined,
             keywords: Array.isArray(script.keywords) ? uniqueSorted(script.keywords) : undefined,
+            ota: script.ota && typeof script.ota === 'object' ? resolveScriptOtaPolicy(script.ota as Partial<ScriptOtaPolicy>) : undefined,
           },
         ])
     )
@@ -363,6 +380,7 @@ function parsePersistedScriptIndex(content: string): ScriptIndexFile {
   return {
     version: 1,
     updatedAt: parsed.updatedAt,
+    ...(parsed.runtime && typeof parsed.runtime === 'object' ? { runtime: resolveRuntimeOtaPolicy(parsed.runtime as Partial<RuntimeOtaPolicy>) } : {}),
     scripts: parsed.scripts
       .filter((script) => typeof script.filename === 'string' && Number.isFinite(script.byteLength))
       .map((script) =>
@@ -391,8 +409,19 @@ async function readPersistedScriptIndex(): Promise<ScriptIndexFile> {
 function buildScriptIndex(
   files: Record<string, { content: string }>,
   updatedAt: string = new Date().toISOString(),
-  manualMetadataOverrides: Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>> = new Map()
+  manualMetadataOverrides: Map<string, ManualScriptIndexMeta> = new Map(),
+  runtimeOverride?: RuntimeOtaPolicy
 ): ScriptIndexFile {
+  const previousIndexRuntime = (() => {
+    try {
+      const raw = files[SCRIPT_INDEX_FILE]?.content
+      if (!raw) return undefined
+      const parsed = JSON.parse(raw) as { runtime?: Partial<RuntimeOtaPolicy> }
+      return parsed.runtime ? resolveRuntimeOtaPolicy(parsed.runtime) : undefined
+    } catch {
+      return undefined
+    }
+  })()
   const manualMetadata = parseScriptIndex(files[SCRIPT_INDEX_FILE]?.content)
   const previousEntries = parsePreviousScriptIndexEntries(files[SCRIPT_INDEX_FILE]?.content)
   const writeNow = Date.now()
@@ -407,6 +436,7 @@ function buildScriptIndex(
     const contentHash = sha256(content)
     const previous = previousEntries.get(filename)
     const fileUpdatedAt = previous?.contentHash === contentHash && typeof previous.updatedAt === 'number' ? previous.updatedAt : writeNow
+    const ota = manual?.ota ?? previous?.ota
 
     scripts.push({
       filename,
@@ -416,6 +446,7 @@ function buildScriptIndex(
       ...parseUserscriptHeader(content),
       ...(manual?.aliases && manual.aliases.length > 0 ? { aliases: manual.aliases } : {}),
       ...(manual?.keywords && manual.keywords.length > 0 ? { keywords: manual.keywords } : {}),
+      ...(ota ? { ota } : {}),
     })
   }
 
@@ -424,6 +455,7 @@ function buildScriptIndex(
   return {
     version: 1,
     updatedAt,
+    ...(runtimeOverride ? { runtime: runtimeOverride } : previousIndexRuntime ? { runtime: previousIndexRuntime } : {}),
     scripts,
   }
 }
@@ -454,18 +486,13 @@ function applyFileWritesToGistFiles(
 
 async function writeManagedScriptFilesWithIndex(
   writes: Array<{ file: string; content: string | null }>,
-  manualMetadataOverrides: Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>> = new Map()
-): Promise<void> {
-  const managedWrites = writes.filter(({ file }) => isManagedScriptFilename(file))
-  if (managedWrites.length === 0) {
-    return
-  }
+  manualMetadataOverrides: Map<string, ManualScriptIndexMeta> = new Map(),
+  runtimeOverride?: RuntimeOtaPolicy
+): Promise<ScriptIndexFile> {
+  const managedWrites = writes.filter(({ file, content }) => isManagedScriptFilename(file) && content !== null)
 
   for (const { file, content } of managedWrites) {
-    if (content === null) {
-      continue
-    }
-    const validation = validateScriptContent(content, file)
+    const validation = validateScriptContent(content!, file)
     if (!validation.ok) {
       throw new Error(`${file}: ${validation.diagnostics.join('; ')}`)
     }
@@ -473,14 +500,19 @@ async function writeManagedScriptFilesWithIndex(
 
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
-  const nextFiles = applyFileWritesToGistFiles(gist.files, managedWrites)
-  const index = buildScriptIndex(nextFiles, new Date().toISOString(), manualMetadataOverrides)
+  const nextFiles = writes.length > 0 ? applyFileWritesToGistFiles(gist.files, writes) : gist.files
+  const index = buildScriptIndex(nextFiles, new Date().toISOString(), manualMetadataOverrides, runtimeOverride)
+
+  const gistWrites: Array<{ file: string; content: string | null }> =
+    writes.length > 0 ? [...writes, { file: SCRIPT_INDEX_FILE, content: stringifyScriptIndex(index) }] : [{ file: SCRIPT_INDEX_FILE, content: stringifyScriptIndex(index) }]
 
   await writeGistFiles({
     gistId,
     gistToken,
-    files: [...managedWrites, { file: SCRIPT_INDEX_FILE, content: stringifyScriptIndex(index) }],
+    files: gistWrites,
   })
+
+  return index
 }
 
 export { isManagedScriptFilename } from '@/constants/file'
@@ -560,8 +592,8 @@ function validateScriptContent(content: string, filename?: string): ScriptValida
   const headerMeta = parseUserscriptHeader(content)
   if (!headerMeta.version) {
     diagnostics.push('@version is required in userscript header')
-  } else if (!isStrictSemverVersion(headerMeta.version)) {
-    diagnostics.push(`@version must be semver x.x.x (got "${headerMeta.version}")`)
+  } else if (!isScriptSemverVersion(headerMeta.version)) {
+    diagnostics.push(`@version must be semver x.x.x or x.x.x-prerelease (got "${headerMeta.version}")`)
   }
 
   const transpileResult = ts.transpileModule(content, {
@@ -766,10 +798,11 @@ export async function updateManagedScriptIndexMetadata(options: ScriptIndexMetad
   }
 
   const existingManual = parseScriptIndex(gist.files[SCRIPT_INDEX_FILE]?.content).get(options.filename)
-  const overrides = new Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>>()
+  const overrides = new Map<string, ManualScriptIndexMeta>()
   overrides.set(options.filename, {
     aliases: options.aliases === undefined ? existingManual?.aliases : uniqueSorted(options.aliases),
     keywords: options.keywords === undefined ? existingManual?.keywords : uniqueSorted(options.keywords),
+    ota: options.ota ? resolveScriptOtaPolicy({ ...existingManual?.ota, ...options.ota }) : existingManual?.ota,
   })
 
   const index = buildScriptIndex(gist.files, new Date().toISOString(), overrides)
@@ -811,7 +844,7 @@ export async function getManagedScriptSnippet(
  * @param filename Gist file name
  * @param content New file body
  */
-export async function upsertManagedScriptFile(filename: string, content: string): Promise<void> {
+export async function upsertManagedScriptFile(filename: string, content: string, options?: { saveAsDebug?: boolean }): Promise<void> {
   if (!isManagedScriptFilename(filename)) {
     throw new Error('File is not a managed script path')
   }
@@ -819,7 +852,41 @@ export async function upsertManagedScriptFile(filename: string, content: string)
   if (!validation.ok) {
     throw new Error(validation.diagnostics.join('; '))
   }
-  await writeManagedScriptFilesWithIndex([{ file: filename, content }])
+
+  const { gistId, gistToken } = getGistInfo()
+  const gist = await fetchGist({ gistId, gistToken })
+  const isNew = !gist.files[filename]
+  const overrides = new Map<string, ManualScriptIndexMeta>()
+  if (isNew || options?.saveAsDebug === true) {
+    overrides.set(filename, { ota: { ...NEW_SCRIPT_OTA_DEFAULTS } })
+  }
+
+  await writeManagedScriptFilesWithIndex([{ file: filename, content }], overrides)
+}
+
+/**
+ * Batch write managed and auxiliary Gist files while rebuilding the script index.
+ * @param writes File writes (null content deletes)
+ * @param options When `saveAsDebug` is true, managed script writes get alpha OTA defaults
+ * @returns Rebuilt script index
+ */
+export async function saveManagedScriptFiles(writes: Array<{ file: string; content: string | null }>, options?: { saveAsDebug?: boolean }): Promise<ScriptIndexFile> {
+  const overrides = new Map<string, ManualScriptIndexMeta>()
+  if (options?.saveAsDebug === true && writes.length > 0) {
+    const { gistId, gistToken } = getGistInfo()
+    const gist = await fetchGist({ gistId, gistToken })
+    for (const { file, content } of writes) {
+      if (content === null || !isManagedScriptFilename(file)) {
+        continue
+      }
+      const isNew = !gist.files[file]
+      if (isNew || options.saveAsDebug) {
+        overrides.set(file, { ota: { ...NEW_SCRIPT_OTA_DEFAULTS } })
+      }
+    }
+  }
+
+  return writeManagedScriptFilesWithIndex(writes, overrides)
 }
 
 /**
@@ -979,7 +1046,7 @@ export async function renameManagedScriptFile(fromFilename: string, toFilename: 
   const { gistId, gistToken } = getGistInfo()
   const gist = await fetchGist({ gistId, gistToken })
   const manual = parseScriptIndex(gist.files[SCRIPT_INDEX_FILE]?.content).get(fromFilename)
-  const manualOverrides = new Map<string, Pick<ScriptFileMeta, 'aliases' | 'keywords'>>()
+  const manualOverrides = new Map<string, ManualScriptIndexMeta>()
   if (manual) {
     manualOverrides.set(toFilename, manual)
   }
@@ -994,3 +1061,123 @@ export async function renameManagedScriptFile(fromFilename: string, toFilename: 
 
   return { ok: true as const, fromFilename, toFilename }
 }
+
+/**
+ * Read the persisted managed script index from Gist.
+ * @returns Parsed script index including runtime OTA policy
+ */
+export async function readManagedScriptIndex(): Promise<ScriptIndexFile> {
+  return readPersistedScriptIndex()
+}
+
+/**
+ * Publish a managed script to stable: write releases snapshot and set OTA policy.
+ * @param filename Managed script filename
+ * @returns Updated script index entry
+ */
+export async function publishManagedScriptStable(filename: string): Promise<ScriptFileMeta> {
+  if (!isManagedScriptFilename(filename)) {
+    throw new Error('File is not a managed script path')
+  }
+
+  const { content } = await getManagedScriptFile(filename)
+  const headerMeta = parseUserscriptHeader(content)
+  if (!headerMeta.version || !isStrictSemverVersion(headerMeta.version)) {
+    throw new Error(`publish stable requires @version x.x.x (got "${headerMeta.version ?? ''}")`)
+  }
+
+  const snapshotPath = buildReleaseSnapshotPath(filename, headerMeta.version)
+  const overrides = new Map<string, ManualScriptIndexMeta>()
+  overrides.set(filename, {
+    ota: {
+      stage: 'stable',
+      autoUpgrade: true,
+    },
+  })
+
+  const index = await writeManagedScriptFilesWithIndex(
+    [
+      { file: filename, content },
+      { file: snapshotPath, content },
+    ],
+    overrides
+  )
+
+  const updated = index.scripts.find((script) => script.filename === filename)
+  if (!updated) {
+    throw new Error(`File ${filename} not found in rebuilt index`)
+  }
+  return updated
+}
+
+/**
+ * Fleet-lock a managed script to its current @version (stable track uses releases snapshot).
+ * @param filename Managed script filename
+ * @param version Optional explicit version; defaults to header @version
+ * @returns Updated script index entry
+ */
+export async function lockManagedScriptVersion(filename: string, version?: string): Promise<ScriptFileMeta> {
+  if (!isManagedScriptFilename(filename)) {
+    throw new Error('File is not a managed script path')
+  }
+
+  const { content } = await getManagedScriptFile(filename)
+  const headerMeta = parseUserscriptHeader(content)
+  const lockedVersion = (version ?? headerMeta.version)?.trim()
+  if (!lockedVersion || !isScriptSemverVersion(lockedVersion)) {
+    throw new Error(`lock requires a valid @version (got "${lockedVersion ?? ''}")`)
+  }
+
+  const snapshotPath = buildReleaseSnapshotPath(filename, lockedVersion)
+  const overrides = new Map<string, ManualScriptIndexMeta>()
+  overrides.set(filename, {
+    ota: {
+      stage: 'stable',
+      autoUpgrade: true,
+      lockedVersion,
+    },
+  })
+
+  const writes: Array<{ file: string; content: string | null }> = []
+  const { gistId, gistToken } = getGistInfo()
+  const gist = await fetchGist({ gistId, gistToken })
+  if (!gist.files[snapshotPath]) {
+    writes.push({ file: snapshotPath, content })
+  }
+
+  const index = await writeManagedScriptFilesWithIndex(writes, overrides)
+  const updated = index.scripts.find((script) => script.filename === filename)
+  if (!updated) {
+    throw new Error(`File ${filename} not found in rebuilt index`)
+  }
+  return updated
+}
+
+/**
+ * Clear fleet version lock for a managed script.
+ * @param filename Managed script filename
+ * @returns Updated script index entry
+ */
+export async function unlockManagedScriptVersion(filename: string): Promise<ScriptFileMeta> {
+  if (!isManagedScriptFilename(filename)) {
+    throw new Error('File is not a managed script path')
+  }
+
+  const { gistId, gistToken } = getGistInfo()
+  const gist = await fetchGist({ gistId, gistToken })
+  const existingManual = parseScriptIndex(gist.files[SCRIPT_INDEX_FILE]?.content).get(filename)
+  const currentOta = resolveScriptOtaPolicy(existingManual?.ota)
+  const { lockedVersion, ...otaWithoutLock } = currentOta
+  void lockedVersion
+  const overrides = new Map<string, ManualScriptIndexMeta>()
+  overrides.set(filename, { ota: otaWithoutLock })
+
+  const index = await writeManagedScriptFilesWithIndex([], overrides)
+  const updated = index.scripts.find((script) => script.filename === filename)
+  if (!updated) {
+    throw new Error(`File ${filename} not found in rebuilt index`)
+  }
+  return updated
+}
+
+export { LEGACY_SCRIPT_OTA_DEFAULTS, NEW_SCRIPT_OTA_DEFAULTS, resolveScriptOtaPolicy, type RuntimeOtaPolicy, type ScriptOtaPolicy }

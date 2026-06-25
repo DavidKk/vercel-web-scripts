@@ -26,38 +26,41 @@ Related code: `services/scripts/gistScripts.ts`, `services/tampermonkey/remoteSc
 
 ---
 
+Status: **IN_PROGRESS**（Phase A 主体已落地；Phase B/C 部分完成）
+
 ## Phase A — SERVER 元数据与构建
 
-- [ ] A1. 扩展 `ScriptFileMeta.ota` 与 index 顶层 `runtime`（types + parse/stringify + 默认值）
-- [ ] A2. `shared/managed-script-files.ts`：`RELEASES_PREFIX` / 快照路径辅助；`releases/*` 排除出 managed 枚举
-- [ ] A3. Web Editor：保存为调试 / 发布 stable / 锁定版本 / 解除锁定
-- [ ] A4. promote：写 `releases/{file}@{version}` 快照
-- [ ] A5. `buildRemoteScriptBundleFromGist`：stable 与 alpha 双产物 + 锁定版本取快照
-- [ ] A6. 新增路由 `tampermonkey-remote.alpha.js`（或等价静态段）
-- [ ] A7. `buildRuntimeModuleManifest`：`script-bundle-alpha` 模块 + `runtime` / `scriptPolicies` sidecar
-- [ ] A8. API / MCP / OpenAPI 暴露 `ota` 与 publish 动作
-- [ ] A9. 历史脚本迁移：无 `ota` → `stable` + `autoUpgrade=true`
+- [x] A1. 扩展 `ScriptFileMeta.ota` 与 index 顶层 `runtime`（types + parse/stringify + 默认值）
+- [x] A2. `releases/` 快照路径辅助（`shared/script-ota-policy.ts`）；`releases/*` 自然排除于 managed 枚举
+- [x] A3. Web Editor：保存为调试 / 发布 stable（锁定版本 API 已有；Editor UI 锁定入口待补）
+- [x] A4. promote：写 `releases/{file}@{version}` 快照（`publishManagedScriptStable`）
+- [x] A5. `buildRemoteScriptBundleFromGist(track)`：stable 与 alpha 双产物 + 锁定版本取快照
+- [x] A6. 路由 `tampermonkey-remote.alpha.js`（含 hash 路由）
+- [x] A7. `buildRuntimeModuleManifest`：`script-bundle-alpha` + `runtime` / `scriptPolicies`
+- [x] A8. API `POST /api/v1/scripts/:filename/ota`（publish-stable / lock / unlock）
+- [ ] A8b. MCP / OpenAPI 扩展
+- [x] A9. 历史脚本无 `ota` 时读取默认为 `stable` + `autoUpgrade=true`；新脚本 upsert 默认 alpha
 
 ## Phase B — 客户端 OTA 门控
 
-- [ ] B1. 策略决策函数（共享 `shared/ota-policy.ts` 或等价）
-- [ ] B2. Extension `launcher-runtime.ts`：manifest 拉取后策略门控
+- [x] B1. `shared/ota-apply-policy.ts` 策略决策
+- [x] B2. Extension `launcher-runtime.ts`：alpha bundle 选择 + preset `runtime.autoUpgrade` 门控
 - [ ] B3. Tampermonkey `launcherScript.ts`：同上（仅 stable 默认）
-- [ ] B4. preset-core：尊重 `runtime.ota`（autoUpgrade / lockedVersion / stage）
+- [ ] B4. preset-core：完整 `runtime.stage` alpha 轨道
 - [ ] B5. 聚合 bundle per-file 缓存与合并执行（spec §7.1）
-- [ ] B6. Popup Update：手动升级绕过 `autoUpgrade`；alpha 需 acceptAlpha 或确认
-- [ ] B7. 扩展 `shared/semver-compare.ts` 支持 prerelease
+- [ ] B6. Popup Update：手动升级绕过 `autoUpgrade`
+- [x] B7. `shared/semver-compare.ts` prerelease 支持
 
 ## Phase C — Extension UI 与存储
 
-- [ ] C1. `acceptAlpha` 存储（per scriptKey；scope 与 `vws_script_enabled` 对齐）
-- [ ] C2. Scripts 页：展示 SERVER `ota`（只读）+ acceptAlpha 开关
-- [ ] C3. 脚本列表缓存 / `GET_STATUS` 下发 `ota` 与 contentHash
-- [ ] C4. Popup / footer 可选展示 runtime `projectVersion` + stage
+- [x] C1. `acceptAlpha` 存储（per scriptKey）+ bootstrap 注入
+- [x] C2. Scripts 页：展示 SERVER `ota`（只读）+ acceptAlpha 开关
+- [x] C3. 脚本列表缓存解析 `ota` 字段（`SCRIPT_LIST_META_SCHEMA=3`）
+- [ ] C4. Popup / footer 展示 runtime stage
 
 ## Phase D — 验证与文档
 
-- [ ] D1. 单元测试：双 bundle 构建、锁定快照解析、策略决策矩阵
+- [x] D1. 单元测试：双 bundle 构建、锁定快照解析、策略决策矩阵（`script-ota-policy` / `ota-apply-policy` / `remoteScriptBundle-ota`）
 - [ ] D2. 集成：alpha 改动 stable hash 不变；acceptAlpha 拉 alpha bundle
 - [ ] D3. 更新 `runtime-verification-checklist.md` 相关条目
 - [ ] D4. 更新 `public/docs/scripts-ai-skill.md`（MCP publish / ota 字段）

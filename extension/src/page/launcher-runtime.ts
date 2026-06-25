@@ -22,9 +22,11 @@ import {
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
+import { decideOtaModuleApply } from '@shared/ota-apply-policy'
 import { ensurePresetCoreInjectionGate } from '@shared/preset-core-injection-gate'
 import { buildPresetLauncherDecls } from '@shared/preset-launcher-decls'
 import { clearAllRuntimeGmCaches } from '@shared/runtime-cache-clear'
+import type { ScriptOtaPolicy } from '@shared/script-ota-policy'
 import { SCRIPT_CONTENT_HASH_MAP_KEY } from '@shared/script-permission-scope'
 import { PRESET_CORE_SCRIPT_FILE, reportExtensionScriptFailed } from '@shared/script-trigger-log'
 
@@ -39,6 +41,10 @@ export interface LauncherStartOptions {
   gmScope: string
   enabledScripts?: Record<string, boolean>
   contentHashByFile?: Record<string, string>
+  /** Per-file alpha bundle subscription; any enabled file with true selects script-bundle-alpha. */
+  acceptAlphaByFile?: Record<string, boolean>
+  /** @deprecated Use {@link acceptAlphaByFile}. */
+  acceptAlpha?: boolean
   /** Override boot log prefix (defaults to MODULE_LOG_PREFIX). */
   logPrefix?: string
 }
@@ -52,6 +58,8 @@ interface ManifestModule {
 interface ModuleManifest {
   modules?: ManifestModule[]
   projectVersion?: string
+  runtime?: { stage?: string; autoUpgrade?: boolean; lockedVersion?: string | null }
+  scriptPolicies?: Record<string, ScriptOtaPolicy & { version?: string }>
 }
 
 /**
@@ -62,7 +70,8 @@ interface ModuleManifest {
  */
 export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherStartOptions): void {
   const logPrefix = options.logPrefix ?? MODULE_LOG_PREFIX
-  const { scriptKey, gmScope, enabledScripts = {}, contentHashByFile = {} } = options
+  const { scriptKey, gmScope, enabledScripts = {}, contentHashByFile = {}, acceptAlphaByFile = {}, acceptAlpha: legacyAcceptAlpha = false } = options
+  const acceptAlpha = legacyAcceptAlpha || Object.entries(enabledScripts).some(([file, enabled]) => enabled !== false && acceptAlphaByFile[file] === true)
   setActiveGmScope(gmScope)
   ;(globalThis as Record<string, unknown>).__VWS_SCRIPT_KEY__ = scriptKey
   ;(globalThis as Record<string, unknown>)[SCRIPT_CONTENT_HASH_MAP_KEY] = contentHashByFile
@@ -83,6 +92,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   let runtimeScriptUrl = globals.__SCRIPT_URL__ as string
   let pendingManifestEtag = ''
   let skipPresetExecute = false
+  let lastManifestData: ModuleManifest | null = null
 
   const PRESET_RUN_ATTEMPTED_KEY = '__VWS_PRESET_RUN_ATTEMPTED__'
   const PRESET_IN_FLIGHT_KEY = '__VWS_PRESET_EXECUTE_IN_FLIGHT__'
@@ -311,7 +321,34 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   function extractScriptBundleModule(data: ModuleManifest | null): ManifestModule | null {
     if (!data?.modules) return null
+    const preferredId = acceptAlpha ? 'script-bundle-alpha' : 'script-bundle'
+    const preferred = data.modules.find((m) => m?.id === preferredId)
+    if (preferred?.url) {
+      return preferred
+    }
     return data.modules.find((m) => m?.id === 'script-bundle') ?? null
+  }
+
+  function shouldApplyPresetCoreUpgrade(remoteHash: string, localHash: string, hasLocalCache: boolean, manualUpdate = false): boolean {
+    const decision = decideOtaModuleApply({
+      moduleId: 'preset-core',
+      remoteHash,
+      localHash,
+      hasLocalCache,
+      runtimePolicy: lastManifestData?.runtime
+        ? {
+            stage: lastManifestData.runtime.stage === 'alpha' ? 'alpha' : 'stable',
+            autoUpgrade: lastManifestData.runtime.autoUpgrade !== false,
+            lockedVersion: lastManifestData.runtime.lockedVersion ?? null,
+            projectVersion: lastManifestData.projectVersion,
+          }
+        : undefined,
+      clientPrefs: { acceptAlpha, manualUpdate },
+    })
+    if (!decision.apply) {
+      bootLog('info', MODULE_LOG_PREFIX, `preset-core:upgrade:skipped reason=${decision.reason}`)
+    }
+    return decision.apply
   }
 
   function gmXhr(details: GMRequestDetails): Promise<{ status: number; responseText: string; responseHeaders?: string }> {
@@ -340,6 +377,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
       }
       if (res.status === 200 && res.responseText) {
         const data = JSON.parse(res.responseText) as ModuleManifest
+        lastManifestData = data
         const etag = normalizeEtag(getResponseHeader(res, 'etag') ?? '')
         const presetMod = extractPresetCoreModule(data)
         const remoteHash = hashFromPresetCoreModule(presetMod)
@@ -365,6 +403,9 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   }
 
   function applyScriptBundleUrlFromManifest(data: ModuleManifest | null, manifestNotModified: boolean): void {
+    if (data) {
+      lastManifestData = data
+    }
     if (manifestNotModified) {
       const cachedUrl = readScopedValue(scopedScriptBundleUrlKey, SCRIPT_BUNDLE_URL_KEY, '') as string
       if (cachedUrl) {
@@ -487,7 +528,19 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
             }
             return
           }
-          applyPresetWithAtomicSwitch(res.responseText, normalizedEtag || expectedHash || '')
+          const remoteHash = normalizedEtag || expectedHash || ''
+          const activeHash = readScopedValue(scopedPresetActivatedHashKey, PRESET_ACTIVATED_HASH_KEY, '') as string
+          const hasLocalCache = Boolean(presetCode || activeHash)
+          if (!shouldApplyPresetCoreUpgrade(remoteHash, localPresetHash || activeHash, hasLocalCache)) {
+            if (skipPresetExecute) {
+              return
+            }
+            if (presetCode) {
+              runPreset(presetCode)
+            }
+            return
+          }
+          applyPresetWithAtomicSwitch(res.responseText, remoteHash)
           return
         }
         pendingManifestEtag = ''

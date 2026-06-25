@@ -8,6 +8,8 @@ interface EditorHeaderWrapperProps {
   scriptKey: string
   displayUsername: string
   onSave: () => void
+  onPublishStable?: () => void
+  canPublishStable?: boolean
   isSaving: boolean
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void

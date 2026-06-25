@@ -3,12 +3,13 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 
-import { fetchFiles, updateFiles } from '@/app/api/scripts/actions'
+import { fetchFiles, publishScriptStable, saveScriptFiles } from '@/app/api/scripts/actions'
 import { useNotification } from '@/components/Notification'
 import { useFileState } from '@/components/ScriptEditor/context/FileStateContext'
+import { useTabBar } from '@/components/ScriptEditor/hooks/useTabBar'
 import { ScriptEditorContent } from '@/components/ScriptEditor/ScriptEditorContent'
 import { FileStatus } from '@/components/ScriptEditor/types'
-import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
+import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, isManagedScriptFilename, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 
 import { AIPanel } from './AIPanel'
@@ -52,6 +53,7 @@ export function EditorContent({
   onToggleEditorDevMode,
 }: EditorContentProps) {
   const fileState = useFileState()
+  const tabBar = useTabBar()
   const router = useRouter()
   const [isPublishing, setIsPublishing] = useState(false)
   const notification = useNotification()
@@ -136,8 +138,21 @@ export function EditorContent({
     return Object.fromEntries(Object.entries(latest.files).map(([path, info]) => [path, info.content]))
   }, [])
 
+  const triggerScriptUpdatePush = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    const triggerUrl = `${window.location.origin}/?vws_script_update=1`
+    const iframe = document.createElement('iframe')
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+    iframe.src = triggerUrl
+    document.body.appendChild(iframe)
+    setTimeout(() => iframe.remove(), 5000)
+  }, [])
+
   /**
-   * Handle publish - save all files to Gist and compile
+   * Save changed scripts to Gist as ALPHA debug builds (does not promote to stable).
    */
   const handlePublish = useCallback(async () => {
     if (isPublishing || isSaving) {
@@ -214,8 +229,8 @@ export function EditorContent({
         })
       }
 
-      // Save all files to Gist
-      await updateFiles(...filesToSave)
+      // Save all files to Gist (alpha / debug OTA for managed scripts)
+      await saveScriptFiles(filesToSave, { saveAsDebug: true })
 
       // Mark all saved files as saved
       Object.keys(filesToPublish).forEach((path) => {
@@ -250,18 +265,10 @@ export function EditorContent({
       // Refresh to get updated data
       router.refresh()
 
-      notification.success('Published successfully!')
+      notification.success('Saved as debug (ALPHA). Reload extension tabs to pick up changes.')
 
       // Trigger script update push so Tampermonkey tabs reload the script
-      if (typeof window !== 'undefined') {
-        const triggerUrl = `${window.location.origin}/?vws_script_update=1`
-        const iframe = document.createElement('iframe')
-        iframe.setAttribute('aria-hidden', 'true')
-        iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
-        iframe.src = triggerUrl
-        document.body.appendChild(iframe)
-        setTimeout(() => iframe.remove(), 5000)
-      }
+      triggerScriptUpdatePush()
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Publish failed:', error)
@@ -269,7 +276,60 @@ export function EditorContent({
     } finally {
       setIsPublishing(false)
     }
-  }, [fileState, router, isPublishing, isSaving, notification])
+  }, [fileState, router, isPublishing, isSaving, notification, triggerScriptUpdatePush])
+
+  /**
+   * Publish the active managed script to stable (releases snapshot).
+   */
+  const handlePublishStable = useCallback(async () => {
+    if (isPublishing || isSaving) {
+      return
+    }
+
+    const filename = tabBar.activeTab
+    if (!filename || !isManagedScriptFilename(filename)) {
+      notification.warning('Select a .ts or .js script file to publish stable')
+      return
+    }
+
+    const file = fileState.getFile(filename)
+    if (!file || file.status === FileStatus.Deleted) {
+      notification.warning('Script file is not available')
+      return
+    }
+
+    setIsPublishing(true)
+
+    try {
+      const compileRes = await fetch('/tampermonkey/compile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { [filename]: file.content.modifiedContent } }),
+      })
+      if (!compileRes.ok) {
+        const errText = (await compileRes.text()).trim()
+        notification.error(errText || 'Failed to compile script')
+        return
+      }
+
+      await saveScriptFiles([{ file: filename, content: file.content.modifiedContent }])
+      fileState.markFileAsSaved(filename)
+      fileState.markFileAsUnchanged(filename)
+
+      await publishScriptStable(filename)
+      router.refresh()
+      notification.success(`Published ${filename} to stable`)
+      triggerScriptUpdatePush()
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Publish stable failed:', error)
+      notification.error(`Publish stable failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [fileState, tabBar.activeTab, router, isPublishing, isSaving, notification, triggerScriptUpdatePush])
+
+  const canPublishStable = Boolean(tabBar.activeTab && isManagedScriptFilename(tabBar.activeTab))
 
   return (
     <div className="w-full h-screen overflow-hidden flex flex-col">
@@ -277,6 +337,8 @@ export function EditorContent({
         scriptKey={scriptKey}
         displayUsername={displayUsername}
         onSave={handlePublish}
+        onPublishStable={handlePublishStable}
+        canPublishStable={canPublishStable}
         isSaving={isPublishing || isSaving}
         isEditorDevMode={isEditorDevMode}
         onToggleEditorDevMode={onToggleEditorDevMode}

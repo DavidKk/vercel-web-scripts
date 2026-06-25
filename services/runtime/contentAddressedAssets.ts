@@ -35,12 +35,15 @@ export function isSha1ContentHash(s: string): boolean {
 export function buildVersionedStaticModuleUrl(
   baseUrl: string,
   scriptKey: string,
-  file: 'preset.js' | 'preset-ui.js' | 'editor-lib.js' | 'explorer-lib.js' | 'tampermonkey-remote.js',
+  file: 'preset.js' | 'preset-ui.js' | 'editor-lib.js' | 'explorer-lib.js' | 'tampermonkey-remote.js' | 'tampermonkey-remote.alpha.js',
   hash: string | null | undefined
 ): string {
   if (!hash || !isSha1ContentHash(hash)) {
     if (file === 'tampermonkey-remote.js') {
       return `${baseUrl}/static/${encodeURIComponent(scriptKey)}/tampermonkey-remote.js`
+    }
+    if (file === 'tampermonkey-remote.alpha.js') {
+      return `${baseUrl}/static/${encodeURIComponent(scriptKey)}/tampermonkey-remote.alpha.js`
     }
     return `${baseUrl}/static/${encodeURIComponent(scriptKey)}/${PENDING_SEGMENT}/${file}`
   }

@@ -31,7 +31,7 @@ export async function GET(req: Request, context: { params: Promise<Params> }) {
       return new NextResponse('Not Found', { status: 404 })
     }
 
-    const bundle = await buildRemoteScriptBundleFromGist()
+    const bundle = await buildRemoteScriptBundleFromGist('stable')
     if (!bundle) {
       return new NextResponse('// No script files to compile from Gist.\n', {
         status: 404,

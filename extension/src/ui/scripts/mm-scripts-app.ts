@@ -1,4 +1,5 @@
 import { isDebugLogViewerIncognito } from '@ext/shared/debug-log-utils'
+import { ACCEPT_ALPHA_PREFIX } from '@ext/shared/extension-multi-service-pure'
 import {
   INCOGNITO_SCRIPT_ENABLED_PREFIX,
   loadScriptEnabledMapForScriptKey,
@@ -14,8 +15,10 @@ import {
   setScriptInstalled,
   syncScriptKeyScriptsListIfNeeded,
 } from '@ext/shared/extension-storage'
+import { parseAcceptAlphaStorageKey, readAcceptAlphaMapForScriptKey, setAcceptAlphaForScript } from '@ext/shared/extension-storage/accept-alpha'
 import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
+import { LEGACY_SCRIPT_OTA_DEFAULTS, type ScriptOtaPolicy } from '@shared/script-ota-policy'
 import { computeScrollThumbMetrics } from '@shared/ui/scroll-indicator'
 
 import { type AdminRoute, buildAdminHash, parseAdminHash } from '../admin/mm-admin-hash'
@@ -24,11 +27,16 @@ import type { MmSearchSelect } from '../mm-form-components/mm-search-select'
 import { hydrateMmIcons } from '../mm-icons'
 import { buildRulesPageScriptUrl } from '../rules/mm-rules-hash'
 import { formatScriptUpdatedAt } from '../shared/mm-format-relative-time'
-import { createMmSwitch } from '../shared/mm-switch'
+import { createMmScriptsSwitch } from '../shared/mm-scripts-switch'
 import { MmToast } from '../shared/mm-toast'
 import { initMmTooltipDelegation, updateMmTooltip } from '../shared/mm-tooltip'
 import { computeScriptsFooterStats, formatScriptsFooterText } from './mm-scripts-footer'
 import { createMockScriptKeyScriptsGroups, getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
+
+const STAGE_BADGE_CLASS: Record<'stable' | 'alpha', string> = {
+  stable: 'mm-script-stage-badge mm-script-stage-badge--stable',
+  alpha: 'mm-script-stage-badge mm-script-stage-badge--alpha',
+}
 
 type ScriptRow = {
   scriptKey: string
@@ -40,6 +48,10 @@ type ScriptRow = {
   author?: string
   contentHash?: string
   updatedAt?: number
+  /** SERVER OTA policy (resolved defaults when omitted in index). */
+  ota: ScriptOtaPolicy
+  /** Per scriptKey: subscribe to alpha bundle artifacts. */
+  acceptAlpha: boolean
   serviceLabel: string
   serviceUrl: string
   installed: boolean
@@ -71,6 +83,7 @@ export class MmScriptsApp extends HTMLElement {
   private masterSwitchRoot: HTMLLabelElement | null = null
   private bulkToggleInProgress = false
   private installToggleInProgress = false
+  private readonly acceptAlphaByFile = new Map<string, boolean>()
   private readonly scriptTogglesIncognito = isDebugLogViewerIncognito()
   private readonly handleListScroll = (): void => this.updateScrollIndicator()
   private readonly toast = new MmToast(document)
@@ -103,6 +116,31 @@ export class MmScriptsApp extends HTMLElement {
         return
       }
       const onlyScriptToggleKeys = keys.every((key) => this.isScriptEnabledStorageKey(key) || key.startsWith(SCRIPT_INSTALLED_PREFIX))
+      const onlyAcceptAlphaKeys = keys.every((key) => key.startsWith(ACCEPT_ALPHA_PREFIX))
+      if (onlyAcceptAlphaKeys) {
+        for (const key of keys) {
+          const parsed = parseAcceptAlphaStorageKey(key)
+          if (!parsed) {
+            continue
+          }
+          const acceptAlpha = changes[key].newValue === true
+          const mapKey = this.acceptAlphaMapKey(parsed.scriptKey, parsed.file)
+          this.acceptAlphaByFile.set(mapKey, acceptAlpha)
+          for (const group of this.groups) {
+            if (group.scriptKey !== parsed.scriptKey) {
+              continue
+            }
+            const row = group.rows.find((r) => r.file === parsed.file)
+            if (row) {
+              row.acceptAlpha = acceptAlpha
+            }
+          }
+        }
+        if (!this.bulkToggleInProgress) {
+          this.applyFilters()
+        }
+        return
+      }
       if (onlyScriptToggleKeys) {
         for (const key of keys) {
           if (this.isScriptEnabledStorageKey(key)) {
@@ -263,29 +301,86 @@ export class MmScriptsApp extends HTMLElement {
     const cell = document.createElement('div')
     cell.className = 'mm-script-cell mm-script-cell--release'
 
-    const block = document.createElement('div')
-    block.className = 'mm-script-release-block'
+    const inner = document.createElement('div')
+    inner.className = 'mm-script-release-inner'
+
+    const versionLine = document.createElement('div')
+    versionLine.className = 'mm-script-version-line'
 
     const versionText = item.version?.trim() ?? ''
     const versionInner = document.createElement('span')
     versionInner.className = 'mm-script-version'
     versionInner.textContent = versionText || '—'
-    block.append(versionInner)
+    versionLine.append(versionInner)
+
+    const stageBadge = document.createElement('span')
+    stageBadge.className = STAGE_BADGE_CLASS[item.ota.stage]
+    stageBadge.textContent = item.ota.stage === 'alpha' ? 'ALP' : 'STB'
+    versionLine.append(stageBadge)
+    inner.append(versionLine)
 
     const updatedLabel = formatScriptUpdatedAt(item.updatedAt)
     const updatedInner = document.createElement('span')
     updatedInner.className = 'mm-script-updated'
     updatedInner.textContent = updatedLabel
-    block.append(updatedInner)
+    inner.append(updatedInner)
 
-    const releaseTooltipLines = [versionText || '—', updatedLabel]
+    const releaseTooltipLines = [versionText || '—', `Server: ${item.ota.stage.toUpperCase()}`, updatedLabel]
+    if (item.ota.autoUpgrade) {
+      releaseTooltipLines.push('Auto-upgrade on')
+    } else {
+      releaseTooltipLines.push('Auto-upgrade off')
+    }
+    if (item.ota.lockedVersion) {
+      releaseTooltipLines.push(`Pinned ${item.ota.lockedVersion}`)
+    }
     if (typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)) {
       releaseTooltipLines.push(new Date(item.updatedAt).toLocaleString())
     }
-    this.setFullTextTooltip(block, releaseTooltipLines.join('\n'))
+    this.setFullTextTooltip(inner, releaseTooltipLines.join('\n'))
 
-    cell.append(block)
+    cell.append(inner)
     return cell
+  }
+
+  private renderOtaCell(item: ScriptRow): HTMLDivElement {
+    const cell = document.createElement('div')
+    cell.className = 'mm-script-cell mm-script-cell--ota'
+
+    const { root: switchRoot, input } = createMmScriptsSwitch({
+      variant: 'stable-alpha',
+      checked: item.acceptAlpha,
+      disabled: !item.groupActive,
+    })
+    const trackLabel = item.acceptAlpha ? 'ALP' : 'STB'
+    input.setAttribute('aria-label', `${item.file} OTA track ${trackLabel}`)
+    this.setFullTextTooltip(switchRoot, `${item.file}: STB = stable bundle, ALP = alpha bundle (reload tabs after changing)`)
+    if (item.groupActive) {
+      input.addEventListener('change', () => {
+        void this.handleAcceptAlphaToggle(item.scriptKey, item.file, input.checked)
+      })
+    }
+
+    cell.append(switchRoot)
+    return cell
+  }
+
+  private acceptAlphaMapKey(scriptKey: string, file: string): string {
+    return `${scriptKey}:${file}`
+  }
+
+  private async handleAcceptAlphaToggle(scriptKey: string, file: string, acceptAlpha: boolean): Promise<void> {
+    await setAcceptAlphaForScript(scriptKey, file, acceptAlpha)
+    const mapKey = this.acceptAlphaMapKey(scriptKey, file)
+    this.acceptAlphaByFile.set(mapKey, acceptAlpha)
+    for (const group of this.groups) {
+      const row = group.rows.find((r) => r.scriptKey === scriptKey && r.file === file)
+      if (row) {
+        row.acceptAlpha = acceptAlpha
+      }
+    }
+    this.toast.show(acceptAlpha ? `${file}: OTA track ALP — reload tabs to apply` : `${file}: OTA track STB`)
+    this.applyFilters()
   }
 
   private renderRow(item: ScriptRow, index: number): HTMLElement {
@@ -324,19 +419,23 @@ export class MmScriptsApp extends HTMLElement {
       navigateExtensionPage(buildRulesPageScriptUrl(item.scriptKey, item.file))
     })
 
+    const actionsCell = document.createElement('div')
+    actionsCell.className = 'mm-script-cell mm-script-cell--actions'
+    actionsCell.append(rulesLink, installBtn)
+
     const rowChildren: HTMLElement[] = [
       this.wrapScriptTextCell('index', indexInner),
       this.renderNameCell(item),
-      this.renderServiceCell(item),
       this.wrapScriptTextCell('file', fileInner),
       this.renderReleaseCell(item),
-      rulesLink,
-      installBtn,
+      this.renderOtaCell(item),
+      this.renderServiceCell(item),
+      actionsCell,
     ]
 
     if (item.installed) {
       const switchDisabled = !item.groupActive
-      const { root: switchRoot, input } = createMmSwitch({ checked: item.enabled, disabled: switchDisabled })
+      const { root: switchRoot, input } = createMmScriptsSwitch({ variant: 'on-off', checked: item.enabled, disabled: switchDisabled })
       this.setSwitchTooltip(switchRoot, input, item)
       rowChildren.push(switchRoot)
 
@@ -492,11 +591,11 @@ export class MmScriptsApp extends HTMLElement {
 
   private mountMasterSwitch(): void {
     const slot = this.querySelector('[data-ref="list-head"] [data-ref="master-switch"]') as HTMLElement | null
-    if (!slot || slot.querySelector('.mm-switch')) {
+    if (!slot || slot.querySelector('.mm-scripts-switch')) {
       return
     }
 
-    const { root, input } = createMmSwitch({ checked: true, disabled: true })
+    const { root, input } = createMmScriptsSwitch({ variant: 'on-off', checked: true, disabled: true })
     root.classList.add('mm-scripts-master-switch')
     slot.append(root)
     this.masterSwitchRoot = root
@@ -847,10 +946,17 @@ export class MmScriptsApp extends HTMLElement {
       )
       const serviceLabel = group.primaryServiceLabel
       const serviceUrl = group.editorBaseUrl.trim().replace(/\/+$/, '')
+      const acceptAlphaMap = await readAcceptAlphaMapForScriptKey(
+        group.scriptKey,
+        group.scripts.map((s) => s.file)
+      )
       const rows: ScriptRow[] = group.scripts.map((s) => {
         const installed = installedByName.get(s.file) !== false
         const enabled = installed && enabledByName.get(s.file) !== false
         this.enabledByKey.set(this.enabledMapKey(group.scriptKey, s.file), enabled)
+        const ota = s.ota ?? LEGACY_SCRIPT_OTA_DEFAULTS
+        const acceptAlpha = acceptAlphaMap.get(s.file) === true
+        this.acceptAlphaByFile.set(this.acceptAlphaMapKey(group.scriptKey, s.file), acceptAlpha)
         return {
           scriptKey: group.scriptKey,
           file: s.file,
@@ -861,6 +967,8 @@ export class MmScriptsApp extends HTMLElement {
           author: s.author,
           contentHash: s.contentHash,
           updatedAt: s.updatedAt,
+          ota,
+          acceptAlpha,
           serviceLabel,
           serviceUrl,
           installed,

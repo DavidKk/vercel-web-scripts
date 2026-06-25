@@ -91,6 +91,8 @@ function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<ty
     gmScope: entry.gmScope,
     enabledScripts: { ...entry.enabledScripts, ...mergedEnabledScripts },
     contentHashByFile: entry.contentHashByFile,
+    acceptAlphaByFile: entry.acceptAlphaByFile,
+    acceptAlpha: entry.acceptAlpha === true,
     logPrefix: `[ModuleLoad][${shortKey}]`,
   })
 }

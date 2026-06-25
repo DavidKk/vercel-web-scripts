@@ -1,7 +1,10 @@
 import { createHash } from 'crypto'
 
-import { EXCLUDED_FILES } from '@/constants/file'
+import { SCRIPT_INDEX_FILE } from '@/constants/file'
 import { fetchGist, getGistInfo } from '@/services/gist'
+import type { ScriptFileMeta } from '@/services/scripts/gistScripts'
+import { buildScriptFilesForBundleTrack } from '@/shared/script-bundle-track'
+import { type ScriptBundleTrack } from '@/shared/script-ota-policy'
 
 import { getRemoteScriptContent } from './createUserScript.server'
 
@@ -16,38 +19,89 @@ export interface RemoteScriptBundlePayload {
   content: string
   /** SHA-1 hex of content */
   hash: string
+  /** Track used to build this payload */
+  track: ScriptBundleTrack
 }
 
 /**
- * Fetch Gist, compile script files, return body + content hash for manifest and versioned routes.
+ * Compile resolved Gist script files into a remote bundle payload.
+ * @param files Filename → source
+ * @param track Bundle track label
+ * @param scriptBuiltAt Stable timestamp for log wrappers
+ * @returns Payload or null when compile yields empty
+ */
+export async function compileRemoteScriptBundlePayload(files: Record<string, string>, track: ScriptBundleTrack, scriptBuiltAt: number): Promise<RemoteScriptBundlePayload | null> {
+  const raw = await getRemoteScriptContent(files, { strictCompile: true, scriptBuiltAt })
+  const content = `// vws-wrapper:${REMOTE_SCRIPT_WRAPPER_VERSION}\n// vws-track:${track}\n${raw.replace(/\r\n/g, '\n')}`
+  if (!content.trim()) {
+    return null
+  }
+  const hash = createHash('sha1').update(content, 'utf8').digest('hex')
+  return { content, hash, track }
+}
+
+/**
+ * Fetch Gist, compile script files for the given track, return body + content hash.
+ * @param track `stable` (default) or `alpha`
  * @returns Payload or null when Gist/config unavailable or compile yields empty
  */
-export async function buildRemoteScriptBundleFromGist(): Promise<RemoteScriptBundlePayload | null> {
+export async function buildRemoteScriptBundleFromGist(track: ScriptBundleTrack = 'stable'): Promise<RemoteScriptBundlePayload | null> {
   try {
     const { gistId, gistToken } = getGistInfo()
     const gist = await fetchGist({ gistId, gistToken })
-    const files = Object.fromEntries(
-      (function* () {
-        for (const [file, { content }] of Object.entries(gist.files)) {
-          if (!(file.endsWith('.js') || (file.endsWith('.ts') && !file.endsWith('.d.ts')))) {
-            continue
-          }
-          if (EXCLUDED_FILES.includes(file)) {
-            continue
-          }
-          yield [file, content]
-        }
-      })()
-    )
-    const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
-    const raw = await getRemoteScriptContent(files, { strictCompile: true, scriptBuiltAt: gistUpdatedAtMs })
-    const content = `// vws-wrapper:${REMOTE_SCRIPT_WRAPPER_VERSION}\n${raw.replace(/\r\n/g, '\n')}`
-    if (!content.trim()) {
-      return null
+    const gistFiles = Object.fromEntries(Object.entries(gist.files).map(([name, file]) => [name, { content: file.content }]))
+
+    let scripts: ScriptFileMeta[] = []
+    const indexContent = gistFiles[SCRIPT_INDEX_FILE]?.content
+    if (indexContent) {
+      try {
+        const parsed = JSON.parse(indexContent) as { scripts?: ScriptFileMeta[] }
+        scripts = Array.isArray(parsed.scripts) ? parsed.scripts : []
+      } catch {
+        scripts = []
+      }
     }
-    const hash = createHash('sha1').update(content, 'utf8').digest('hex')
-    return { content, hash }
+
+    const files = buildScriptFilesForBundleTrack(scripts, gistFiles, track)
+    const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
+    return compileRemoteScriptBundlePayload(files, track, gistUpdatedAtMs)
   } catch {
     return null
+  }
+}
+
+/**
+ * Build stable and alpha remote bundles in one Gist read.
+ * @returns Both payloads (either may be null)
+ */
+export async function buildRemoteScriptBundlesFromGist(): Promise<{
+  stable: RemoteScriptBundlePayload | null
+  alpha: RemoteScriptBundlePayload | null
+}> {
+  try {
+    const { gistId, gistToken } = getGistInfo()
+    const gist = await fetchGist({ gistId, gistToken })
+    const gistFiles = Object.fromEntries(Object.entries(gist.files).map(([name, file]) => [name, { content: file.content }]))
+
+    let scripts: ScriptFileMeta[]
+    const indexContent = gistFiles[SCRIPT_INDEX_FILE]?.content
+    if (indexContent) {
+      const parsed = JSON.parse(indexContent) as { scripts?: ScriptFileMeta[] }
+      scripts = Array.isArray(parsed.scripts) ? parsed.scripts : []
+    } else {
+      scripts = []
+    }
+
+    const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
+    const stableFiles = buildScriptFilesForBundleTrack(scripts, gistFiles, 'stable')
+    const alphaFiles = buildScriptFilesForBundleTrack(scripts, gistFiles, 'alpha')
+
+    const [stable, alpha] = await Promise.all([
+      compileRemoteScriptBundlePayload(stableFiles, 'stable', gistUpdatedAtMs),
+      compileRemoteScriptBundlePayload(alphaFiles, 'alpha', gistUpdatedAtMs),
+    ])
+    return { stable, alpha }
+  } catch {
+    return { stable: null, alpha: null }
   }
 }

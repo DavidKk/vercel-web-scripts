@@ -1,8 +1,8 @@
 'use server'
 
 import { withAuthAction } from '@/initializer/wrapper'
-import type { FilesInWriteGistFiles } from '@/services/gist'
-import { fetchGist, getGistInfo, writeGistFiles } from '@/services/gist'
+import { fetchGist, getGistInfo } from '@/services/gist'
+import { lockManagedScriptVersion, publishManagedScriptStable, saveManagedScriptFiles, unlockManagedScriptVersion } from '@/services/scripts/gistScripts'
 
 export const fetchFiles = withAuthAction(async () => {
   const { gistId, gistToken } = getGistInfo()
@@ -22,7 +22,36 @@ export const fetchFiles = withAuthAction(async () => {
   }
 })
 
-export const updateFiles = withAuthAction(async (...files: FilesInWriteGistFiles[]) => {
-  const { gistId, gistToken } = getGistInfo()
-  await writeGistFiles({ gistId, gistToken, files })
+/**
+ * Persist editor file writes and rebuild the managed script index.
+ * @param files File writes (null content deletes)
+ * @param options When `saveAsDebug` is true, managed scripts are marked alpha / no auto-upgrade
+ */
+export const saveScriptFiles = withAuthAction(async (files: Array<{ file: string; content: string | null }>, options?: { saveAsDebug?: boolean }) => {
+  await saveManagedScriptFiles(files, options)
+})
+
+/**
+ * Publish the active managed script to stable (releases snapshot + OTA policy).
+ * @param filename Managed script filename
+ */
+export const publishScriptStable = withAuthAction(async (filename: string) => {
+  return publishManagedScriptStable(filename)
+})
+
+/**
+ * Fleet-lock a managed script to a semver (defaults to header @version).
+ * @param filename Managed script filename
+ * @param version Optional explicit version
+ */
+export const lockScriptVersion = withAuthAction(async (filename: string, version?: string) => {
+  return lockManagedScriptVersion(filename, version)
+})
+
+/**
+ * Remove fleet lock from a managed script.
+ * @param filename Managed script filename
+ */
+export const unlockScriptVersion = withAuthAction(async (filename: string) => {
+  return unlockManagedScriptVersion(filename)
 })

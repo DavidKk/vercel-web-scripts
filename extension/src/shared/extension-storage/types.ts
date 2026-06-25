@@ -8,6 +8,8 @@ export interface UpsertServiceInput {
   developMode?: boolean
 }
 
+import type { ScriptOtaPolicy } from '@shared/script-ota-policy'
+
 export interface ManagedScriptListEntry {
   file: string
   name: string
@@ -19,6 +21,8 @@ export interface ManagedScriptListEntry {
   version?: string
   /** Userscript @author when available */
   author?: string
+  /** SERVER OTA policy from script index */
+  ota?: ScriptOtaPolicy
   /** Last content change time (epoch ms) when provided by the scripts API */
   updatedAt?: number
   /** SHA-256 from script index when available (used to confirm uninstall blacklist identity). */

@@ -35,6 +35,7 @@ const mmPalette = {
 
 export default {
   content: [path.join(__dirname, 'src/**/*.{ts,html,ejs}')],
+  safelist: ['mm-script-stage-badge--stable', 'mm-script-stage-badge--alpha'],
   corePlugins: {
     preflight: false,
   },

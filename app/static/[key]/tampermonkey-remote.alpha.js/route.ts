@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 
-import { CONTENT_ADDRESSED_CACHE_CONTROL, isSha1ContentHash } from '@/services/runtime/contentAddressedAssets'
+import { REVALIDATE_CACHE_CONTROL } from '@/services/runtime/contentAddressedAssets'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
 import { buildRemoteScriptBundleFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
 
-interface Params {
+export interface Params {
   key: string
-  hash: string
 }
 
 /**
@@ -21,38 +20,32 @@ function normalizeEtag(etag: string | null): string | null {
 }
 
 /**
- * GET /static/[key]/[hash]/tampermonkey-remote.js
- * Content-addressed GIST-compiled bundle (immutable edge cache when hash matches live Gist output).
+ * GET /static/[key]/tampermonkey-remote.alpha.js
+ * Returns alpha-track GIST-compiled script bundle (stable + alpha scripts).
  */
 export async function GET(req: Request, context: { params: Promise<Params> }) {
-  const params = await context.params
-  const ifNoneMatch = normalizeEtag(req.headers.get('If-None-Match'))
-
-  if (params.key !== getTampermonkeyScriptKey()) {
-    return new NextResponse('Not Found', { status: 404 })
-  }
-  if (!isSha1ContentHash(params.hash)) {
-    return new NextResponse('Not Found', { status: 404 })
-  }
-
   try {
-    const bundle = await buildRemoteScriptBundleFromGist('stable')
-    if (!bundle || params.hash !== bundle.hash) {
-      return new NextResponse(`console.warn("[tampermonkey-remote.js] Stale path hash; refetch module manifest from the server.");`, {
+    const params = await context.params
+    const key = getTampermonkeyScriptKey()
+    if (params.key !== key) {
+      return new NextResponse('Not Found', { status: 404 })
+    }
+
+    const bundle = await buildRemoteScriptBundleFromGist('alpha')
+    if (!bundle) {
+      return new NextResponse('// No script files to compile from Gist.\n', {
         status: 404,
-        headers: {
-          'Content-Type': 'application/javascript; charset=utf-8',
-          'Cache-Control': 'private, no-store',
-        },
+        headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
       })
     }
 
+    const ifNoneMatch = normalizeEtag(req.headers.get('If-None-Match'))
     if (ifNoneMatch && ifNoneMatch === bundle.hash) {
       return new NextResponse(null, {
         status: 304,
         headers: {
           ETag: `"${bundle.hash}"`,
-          'Cache-Control': CONTENT_ADDRESSED_CACHE_CONTROL,
+          'Cache-Control': REVALIDATE_CACHE_CONTROL,
         },
       })
     }
@@ -60,14 +53,14 @@ export async function GET(req: Request, context: { params: Promise<Params> }) {
     return new NextResponse(bundle.content, {
       headers: {
         'Content-Type': 'application/javascript; charset=utf-8',
-        'Cache-Control': CONTENT_ADDRESSED_CACHE_CONTROL,
+        'Cache-Control': REVALIDATE_CACHE_CONTROL,
         ETag: `"${bundle.hash}"`,
       },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    // eslint-disable-next-line no-console
-    console.error('[tampermonkey-remote.js@key/hash] GET failed:', err)
+    // eslint-disable-next-line no-console -- route errors must be visible in terminal
+    console.error('[tampermonkey-remote.alpha.js] GET failed:', err)
     if (message.includes('GIST_ID') || message.includes('GIST_TOKEN')) {
       return new NextResponse(`// Config error: ${message}. Copy .env.example to .env.local and set GIST_ID, GIST_TOKEN.`, {
         status: 503,

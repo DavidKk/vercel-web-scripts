@@ -21,8 +21,8 @@ function normalizeEtag(etag: string | null): string | null {
 }
 
 /**
- * GET /static/[key]/[hash]/tampermonkey-remote.js
- * Content-addressed GIST-compiled bundle (immutable edge cache when hash matches live Gist output).
+ * GET /static/[key]/[hash]/tampermonkey-remote.alpha.js
+ * Content-addressed alpha-track GIST-compiled bundle.
  */
 export async function GET(req: Request, context: { params: Promise<Params> }) {
   const params = await context.params
@@ -36,9 +36,9 @@ export async function GET(req: Request, context: { params: Promise<Params> }) {
   }
 
   try {
-    const bundle = await buildRemoteScriptBundleFromGist('stable')
+    const bundle = await buildRemoteScriptBundleFromGist('alpha')
     if (!bundle || params.hash !== bundle.hash) {
-      return new NextResponse(`console.warn("[tampermonkey-remote.js] Stale path hash; refetch module manifest from the server.");`, {
+      return new NextResponse(`console.warn("[tampermonkey-remote.alpha.js] Stale path hash; refetch module manifest from the server.");`, {
         status: 404,
         headers: {
           'Content-Type': 'application/javascript; charset=utf-8',
@@ -67,7 +67,7 @@ export async function GET(req: Request, context: { params: Promise<Params> }) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     // eslint-disable-next-line no-console
-    console.error('[tampermonkey-remote.js@key/hash] GET failed:', err)
+    console.error('[tampermonkey-remote.alpha.js@key/hash] GET failed:', err)
     if (message.includes('GIST_ID') || message.includes('GIST_TOKEN')) {
       return new NextResponse(`// Config error: ${message}. Copy .env.example to .env.local and set GIST_ID, GIST_TOKEN.`, {
         status: 503,

@@ -10,6 +10,31 @@ export const SCRIPT_ENABLED_PREFIX = 'vws_script_enabled:'
 export const INCOGNITO_SCRIPT_ENABLED_PREFIX = 'vws_incognito_script_enabled:'
 /** Per-script install state (`false` = uninstalled / blacklisted). Unset defaults to installed. */
 export const SCRIPT_INSTALLED_PREFIX = 'vws_script_installed:'
+/** Per-script file alpha OTA subscription (`vws_accept_alpha:{scriptKey}:{file}`, default false). */
+export const ACCEPT_ALPHA_PREFIX = 'vws_accept_alpha:'
+
+/** Storage key for scriptKey-scoped per-file alpha OTA subscription. */
+export function acceptAlphaStorageKey(scriptKey: string, file: string): string {
+  return `${ACCEPT_ALPHA_PREFIX}${normalizeScriptKey(scriptKey)}:${file}`
+}
+
+export type ParsedAcceptAlphaStorageKey = {
+  scriptKey: string
+  file: string
+}
+
+/** Parse scoped accept-alpha keys (`vws_accept_alpha:{scriptKey}:{file}`). */
+export function parseAcceptAlphaStorageKey(key: string): ParsedAcceptAlphaStorageKey | null {
+  if (!key.startsWith(ACCEPT_ALPHA_PREFIX)) {
+    return null
+  }
+  const rest = key.slice(ACCEPT_ALPHA_PREFIX.length)
+  const colon = rest.indexOf(':')
+  if (colon <= 0 || colon === rest.length - 1) {
+    return null
+  }
+  return { scriptKey: rest.slice(0, colon), file: rest.slice(colon + 1) }
+}
 
 /** Storage key for scriptKey-scoped RULE bucket. */
 export function scriptKeyRulesStorageKey(scriptKey: string): string {
@@ -155,7 +180,10 @@ export function buildScriptKeyGroupMetaFromState(state: ExtensionServicesState):
 /** Build bootstrap entries from services state (pure; for tests and async loader). */
 export function buildScriptKeyBootstrapEntriesFromState(
   state: ExtensionServicesState,
-  listsByScriptKey: Record<string, { files: string[]; enabledByFile: Record<string, boolean>; contentHashByFile?: Record<string, string> }>
+  listsByScriptKey: Record<
+    string,
+    { files: string[]; enabledByFile: Record<string, boolean>; contentHashByFile?: Record<string, string>; acceptAlphaByFile?: Record<string, boolean> }
+  >
 ): ScriptKeyBootstrapEntry[] {
   const entries: ScriptKeyBootstrapEntry[] = []
   for (const scriptKey of getEnabledScriptKeys(state.services)) {
@@ -181,6 +209,7 @@ export function buildScriptKeyBootstrapEntriesFromState(
       developMode: endpoint.developMode === true,
       enabledScripts,
       ...(list.contentHashByFile && Object.keys(list.contentHashByFile).length > 0 ? { contentHashByFile: list.contentHashByFile } : {}),
+      ...(list.acceptAlphaByFile && Object.keys(list.acceptAlphaByFile).length > 0 ? { acceptAlphaByFile: { ...list.acceptAlphaByFile } } : {}),
     })
   }
   return entries

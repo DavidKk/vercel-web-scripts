@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { FiChevronDown, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
-import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
+import { MdOutlineCloudDone, MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
 import { SiTampermonkey } from 'react-icons/si'
 
 import { Spinner } from '@/components/Spinner'
@@ -77,6 +77,8 @@ interface EditorHeaderProps {
   scriptKey: string
   displayUsername: string
   onSave: () => void
+  onPublishStable?: () => void
+  canPublishStable?: boolean
   isSaving: boolean
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void
@@ -95,6 +97,8 @@ export default function EditorHeader({
   scriptKey,
   displayUsername,
   onSave,
+  onPublishStable,
+  canPublishStable = false,
   isSaving,
   isEditorDevMode,
   onToggleEditorDevMode,
@@ -345,8 +349,8 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
-        <Tooltip content="Push to Cloud" placement="bottom">
-          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBrand} disabled:opacity-50`} aria-label="Push to Cloud">
+        <Tooltip content="Save as debug (ALPHA)" placement="bottom">
+          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBrand} disabled:opacity-50`} aria-label="Save as debug (ALPHA)">
             {isSaving ? (
               <span className="w-4 h-4 flex items-center justify-center">
                 <Spinner />
@@ -356,6 +360,20 @@ export default function EditorHeader({
             )}
           </button>
         </Tooltip>
+
+        {onPublishStable && (
+          <Tooltip content={canPublishStable ? 'Publish stable' : 'Select a script file to publish stable'} placement="bottom">
+            <button
+              type="button"
+              onClick={onPublishStable}
+              disabled={isSaving || !canPublishStable}
+              className={`${iconBtnActiveGreen} disabled:opacity-50`}
+              aria-label="Publish stable"
+            >
+              <MdOutlineCloudDone className="w-4 h-4" />
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       <div className="relative shrink-0 pl-2 border-l border-[#2a303a] ml-1" ref={userMenuRef}>

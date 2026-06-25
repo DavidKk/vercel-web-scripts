@@ -1,8 +1,10 @@
 import { isManagedScriptFilename } from '@shared/managed-script-files'
+import { resolveScriptOtaPolicy, type ScriptOtaPolicy } from '@shared/script-ota-policy'
 
 import type { ExtensionConfig, PageBootstrapConfig } from '../../types'
 import { buildScriptKeyBootstrapEntriesFromState, scriptKeyListCacheStorageKey } from '../extension-multi-service-pure'
 import { getEnabledScriptKeys, getPermissionModeForScriptKey, normalizeScriptKey, resolveOtaEndpoint, serviceEndpointKey } from '../extension-services'
+import { readAcceptAlphaMapForScriptKey } from './accept-alpha'
 import { SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY } from './constants'
 import {
   fallbackScriptListFromEnabledKeys,
@@ -17,7 +19,7 @@ import { ensureExtensionServicesState, loadScriptKeyGroupMeta, serviceProfileToE
 import type { ManagedScriptListEntry, ScriptKeyScriptsGroupView, ScriptListCache } from './types'
 
 /** Increment when {@link ManagedScriptListEntry} / scripts API display fields change. */
-export const SCRIPT_LIST_META_SCHEMA = 2
+export const SCRIPT_LIST_META_SCHEMA = 3
 
 function scriptListScope(config: ExtensionConfig): string {
   return `${config.baseUrl}|${config.scriptKey}`
@@ -90,6 +92,8 @@ function parseManagedScriptRows(data: unknown): ManagedScriptListEntry[] {
     const contentHash = typeof contentHashRaw === 'string' && contentHashRaw.trim() ? contentHashRaw.trim() : undefined
     const updatedAtRaw = (row as ManagedScriptListEntry).updatedAt
     const updatedAt = typeof updatedAtRaw === 'number' && Number.isFinite(updatedAtRaw) ? updatedAtRaw : undefined
+    const otaRaw = (row as { ota?: Partial<ScriptOtaPolicy> }).ota
+    const ota = otaRaw && typeof otaRaw === 'object' ? resolveScriptOtaPolicy(otaRaw) : undefined
     list.push({
       file,
       name,
@@ -99,6 +103,7 @@ function parseManagedScriptRows(data: unknown): ManagedScriptListEntry[] {
       ...(author ? { author } : {}),
       ...(contentHash ? { contentHash } : {}),
       ...(updatedAt !== undefined ? { updatedAt } : {}),
+      ...(ota ? { ota } : {}),
     })
   }
   return dedupeManagedScriptListByFile(list)
@@ -389,7 +394,10 @@ export async function buildPageBootstrapConfig(extensionVersion: string, options
   }
 
   const incognito = options?.incognito === true
-  const listsByScriptKey: Record<string, { files: string[]; enabledByFile: Record<string, boolean> }> = {}
+  const listsByScriptKey: Record<
+    string,
+    { files: string[]; enabledByFile: Record<string, boolean>; contentHashByFile?: Record<string, string>; acceptAlphaByFile?: Record<string, boolean> }
+  > = {}
   const allStorageKeys = Object.keys(await chrome.storage.local.get(null))
   for (const scriptKey of enabledKeys) {
     const normalized = normalizeScriptKey(scriptKey)
@@ -412,10 +420,19 @@ export async function buildPageBootstrapConfig(extensionVersion: string, options
         contentHashByFile[row.file] = row.contentHash
       }
     }
+    const acceptAlphaByFile: Record<string, boolean> = {}
+    for (const file of scripts.map((row) => row.file)) {
+      acceptAlphaByFile[file] = false
+    }
+    const acceptAlphaMap = await readAcceptAlphaMapForScriptKey(normalized, Object.keys(acceptAlphaByFile))
+    for (const [file, value] of acceptAlphaMap) {
+      acceptAlphaByFile[file] = value
+    }
     listsByScriptKey[normalized] = {
       files: scripts.map((row) => row.file),
       enabledByFile,
       ...(Object.keys(contentHashByFile).length > 0 ? { contentHashByFile } : {}),
+      acceptAlphaByFile,
     }
   }
 
