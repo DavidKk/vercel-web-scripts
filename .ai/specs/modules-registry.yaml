@@ -22,6 +22,12 @@ modules:
     load: async
     optional: true
 
+  - id: editor-lib
+    title: Editor Lib
+    purpose: Optional CodeMirror 6 editor for Gist scripts (profiles, iframe isolation)
+    load: async
+    optional: true
+
   - id: script-bundle
     title: Script Bundle
     purpose: Business/user scripts; moving toward match-based modular loading

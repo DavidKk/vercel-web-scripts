@@ -8,13 +8,13 @@ Related: `tasks/done/ui-folder-restructure.md`（Extension 内部已重组）
 
 ## 1. 审查结论（摘要）
 
-| 维度               | 现状                                                                                                                                       | 建议                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| **设计 token**     | WEB `homePalette`、Preset `vws-ui-tokens.css` 数值一致；Extension 独立浅色 `mmPalette`；WEB 编辑器内部还有 VS Code 色                      | 语义 token 抽到 `shared/ui/tokens/`；主题分 dark / light 两套 |
-| **行为逻辑**       | scroll-indicator、tooltip 定位、debug state 等多处平行实现                                                                                 | 纯 TS 函数优先合并到 `shared/ui/`                             |
-| **组件代码**       | React（WEB）vs Web Components / Shadow DOM（Extension / Preset）                                                                           | **不强行共享组件 DOM**；共享 token + 行为 + 约定              |
-| **Extension 内部** | form / tooltip / notification 已抽 shared；debug panel ×3、toolbar EJS 仍重复                                                              | Extension 内先抽象，再与 Preset 对齐                          |
-| **Preset 轻量 UI** | 已移除未接入 bundle 的 CM 相关模块（`string-tool`、`compiled-code-viewer`、`codemirror-editor`）；富编辑留待独立 `editor-lib` 或脚本侧方案 | 见 `tasks/done/preset-cm-ui-removal.md`                       |
+| 维度               | 现状                                                                                                                  | 建议                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **设计 token**     | WEB `homePalette`、Preset `vws-ui-tokens.css` 数值一致；Extension 独立浅色 `mmPalette`；WEB 编辑器内部还有 VS Code 色 | 语义 token 抽到 `shared/ui/tokens/`；主题分 dark / light 两套       |
+| **行为逻辑**       | scroll-indicator、tooltip 定位、debug state 等多处平行实现                                                            | 纯 TS 函数优先合并到 `shared/ui/`                                   |
+| **组件代码**       | React（WEB）vs Web Components / Shadow DOM（Extension / Preset）                                                      | **不强行共享组件 DOM**；共享 token + 行为 + 约定                    |
+| **Extension 内部** | form / tooltip / notification 已抽 shared；debug panel ×3、toolbar EJS 仍重复                                         | Extension 内先抽象，再与 Preset 对齐                                |
+| **Preset 轻量 UI** | 已移除未接入 bundle 的 CM 相关模块；富编辑由 `editor-lib` OTA 提供                                                    | 见 `tasks/done/preset-cm-ui-removal.md`、`tasks/done/editor-lib.md` |
 
 **原则**：样式跟脚本要区分——**样式 token 与纯函数可跨端复用**；**各端渲染层保持独立**，特殊场景允许拆分。
 
@@ -244,9 +244,7 @@ Preset 每模块独立 CSS + Shadow DOM；Extension 预编译单一 `tailwind.cs
 
 #### 3.14 Preset CM 编辑器模块（已关闭）
 
-**决策（2026-06）**：删除 `string-tool`、`compiled-code-viewer`、`codemirror-editor` 及 `preset/src/codemirror.ts`；移除 `@codemirror/*` 依赖。上述模块从未接入 `entry-ui.ts`，删除不影响当前运行时。富文本/代码编辑需求留待独立 `editor-lib` OTA 模块或各 Gist 脚本按需加载。
-
-记录：`tasks/done/preset-cm-ui-removal.md`
+**决策（2026-06）**：删除 `string-tool`、`compiled-code-viewer`、`codemirror-editor` 及 `preset/src/codemirror.ts`；移除 `@codemirror/*` 依赖。上述模块从未接入 `entry-ui.ts`，删除不影响当前运行时。富文本/代码编辑由独立 `editor-lib` OTA 模块提供 — 见 `../tasks/done/editor-lib.md`。
 
 #### 3.15 WEB 遗留组件
 

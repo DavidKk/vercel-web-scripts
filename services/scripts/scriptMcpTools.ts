@@ -130,6 +130,7 @@ function buildRuntimeSummary() {
       menu: ['GME_registerMenuCommand', 'GME_updateMenuCommand'],
       commandPalette: ['GME_registerCommandPaletteCommand', 'GME_openCommandPalette'],
       nodeToolbar: ['GME_registerNodeToolbar', 'GME_registerNodeToolbarQuery', 'GME_unregisterNodeToolbar'],
+      editorLib: ['GME_ensureEditorLib'],
       networkAndTooling: ['GME_fetch', 'GME_curl', 'GME_preview'],
       domAndTiming: ['GME_waitFor', 'GME_watchFor', 'GME_watchForVisible', 'GME_pollFor', 'GME_sleep', 'GME_isVisible'],
       utilities: ['GME_debounce', 'GME_throttle', 'GME_sha1', 'GME_md5', 'GME_uuid'],
@@ -138,6 +139,8 @@ function buildRuntimeSummary() {
     },
     globalApiGuidance: {
       preferredDefault: 'Prefer GME_* helpers when they match the task.',
+      editorLib:
+        'For multi-line code/JSON editing in userscripts, call GME_ensureEditorLib() then api.create({ parent, profile, isolated: true }). Do not embed cdnjs CodeMirror. WEB ScriptEditor uses Monaco (unrelated).',
       scriptLogging:
         'GIST module sources use GME_*; wrapper enterScriptLogScope keeps user logs on console. Tampermonkey install has no Logger popup (default console). Extension shell: Console / Log Viewer / Off for preset+wrapper only.',
       useGmWhen: 'Use GM_* for Tampermonkey compatibility, native userscript storage, tab/menu primitives, resources, or low-level network behavior.',
@@ -149,6 +152,7 @@ function buildRuntimeSummary() {
       typingsSource: 'preset/src/editor-typings.d.ts',
       typingsGenerated: 'lib/tampermonkey-editor-typings.generated.ts',
       humanDocs: 'public/docs/scripts-ai-skill.md',
+      editorLibDocs: 'public/docs/editor-lib-skill.md',
     },
   }
 }

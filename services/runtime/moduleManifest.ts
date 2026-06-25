@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 
 import { buildVersionedStaticModuleUrl } from '@/services/runtime/contentAddressedAssets'
-import { getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
+import { getEditorLibManifest, getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
 import { buildRemoteScriptBundleFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
 
 import pkg from '../../package.json'
@@ -16,7 +16,7 @@ export type RuntimeModuleHashAlgorithm = 'sha1' | 'none'
 /**
  * Runtime module kind in the modular architecture.
  */
-export type RuntimeModuleKind = 'launcher' | 'preset-core' | 'preset-ui' | 'script-bundle'
+export type RuntimeModuleKind = 'launcher' | 'preset-core' | 'preset-ui' | 'editor-lib' | 'script-bundle'
 
 /**
  * Hash payload attached to each runtime module.
@@ -67,10 +67,12 @@ export interface RuntimeModuleManifest {
 export async function buildRuntimeModuleManifest(baseUrl: string, key: string): Promise<RuntimeModuleManifest> {
   const presetManifest = await getPresetManifest()
   const presetUiManifest = await getPresetUiManifest()
+  const editorLibManifest = await getEditorLibManifest()
   const remoteBundle = await buildRemoteScriptBundleFromGist()
   const scriptBundleHash = remoteBundle?.hash ?? null
   const presetCoreHash = presetManifest?.hash ?? null
   const presetUiHash = presetUiManifest?.hash ?? null
+  const editorLibHash = editorLibManifest?.hash ?? null
   const modules: RuntimeModuleDefinition[] = [
     {
       id: 'launcher',
@@ -105,6 +107,18 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
       hash: {
         algorithm: presetUiManifest ? 'sha1' : 'none',
         value: presetUiHash,
+      },
+      dependsOn: [{ id: 'preset-core', minApiVersion: 1 }],
+    },
+    {
+      id: 'editor-lib',
+      optional: true,
+      lazy: true,
+      apiVersion: 1,
+      url: buildVersionedStaticModuleUrl(baseUrl, key, 'editor-lib.js', editorLibHash),
+      hash: {
+        algorithm: editorLibManifest ? 'sha1' : 'none',
+        value: editorLibHash,
       },
       dependsOn: [{ id: 'preset-core', minApiVersion: 1 }],
     },

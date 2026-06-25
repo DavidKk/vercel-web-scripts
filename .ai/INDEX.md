@@ -17,12 +17,20 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 - **Script permissions** (gate, modal, admin Permissions tab)
   - Read: `tasks/active/script-permissions.md`
   - Code: `shared/script-permission.ts`, `extension/src/shell/permission-manager.ts`
+- **Editor lib（共享代码编辑器 OTA）**
+  - Read: `tasks/done/editor-lib.md`, `public/docs/editor-lib-skill.md`, `.cursor/skills/editor-lib/SKILL.md`
+  - Prerequisite: `tasks/done/preset-cm-ui-removal.md`
+- **Agent chat panel** (script management Agent — backlog)
+  - Read: `tasks/backlog/agent-chat-panel.md`
+  - Related: `.cursor/skills/scripts-api-mcp/SKILL.md`, `public/docs/scripts-ai-skill.md`
 - **UI cross-module dedup** (WEB / Extension / Preset shared layer — backlog)
   - Read: `specs/ui-cross-module-review.md`, `tasks/backlog/ui-cross-module-dedup.md`
 - **Large file split** (>1000 lines → same-folder modules — backlog)
   - Read: `tasks/backlog/large-file-split.md`
 - **CSS logical properties review** (padding/margin/logical CSS — backlog)
   - Read: `tasks/backlog/css-logical-properties-review.md`
+- **Gist script history & rollback** (editor version browse/restore — backlog)
+  - Read: `tasks/backlog/gist-script-rollback.md`
 - **Multi-service / scriptKey / Connect**
   - Read: `extension/docs/multi-service-tasks.md` (repo path, not under `.ai/`)
 - New platform capability or major behavior change
@@ -52,7 +60,10 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 | Script permissions      | `tasks/active/script-permissions.md`             |
 | UI folder restructure   | `tasks/done/ui-folder-restructure.md`            |
 | UI cross-module review  | `specs/ui-cross-module-review.md`                |
+| Editor lib              | `tasks/done/editor-lib.md`                       |
+| Agent chat panel        | `tasks/backlog/agent-chat-panel.md`              |
 | UI cross-module dedup   | `tasks/backlog/ui-cross-module-dedup.md`         |
 | Large file split        | `tasks/backlog/large-file-split.md`              |
 | CSS logical properties  | `tasks/backlog/css-logical-properties-review.md` |
+| Gist script rollback    | `tasks/backlog/gist-script-rollback.md`          |
 | Project overview        | `context/summary.md`                             |

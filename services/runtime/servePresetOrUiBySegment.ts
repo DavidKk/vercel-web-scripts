@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { CONTENT_ADDRESSED_CACHE_CONTROL, isContentAddressedMatch, isSha1ContentHash, PENDING_SEGMENT, REVALIDATE_CACHE_CONTROL } from '@/services/runtime/contentAddressedAssets'
 import { getTampermonkeyScriptKey } from '@/services/tampermonkey/createBanner'
-import { getPresetBundle, getPresetManifest, getPresetUiBundle, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
+import { getEditorLibBundle, getEditorLibManifest, getPresetBundle, getPresetManifest, getPresetUiBundle, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
 
 /**
  * Normalize ETag from If-None-Match (strip W/ and quotes).
@@ -15,7 +15,40 @@ function normalizeEtag(etag: string | null): string | null {
   return s || null
 }
 
-export type PresetOrUiKind = 'preset-core' | 'preset-ui'
+export type PresetOrUiKind = 'preset-core' | 'preset-ui' | 'editor-lib'
+
+const MODULE_KIND_CONFIG: Record<
+  PresetOrUiKind,
+  {
+    getManifest: () => Promise<{ hash?: string } | null>
+    getBundle: () => Promise<string>
+    warnTag: string
+    logTag: string
+    normalizeBody: boolean
+  }
+> = {
+  'preset-core': {
+    getManifest: getPresetManifest,
+    getBundle: getPresetBundle,
+    warnTag: '[preset.js]',
+    logTag: '[preset.js@segment]',
+    normalizeBody: false,
+  },
+  'preset-ui': {
+    getManifest: getPresetUiManifest,
+    getBundle: getPresetUiBundle,
+    warnTag: '[preset-ui.js]',
+    logTag: '[preset-ui.js@segment]',
+    normalizeBody: true,
+  },
+  'editor-lib': {
+    getManifest: getEditorLibManifest,
+    getBundle: getEditorLibBundle,
+    warnTag: '[editor-lib.js]',
+    logTag: '[editor-lib.js@segment]',
+    normalizeBody: true,
+  },
+}
 
 /**
  * Serve preset core or preset-ui for `/static/[key]/[hash]/preset*.js` (hash = `pending` or SHA-1 hex).
@@ -29,10 +62,7 @@ export async function servePresetOrUiBySegment(req: Request, params: { key: stri
     return new NextResponse('Not Found', { status: 404 })
   }
 
-  const getManifest = kind === 'preset-core' ? getPresetManifest : getPresetUiManifest
-  const getBundle = kind === 'preset-core' ? getPresetBundle : getPresetUiBundle
-  const warnTag = kind === 'preset-core' ? '[preset.js]' : '[preset-ui.js]'
-  const logTag = kind === 'preset-core' ? '[preset.js@segment]' : '[preset-ui.js@segment]'
+  const { getManifest, getBundle, warnTag, logTag, normalizeBody } = MODULE_KIND_CONFIG[kind]
 
   const reqUrl = new URL(req.url)
   const hParam = reqUrl.searchParams.get('h')
@@ -67,7 +97,7 @@ export async function servePresetOrUiBySegment(req: Request, params: { key: stri
       }
 
       const content = await getBundle()
-      const body = kind === 'preset-ui' ? content.replace(/\r\n/g, '\n') : content
+      const body = normalizeBody ? content.replace(/\r\n/g, '\n') : content
       return new NextResponse(body, {
         headers: {
           'Content-Type': 'application/javascript; charset=utf-8',
@@ -103,7 +133,7 @@ export async function servePresetOrUiBySegment(req: Request, params: { key: stri
     }
 
     const content = await getBundle()
-    const body = kind === 'preset-ui' ? content.replace(/\r\n/g, '\n') : content
+    const body = normalizeBody ? content.replace(/\r\n/g, '\n') : content
     return new NextResponse(body, {
       headers: {
         'Content-Type': 'application/javascript; charset=utf-8',
@@ -116,7 +146,8 @@ export async function servePresetOrUiBySegment(req: Request, params: { key: stri
     const isMissing = (e as NodeJS.ErrnoException)?.code === 'ENOENT'
     // eslint-disable-next-line no-console -- route errors must be visible in terminal
     console.error(`${logTag} GET failed:`, e)
-    const body = isMissing ? `console.warn("${warnTag} File not built yet. Run: pnpm run build:preset");` : `console.error("${warnTag} ${message}");`
+    const buildHint = kind === 'editor-lib' ? 'pnpm run build:editor-lib' : 'pnpm run build:preset'
+    const body = isMissing ? `console.warn("${warnTag} File not built yet. Run: ${buildHint}");` : `console.error("${warnTag} ${message}");`
     return new NextResponse(body, {
       status: isMissing ? 503 : 500,
       headers: { 'Content-Type': 'application/javascript; charset=utf-8' },

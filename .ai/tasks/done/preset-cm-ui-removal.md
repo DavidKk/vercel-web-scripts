@@ -34,7 +34,7 @@ Related: `../../specs/ui-cross-module-review.md` §3.14、`../backlog/ui-cross-m
 | --------------------------- | ---------------------------------------------------------- |
 | String tool（hash/JSON 等） | 独立 Gist 脚本或 WEB 工具                                  |
 | Compiled code viewer        | command-palette 可另接轻量 `<pre>` 方案，或等 `editor-lib` |
-| 页面内代码编辑              | `editor-lib` OTA 模块（规划中）                            |
+| 页面内代码编辑              | `editor-lib` OTA 模块 — 见 `../done/editor-lib.md`         |
 
 ## 验收
 

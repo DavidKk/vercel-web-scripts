@@ -8,12 +8,13 @@ Vercel Web Scripts (MagickMonkey) is a Tampermonkey-oriented script platform: we
 
 Canonical list: `../specs/modules-registry.yaml`
 
-| Module        | Status in implementation                                     |
-| ------------- | ------------------------------------------------------------ |
-| Launcher      | ✅ Extension `page-launcher.js` + TM install path            |
-| Preset Core   | ✅ OTA `preset-core` via module manifest                     |
-| Preset UI     | ✅ Lazy optional UI bundle                                   |
-| Script Bundle | ✅ OTA remote bundle; aggregate path (match-modular Phase D) |
+| Module        | Status in implementation                                                |
+| ------------- | ----------------------------------------------------------------------- |
+| Launcher      | ✅ Extension `page-launcher.js` + TM install path                       |
+| Preset Core   | ✅ OTA `preset-core` via module manifest                                |
+| Preset UI     | ✅ Lazy optional UI bundle                                              |
+| Editor Lib    | ✅ Lazy optional CM6 editor (`ensureEditorLib` / `GME_ensureEditorLib`) |
+| Script Bundle | ✅ OTA remote bundle; aggregate path (match-modular Phase D)            |
 
 Phase A/B contracts and split foundation: **DONE** (see `../tasks/active/current.md`).
 

@@ -37,3 +37,27 @@ export function isLikelyPresetUiBundle(content: string): boolean {
   // Minified: e.register("preset-ui",{…}). Unminified (watch): .register(\n  "preset-ui", — allow whitespace.
   return /\.register\s*\(\s*['"]preset-ui['"]/.test(content)
 }
+
+/**
+ * Heuristic: fetched body looks like the editor-lib IIFE bundle.
+ * @param content Response body
+ */
+export function isLikelyEditorLibBundle(content: string): boolean {
+  if (!content || content.length < 1024) {
+    return false
+  }
+  return /\.register\s*\(\s*['"]editor-lib['"]/.test(content)
+}
+
+/**
+ * Build optional editor-lib execute body prefix (`with(global){...}`).
+ * @returns Single-line decl staging `__GLOBAL__` and script URL for iframe mode
+ */
+export function buildEditorLibExecDecls(scriptUrl?: string): string {
+  const lines = ['var __GLOBAL__ = global;', 'global.__GLOBAL__ = global;']
+  if (scriptUrl) {
+    lines.push(`global.__VWS_EDITOR_LIB_SCRIPT_URL__ = ${JSON.stringify(scriptUrl)};`)
+    lines.push(`if (typeof window !== 'undefined') { window.__VWS_EDITOR_LIB_SCRIPT_URL__ = ${JSON.stringify(scriptUrl)}; }`)
+  }
+  return lines.join('\n')
+}

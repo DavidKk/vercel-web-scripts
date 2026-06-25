@@ -14,6 +14,7 @@ export default [
       'coverage/**/*',
       'node_modules',
       'preset/dist/**/*',
+      'editor-lib/dist/**/*',
       'extension/dist/**/*',
       'test-results/**/*',
       'playwright-report/**/*',

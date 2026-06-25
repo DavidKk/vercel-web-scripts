@@ -953,6 +953,38 @@ declare function GME_notification_update(id: string, updates: GME_NotificationUp
 declare function GME_notification_close(id: string): void
 
 /**
+ * Editor profile for {@link GME_ensureEditorLib} / editor-lib module.
+ */
+type EditorProfile = 'plain' | 'json' | 'javascript' | 'html' | 'css' | 'markdown'
+
+interface EditorLibCreateOptions {
+  parent: HTMLElement
+  profile?: EditorProfile
+  readOnly?: boolean
+  value?: string
+  onChange?: (value: string) => void
+  isolated?: boolean
+}
+
+interface EditorHandle {
+  getValue(): string
+  setValue(value: string): void
+  focus(): void
+  destroy(): void
+}
+
+interface EditorLibApi {
+  version: 1
+  ready: true
+  create(options: EditorLibCreateOptions): EditorHandle
+}
+
+/**
+ * Lazily load editor-lib OTA module (CodeMirror 6). Returns null on failure without blocking scripts.
+ */
+declare function GME_ensureEditorLib(): Promise<EditorLibApi | null>
+
+/**
  * Browser File System Access API type definitions
  */
 declare global {

@@ -29,8 +29,11 @@ const PRESET_BUNDLE_PATH = join(process.cwd(), 'preset/dist/preset.js')
 const PRESET_MANIFEST_PATH = join(process.cwd(), 'preset/dist/manifest.json')
 const PRESET_UI_BUNDLE_PATH = join(process.cwd(), 'preset/dist/preset-ui.js')
 const PRESET_UI_MANIFEST_PATH = join(process.cwd(), 'preset/dist/manifest-ui.json')
+const EDITOR_LIB_BUNDLE_PATH = join(process.cwd(), 'editor-lib/dist/editor-lib.js')
+const EDITOR_LIB_MANIFEST_PATH = join(process.cwd(), 'editor-lib/dist/manifest.json')
 let presetBundleCache: { mtimeMs: number; content: string } | null = null
 let presetUiBundleCache: { mtimeMs: number; content: string } | null = null
+let editorLibBundleCache: { mtimeMs: number; content: string } | null = null
 
 /** Manifest shape written by preset/vite build (content hash for ETag / If-None-Match). */
 export interface PresetManifest {
@@ -60,6 +63,19 @@ export async function getPresetManifest(): Promise<PresetManifest | null> {
 export async function getPresetUiManifest(): Promise<PresetManifest | null> {
   try {
     const raw = await readFile(PRESET_UI_MANIFEST_PATH, 'utf-8')
+    return JSON.parse(raw) as PresetManifest
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Read editor-lib manifest (content hash). Returns null if not built.
+ * @returns Promise of manifest or null
+ */
+export async function getEditorLibManifest(): Promise<PresetManifest | null> {
+  try {
+    const raw = await readFile(EDITOR_LIB_MANIFEST_PATH, 'utf-8')
     return JSON.parse(raw) as PresetManifest
   } catch {
     return null
@@ -104,6 +120,25 @@ export async function getPresetUiBundle(): Promise<string> {
     return content
   } catch (e) {
     presetUiBundleCache = null
+    throw e
+  }
+}
+
+/**
+ * Load editor-lib bundle by reading file at request time.
+ * @returns Promise of editor-lib bundle content as string
+ */
+export async function getEditorLibBundle(): Promise<string> {
+  try {
+    const st = await stat(EDITOR_LIB_BUNDLE_PATH)
+    if (editorLibBundleCache && editorLibBundleCache.mtimeMs === st.mtimeMs) {
+      return editorLibBundleCache.content
+    }
+    const content = await readFile(EDITOR_LIB_BUNDLE_PATH, 'utf-8')
+    editorLibBundleCache = { mtimeMs: st.mtimeMs, content }
+    return content
+  } catch (e) {
+    editorLibBundleCache = null
     throw e
   }
 }

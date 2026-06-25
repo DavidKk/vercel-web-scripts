@@ -9,7 +9,7 @@ export default [
     languageOptions: {
       parser: typescriptEslintParser,
       parserOptions: {
-        project: ['./tsconfig.eslint.json', './preset/tsconfig.json', './extension/tsconfig.json'],
+        project: ['./tsconfig.eslint.json', './preset/tsconfig.json', './extension/tsconfig.json', './editor-lib/tsconfig.json'],
       },
     },
     plugins: {

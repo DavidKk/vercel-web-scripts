@@ -1,0 +1,166 @@
+/**
+ * CodeMirror 6 base styles for editor-lib — dark theme aligned with VWS tokens
+ * (see preset/src/ui/shared/vws-ui-tokens.css + vws-scroll.css).
+ */
+.cm-editor {
+  --vws-editor-canvas: #171a21;
+  --vws-editor-gutter: #151820;
+  --vws-editor-border: #2a303a;
+  --vws-editor-border-strong: #3f4a5c;
+  --vws-editor-text: #e6eaf0;
+  --vws-editor-text-muted: #9aa4b2;
+  --vws-editor-brand: #60a5fa;
+  --vws-editor-selection: rgba(59, 130, 246, 0.35);
+  --vws-editor-active-line: #1b1f27;
+  height: 100%;
+  outline: none;
+  background: var(--vws-editor-canvas);
+  color: var(--vws-editor-text);
+}
+
+.cm-scroller {
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  scrollbar-color: var(--vws-editor-border) var(--vws-editor-canvas);
+  scrollbar-gutter: stable;
+}
+
+.cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.cm-scroller::-webkit-scrollbar-track {
+  background: var(--vws-editor-canvas);
+}
+
+.cm-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--vws-editor-border);
+  border: 2px solid var(--vws-editor-canvas);
+  border-radius: 9999px;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--vws-editor-border-strong);
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:active {
+  background-color: var(--vws-editor-brand);
+}
+
+.cm-scroller::-webkit-scrollbar-corner {
+  background: var(--vws-editor-canvas);
+}
+
+.cm-gutters {
+  background: var(--vws-editor-gutter);
+  color: var(--vws-editor-text-muted);
+  border-right: 1px solid var(--vws-editor-border);
+}
+
+.cm-activeLineGutter {
+  background: var(--vws-editor-active-line);
+}
+
+.cm-activeLine {
+  background: var(--vws-editor-active-line);
+}
+
+.cm-line {
+  padding: 0 2px;
+}
+
+.cm-cursor {
+  border-left: 1.2px solid var(--vws-editor-text);
+}
+
+.cm-selectionBackground,
+.cm-content ::selection {
+  background: var(--vws-editor-selection) !important;
+}
+
+.cm-focused .cm-selectionBackground {
+  background: var(--vws-editor-selection) !important;
+}
+
+/* Search panel (Cmd/Ctrl+F) — includes regexp / case / whole-word toggles */
+.cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 28px 6px 8px;
+  background: #1b1f27;
+  border-bottom: 1px solid var(--vws-editor-border);
+  color: var(--vws-editor-text);
+}
+
+.cm-panel.cm-search input,
+.cm-panel.cm-search button,
+.cm-panel.cm-search label {
+  margin: 0;
+}
+
+.cm-panel.cm-search .cm-textfield {
+  flex: 1 1 180px;
+  min-width: 120px;
+  background: var(--vws-editor-gutter);
+  color: var(--vws-editor-text);
+  border: 1px solid var(--vws-editor-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.cm-panel.cm-search .cm-textfield:focus {
+  outline: none;
+  border-color: var(--vws-editor-brand);
+}
+
+.cm-panel.cm-search .cm-button {
+  background: var(--vws-editor-gutter);
+  color: var(--vws-editor-text-muted);
+  border: 1px solid var(--vws-editor-border);
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.cm-panel.cm-search .cm-button:hover {
+  background: #222733;
+  border-color: var(--vws-editor-border-strong);
+  color: var(--vws-editor-text);
+}
+
+.cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--vws-editor-text-muted);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.cm-panel.cm-search input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--vws-editor-brand);
+  cursor: pointer;
+}
+
+.cm-panel.cm-search [name='close'] {
+  color: var(--vws-editor-text-muted);
+}
+
+.cm-searchMatch {
+  background: rgba(245, 158, 11, 0.25);
+  outline: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.cm-searchMatch.cm-searchMatch-selected {
+  background: rgba(59, 130, 246, 0.35);
+  outline: 1px solid var(--vws-editor-brand);
+}

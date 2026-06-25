@@ -11,9 +11,11 @@ import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTempla
 
 import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
+import { registerCommandPaletteOtaDebug } from './debug-ota'
 import { registerCommandPalettePermissionDebug } from './debug-permissions'
 import paletteCss from './index.css?raw'
 import paletteHtml from './index.html?raw'
+import { sortCommandPaletteCommands } from './sort-commands'
 
 const TAG = 'vercel-web-script-command-palette'
 
@@ -106,22 +108,6 @@ export class CommandPaletteUI extends HTMLElement {
   #lastBacktickTime = 0
   static BACKTICK_DOUBLE_MS = 500
 
-  /** True if command is a DEBUG entry (title starts with "DEBUG"); these are shown at the bottom */
-  #isDebugCommand(cmd: CommandPaletteCommand): boolean {
-    const titleText = cmd.title ?? cmd.text ?? ''
-    return titleText.trim().toUpperCase().startsWith('DEBUG')
-  }
-
-  /** Sort commands so DEBUG commands (title starts with "DEBUG") are at the bottom; stable order otherwise */
-  #sortCommandsWithDebugLast(commands: CommandPaletteCommand[]): CommandPaletteCommand[] {
-    return [...commands].sort((a, b) => {
-      const aDebug = this.#isDebugCommand(a)
-      const bDebug = this.#isDebugCommand(b)
-      if (aDebug === bDebug) return 0
-      return aDebug ? 1 : -1
-    })
-  }
-
   #filterCommands(query: string): CommandPaletteCommand[] {
     const raw = query.trim()
     const q = raw.toLowerCase()
@@ -152,7 +138,7 @@ export class CommandPaletteUI extends HTMLElement {
       return titleOrKeywordMatch || shownGate
     })
 
-    return this.#sortCommandsWithDebugLast(list)
+    return sortCommandPaletteCommands(list)
   }
 
   #getInputValue(): string {
@@ -447,7 +433,9 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   appendToDocumentElement(container)
 }
 
+// DEBUG groups (Permission → OTA → other) are ordered by sortCommandPaletteCommands.
 registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
+registerCommandPaletteOtaDebug(GME_registerCommandPaletteCommand)
 
 export function GME_openCommandPalette(): void {
   const el = document.querySelector(TAG) as CommandPaletteUI | null
