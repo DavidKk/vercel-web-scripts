@@ -1,6 +1,9 @@
 /** Session-persisted per-tab script trigger counts (badge). Survives MV3 service worker restarts. */
 export const TAB_TRIGGER_SESSION_KEY = 'vws_tab_trigger_state'
 
+/** Lifecycle phase when trigger count is zero (see badge-display.ts). */
+export type TabBadgePhase = 'initializing' | 'idle' | 'no-config' | 'reset-done' | 'update-done'
+
 export interface TabTriggerState {
   url: string
   count: number
@@ -8,6 +11,8 @@ export interface TabTriggerState {
   hasError?: boolean
   /** Dedupe keys for multi-scriptKey triggers (`scriptKey|file|runAt`). */
   dedupeKeys?: string[]
+  /** Non-count badge phase for the current page load. */
+  phase?: TabBadgePhase
 }
 
 const tabTriggerState = new Map<number, TabTriggerState>()
@@ -33,11 +38,13 @@ export async function hydrateTabTriggerCounts(): Promise<void> {
       if (!Number.isFinite(tabId) || typeof state?.count !== 'number') {
         continue
       }
+      const phase = state.phase
       tabTriggerState.set(tabId, {
         url: typeof state.url === 'string' ? state.url : '',
         count: Math.max(0, state.count),
         hasError: state.hasError === true,
         dedupeKeys: Array.isArray(state.dedupeKeys) ? state.dedupeKeys.filter((k): k is string => typeof k === 'string') : undefined,
+        phase: phase === 'initializing' || phase === 'idle' || phase === 'no-config' || phase === 'reset-done' || phase === 'update-done' ? phase : undefined,
       })
     }
   } catch {
@@ -112,7 +119,33 @@ export function resetTabTriggerCountsForPageLoad(tabId: number, url: string | un
     clearTabTriggerState(tabId)
     return
   }
-  tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [] })
+  tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [], phase: 'initializing' })
+  void persistTabTriggerCounts()
+}
+
+/**
+ * @param tabId Chrome tab id
+ */
+export function getTabBadgePhase(tabId: number): TabBadgePhase | undefined {
+  return tabTriggerState.get(tabId)?.phase
+}
+
+/**
+ * Set lifecycle phase for zero-count badge states.
+ * @param tabId Chrome tab id
+ * @param url Tab URL
+ * @param phase Badge phase
+ */
+export function setTabBadgePhase(tabId: number, url: string | undefined, phase: TabBadgePhase): void {
+  if (!url) {
+    return
+  }
+  const prev = tabTriggerState.get(tabId)
+  if (prev?.url !== url) {
+    tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [], phase })
+  } else {
+    tabTriggerState.set(tabId, { ...prev, phase })
+  }
   void persistTabTriggerCounts()
 }
 
@@ -132,9 +165,10 @@ export function markTabTriggerError(tabId: number, url: string | undefined): voi
   const href = url ?? ''
   let state = tabTriggerState.get(tabId)
   if (!state || state.url !== href) {
-    state = { url: href, count: 0, hasError: true }
+    state = { url: href, count: 0, hasError: true, phase: undefined }
   } else {
     state.hasError = true
+    state.phase = undefined
   }
   tabTriggerState.set(tabId, state)
   void persistTabTriggerCounts()
@@ -151,7 +185,7 @@ export function incrementTabTriggerCount(tabId: number, url: string | undefined,
   const href = url ?? ''
   let state = tabTriggerState.get(tabId)
   if (!state || state.url !== href) {
-    state = { url: href, count: 0, hasError: false, dedupeKeys: [] }
+    state = { url: href, count: 0, hasError: false, dedupeKeys: [], phase: undefined }
   }
   if (dedupeKey) {
     const keys = state.dedupeKeys ?? []
@@ -161,6 +195,7 @@ export function incrementTabTriggerCount(tabId: number, url: string | undefined,
     state.dedupeKeys = [...keys, dedupeKey]
   }
   state.count += 1
+  state.phase = undefined
   tabTriggerState.set(tabId, state)
   void persistTabTriggerCounts()
   return state.count

@@ -120,13 +120,13 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 
 ## Multi-service model
 
-| Concept                        | Behavior                                                                                             |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| **Service**                    | One connection row: label + baseUrl + scriptKey + enabled (+ developMode)                            |
-| **scriptKey capability layer** | Shared RULE, script list cache, per-file toggles for the same scriptKey                              |
-| **OTA**                        | One fetch per enabled scriptKey; endpoint = first **enabled** row for that scriptKey in Servers list |
-| **GM storage**                 | Physical keys `{gmScope}_{key}`; gmScope is per scriptKey (Servers → gmScope field)                  |
-| **Badge**                      | Sum of `SCRIPT_TRIGGERED` executions on this page load (not RULE match count)                        |
+| Concept                        | Behavior                                                                                                                          |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Service**                    | One connection row: label + baseUrl + scriptKey + enabled (+ developMode)                                                         |
+| **scriptKey capability layer** | Shared RULE, script list cache, per-file toggles for the same scriptKey                                                           |
+| **OTA**                        | One fetch per enabled scriptKey; endpoint = first **enabled** row for that scriptKey in Servers list                              |
+| **GM storage**                 | Physical keys `{gmScope}_{key}`; gmScope is per scriptKey (Servers → gmScope field)                                               |
+| **Badge**                      | Sum of `SCRIPT_TRIGGERED` executions on this page load (not RULE match count); lifecycle glyphs when count is 0 (see SPA section) |
 
 **Upgrade from single config:** on first run, legacy `vws_extension_config` migrates to one default Service; `vws_extension_rules` → `vws_scriptkey_rules:{scriptKey}`; `vws_script_enabled:{file}` → `vws_script_enabled:{scriptKey}:{file}`.
 
@@ -174,6 +174,7 @@ The shell does **not** treat CSR URL changes specially:
 - **Badge** updates on normal tab navigation (`tabs.onUpdated` / tab switch), not on dedicated SPA hooks.
 - **Badge count** (`triggeredCountOnActiveTab`) increments once per GIST module that actually runs (`GME_ok` “Executing script …” line). Different `@run-at` timings on the same page load can increase the count at different times.
 - **Badge background** is blue by default; turns **red** if any GIST module logs `GME_fail` “Executing script … failed:” on this page load (count and text unchanged).
+- **Badge lifecycle** (when trigger count is 0): `…` initializing (page load / bootstrap), `·` idle (bootstrap done, no scripts yet), `?` no enabled service config, `✓` reset complete, `↻` update complete (last two flash ~3s). Red `!` when the shell is off or a script failed with zero triggers.
 - Count resets on each top-level page load (including same-URL refresh), when the content script starts. URL-only changes without a new document (typical SPA) do not reset.
 - **Update runtime** / **Reset runtime** also clears counts before reload.
 - Counts are stored in `chrome.storage.session` so a short MV3 service-worker sleep does not zero the badge while you stay on the same URL.

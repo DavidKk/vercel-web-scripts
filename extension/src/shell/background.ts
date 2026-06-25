@@ -1,3 +1,4 @@
+import { setBadgeRuntimeHint } from '@ext/shared/badge-runtime-hint'
 import { defaultDevelopModeForBaseUrl } from '@ext/shared/extension-services'
 import {
   addScriptKeyRule,
@@ -43,12 +44,14 @@ import { invalidateTabMatchCache, scheduleTabMatchRefreshForEnabledScriptKeys, s
 import {
   clearAllTabTriggerCounts,
   clearTabTriggerState,
+  getTabBadgePhase,
   getTabTriggerCount,
   getTabTriggerHasError,
   hydrateTabTriggerCounts,
   incrementTabTriggerCount,
   markTabTriggerError,
   resetTabTriggerCountsForPageLoad,
+  setTabBadgePhase,
 } from '@ext/shared/tab-trigger-badge'
 import { type ExtensionConfig } from '@ext/types'
 import { PERMISSION_DENIED_CODE, permissionResourceMatchesUrl } from '@shared/script-permission'
@@ -61,6 +64,7 @@ import { buildDebugLogMetaFromTab } from '../shared/debug-log-utils'
 import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { extensionLogger, permissionLogger } from '../shared/logger'
 import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
+import { applyBootstrapRuntimeHint, applyDefaultBadgeColors, clearBadgeTimersForTab, createBadgeRefreshHandler, scheduleInitializingIdleFallback } from './badge-controller'
 import { initBadgeNavigationListeners } from './badge-navigation'
 import { disableCspStripForPageUrl } from './csp-dnr-rules'
 import { reloadTabOnceForCsp } from './csp-tab-reload'
@@ -346,46 +350,7 @@ async function buildStatus(): Promise<ShellStatus> {
   }
 }
 
-/** Chrome accepts hex or RGBA; RGBA is more reliable for badge text on macOS. */
-const BADGE_BACKGROUND = '#3b82f6'
-const BADGE_BACKGROUND_ERROR = '#dc2626'
-const BADGE_TEXT_RGBA: [number, number, number, number] = [255, 255, 255, 255]
-/** Non-empty badge text so Chrome shows a red pill when shell is off or a script failed with no trigger count. */
-const BADGE_ALERT_TEXT = '!'
-
-function isHttpTabUrl(url: string | undefined): boolean {
-  return Boolean(url?.startsWith('http://') || url?.startsWith('https://'))
-}
-
-type BadgeTarget = { tabId: number } | Record<string, never>
-
-async function applyBadgeColors(target: BadgeTarget, hasError = false): Promise<void> {
-  await chrome.action.setBadgeBackgroundColor({ ...target, color: hasError ? BADGE_BACKGROUND_ERROR : BADGE_BACKGROUND })
-  // Must run after setBadgeText — Chrome otherwise keeps default black text.
-  await chrome.action.setBadgeTextColor({ ...target, color: BADGE_TEXT_RGBA })
-}
-
-async function updateBadgeForTab(tabId: number, url?: string): Promise<void> {
-  const target: BadgeTarget = { tabId }
-  if (!isHttpTabUrl(url)) {
-    clearTabTriggerState(tabId)
-    await chrome.action.setBadgeText({ tabId, text: '' })
-    await applyBadgeColors(target)
-    return
-  }
-  if (!(await isShellEnabledForTab(tabId))) {
-    await chrome.action.setBadgeBackgroundColor({ tabId, color: BADGE_BACKGROUND_ERROR })
-    await chrome.action.setBadgeText({ tabId, text: BADGE_ALERT_TEXT })
-    await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_RGBA })
-    return
-  }
-  const n = getTabTriggerCount(tabId)
-  const hasError = getTabTriggerHasError(tabId)
-  const text = n > 0 ? String(Math.min(n, 99)) : hasError ? BADGE_ALERT_TEXT : ''
-  await chrome.action.setBadgeBackgroundColor({ tabId, color: hasError ? BADGE_BACKGROUND_ERROR : BADGE_BACKGROUND })
-  await chrome.action.setBadgeText({ tabId, text })
-  await chrome.action.setBadgeTextColor({ tabId, color: BADGE_TEXT_RGBA })
-}
+const updateBadgeForTab = createBadgeRefreshHandler(isShellEnabledForTab)
 
 async function refreshAllBadges(): Promise<void> {
   const tabs = await chrome.tabs.query({})
@@ -395,7 +360,7 @@ async function refreshAllBadges(): Promise<void> {
 async function initBackgroundDefaults(): Promise<void> {
   await Promise.all([refreshShellLogOutputModeCache(), refreshIncognitoLogCollectionCache()])
   await Promise.all([hydrateTabTriggerCounts(), hydrateScriptPermissionSession()])
-  void applyBadgeColors({})
+  void applyDefaultBadgeColors()
   void refreshAllBadges()
 }
 
@@ -421,10 +386,14 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   }
 })
 
-initBadgeNavigationListeners(updateBadgeForTab)
+initBadgeNavigationListeners((tabId, url) => {
+  scheduleInitializingIdleFallback(tabId, updateBadgeForTab)
+  void updateBadgeForTab(tabId, url)
+})
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   clearTabTriggerState(tabId)
+  clearBadgeTimersForTab(tabId)
   clearSessionPermissionsForTab(tabId)
   void removeShellDisabledTabId(tabId)
 })
@@ -786,6 +755,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           await refreshScriptListsForEnabledScriptKeys()
           await invalidateTabMatchCache()
           await clearAllTabTriggerCounts()
+          await setBadgeRuntimeHint('update')
           const activeAfterUpdate = await getActiveTab()
           if (activeAfterUpdate?.id != null) {
             await updateBadgeForTab(activeAfterUpdate.id, activeAfterUpdate.url)
@@ -806,6 +776,7 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           await resetRuntimeStateForEnabledScriptKeys()
           await invalidateTabMatchCache()
           await clearAllTabTriggerCounts()
+          await setBadgeRuntimeHint('reset')
           const activeAfterReset = await getActiveTab()
           if (activeAfterReset?.id != null) {
             await updateBadgeForTab(activeAfterReset.id, activeAfterReset.url)
@@ -929,6 +900,39 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, _sender, sendRespon
           }
           const url = tab.url ?? message.details.url
           resetTabTriggerCountsForPageLoad(tab.id, url)
+          scheduleInitializingIdleFallback(tab.id, updateBadgeForTab)
+          await updateBadgeForTab(tab.id, url)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'PAGE_BOOTSTRAP_READY': {
+          const tab = _sender?.tab
+          if (tab?.id == null) {
+            sendResponse({ ok: true } satisfies ShellResponse)
+            return
+          }
+          const url = tab.url ?? message.details.url
+          await applyBootstrapRuntimeHint(tab.id, url, updateBadgeForTab)
+          if (getTabTriggerCount(tab.id) === 0 && !getTabTriggerHasError(tab.id)) {
+            const phase = getTabBadgePhase(tab.id)
+            if (phase !== 'reset-done' && phase !== 'update-done') {
+              setTabBadgePhase(tab.id, url, 'idle')
+            }
+          }
+          await updateBadgeForTab(tab.id, url)
+          sendResponse({ ok: true } satisfies ShellResponse)
+          return
+        }
+        case 'PAGE_BOOTSTRAP_SKIPPED': {
+          const tab = _sender?.tab
+          if (tab?.id == null) {
+            sendResponse({ ok: true } satisfies ShellResponse)
+            return
+          }
+          const url = tab.url ?? message.details.url
+          if (getTabTriggerCount(tab.id) === 0 && !getTabTriggerHasError(tab.id)) {
+            setTabBadgePhase(tab.id, url, message.details.reason === 'no-config' ? 'no-config' : 'idle')
+          }
           await updateBadgeForTab(tab.id, url)
           sendResponse({ ok: true } satisfies ShellResponse)
           return

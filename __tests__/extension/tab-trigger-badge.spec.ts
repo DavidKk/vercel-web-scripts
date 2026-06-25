@@ -1,5 +1,6 @@
 import {
   clearTabTriggerState,
+  getTabBadgePhase,
   getTabTriggerCount,
   incrementTabTriggerCount,
   resetTabTriggerCountsForPageLoad,
@@ -37,6 +38,7 @@ describe('tab-trigger-badge', () => {
     resetTabTriggerCountsForPageLoad(tabId, 'https://example.com/b')
 
     expect(getTabTriggerCount(tabId)).toBe(0)
+    expect(getTabBadgePhase(tabId)).toBe('initializing')
   })
 
   it('should reset trigger count on same-URL reload via page load reset', () => {

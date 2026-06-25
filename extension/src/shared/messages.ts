@@ -136,6 +136,8 @@ export type ShellMessage =
   | { type: 'GM_XHR'; details: BridgeXhrDetails }
   | { type: 'WEB_CONNECT_EXTENSION'; details: WebConnectDetails }
   | { type: 'TAB_PAGE_LOAD'; details: { url: string } }
+  | { type: 'PAGE_BOOTSTRAP_READY'; details: { url: string } }
+  | { type: 'PAGE_BOOTSTRAP_SKIPPED'; details: { url: string; reason: 'no-config' | 'non-html' } }
   | { type: 'SCRIPT_TRIGGERED'; details: ScriptTriggeredDetails }
   | { type: 'SCRIPT_FAILED'; details: ScriptTriggeredDetails }
   | { type: 'APPEND_DEBUG_LOG'; details: DebugLogAppendInput | { entries: DebugLogAppendInput[] } }

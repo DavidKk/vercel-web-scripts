@@ -47,6 +47,28 @@ async function getCurrentTabIncognito(): Promise<boolean> {
   }
 }
 
+function notifyBootstrapReady(url: string): void {
+  void chrome.runtime
+    .sendMessage({
+      type: 'PAGE_BOOTSTRAP_READY',
+      details: { url },
+    } satisfies { type: 'PAGE_BOOTSTRAP_READY'; details: { url: string } })
+    .catch((error) => {
+      isExtensionContextInvalidated(error)
+    })
+}
+
+function notifyBootstrapSkipped(url: string, reason: 'no-config' | 'non-html'): void {
+  void chrome.runtime
+    .sendMessage({
+      type: 'PAGE_BOOTSTRAP_SKIPPED',
+      details: { url, reason },
+    } satisfies { type: 'PAGE_BOOTSTRAP_SKIPPED'; details: { url: string; reason: 'no-config' | 'non-html' } })
+    .catch((error) => {
+      isExtensionContextInvalidated(error)
+    })
+}
+
 /** Load bootstrap config, wire GM storage sync, inject page launcher. */
 export async function bootstrapPageBridge(): Promise<void> {
   if (!getRuntimeId()) {
@@ -57,6 +79,7 @@ export async function bootstrapPageBridge(): Promise<void> {
     return
   }
   if (!isHtmlDocumentForInjection()) {
+    notifyBootstrapSkipped(url, 'non-html')
     return
   }
 
@@ -78,6 +101,7 @@ export async function bootstrapPageBridge(): Promise<void> {
   }
 
   if (!bootstrapConfig) {
+    notifyBootstrapSkipped(url, 'no-config')
     return
   }
 
@@ -103,6 +127,7 @@ export async function bootstrapPageBridge(): Promise<void> {
   }
 
   await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys)
+  notifyBootstrapReady(url)
 }
 
 /** Notify background that a top-level http(s) document loaded. */

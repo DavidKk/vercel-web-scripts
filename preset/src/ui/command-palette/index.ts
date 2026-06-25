@@ -33,6 +33,11 @@ export interface CommandPaletteCommand {
   iconHtml?: string
   hint?: string
   /**
+   * Boost sort order: only `page` (本页) moves non-DEBUG commands to the top.
+   * Title / `text` may also infer page scope (e.g. "本页"); `hint` / `keywords` do not.
+   */
+  contextScope?: 'page' | 'domain'
+  /**
    * Backward-compatible alias for `onShown`.
    * (Some scripts use `onShow` name.)
    */
@@ -433,7 +438,7 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   appendToDocumentElement(container)
 }
 
-// DEBUG groups (Permission → OTA → other) are ordered by sortCommandPaletteCommands.
+// DEBUG tail block is grouped by sortCommandPaletteCommands (Permission → OTA → other).
 registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
 registerCommandPaletteOtaDebug(GME_registerCommandPaletteCommand)
 

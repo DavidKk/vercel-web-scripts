@@ -511,6 +511,8 @@ declare interface CommandPaletteCommand {
   title?: string
   icon?: string
   hint?: string
+  /** Boost sort: only `page` (本页) is moved to the top; DEBUG commands always stay last. */
+  contextScope?: 'page' | 'domain'
   /**
    * Optional gate to decide whether this command should be shown in the dropdown.
    * Called with the current user input (trimmed, not lowercased).
