@@ -130,6 +130,7 @@ export function registerGlobals(): void {
     GME_markNode: createUiUnavailable('node selector'),
     GME_unmarkNode: createUiUnavailable('node selector'),
     GME_clearAllMarks: createUiUnavailable('node selector'),
+    GME_clearMarksByCaller: () => 0,
     GME_getMarkedNodes: () => [],
     GME_cleanupInvalidMarks: createUiUnavailable('node selector'),
     GME_hideMarks: createUiUnavailable('node selector'),

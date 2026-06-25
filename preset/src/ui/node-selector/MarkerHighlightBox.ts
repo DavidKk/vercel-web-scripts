@@ -24,16 +24,10 @@ export class MarkerHighlightBox extends HTMLElement {
   #pendingUpdate = false
   /** Scrollable parent elements for cleanup */
   #scrollableParents: HTMLElement[] = []
-  /** Marker close button web component */
+  /** Marker floating bar host */
   #markerLabel: MarkerLabel | null = null
   /** Delete callback */
   #deleteCallback: (() => void) | null = null
-  /** ResizeObserver for close button */
-  #markerResizeObserver: ResizeObserver | null = null
-  /** Update marker position RAF */
-  #markerRafId: number | null = null
-  /** Pending marker position update flag */
-  #pendingMarkerUpdate = false
   /** Whether highlight box has been positioned at least once (to avoid 0,0 flash on init) */
   #hasPositionedOnce = false
 
@@ -132,8 +126,6 @@ export class MarkerHighlightBox extends HTMLElement {
       this.#hasPositionedOnce = true
     }
     this.#pendingUpdate = false
-
-    this.#updateMarkerPosition()
   }
 
   #updatePosition() {
@@ -239,10 +231,11 @@ export class MarkerHighlightBox extends HTMLElement {
   }
 
   /**
-   * Set close button and delete callback
+   * Set marker controls (caller + close)
+   * @param caller Caller script name
    * @param onDelete Delete callback
    */
-  setCloseButton(onDelete: () => void) {
+  setMarkerControls(caller: string, onDelete: () => void) {
     this.#deleteCallback = onDelete
 
     if (this.#markerLabel) {
@@ -251,90 +244,18 @@ export class MarkerHighlightBox extends HTMLElement {
       this.#markerLabel = null
     }
 
-    if (this.#markerResizeObserver) {
-      this.#markerResizeObserver.disconnect()
-      this.#markerResizeObserver = null
-    }
-
     const marker = document.createElement(MarkerLabel.TAG_NAME) as MarkerLabel
-    marker.initialize(() => {
-      if (this.#deleteCallback) {
-        this.#deleteCallback()
-      }
-    })
+    marker.initialize(caller, onDelete, () => this.#getCachedScrollbarWidth())
     this.appendChild(marker)
     this.#markerLabel = marker
 
-    this.#updateMarkerPosition()
-
-    if (this.#markerLabel) {
-      this.#markerResizeObserver = new ResizeObserver(() => {
-        this.#updateMarkerPosition()
-      })
-      this.#markerResizeObserver.observe(this.#markerLabel)
+    if (this.#targetNode) {
+      marker.bindTarget(this.#targetNode)
     }
-
-    window.addEventListener('scroll', this.#handleMarkerScroll, true)
-    window.addEventListener('resize', this.#handleMarkerResize)
   }
 
   setMarkerColor(color: string) {
     this.style.setProperty('--marker-color', color)
-  }
-
-  #handleMarkerScroll = () => {
-    this.#updateMarkerPosition()
-  }
-
-  #handleMarkerResize = () => {
-    this.#scrollbarWidth = null
-    this.#updateMarkerPosition()
-  }
-
-  #updateMarkerPosition() {
-    if (this.#pendingMarkerUpdate) return
-    this.#pendingMarkerUpdate = true
-
-    if (this.#markerRafId === null) {
-      this.#markerRafId = requestAnimationFrame(() => {
-        this.#markerRafId = null
-        this.#doUpdateMarkerPosition()
-      })
-    }
-  }
-
-  #doUpdateMarkerPosition() {
-    if (!this.#markerLabel || !this.#targetNode) {
-      this.#pendingMarkerUpdate = false
-      return
-    }
-
-    const highlightRect = this.getBoundingClientRect()
-    const scrollbarWidth = this.#getCachedScrollbarWidth()
-    const viewportWidth = window.innerWidth - scrollbarWidth
-    const viewportHeight = window.innerHeight
-
-    const markerWidth = this.#markerLabel.offsetWidth
-    const markerHeight = this.#markerLabel.offsetHeight
-    const padding = 8
-    const gap = 4
-
-    let markerLeft = highlightRect.width - markerWidth + 4
-    let markerTop = -markerHeight - gap
-
-    const markerViewportLeftMin = padding
-    const markerViewportLeftMax = Math.max(padding, viewportWidth - padding - markerWidth)
-    const markerViewportTopMin = padding
-    const markerViewportTopMax = Math.max(padding, viewportHeight - padding - markerHeight)
-
-    markerLeft = Math.min(Math.max(markerLeft, markerViewportLeftMin - highlightRect.left), markerViewportLeftMax - highlightRect.left)
-    markerTop = Math.min(Math.max(markerTop, markerViewportTopMin - highlightRect.top), markerViewportTopMax - highlightRect.top)
-
-    this.#markerLabel.style.transform = 'none'
-    this.#markerLabel.style.top = `${markerTop}px`
-    this.#markerLabel.style.left = `${markerLeft}px`
-
-    this.#pendingMarkerUpdate = false
   }
 
   #cleanupObservers() {
@@ -383,19 +304,6 @@ export class MarkerHighlightBox extends HTMLElement {
       this.#markerLabel.cleanup()
       this.#markerLabel.remove()
       this.#markerLabel = null
-    }
-
-    if (this.#markerResizeObserver) {
-      this.#markerResizeObserver.disconnect()
-      this.#markerResizeObserver = null
-    }
-
-    window.removeEventListener('scroll', this.#handleMarkerScroll, true)
-    window.removeEventListener('resize', this.#handleMarkerResize)
-
-    if (this.#markerRafId !== null) {
-      cancelAnimationFrame(this.#markerRafId)
-      this.#markerRafId = null
     }
 
     this.#deleteCallback = null

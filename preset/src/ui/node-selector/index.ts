@@ -16,9 +16,9 @@ import { wrapUiStyles } from '../shared/wrap-ui-styles'
 import nodeSelectorCss from './index.css?raw'
 import nodeSelectorHtml from './index.html?raw'
 import { NodeSelector } from './NodeSelector'
-import type { MarkedNodeInfo, NodeSelectorOptions } from './types'
+import type { MarkedNodeInfo, MarkNodeOptions, NodeSelectorOptions } from './types'
 
-export type { MarkedNodeInfo, NodeSelectorClickMode, NodeSelectorOptions } from './types'
+export type { MarkedNodeInfo, MarkNodeOptions, NodeSelectorClickMode, NodeSelectorOptions } from './types'
 
 /**
  * Enable node selector
@@ -65,13 +65,15 @@ export function GME_clearSelection(): void {
 /**
  * Mark a node (caller decides when to mark; not automatic on select)
  * @param node Node to mark
- * @param label Optional internal label
- * @param color Optional custom color (hex format)
+ * @param labelOrOptions Internal label, or options object (label, color, caller, barLabel)
+ * @param color Optional custom color (hex format) when using positional args
+ * @param caller Optional caller script name (defaults to GM_info.script.name)
+ * @param barLabel Optional floating bar text (defaults to caller name)
  * @returns Mark ID or null if failed
  */
-export function GME_markNode(node: HTMLElement, label?: string, color?: string): string | null {
+export function GME_markNode(node: HTMLElement, labelOrOptions?: string | MarkNodeOptions, color?: string, caller?: string, barLabel?: string): string | null {
   const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
-  return selector ? selector.markNode(node, label, color) : null
+  return selector ? selector.markNode(node, labelOrOptions, color, caller, barLabel) : null
 }
 
 /**
@@ -92,6 +94,16 @@ export function GME_clearAllMarks(): void {
   if (selector) {
     selector.clearAllMarks()
   }
+}
+
+/**
+ * Clear marks created by a specific caller script only (who marks, who clears)
+ * @param caller Caller script name (defaults to GM_info.script.name when omitted)
+ * @returns Number of marks removed
+ */
+export function GME_clearMarksByCaller(caller?: string): number {
+  const selector = document.querySelector(NodeSelector.TAG_NAME) as NodeSelector
+  return selector ? selector.clearMarksByCaller(caller) : 0
 }
 
 /**

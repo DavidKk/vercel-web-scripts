@@ -51,50 +51,113 @@
   opacity: 1;
 }
 
-.node-selector-close {
+/* Unified floating bar: caller + close in one pill (tooltip-like) */
+.node-selector-floating-bar {
   position: fixed;
-  top: 12px;
-  right: 12px;
   z-index: 2147483647;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--vws-border, rgba(255, 255, 255, 0.2));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--vws-surface-raised, #1f2937) 92%, transparent);
-  color: var(--vws-text-primary, #fff);
-  cursor: pointer;
-  display: none;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 2px 2px 2px 8px;
+  border: 1px solid var(--vws-border, rgba(255, 255, 255, 0.2));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--vws-surface-raised, #1f2937) 96%, transparent);
+  color: var(--vws-text-primary, #e6eaf0);
   box-shadow: var(--vws-shadow-md, 0 4px 12px rgba(0, 0, 0, 0.25));
   backdrop-filter: blur(8px);
+  pointer-events: auto;
+  white-space: nowrap;
+  box-sizing: border-box;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease,
+    visibility 0s linear 0.12s;
+}
+
+.node-selector-floating-bar--mark {
+  border-color: color-mix(in srgb, var(--marker-color, #8b5cf6) 40%, transparent);
+  background: color-mix(in srgb, var(--marker-color, #8b5cf6) 92%, transparent);
+  color: #fff;
+}
+
+.node-selector-floating-bar[data-placement='below'] {
+  transform: translateY(-6px);
+}
+
+.node-selector-floating-bar--visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease,
+    visibility 0s;
+}
+
+.node-selector-floating-bar[data-placement='below'].node-selector-floating-bar--visible {
+  transform: translateY(0);
+}
+
+.node-selector-floating-bar__caller {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 2px 6px 2px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.node-selector-floating-bar--select .node-selector-floating-bar__caller {
+  color: var(--vws-text-secondary, #9aa4b2);
+}
+
+.node-selector-floating-bar__close {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   padding: 0;
+  position: relative;
 }
 
-.node-selector-close.node-selector-close--visible {
-  display: flex;
+.node-selector-floating-bar__close:hover,
+.node-selector-floating-bar__close:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
-.node-selector-close::before,
-.node-selector-close::after {
+.node-selector-floating-bar__close::before,
+.node-selector-floating-bar__close::after {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 2px;
+  width: 8px;
+  height: 1.5px;
   background: currentColor;
   border-radius: 1px;
+  top: 50%;
+  left: 50%;
+  transform-origin: center;
 }
 
-.node-selector-close::before {
-  transform: rotate(45deg);
+.node-selector-floating-bar__close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
-.node-selector-close::after {
-  transform: rotate(-45deg);
+.node-selector-floating-bar__close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
-.node-selector-close:hover {
-  background: color-mix(in srgb, var(--vws-surface-raised, #1f2937) 100%, transparent);
+.node-selector-marker-host {
+  display: contents;
 }
 
 .node-selector-markers {
@@ -124,57 +187,4 @@ vercel-web-script-marker-highlight-box {
 
 vercel-web-script-marker-highlight-box.node-selector-marker-highlight--hidden {
   opacity: 0;
-}
-
-vercel-web-script-marker-highlight-box vercel-web-script-marker-label,
-vercel-web-script-marker-highlight-box .node-selector-marker {
-  position: absolute;
-  pointer-events: auto;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  top: -4px;
-  left: -4px;
-  z-index: 2147483645;
-}
-
-.node-selector-marker__delete {
-  background: color-mix(in srgb, var(--marker-color, #8b5cf6) 90%, transparent);
-  border: 1px solid color-mix(in srgb, var(--marker-color, #8b5cf6) 50%, transparent);
-  cursor: pointer;
-  padding: 0;
-  width: 22px;
-  height: 22px;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-}
-
-.node-selector-marker__delete::before,
-.node-selector-marker__delete::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 1.5px;
-  background: #fff;
-  border-radius: 1px;
-  top: 50%;
-  left: 50%;
-  transform-origin: center;
-}
-
-.node-selector-marker__delete::before {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.node-selector-marker__delete::after {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.node-selector-marker__delete:hover {
-  background: color-mix(in srgb, var(--marker-color, #8b5cf6) 100%, transparent);
 }

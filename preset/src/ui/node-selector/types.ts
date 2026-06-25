@@ -36,6 +36,24 @@ export interface MarkedNodeInfo {
   data?: Record<string, unknown>
   /** Marker color (hex format, e.g., '#8b5cf6') */
   color?: string
+  /** Script that created this mark */
+  caller?: string
+  /** Floating bar display text (defaults to caller name when omitted) */
+  barLabel?: string
+}
+
+/**
+ * Options for marking a node programmatically
+ */
+export interface MarkNodeOptions {
+  /** Internal mark label (default: auto-generated hash) */
+  label?: string
+  /** Marker color (hex format) */
+  color?: string
+  /** Caller script name (defaults to GM_info.script.name) */
+  caller?: string
+  /** Floating bar display text (defaults to caller name when omitted) */
+  barLabel?: string
 }
 
 /**
@@ -75,4 +93,6 @@ export interface NodeSelectorOptions {
   shouldExcludeNode?: (node: HTMLElement) => boolean
   /** Custom color for marks (hex format, e.g., '#8b5cf6'). If not provided, a random unique color will be generated */
   markColor?: string
+  /** Caller script name shown in toolbar (defaults to GM_info.script.name) */
+  caller?: string
 }

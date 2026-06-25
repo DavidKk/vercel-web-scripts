@@ -1,58 +1,44 @@
 /**
- * Marker close button custom element
- * Displays only a close icon for removing a mark
+ * Marker floating bar host (caller + close in one pill)
  */
+import { bindFloatingBarHover, createFloatingBarElement, hideFloatingBar } from './floating-bar'
+
 export class MarkerLabel extends HTMLElement {
-  /** Custom element tag name */
   static TAG_NAME = 'vercel-web-script-marker-label'
 
-  /** Delete button element */
-  #deleteBtn: HTMLElement | null = null
-  /** Delete callback */
-  #deleteCallback: (() => void) | null = null
+  #bar: HTMLElement | null = null
+  #unbindHover: (() => void) | null = null
+  #getScrollbarWidth: (() => number) | null = null
 
-  /**
-   * Initialize close button
-   * @param onDelete Delete callback
-   */
-  initialize(onDelete: () => void) {
-    this.#deleteCallback = onDelete
-
-    this.className = 'node-selector-marker'
+  initialize(caller: string, onDelete: () => void, getScrollbarWidth: () => number) {
+    this.#getScrollbarWidth = getScrollbarWidth
+    this.className = 'node-selector-marker-host'
     this.setAttribute('data-node-selector-marker', '')
 
-    const deleteBtn = document.createElement('button')
-    deleteBtn.className = 'node-selector-marker__delete'
-    deleteBtn.setAttribute('title', 'Remove mark')
-    deleteBtn.setAttribute('aria-label', 'Remove mark')
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      if (this.#deleteCallback) {
-        this.#deleteCallback()
-      }
-    })
-    this.#deleteBtn = deleteBtn
-
-    this.appendChild(deleteBtn)
+    const bar = createFloatingBarElement(caller, onDelete, 'mark')
+    this.#bar = bar
+    this.appendChild(bar)
   }
 
-  /**
-   * Cleanup
-   */
+  bindTarget(target: HTMLElement) {
+    this.#unbindHover?.()
+    if (!this.#bar || !this.#getScrollbarWidth) return
+    this.#unbindHover = bindFloatingBarHover(target, this.#bar, this.#getScrollbarWidth)
+  }
+
   cleanup() {
-    this.#deleteCallback = null
-    this.#deleteBtn = null
+    this.#unbindHover?.()
+    this.#unbindHover = null
+    hideFloatingBar(this.#bar)
+    this.#bar = null
+    this.#getScrollbarWidth = null
   }
 
-  /**
-   * Disconnected callback
-   */
   disconnectedCallback() {
     this.cleanup()
   }
 }
 
-// Register custom element
 if (typeof customElements !== 'undefined' && customElements != null && !customElements.get(MarkerLabel.TAG_NAME)) {
   customElements.define(MarkerLabel.TAG_NAME, MarkerLabel)
 }

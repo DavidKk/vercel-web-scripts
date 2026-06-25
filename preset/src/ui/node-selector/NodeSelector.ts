@@ -7,8 +7,11 @@ import { GME_warn } from '@/helpers/logger'
 import { adoptTemplateContent } from '@/helpers/safe-inner-html'
 import { findElementByXPath, generateXPath } from '@/helpers/xpath'
 
+import { getNodeSelectorCallerLabel } from './caller-label'
+import { bindFloatingBarHover, createFloatingBarElement, hideFloatingBar } from './floating-bar'
+import { normalizeMarkNodeOptions, resolveBarDisplayText } from './mark-node-options'
 import { MarkerHighlightBox } from './MarkerHighlightBox'
-import type { MarkedNodeInfo, NodeInfo, NodeSelectorClickMode, NodeSelectorOptions } from './types'
+import type { MarkedNodeInfo, MarkNodeOptions, NodeInfo, NodeSelectorClickMode, NodeSelectorOptions } from './types'
 
 /** Marker color when mark is invalid (node not found) */
 const MARKER_COLOR_FAILED = '#ef4444'
@@ -19,7 +22,9 @@ export class NodeSelector extends HTMLElement {
   #isEnabled = false
   #currentHighlightTarget: HTMLElement | null = null
   #highlightBox: HTMLElement | null = null
-  #closeButton: HTMLButtonElement | null = null
+  #floatingBar: HTMLElement | null = null
+  #floatingBarUnbind: (() => void) | null = null
+  #defaultCaller = 'Unknown script'
   #markersContainer: HTMLElement | null = null
   #onSelectCallback: ((node: HTMLElement) => void) | null = null
   #onMarkCallback: ((node: HTMLElement, markId: string | null) => void) | null = null
@@ -69,10 +74,12 @@ export class NodeSelector extends HTMLElement {
 
   #isSelectorUiElement(node: HTMLElement): boolean {
     return (
-      node.classList.contains('node-selector-close') ||
-      node.classList.contains('node-selector-marker') ||
-      node.classList.contains('node-selector-marker__delete') ||
-      !!node.closest('.node-selector-marker')
+      node.classList.contains('node-selector-floating-bar') ||
+      node.classList.contains('node-selector-floating-bar__caller') ||
+      node.classList.contains('node-selector-floating-bar__close') ||
+      !!node.closest('.node-selector-floating-bar') ||
+      node.classList.contains('node-selector-marker-host') ||
+      !!node.closest('.node-selector-marker-host')
     )
   }
 
@@ -271,8 +278,6 @@ export class NodeSelector extends HTMLElement {
       return
     }
 
-    this.#currentHighlightTarget = element
-
     let highlightTarget = element
     if (this.#getNodeInfoCallback) {
       const info = this.#getNodeInfoCallback(element)
@@ -319,6 +324,19 @@ export class NodeSelector extends HTMLElement {
     this.#resizeObserver.observe(target)
 
     this.#updateHighlightBox()
+    this.#bindFloatingBarToTarget(target)
+  }
+
+  #bindFloatingBarToTarget(target: HTMLElement | null) {
+    this.#floatingBarUnbind?.()
+    this.#floatingBarUnbind = null
+
+    if (!this.#isEnabled || !this.#floatingBar || !target) {
+      hideFloatingBar(this.#floatingBar)
+      return
+    }
+
+    this.#floatingBarUnbind = bindFloatingBarHover(target, this.#floatingBar, () => this.#getCachedScrollbarWidth())
   }
 
   #clearHighlight() {
@@ -332,6 +350,8 @@ export class NodeSelector extends HTMLElement {
     if (this.#highlightBox) {
       this.#highlightBox.classList.remove('node-selector-highlight--visible')
     }
+
+    this.#bindFloatingBarToTarget(null)
   }
 
   #handleKeyDown = (event: KeyboardEvent) => {
@@ -398,10 +418,6 @@ export class NodeSelector extends HTMLElement {
       return options.onSelect ? 'select' : 'mark'
     }
     return 'none'
-  }
-
-  #handleCloseClick = () => {
-    this.disable()
   }
 
   #getMarkersContainer(): HTMLElement | null {
@@ -480,7 +496,7 @@ export class NodeSelector extends HTMLElement {
     this.#markerNodeToMarkId.clear()
   }
 
-  #createMarkerHighlightBox(markId: string, node: HTMLElement, onDelete: () => void, color: string): MarkerHighlightBox {
+  #createMarkerHighlightBox(markId: string, node: HTMLElement, onDelete: () => void, color: string, barDisplayText: string): MarkerHighlightBox {
     const highlightBox = document.createElement(MarkerHighlightBox.TAG_NAME) as MarkerHighlightBox
     highlightBox.setAttribute('data-mark-id', markId)
     highlightBox.setAttribute('data-node-selector-marker-highlight', '')
@@ -492,7 +508,7 @@ export class NodeSelector extends HTMLElement {
     }
 
     highlightBox.initialize(node)
-    highlightBox.setCloseButton(onDelete)
+    highlightBox.setMarkerControls(barDisplayText, onDelete)
 
     return highlightBox
   }
@@ -529,26 +545,23 @@ export class NodeSelector extends HTMLElement {
     }
 
     this.#highlightBox = this.#shadowRoot.querySelector('.node-selector-highlight') as HTMLElement
-    this.#closeButton = this.#shadowRoot.querySelector('.node-selector-close') as HTMLButtonElement
     this.#markersContainer = this.#shadowRoot.querySelector('.node-selector-markers') as HTMLElement
 
-    if (!this.#highlightBox || !this.#closeButton || !this.#markersContainer) {
+    if (!this.#highlightBox || !this.#markersContainer) {
       GME_fail('NodeSelector: Failed to find UI elements in shadow DOM', {
         highlightBox: !!this.#highlightBox,
-        closeButton: !!this.#closeButton,
         markersContainer: !!this.#markersContainer,
       })
       return
     }
 
-    this.#closeButton.addEventListener('click', this.#handleCloseClick)
-    this.#closeButton.classList.remove('node-selector-close--visible')
+    this.#floatingBar = createFloatingBarElement(this.#defaultCaller, () => this.disable(), 'select')
+    this.#shadowRoot.appendChild(this.#floatingBar)
   }
 
   disconnectedCallback() {
-    if (this.#closeButton) {
-      this.#closeButton.removeEventListener('click', this.#handleCloseClick)
-    }
+    this.#floatingBarUnbind?.()
+    this.#floatingBarUnbind = null
     this.disable()
   }
 
@@ -566,6 +579,13 @@ export class NodeSelector extends HTMLElement {
     this.#autoRestoreMarks = options.autoRestoreMarks === true
     this.#shouldExcludeNode = options.shouldExcludeNode || null
     this.#markColor = options.markColor || '#8b5cf6'
+    this.#defaultCaller = getNodeSelectorCallerLabel(options.caller)
+
+    const callerEl = this.#floatingBar?.querySelector('.node-selector-floating-bar__caller')
+    if (callerEl) {
+      callerEl.textContent = this.#defaultCaller
+      callerEl.setAttribute('title', this.#defaultCaller)
+    }
 
     if (this.#persistMarks && this.#autoRestoreMarks) {
       this.#markedNodes = this.#loadMarks()
@@ -577,7 +597,6 @@ export class NodeSelector extends HTMLElement {
     document.addEventListener('click', this.#handleClick, true)
     document.addEventListener('keydown', this.#handleKeyDown, true)
 
-    this.#closeButton?.classList.add('node-selector-close--visible')
     this.classList.remove('node-selector--hidden')
   }
 
@@ -592,6 +611,10 @@ export class NodeSelector extends HTMLElement {
     this.#clickMode = 'none'
     this.#onSelectCallback = null
     this.#onMarkCallback = null
+
+    this.#floatingBarUnbind?.()
+    this.#floatingBarUnbind = null
+    hideFloatingBar(this.#floatingBar)
 
     document.removeEventListener('mousemove', this.#handleMouseMove)
     document.removeEventListener('mousedown', this.#handleMouseDown, true)
@@ -613,8 +636,6 @@ export class NodeSelector extends HTMLElement {
       this.#resizeObserver.disconnect()
       this.#resizeObserver = null
     }
-
-    this.#closeButton?.classList.remove('node-selector-close--visible')
   }
 
   getSelectedNode(): HTMLElement | null {
@@ -629,12 +650,23 @@ export class NodeSelector extends HTMLElement {
     return Object.values(this.#markedNodes)
   }
 
-  markNode(node: HTMLElement, label?: string, color?: string): string | null {
+  #resolveMarkCaller(explicit?: string): string {
+    if (explicit?.trim()) {
+      return getNodeSelectorCallerLabel(explicit)
+    }
+    if (this.#isEnabled) {
+      return this.#defaultCaller
+    }
+    return getNodeSelectorCallerLabel()
+  }
+
+  markNode(node: HTMLElement, labelOrOptions?: string | MarkNodeOptions, color?: string, caller?: string, barLabel?: string): string | null {
     if (this.#shouldExclude(node)) {
       GME_warn('Cannot mark plugin element or excluded node')
       return null
     }
 
+    const options = normalizeMarkNodeOptions(labelOrOptions, color, caller, barLabel)
     const signature = this.#generateNodeSignature ? this.#generateNodeSignature(node) : this.#generateStableSelector(node)
     const selector = this.#generateStableSelector(node)
     const xpath = this.#persistMarks ? generateXPath(node) : null
@@ -643,8 +675,10 @@ export class NodeSelector extends HTMLElement {
       return null
     }
 
-    const finalLabel = label || this.#generateDefaultLabel(signature)
-    const markColor = color || this.#markColor
+    const finalLabel = options.label || this.#generateDefaultLabel(signature)
+    const markColor = options.color || this.#markColor
+    const markCaller = this.#resolveMarkCaller(options.caller)
+    const barDisplayText = resolveBarDisplayText(options.barLabel, markCaller)
     const markId = `mark-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
     const markInfo: MarkedNodeInfo = {
       markId,
@@ -656,6 +690,8 @@ export class NodeSelector extends HTMLElement {
       timestamp: Date.now(),
       isValid: true,
       color: markColor,
+      caller: markCaller,
+      barLabel: options.barLabel?.trim() || undefined,
     }
 
     this.#markedNodes[markId] = markInfo
@@ -671,7 +707,8 @@ export class NodeSelector extends HTMLElement {
           () => {
             this.unmarkNode(markId)
           },
-          markColor
+          markColor,
+          barDisplayText
         )
         this.#markerHighlightBoxes.set(markId, highlightBox)
 
@@ -715,6 +752,21 @@ export class NodeSelector extends HTMLElement {
     markIds.forEach((markId) => this.unmarkNode(markId))
   }
 
+  /**
+   * Remove marks created by a specific caller script only
+   * @param caller Caller script name (defaults to GM_info.script.name when omitted)
+   * @returns Number of marks removed
+   */
+  clearMarksByCaller(caller?: string): number {
+    const targetCaller = getNodeSelectorCallerLabel(caller)
+    const markIds = Object.entries(this.#markedNodes)
+      .filter(([, info]) => getNodeSelectorCallerLabel(info.caller) === targetCaller)
+      .map(([markId]) => markId)
+
+    markIds.forEach((markId) => this.unmarkNode(markId))
+    return markIds.length
+  }
+
   restoreMarks() {
     const marks = this.#loadMarks()
 
@@ -754,7 +806,8 @@ export class NodeSelector extends HTMLElement {
           () => {
             this.unmarkNode(markInfo.markId)
           },
-          restoreColor
+          restoreColor,
+          resolveBarDisplayText(markInfo.barLabel, getNodeSelectorCallerLabel(markInfo.caller || this.#defaultCaller))
         )
         this.#markerHighlightBoxes.set(markInfo.markId, highlightBox)
 
