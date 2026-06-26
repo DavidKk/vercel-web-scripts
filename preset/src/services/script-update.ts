@@ -504,3 +504,5 @@ export const getScriptUpdate = (() => {
     return instances.get(instanceKey)!
   }
 })()
+
+export { flushScriptUpdatePushPending, pushScriptUpdateToOpenTabs, setupScriptUpdatePushListener } from '@/services/script-update-push'

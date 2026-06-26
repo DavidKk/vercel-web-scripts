@@ -19,9 +19,17 @@ import {
   type PermissionScriptGroup,
   resolvePermissionPolicy,
 } from './permission-display-rows'
+import { reconcileRowsAfterAdminPolicyPatch } from './permission-policy-patch'
 import { createMockPermissionRows, getPermissionsDebugOverrides, subscribePermissionsDebug } from './permissions-debug-state'
 
 type PermissionRow = PermissionDisplayRow
+
+interface PermissionsReloadOptions {
+  /** Skip loading placeholder; keep current list visible while refreshing. */
+  silent?: boolean
+  /** Restore `.mm-permissions-body` scroll after re-render. */
+  preserveScroll?: boolean
+}
 
 /**
  * Admin permissions tab — view and edit script permission entries.
@@ -33,7 +41,7 @@ export class MmPermissionsApp extends HTMLElement {
   private loading = false
   private savingRowId: string | null = null
   private savingGroupKey: string | null = null
-  private suppressRegistryReload = false
+  private registryReloadSuppressCount = 0
   private unsubscribeAdminView: (() => void) | undefined
   private unsubscribeDebug: (() => void) | undefined
   private registryListener: ((message: unknown) => void) | undefined
@@ -52,10 +60,10 @@ export class MmPermissionsApp extends HTMLElement {
       }
       const typed = message as { type?: unknown }
       if (typed.type === PERMISSION_REGISTRY_CHANGED_MESSAGE_TYPE) {
-        if (this.suppressRegistryReload) {
+        if (this.isRegistryReloadSuppressed()) {
           return
         }
-        void this.reload()
+        void this.reload(this.shouldPreserveScrollOnReload())
       }
     }
     chrome.runtime.onMessage.addListener(this.registryListener)
@@ -116,15 +124,87 @@ export class MmPermissionsApp extends HTMLElement {
       }
       const filter = (event.target as HTMLElement).closest<HTMLInputElement>('[data-ref="policy-filter"]')
       if (filter) {
-        this.renderTable()
+        this.renderTable({ preserveScroll: true })
       }
     })
     this.querySelector('[data-ref="search"]')?.addEventListener('input', () => {
-      this.renderTable()
+      this.renderTable({ preserveScroll: true })
     })
     this.querySelector('[data-action="clear-all"]')?.addEventListener('click', () => {
       void this.clearAllPermissions()
     })
+  }
+
+  private isRegistryReloadSuppressed(): boolean {
+    return this.registryReloadSuppressCount > 0
+  }
+
+  private acquireRegistryReloadSuppress(): void {
+    this.registryReloadSuppressCount += 1
+  }
+
+  private releaseRegistryReloadSuppress(): void {
+    this.registryReloadSuppressCount = Math.max(0, this.registryReloadSuppressCount - 1)
+  }
+
+  private shouldPreserveScrollOnReload(): PermissionsReloadOptions {
+    const body = this.querySelector<HTMLElement>('[data-ref="body"]')
+    const hasList = body?.querySelector('.mm-permissions-list-shell') !== null
+    return hasList ? { silent: true, preserveScroll: true } : {}
+  }
+
+  private capturePermissionsScrollTop(): number {
+    return this.querySelector<HTMLElement>('[data-ref="body"]')?.scrollTop ?? 0
+  }
+
+  private restorePermissionsScrollTop(scrollTop: number): void {
+    if (scrollTop <= 0) {
+      return
+    }
+    const body = this.querySelector<HTMLElement>('[data-ref="body"]')
+    if (!body) {
+      return
+    }
+    const apply = (): void => {
+      body.scrollTop = scrollTop
+    }
+    requestAnimationFrame(() => {
+      apply()
+      requestAnimationFrame(apply)
+    })
+  }
+
+  private applyAdminPolicyPatch(registryKeys: readonly string[], policy: PermissionPolicy): void {
+    const updatedAt = Date.now()
+    this.allRows = reconcileRowsAfterAdminPolicyPatch(this.allRows, registryKeys, policy, updatedAt)
+  }
+
+  private syncRowPolicyInDom(row: PermissionRow): void {
+    const select = this.querySelector<HTMLSelectElement>(`select[data-registry-key="${CSS.escape(row.registryKey)}"][data-permission-field="policy"]`)
+    if (select) {
+      select.dataset.rowId = row.rowId
+      select.value = row.policy
+      syncPermissionSelectIcon(select)
+    }
+    const item = select?.closest('.mm-permissions-item')
+    const updated = item?.querySelector('.mm-permissions-item-updated')
+    if (updated) {
+      updated.textContent = formatScriptUpdatedAt(row.updatedAt)
+    }
+  }
+
+  private syncGroupPolicyInDom(groupKey: string, policy: PermissionPolicy): void {
+    for (const row of this.allRows) {
+      if (`${row.scriptKey}:${row.file}` !== groupKey || !row.editable) {
+        continue
+      }
+      this.syncRowPolicyInDom(row)
+    }
+    const groupSelect = this.querySelector<HTMLSelectElement>(`select[data-group-key="${CSS.escape(groupKey)}"]`)
+    if (groupSelect) {
+      groupSelect.value = policy
+      syncPermissionSelectIcon(groupSelect)
+    }
   }
 
   private getFilterState(): { search: string; policy: 'all' | PermissionPolicy } {
@@ -150,22 +230,25 @@ export class MmPermissionsApp extends HTMLElement {
     })
   }
 
-  private async reload(): Promise<void> {
+  private async reload(options: PermissionsReloadOptions = {}): Promise<void> {
+    const { silent = false, preserveScroll = false } = options
     const debug = getPermissionsDebugOverrides()
 
     if (debug.forceLoading) {
       this.loading = true
-      this.render()
+      this.render({ preserveScroll })
       return
     }
 
-    this.loading = true
-    this.render()
+    if (!silent) {
+      this.loading = true
+      this.render({ preserveScroll })
+    }
 
     if (debug.forceError !== null) {
       this.loading = false
       this.allRows = []
-      this.render()
+      this.render({ preserveScroll })
       return
     }
 
@@ -196,14 +279,14 @@ export class MmPermissionsApp extends HTMLElement {
           editable: true,
         }
       })
-      this.render()
+      this.render({ preserveScroll })
       return
     }
 
     if (debug.forceEmpty) {
       this.loading = false
       this.allRows = []
-      this.render()
+      this.render({ preserveScroll })
       return
     }
 
@@ -234,7 +317,7 @@ export class MmPermissionsApp extends HTMLElement {
       this.allRows = []
     } finally {
       this.loading = false
-      this.render()
+      this.render({ preserveScroll })
     }
   }
 
@@ -268,8 +351,7 @@ export class MmPermissionsApp extends HTMLElement {
     }
 
     this.savingGroupKey = groupKey
-    this.suppressRegistryReload = true
-    let success = false
+    this.acquireRegistryReloadSuppress()
     try {
       const response = await sendShellMessage({
         type: 'UPDATE_SCRIPT_PERMISSION_ENTRIES',
@@ -284,22 +366,20 @@ export class MmPermissionsApp extends HTMLElement {
       if (!response.ok) {
         throw new Error(response.error)
       }
-      success = true
       const message =
         policy === 'ask'
           ? `All permissions for this script set to ask each time. Reload open pages to clear in-page allow cache.`
           : `All permissions for this script set to ${buildPolicyLabel(policy).toLowerCase()}.`
+      const registryKeys = rows.map((row) => row.registryKey)
+      this.applyAdminPolicyPatch(registryKeys, policy)
+      this.syncGroupPolicyInDom(groupKey, policy)
       this.toast.show(message, 'success')
     } catch (error) {
       this.toast.show(error instanceof Error ? error.message : String(error), 'error')
+      this.renderTable({ preserveScroll: true })
     } finally {
       this.savingGroupKey = null
-      this.suppressRegistryReload = false
-    }
-    if (success) {
-      await this.reload()
-    } else {
-      this.render()
+      this.releaseRegistryReloadSuppress()
     }
   }
 
@@ -316,6 +396,7 @@ export class MmPermissionsApp extends HTMLElement {
     }
 
     this.savingRowId = rowId
+    this.acquireRegistryReloadSuppress()
     try {
       const response = await sendShellMessage({
         type: 'UPDATE_SCRIPT_PERMISSION_ENTRY',
@@ -329,13 +410,18 @@ export class MmPermissionsApp extends HTMLElement {
         throw new Error(response.error)
       }
       const message = policy === 'ask' ? 'Permission set to ask each time. Reload open pages to clear in-page allow cache.' : 'Permission updated'
+      this.applyAdminPolicyPatch([row.registryKey], policy)
+      const patchedRow = this.allRows.find((entry) => entry.registryKey === row.registryKey)
+      if (patchedRow) {
+        this.syncRowPolicyInDom(patchedRow)
+      }
       this.toast.show(message, 'success')
-      await this.reload()
     } catch (error) {
       this.toast.show(error instanceof Error ? error.message : String(error), 'error')
-      this.render()
+      this.renderTable({ preserveScroll: true })
     } finally {
       this.savingRowId = null
+      this.releaseRegistryReloadSuppress()
     }
   }
 
@@ -361,16 +447,19 @@ export class MmPermissionsApp extends HTMLElement {
     }
   }
 
-  private render(): void {
-    this.renderTable()
+  private render(options: { preserveScroll?: boolean } = {}): void {
+    this.renderTable(options)
   }
 
-  private renderTable(): void {
+  private renderTable(options: { preserveScroll?: boolean } = {}): void {
     const body = this.querySelector<HTMLElement>('[data-ref="body"]')
     const footer = this.querySelector<HTMLElement>('[data-ref="footer"]')
     if (!body) {
       return
     }
+    const previousScrollTop = this.capturePermissionsScrollTop()
+    const hadList = body.querySelector('.mm-permissions-list-shell') !== null
+    const restoreScroll = options.preserveScroll === true && hadList
     const debug = getPermissionsDebugOverrides()
     const setFooter = (text: string | null): void => {
       if (!footer) {
@@ -418,6 +507,9 @@ export class MmPermissionsApp extends HTMLElement {
     body.replaceChildren(shell)
     hydrateMmIcons(body)
     setFooter(`Showing ${visibleRows.length} permissions across ${scriptGroups.length} scripts`)
+    if (restoreScroll) {
+      this.restorePermissionsScrollTop(previousScrollTop)
+    }
   }
 }
 
@@ -527,7 +619,7 @@ function buildPolicySelect(row: PermissionRow): string {
     })
     .join('')
   return buildPolicySelectWrap(
-    `<select class="mm-native-select mm-permissions-select mm-permissions-select--policy" data-permission-field="policy" data-policy="${escapeAttr(row.policy)}" data-row-id="${escapeAttr(row.rowId)}" aria-label="Permission policy">${options}</select>`,
+    `<select class="mm-native-select mm-permissions-select mm-permissions-select--policy" data-permission-field="policy" data-policy="${escapeAttr(row.policy)}" data-row-id="${escapeAttr(row.rowId)}" data-registry-key="${escapeAttr(row.registryKey)}" aria-label="Permission policy">${options}</select>`,
     policyIconKey(row.policy),
     row.policy
   )

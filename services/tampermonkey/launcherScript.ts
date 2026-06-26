@@ -26,6 +26,7 @@ import {
   SHELL_NETWORK_ENABLED_KEY,
 } from '@/shared/launcher-constants'
 
+import { OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY, OTA_PASSIVE_UPDATE_NOTIFY_LOCK_MS, OTA_PASSIVE_UPDATE_PENDING_KEY } from '../../shared/ota-passive-update'
 import { RULE_CACHE_KEY_PREFIX, SCRIPT_UPDATE_HOST_KEY } from '../../shared/runtime-cache-clear'
 import { SHELL_INCOGNITO_LOG_COLLECTION_KEY, SHELL_LOG_OUTPUT_MODE_KEY } from '../../shared/shell-log-output'
 import { buildPresetGlobalAssignments, PRESET_VAR_NAMES } from './gmCore'
@@ -503,6 +504,66 @@ ${grantLines}
     }
   }
 
+  function handlePassiveOtaUpdate(kind, runtimeInitialized, manualUpdate, reloadReason) {
+    if (manualUpdate || !runtimeInitialized) {
+      reloadIfTabActive(reloadReason);
+      return;
+    }
+    var pageVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
+    if (!pageVisible) {
+      GM_setValue(${JSON.stringify(OTA_PASSIVE_UPDATE_PENDING_KEY)}, kind);
+      bootLog('info', MODULE_LOG_PREFIX, 'passive-ota:notify-deferred kind=' + kind);
+      if (!globalThis.__VWS_LAUNCHER_PASSIVE_OTA_VISIBILITY__) {
+        globalThis.__VWS_LAUNCHER_PASSIVE_OTA_VISIBILITY__ = true;
+        document.addEventListener('visibilitychange', function () {
+          if (document.hidden) {
+            return;
+          }
+          var pendingKind = GM_getValue(${JSON.stringify(OTA_PASSIVE_UPDATE_PENDING_KEY)}, '');
+          if (!pendingKind) {
+            return;
+          }
+          GM_deleteValue(${JSON.stringify(OTA_PASSIVE_UPDATE_PENDING_KEY)});
+          var lockKey = ${JSON.stringify(OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY)};
+          var now = Date.now();
+          var lockUntil = Number(GM_getValue(lockKey, 0));
+          if (lockUntil > now) {
+            return;
+          }
+          GM_setValue(lockKey, now + ${OTA_PASSIVE_UPDATE_NOTIFY_LOCK_MS});
+          var msg = 'Runtime update available. Reload the page to apply.';
+          if (pendingKind === 'preset-core') {
+            msg = 'Preset update available. Reload the page to apply.';
+          }
+          var g = typeof globalThis !== 'undefined' ? globalThis : window;
+          if (g.GME_notification) {
+            g.GME_notification(msg, 'info', 8000);
+          } else {
+            console.info('[Launcher]', msg);
+          }
+        });
+      }
+      return;
+    }
+    var lockKey = ${JSON.stringify(OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY)};
+    var now = Date.now();
+    var lockUntil = Number(GM_getValue(lockKey, 0));
+    if (lockUntil > now) {
+      return;
+    }
+    GM_setValue(lockKey, now + ${OTA_PASSIVE_UPDATE_NOTIFY_LOCK_MS});
+    var msg = 'Runtime update available. Reload the page to apply.';
+    if (kind === 'preset-core') {
+      msg = 'Preset update available. Reload the page to apply.';
+    }
+    var g = typeof globalThis !== 'undefined' ? globalThis : window;
+    if (g.GME_notification) {
+      g.GME_notification(msg, 'info', 8000);
+    } else {
+      console.info('[Launcher]', msg);
+    }
+  }
+
   function applyPresetWithAtomicSwitch(presetText, normalizedHash) {
     var activeHash = readScopedValue(PRESET_ACTIVATED_HASH_KEY_SCOPED, ${JSON.stringify(PRESET_ACTIVATED_HASH_KEY)}, '');
     var nextH = normalizedHash || '';
@@ -533,7 +594,7 @@ ${grantLines}
     );
     if (skipPresetExecute) {
       if (contentChanged) {
-        reloadIfTabActive('refresh:preset-changed reload');
+        handlePassiveOtaUpdate('preset-core', true, otaManualUpdateForLoad, 'refresh:preset-changed reload');
       }
       return;
     }
@@ -840,23 +901,7 @@ ${grantLines}
     if (!shellNetworkOn()) {
       return;
     }
-    try {
-      clearAllRuntimeGmCaches();
-    } catch (e) {
-      console.warn('[Launcher] clear caches on preset update failed:', e && e.message ? e.message : String(e));
-    }
-    if (!isTabActive()) {
-      return;
-    }
-    GM_setValue(PRESET_UPDATED_NOTIFY_KEY_SCOPED, 1);
-    GM_setValue(${JSON.stringify(PRESET_UPDATED_NOTIFY_KEY)}, 1);
-    GM_setValue(OTA_MANUAL_UPDATE_KEY_SCOPED, Date.now());
-    GM_setValue(${JSON.stringify(OTA_MANUAL_UPDATE_KEY)}, Date.now());
-    setTimeout(function () {
-      if (isTabActive()) {
-        location.reload();
-      }
-    }, 300);
+    handlePassiveOtaUpdate('runtime', skipPresetExecute, false, 'refresh:preset-channel reload');
   });
 
   GM_registerMenuCommand('Reset Runtime State', resetRuntimeState);

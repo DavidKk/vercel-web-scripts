@@ -40,6 +40,7 @@ import { ensureOptionalUi, openOptionalLogViewer } from '@/services/optional-ui'
 import { ensureRuntimeCore } from '@/services/runtime-core'
 import { executeEditorScript, executeLocalScript, executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
 import { getScriptUpdate } from '@/services/script-update'
+import { pushScriptUpdateToOpenTabs } from '@/services/script-update-push'
 import { getTabCommunication } from '@/services/tab-communication'
 import { GME_registerMenuCommand, GME_updateMenuCommand } from '@/ui/corner-widget/index'
 import { GME_notification as GME_notificationUI, GME_notification_close, GME_notification_update } from '@/ui/notification/index'
@@ -167,6 +168,7 @@ export function registerGlobals(): void {
 
     // Script update / HMR (main.ts)
     getScriptUpdate,
+    pushScriptUpdateToOpenTabs,
     watchHMRUpdates,
 
     // Tab communication (script-update and others)

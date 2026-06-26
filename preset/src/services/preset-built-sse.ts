@@ -39,7 +39,7 @@ async function handlePresetBuiltEvent(raw: string): Promise<void> {
     /** Full OTA cache clear so optional-ui / remote / rules refetch after preset rebuild. */
     clearAllRuntimeGmCachesInPage()
 
-    // Notify all tabs (including cross-origin): launcher listens to PRESET_UPDATE_CHANNEL_KEY and reloads
+    // Notify all tabs (including cross-origin): launcher listens to PRESET_UPDATE_CHANNEL_KEY and shows a passive update notice
     GM_setValue(PRESET_UPDATE_CHANNEL_KEY, builtAt != null ? builtAt : Date.now())
 
     // Same-origin only (dev server); notify user then reload so launcher loads fresh preset (no active-tab check)

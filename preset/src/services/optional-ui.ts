@@ -5,6 +5,7 @@ import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
 import { parseStaticKeyFromScriptUrl, readLauncherBaseUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { createGMELogger } from '@/helpers/logger'
+import { handlePassiveOtaUpdate } from '@/services/ota-passive-update'
 import { ensureRuntimeCore, type RuntimeCoreApi } from '@/services/runtime-core'
 import { shouldLogToConsole } from '@/services/shell-log-settings'
 import { isShellNetworkEnabled } from '@/services/shell-network-settings'
@@ -384,10 +385,8 @@ async function refreshOptionalUiInBackground(previousCache: OptionalUiCacheRecor
     writeOptionalUiCache(content, url, etag)
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:cached bytes=${content.length} changed=${changed ? 'yes' : 'no'}`)
 
-    // Follow "cache first, update in background, then refresh" contract.
-    const pageVisible = typeof document !== 'undefined' && document.visibilityState === 'visible'
-    if (changed && typeof window !== 'undefined' && pageVisible) {
-      window.location.reload()
+    if (changed) {
+      handlePassiveOtaUpdate('optional-ui', Boolean(previousCache?.content))
     }
   } catch (error) {
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} refresh:error ${error instanceof Error ? error.message : String(error)}`)

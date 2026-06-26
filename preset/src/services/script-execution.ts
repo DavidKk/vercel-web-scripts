@@ -17,6 +17,7 @@ import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
 import { getRulesCacheStats } from '@/rules'
 import { fetchScript } from '@/scripts'
 import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
+import { handlePassiveOtaUpdate } from '@/services/ota-passive-update'
 import { isShellNetworkEffectivelyEnabled, isShellNetworkEnabled } from '@/services/shell-network-settings'
 
 const REMOTE_SCRIPT_REFRESH_LOCK_KEY = 'vws_remote_script_refreshing'
@@ -258,9 +259,8 @@ async function refreshRemoteScriptInBackground(url: string, previousCache: Remot
     writeRemoteScriptCache(content, etag)
     GME_debug(`[Remote script] refresh:cached bytes=${content.length} changed=${changed ? 'yes' : 'no'}`)
 
-    const pageVisible = typeof document !== 'undefined' && document.visibilityState === 'visible'
-    if (changed && typeof window !== 'undefined' && pageVisible) {
-      window.location.reload()
+    if (changed) {
+      handlePassiveOtaUpdate('remote-script', Boolean(previousCache?.content))
     }
   } catch (error) {
     GME_debug(`[Remote script] refresh:error ${error instanceof Error ? error.message : String(error)}`)

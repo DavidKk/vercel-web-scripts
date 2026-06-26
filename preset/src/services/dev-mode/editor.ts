@@ -5,6 +5,7 @@
 import { GME_debug } from '@/helpers/logger'
 import { EDITOR_DEV_EVENT_KEY, EDITOR_POST_MESSAGE_TYPE, getActiveDevMode, getEditorDevHost, isEditorDevMode, isEditorPage } from '@/services/dev-mode/constants'
 import { executeEditorScript } from '@/services/script-execution'
+import { pushScriptUpdateToOpenTabs } from '@/services/script-update'
 import { GME_notification } from '@/ui/notification/index'
 
 /** Fingerprint compiled content so we only re-execute when it actually changed (safety net if editor sends duplicate) */
@@ -229,6 +230,13 @@ export function setupEditorPostMessageListener(): void {
       // Set EDITOR_DEV_EVENT_KEY immediately for early detection
       GM_setValue(EDITOR_DEV_EVENT_KEY, { host, lastModified: 0, files: {}, compiledContent: '', _early: true })
       GME_debug('[Main] Early editor dev mode flag set, waiting for real files...')
+      return
+    }
+
+    // Handle script-publish-push (editor publish → in-place update on open tabs)
+    if (message.type === 'script-publish-push') {
+      GME_debug('[Main] Script publish push via postMessage')
+      pushScriptUpdateToOpenTabs()
       return
     }
 

@@ -24,12 +24,13 @@ import {
   tryExecuteEditorScript,
   tryExecuteLocalScript,
 } from '@/services/dev-mode'
-import { clearAllRuntimeGmCachesInPage } from '@/services/launcher-bootstrap-storage'
 import { registerBasicMenus } from '@/services/menu'
 import { ensureOptionalUi } from '@/services/optional-ui'
+import { flushPassiveOtaUpdatePending } from '@/services/ota-passive-update'
 import { logAndClearPresetUpdatedNotify, subscribePresetBuiltSSE } from '@/services/preset-built-sse'
 import { executeRemoteScript, watchHMRUpdates } from '@/services/script-execution'
-import { getScriptUpdate } from '@/services/script-update'
+import { getScriptUpdate, pushScriptUpdateToOpenTabs, setupScriptUpdatePushListener } from '@/services/script-update'
+import { flushScriptUpdatePushPending } from '@/services/script-update-push'
 import { isShellNetworkEnabled } from '@/services/shell-network-settings'
 
 const WEB_SCRIPT_ID = getWebScriptId()
@@ -104,7 +105,7 @@ async function main(): Promise<void> {
   const updateTimeStamp = typeof __SCRIPT_UPDATED_AT__ !== 'undefined' && __SCRIPT_UPDATED_AT__ ? __SCRIPT_UPDATED_AT__ : ''
   const updateTimeMs = updateTimeStamp ? Number(updateTimeStamp) : 0
   const updateTime = updateTimeMs > 0 && Number.isFinite(updateTimeMs) ? new Date(updateTimeMs).toLocaleString() : 'unknown'
-  const updateTimeHint = updateTime === 'unknown' ? ' (preset may be cached; add ?vws_script_update=1 and reload to refresh)' : ''
+  const updateTimeHint = updateTime === 'unknown' ? ' (preset may be cached; publish from editor or use Update Script to refresh)' : ''
   GME_info('[Main] Project version: ' + projectVersion + ', Update time: ' + updateTime + updateTimeHint + ', preset build: ' + __PRESET_BUILD_HASH__)
   persistPresetProjectVersion(projectVersion)
   GME_debug('[Main] Logger online — earlier [VWS][Launcher] lines were captured as [boot] in the log viewer (same timeline timestamps as console)')
@@ -148,7 +149,7 @@ async function main(): Promise<void> {
   }
   logAndClearPresetUpdatedNotify()
 
-  // vws_script_update=1: clear preset cache and reload so launcher fetches fresh preset (e.g. after editor publish)
+  // Legacy helper URL: strip param and push in-place script update (no page reload).
   if (typeof window !== 'undefined' && window.location.search.includes('vws_script_update=1')) {
     try {
       const u = new URL(window.location.href)
@@ -157,10 +158,12 @@ async function main(): Promise<void> {
     } catch (e) {
       GME_fail('[Main] replaceState failed:', e instanceof Error ? e.message : String(e))
     }
-    clearAllRuntimeGmCachesInPage()
-    window.location.reload()
-    return
+    pushScriptUpdateToOpenTabs()
   }
+
+  setupScriptUpdatePushListener()
+  flushPassiveOtaUpdatePending()
+  flushScriptUpdatePushPending()
 
   exposeMatchRule()
 

@@ -1,6 +1,6 @@
 # Script permissions (gate + admin) — task thread
 
-Status: **IN_PROGRESS** (implementation largely landed; verify + commit pending)
+Status: **DONE** (implementation + manual verification complete; `extension/README.md` docs optional follow-up)
 
 Related code: `shared/script-permission.ts`, `extension/src/shell/permission-manager.ts`, `extension/src/ui/permissions/mm-permissions-app.ts`, `extension/src/page/gm-bridge.ts`
 
@@ -106,20 +106,21 @@ Delivered in this thread:
 
 ## Verification checklist
 
-- [ ] Extension build (`pnpm run build:extension`) after `tailwind.css` fixes
-- [ ] Admin Permissions: Once row visible; promote to Always; Revoke persistent
-- [ ] Permissions → click File → Scripts tab focuses correct row
-- [ ] Search/filter on Permissions toolbar
-- [ ] DEBUG: prompt on admin tab (modal relay); clipboard / xhr tests
-- [ ] Preset command palette DEBUG commands (develop mode)
-- [ ] Jest: permission + admin-hash specs
+- [x] Extension build (`pnpm run build:extension`) after `tailwind.css` fixes
+- [x] Admin Permissions: Once row visible; promote to Always; Revoke persistent
+- [x] Permissions → card header script link → Scripts tab focuses correct row (not clickable for `__debug-*` entries)
+- [x] Search/filter on Permissions toolbar
+- [x] DEBUG: prompt on admin tab (modal relay); clipboard / xhr tests
+- [x] Preset command palette DEBUG commands (develop mode)
+- [x] Jest: permission + admin-hash specs (9 suites / 52 tests)
 
 ---
 
 ## Open / follow-up
 
-- [ ] Git commit (user has not requested yet)
-- [ ] `extension-shell.yaml` + `extension/README.md` — Permissions tab docs (partially updated via `.ai` only)
+- [x] Git commit — `9079d69` feat(extension): script permissions gate, admin panel, Full trust
+- [x] `extension-shell.yaml` — script-permissions + permissions-debug registered
+- [ ] `extension/README.md` — Permissions tab + Full trust user docs (optional)
 - [x] UI folder restructure (done) → see `../done/ui-folder-restructure.md`
 
 ---

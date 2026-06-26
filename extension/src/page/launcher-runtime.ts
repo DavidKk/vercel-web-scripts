@@ -17,7 +17,6 @@ import {
   PRESET_PREVIOUS_HASH_KEY,
   PRESET_PROJECT_VERSION_KEY,
   PRESET_UPDATE_CHANNEL_KEY,
-  PRESET_UPDATED_NOTIFY_KEY,
   REMOTE_SCRIPT_CACHE_KEY,
   REMOTE_SCRIPT_ETAG_KEY,
   RUNTIME_OTA_STAGE_KEY,
@@ -25,6 +24,15 @@ import {
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
 import { decideOtaModuleApply } from '@shared/ota-apply-policy'
+import {
+  isPassiveOtaNotifyLocked,
+  nextPassiveOtaNotifyLockExpiry,
+  OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY,
+  OTA_PASSIVE_UPDATE_PENDING_KEY,
+  type OtaPassiveUpdateKind,
+  passiveOtaUpdateUserMessage,
+  resolvePassiveOtaUpdateAction,
+} from '@shared/ota-passive-update'
 import { ensurePresetCoreInjectionGate } from '@shared/preset-core-injection-gate'
 import { buildPresetLauncherDecls } from '@shared/preset-launcher-decls'
 import { clearAllRuntimeGmCaches } from '@shared/runtime-cache-clear'
@@ -83,7 +91,6 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     cacheScope,
     scopedPresetCacheKey,
     scopedPresetEtagKey,
-    scopedPresetUpdatedNotifyKey,
     scopedPresetActivatedHashKey,
     scopedPresetPreviousHashKey,
     scopedModuleManifestEtagKey,
@@ -99,6 +106,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   const PRESET_RUN_ATTEMPTED_KEY = '__VWS_PRESET_RUN_ATTEMPTED__'
   const PRESET_IN_FLIGHT_KEY = '__VWS_PRESET_EXECUTE_IN_FLIGHT__'
+  const PASSIVE_OTA_VISIBILITY_FLAG = '__VWS_LAUNCHER_PASSIVE_OTA_VISIBILITY__'
 
   function isPresetRunAttemptedOnDocument(): boolean {
     return (globalThis as Record<string, unknown>)[PRESET_RUN_ATTEMPTED_KEY] === true
@@ -124,6 +132,71 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     bootLog('info', MODULE_LOG_PREFIX, reason)
     if (isTabActive()) {
       setTimeout(() => location.reload(), 50)
+    }
+  }
+
+  function isPageVisible(): boolean {
+    return typeof document === 'undefined' || document.visibilityState === 'visible'
+  }
+
+  function ensurePassiveOtaVisibilityListener(): void {
+    if (typeof document === 'undefined') {
+      return
+    }
+    const root = globalThis as Record<string, unknown>
+    if (root[PASSIVE_OTA_VISIBILITY_FLAG]) {
+      return
+    }
+    root[PASSIVE_OTA_VISIBILITY_FLAG] = true
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        return
+      }
+      const kind = gm.GM_getValue(OTA_PASSIVE_UPDATE_PENDING_KEY, '') as OtaPassiveUpdateKind | ''
+      if (!kind) {
+        return
+      }
+      gm.GM_deleteValue(OTA_PASSIVE_UPDATE_PENDING_KEY)
+      const now = Date.now()
+      const lockUntil = gm.GM_getValue(OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY, 0)
+      if (isPassiveOtaNotifyLocked(lockUntil, now)) {
+        return
+      }
+      gm.GM_setValue(OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY, nextPassiveOtaNotifyLockExpiry(now))
+      const message = passiveOtaUpdateUserMessage(kind)
+      const notify = (globalThis as Record<string, unknown>).GME_notification
+      if (typeof notify === 'function') {
+        ;(notify as (msg: string, type: string, ms: number) => void)(message, 'info', 8000)
+      } else {
+        launcherLogger.info(message)
+      }
+    })
+  }
+
+  function handlePassiveOtaUpdate(kind: OtaPassiveUpdateKind, runtimeInitialized: boolean, manualUpdate: boolean, reloadReason: string): void {
+    const action = resolvePassiveOtaUpdateAction(runtimeInitialized, manualUpdate)
+    if (action === 'reload') {
+      reloadIfTabActive(reloadReason)
+      return
+    }
+    if (!isPageVisible()) {
+      gm.GM_setValue(OTA_PASSIVE_UPDATE_PENDING_KEY, kind)
+      ensurePassiveOtaVisibilityListener()
+      bootLog('info', MODULE_LOG_PREFIX, `passive-ota:notify-deferred kind=${kind}`)
+      return
+    }
+    const now = Date.now()
+    const lockUntil = gm.GM_getValue(OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY, 0)
+    if (isPassiveOtaNotifyLocked(lockUntil, now)) {
+      return
+    }
+    gm.GM_setValue(OTA_PASSIVE_UPDATE_NOTIFY_LOCK_KEY, nextPassiveOtaNotifyLockExpiry(now))
+    const message = passiveOtaUpdateUserMessage(kind)
+    const notify = (globalThis as Record<string, unknown>).GME_notification
+    if (typeof notify === 'function') {
+      ;(notify as (msg: string, type: string, ms: number) => void)(message, 'info', 8000)
+    } else {
+      launcherLogger.info(message)
     }
   }
 
@@ -468,7 +541,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     persistPresetCache(presetText, normalizedHash)
     if (skipPresetExecute) {
       if (contentChanged) {
-        reloadIfTabActive('refresh:preset-changed reload')
+        handlePassiveOtaUpdate('preset-core', true, otaManualUpdateForLoad, 'refresh:preset-changed reload')
       }
       return
     }
@@ -697,22 +770,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   gm.GM_addValueChangeListener(PRESET_UPDATE_CHANNEL_KEY, (_name, _oldVal, newVal) => {
     if (newVal == null || !shellNetworkOn()) return
-    try {
-      clearAllRuntimeGmCaches({
-        listValues: () => gm.GM_listValues(),
-        getValue: (key) => gm.GM_getValue(key),
-        deleteValue: (key) => gm.GM_deleteValue(key),
-        setValue: (key, value) => gm.GM_setValue(key, value),
-      })
-    } catch {
-      // ignore
-    }
-    if (!isTabActive()) return
-    gm.GM_setValue(scopedPresetUpdatedNotifyKey, 1)
-    gm.GM_setValue(PRESET_UPDATED_NOTIFY_KEY, 1)
-    setTimeout(() => {
-      if (isTabActive()) location.reload()
-    }, 300)
+    handlePassiveOtaUpdate('runtime', skipPresetExecute, false, 'refresh:preset-channel reload')
   })
 
   gm.GM_registerMenuCommand('Reset Runtime State', resetRuntimeState)

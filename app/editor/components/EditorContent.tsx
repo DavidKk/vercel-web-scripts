@@ -161,13 +161,12 @@ export function EditorContent({
     if (typeof window === 'undefined') {
       return
     }
-    const triggerUrl = `${window.location.origin}/?vws_script_update=1`
-    const iframe = document.createElement('iframe')
-    iframe.setAttribute('aria-hidden', 'true')
-    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
-    iframe.src = triggerUrl
-    document.body.appendChild(iframe)
-    setTimeout(() => iframe.remove(), 5000)
+    const presetPush = (window as Window & { pushScriptUpdateToOpenTabs?: () => void }).pushScriptUpdateToOpenTabs
+    if (typeof presetPush === 'function') {
+      presetPush()
+      return
+    }
+    window.postMessage({ type: EDITOR_POST_MESSAGE_TYPE, message: { type: 'script-publish-push' } }, window.location.origin)
   }, [])
 
   /**
@@ -290,7 +289,7 @@ export function EditorContent({
         await refreshActiveScriptOta(tabBar.activeTab)
       }
 
-      // Trigger script update push so Tampermonkey tabs reload the script
+      // Push in-place script update to open Tampermonkey tabs (no page reload)
       triggerScriptUpdatePush()
     } catch (error) {
       // eslint-disable-next-line no-console

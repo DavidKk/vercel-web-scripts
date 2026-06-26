@@ -238,7 +238,7 @@
   }
 
   .mm-permissions-list-shell {
-    @apply min-h-full overflow-auto;
+    @apply min-h-full;
   }
 
   .mm-permissions-cards {
