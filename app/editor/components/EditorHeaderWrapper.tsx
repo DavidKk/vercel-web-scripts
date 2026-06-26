@@ -11,6 +11,7 @@ interface EditorHeaderWrapperProps {
   onSave: () => void
   onPublishStable?: () => void
   canPublishStable?: boolean
+  activeScriptFilename?: string | null
   activeScriptOta?: ScriptOtaPolicy | null
   onLockVersion?: () => void
   onUnlockVersion?: () => void

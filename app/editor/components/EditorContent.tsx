@@ -419,6 +419,7 @@ export function EditorContent({
         onSave={handlePublish}
         onPublishStable={handlePublishStable}
         canPublishStable={canPublishStable}
+        activeScriptFilename={tabBar.activeTab}
         activeScriptOta={activeScriptOta}
         onLockVersion={handleLockVersion}
         onUnlockVersion={handleUnlockVersion}

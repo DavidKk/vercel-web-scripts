@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { FiChevronDown, FiLock, FiLogOut, FiPlay, FiPlayCircle, FiUnlock, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
-import { MdOutlineCloudDone, MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
+import { MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
 import { SiTampermonkey } from 'react-icons/si'
 
 import { Spinner } from '@/components/Spinner'
@@ -80,6 +80,7 @@ interface EditorHeaderProps {
   onSave: () => void
   onPublishStable?: () => void
   canPublishStable?: boolean
+  activeScriptFilename?: string | null
   activeScriptOta?: ScriptOtaPolicy | null
   onLockVersion?: () => void
   onUnlockVersion?: () => void
@@ -103,6 +104,7 @@ export default function EditorHeader({
   onSave,
   onPublishStable,
   canPublishStable = false,
+  activeScriptFilename = null,
   activeScriptOta = null,
   onLockVersion,
   onUnlockVersion,
@@ -121,7 +123,9 @@ export default function EditorHeader({
   const [extensionState, setExtensionState] = useState<ExtensionConnectState>('checking')
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [publishMenuOpen, setPublishMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const publishMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!userMenuOpen) return
@@ -133,6 +137,40 @@ export default function EditorHeader({
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [userMenuOpen])
+
+  useEffect(() => {
+    if (!publishMenuOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (!publishMenuRef.current?.contains(e.target as Node)) {
+        setPublishMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [publishMenuOpen])
+
+  const handlePublishAlpha = () => {
+    setPublishMenuOpen(false)
+    onSave()
+  }
+
+  const handlePublishStable = () => {
+    if (!onPublishStable || !canPublishStable) {
+      return
+    }
+    setPublishMenuOpen(false)
+    const target = activeScriptFilename?.trim() || 'the active script'
+    const confirmed = window.confirm(
+      `Publish ${target} to STABLE?\n\n` +
+        'This writes a releases snapshot and promotes the script for production users. ' +
+        'Clients on the stable track with auto-upgrade may receive this version on their next OTA update.\n\n' +
+        'Continue?'
+    )
+    if (!confirmed) {
+      return
+    }
+    onPublishStable()
+  }
 
   const pingExtension = useCallback(() => {
     setExtensionState((prev) => (prev === 'connecting' ? prev : 'checking'))
@@ -356,31 +394,61 @@ export default function EditorHeader({
           </button>
         </Tooltip>
 
-        <Tooltip content="Save as debug (ALPHA)" placement="bottom">
-          <button type="button" onClick={onSave} disabled={isSaving} className={`${iconBtnActiveBrand} disabled:opacity-50`} aria-label="Save as debug (ALPHA)">
-            {isSaving ? (
-              <span className="w-4 h-4 flex items-center justify-center">
-                <Spinner />
-              </span>
-            ) : (
-              <MdOutlineCloudUpload className="w-4 h-4" />
-            )}
-          </button>
-        </Tooltip>
-
-        {onPublishStable && (
-          <Tooltip content={canPublishStable ? 'Publish stable' : 'Select a script file to publish stable'} placement="bottom">
+        <div className="relative" ref={publishMenuRef}>
+          <Tooltip content="Publish" placement="bottom">
             <button
               type="button"
-              onClick={onPublishStable}
-              disabled={isSaving || !canPublishStable}
-              className={`${iconBtnActiveGreen} disabled:opacity-50`}
-              aria-label="Publish stable"
+              onClick={() => setPublishMenuOpen((open) => !open)}
+              disabled={isSaving}
+              className={`${iconBtnActiveBrand} disabled:opacity-50 flex items-center gap-0.5 pr-1.5`}
+              aria-label="Publish"
+              aria-expanded={publishMenuOpen}
+              aria-haspopup="menu"
             >
-              <MdOutlineCloudDone className="w-4 h-4" />
+              {isSaving ? (
+                <span className="w-4 h-4 flex items-center justify-center">
+                  <Spinner />
+                </span>
+              ) : (
+                <MdOutlineCloudUpload className="w-4 h-4" />
+              )}
+              <FiChevronDown className={`w-3 h-3 transition-transform ${publishMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           </Tooltip>
-        )}
+          {publishMenuOpen ? (
+            <div className="absolute right-0 top-full mt-1 py-1 bg-[#171a21] border border-[#2a303a] rounded-md shadow-lg min-w-[220px] z-[70]" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[#2a303a] disabled:opacity-50"
+                disabled={isSaving}
+                onClick={handlePublishAlpha}
+              >
+                <span className="mt-0.5 inline-flex shrink-0 items-center rounded-sm bg-[#f59e0b] px-1 py-0.5 text-[8px] font-bold uppercase leading-none text-white">ALP</span>
+                <span className="min-w-0">
+                  <span className="block text-sm text-[#e6eaf0]">Save as debug</span>
+                  <span className="block text-xs text-[#9aa4b2]">ALPHA — does not affect stable users</span>
+                </span>
+              </button>
+              {onPublishStable ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[#2a303a] disabled:opacity-50"
+                  disabled={isSaving || !canPublishStable}
+                  onClick={handlePublishStable}
+                  title={canPublishStable ? undefined : 'Select a .ts or .js script file to publish stable'}
+                >
+                  <span className="mt-0.5 inline-flex shrink-0 items-center rounded-sm bg-[#22c55e] px-1 py-0.5 text-[8px] font-bold uppercase leading-none text-white">STB</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm text-[#e6eaf0]">Publish stable</span>
+                    <span className="block text-xs text-[#9aa4b2]">{canPublishStable ? 'Promotes to production — requires confirmation' : 'Select a script file first'}</span>
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="relative shrink-0 pl-2 border-l border-[#2a303a] ml-1" ref={userMenuRef}>
