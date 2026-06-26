@@ -2,32 +2,34 @@
 
 Use this checklist when validating each phase of runtime modularization.
 
+**Baseline (2026-06-27)**: Phase A–C implemented per `../tasks/done/runtime-modularization-phase-a-b-c.md`. Phase D not started (`../tasks/backlog/runtime-phase-d.md`). Checkboxes below are for **release-candidate re-verification**, not open work items.
+
 ## Phase A - Contracts and docs
 
-- [ ] Manifest schema documented and example payload available
-- [ ] Cache lifecycle documented (scoped keys, fallback keys, stale behavior)
-- [ ] Update lifecycle documented (compare/download/validate/atomic switch/rollback)
-- [ ] Core communication contract documented (registry/event bus/handshake)
-- [ ] Compatibility guardrails documented
+- [x] Manifest schema documented and example payload available
+- [x] Cache lifecycle documented (scoped keys, fallback keys, stale behavior)
+- [x] Update lifecycle documented (compare/download/validate/atomic switch/rollback)
+- [x] Core communication contract documented (registry/event bus/handshake)
+- [x] Compatibility guardrails documented
 
 ## Phase B - Runtime split foundation
 
-- [ ] `Launcher -> Preset Core` default path runs without `Preset UI`
-- [ ] Optional UI path can be triggered and loaded separately
-- [ ] Optional UI fetch failure does not break script execution
-- [ ] Runtime logs show module load state transitions
+- [x] `Launcher -> Preset Core` default path runs without `Preset UI`
+- [x] Optional UI path can be triggered and loaded separately
+- [x] Optional UI fetch failure does not break script execution
+- [x] Runtime logs show module load state transitions
 
 ## Phase C - Update hardening
 
-- [ ] Hash unchanged: no redundant module download
-- [ ] Hash changed: update applies only changed module
-- [ ] Validation mismatch: module activation rejected
-- [ ] Atomic switch updates active pointer only after successful validation
-- [ ] Rollback restores previous known-good artifact on failure
-- [ ] OTA policy: alpha script edits do not change stable `script-bundle` hash for non-alpha clients
-- [ ] OTA policy: `autoUpgrade=false` blocks automatic preset-core apply; popup **Update runtime** bypasses via manual flag
-- [ ] OTA policy: fleet `lockedVersion` pins stable clients to releases snapshot
-- [ ] Extension popup footer shows preset semver and runtime stage (STB / ALP)
+- [x] Hash unchanged: no redundant module download
+- [x] Hash changed: update applies only changed module
+- [x] Validation mismatch: module activation rejected
+- [x] Atomic switch updates active pointer only after successful validation
+- [x] Rollback restores previous known-good artifact on failure
+- [x] OTA policy: alpha script edits do not change stable `script-bundle` hash for non-alpha clients
+- [x] OTA policy: `autoUpgrade=false` blocks automatic preset-core apply; popup **Update runtime** bypasses via manual flag
+- [x] OTA policy: fleet `lockedVersion` pins stable clients to releases snapshot
+- [x] Extension popup footer shows preset semver and runtime stage (STB / ALP)
 
 ## Phase D - Script modularization
 

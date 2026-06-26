@@ -100,7 +100,7 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 
 - [ ] 关联 spec：`specs/ui-cross-module-review.md`
 - [ ] 确认 Phase 优先级：建议 **A → B → C → D**，每阶段独立 PR
-- [ ] 确认资源：是否与其他 active 任务（script-permissions、Phase C/D runtime）并行
+- [ ] 确认资源：是否与其他 backlog 任务（extension-native-loader、runtime Phase D、ui-cross-module-dedup）并行
 - [ ] 确认 D1（Preset 孤儿模块）产品意图
 - [ ] 确认 Extension 浅色主题在 token 抽象后仍独立维护
 
@@ -108,12 +108,12 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 
 ## 依赖与风险
 
-| 项                       | 说明                                                                         |
-| ------------------------ | ---------------------------------------------------------------------------- |
-| 与 script-permissions    | 无硬依赖；permissions debug panel 归入 Phase B 时注意勿与权限功能 PR 冲突    |
-| 与 ui-folder-restructure | 已完成；本任务在其之上做跨模块与 Extension 内二次抽象                        |
-| 测试                     | Phase A 需迁移/新增 Jest；Extension E2E 若有需回归 admin tab                 |
-| 构建                     | `shared/ui` 需进入 tsconfig paths；Preset Vite / Extension Vite 均能 resolve |
+| 项                       | 说明                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| 与 script-permissions    | 无硬依赖（permissions 已 done）；permissions debug panel 归入 Phase B 时注意勿与权限功能 PR 冲突 |
+| 与 ui-folder-restructure | 已完成；本任务在其之上做跨模块与 Extension 内二次抽象                                            |
+| 测试                     | Phase A 需迁移/新增 Jest；Extension E2E 若有需回归 admin tab                                     |
+| 构建                     | `shared/ui` 需进入 tsconfig paths；Preset Vite / Extension Vite 均能 resolve                     |
 
 ---
 
