@@ -20,6 +20,17 @@ Phase A/B contracts and split foundation: **DONE** (see `../tasks/active/current
 
 Phase C (per-module hash update / rollback) and Phase D (match-based script modules): **TODO**.
 
+## Engineering / tech debt (2026-06-27)
+
+| Item                                 | Status | Doc                                                    |
+| ------------------------------------ | ------ | ------------------------------------------------------ |
+| Large file split (Phase 1–2, 4–5)    | DONE   | `tasks/done/large-file-split.md`                       |
+| CSS logical properties review        | DONE   | `tasks/done/css-logical-properties-review.md`          |
+| Preset UI lazy-load registration fix | DONE   | `optional-ui.ts`, `runtime-core.ts` (commit `2f84e3b`) |
+| UI cross-module dedup                | TODO   | `tasks/backlog/ui-cross-module-dedup.md`               |
+
+Normative rules: `rules/engineering-standards.md`.
+
 ## Extension shell (Chrome MV3)
 
 Canonical map: `../specs/extension-shell.yaml`

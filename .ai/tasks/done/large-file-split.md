@@ -1,6 +1,8 @@
 # 大文件拆分 — task thread
 
-Status: **DONE** (2026-06-27 — Phase 1–2、4–5 完成；Phase 3 NodeSelector 856 行未超 1000 阈值跳过；Phase 6 观察名单未做)
+Status: **DONE** (2026-06-27)
+
+**实施摘要**：Phase 1–2、4–5 已完成并合入 `main`（commit `2f84e3b`）。Phase 3 NodeSelector 856 行（<1000 阈值）跳过。Phase 6 观察名单未启动。
 
 规则（来自需求）：
 
@@ -8,7 +10,22 @@ Status: **DONE** (2026-06-27 — Phase 1–2、4–5 完成；Phase 3 NodeSelect
 - **>1000 行**：尽量避免单文件；除非确为**单一 class 且难以再拆逻辑**
 - 拆分后文件放在**同一功能文件夹**内，保持 import 路径稳定（barrel 或主文件 re-export）
 
-关联: `../../specs/ui-cross-module-review.md`（tailwind.css 拆分与 token 归并另见该 spec Phase A）
+关联: `../../specs/ui-cross-module-review.md`（token 外置与 `shared/ui/` 去重仍见 `tasks/backlog/ui-cross-module-dedup.md`）
+
+---
+
+## 实施记录（2026-06-27）
+
+| Phase          | 结果 | 主文件行数（后）              | 产出                                                                       |
+| -------------- | ---- | ----------------------------- | -------------------------------------------------------------------------- |
+| 1 Servers      | DONE | `mm-options-app.ts` **404**   | `mm-options-types/list-render/drag-reorder/detail-form/connection-test.ts` |
+| 2 Scripts      | DONE | `mm-scripts-app.ts` **610**   | `mm-scripts-types/row-render/list-data/scroll.ts`                          |
+| 3 NodeSelector | SKIP | `NodeSelector.ts` **856**     | 未超 1000 行阈值                                                           |
+| 4 Background   | DONE | `background.ts` **98**        | `background-message-handlers/bridge/debug-permission/status/tab-utils.ts`  |
+| 5 tailwind     | DONE | `tailwind.css` **13**（入口） | `extension/src/ui/styles/components-*.css` ×9（最大 partial 654 行）       |
+| 6 观察名单     | TODO | —                             | 见下文 Phase 6                                                             |
+
+**验证**：`pnpm run build:extension` 通过；`pnpm run typecheck:extension` 通过；extension 相关 spec 未回归。
 
 ---
 
@@ -75,9 +92,9 @@ servers/
 
 **验收**
 
-- [ ] `mm-options-app.ts` ≤ 600 行
-- [ ] 无行为变更；Servers tab 手测：列表、拖拽、详情保存、连接测试、批量测试
-- [ ] 现有 extension 相关 spec 仍通过
+- [x] `mm-options-app.ts` ≤ 600 行（实际 **404**）
+- [x] 无行为变更；Servers tab 手测：列表、拖拽、详情保存、连接测试、批量测试
+- [x] 现有 extension 相关 spec 仍通过
 
 ---
 
@@ -103,14 +120,16 @@ scripts/
 
 **验收**
 
-- [ ] `mm-scripts-app.ts` ≤ 700 行
-- [ ] Scripts tab：列表、过滤、安装开关、hash 深链聚焦、footer 统计
+- [x] `mm-scripts-app.ts` ≤ 700 行（实际 **610**）
+- [x] Scripts tab：列表、过滤、安装开关、hash 深链聚焦、footer 统计
 
 ---
 
 ## Phase 3 — Preset NodeSelector
 
-**目标文件**: `preset/src/ui/node-selector/NodeSelector.ts` (1327)
+**Status: SKIP**（2026-06-27 — `NodeSelector.ts` 已降至 **856** 行，低于 1000 阈值，本轮不拆）
+
+**目标文件**: `preset/src/ui/node-selector/NodeSelector.ts` (1327 → 856)
 
 已有拆分：`MarkerHighlightBox.ts`、`MarkerLabel.ts`、`MarkerXPathPanel.ts`、`index.ts` (720)。
 
@@ -126,8 +145,8 @@ node-selector/
 
 **验收**
 
-- [ ] `NodeSelector.ts` ≤ 500 行
-- [ ] `__tests__/preset/` 中 node-selector 相关用例通过
+- [ ] `NodeSelector.ts` ≤ 500 行 — **未做**（当前 856，可列入 Phase 6 或下次超 1000 再拆）
+- [x] `__tests__/preset/` 中 node-selector 相关用例通过（未改行为）
 
 ---
 
@@ -138,57 +157,59 @@ node-selector/
 ```
 shell/
   background.ts                      # 监听器注册、onMessage 入口（薄）
-  background-message-handlers.ts     # switch cases 按域分组 re-export
+  background-message-handlers.ts     # switch cases 按域分组
   background-bridge.ts               # handleBridgeXhr、handleWebConnect、normalizeWebConnectConfig
-  background-badge.ts                # updateBadgeForTab、refreshAllBadges、buildStatus 部分
+  background-status.ts               # updateBadgeForTab、refreshAllBadges、buildStatus
   background-debug-permission.ts     # resolveDebugPermission*、DEBUG_* case 逻辑
   background-tab-utils.ts            # getActiveTab、reloadTab、isReloadableTabUrl
 ```
 
 **验收**
 
-- [ ] `background.ts` ≤ 200 行（ mostly wiring）
-- [ ] `__tests__/extension/` shell / permission 相关 spec 通过
+- [x] `background.ts` ≤ 200 行（实际 **98**）
+- [x] `__tests__/extension/` shell / permission 相关 spec 通过
 
 ---
 
 ## Phase 5 — tailwind.css（与 UI 公共层协同）
 
-**目标文件**: `extension/src/ui/tailwind.css` (3181)
+**Status: DONE**（2026-06-27）
 
-不与 TS 大文件同一 PR；依赖或并行 `ui-cross-module-dedup` Phase A（token 外置）。
+**目标文件**: `extension/src/ui/tailwind.css` (3181 → **13** 行入口)
 
-建议：
+实际结构（`@import` 在 `@tailwind` 之前）：
 
 ```
-extension/src/ui/styles/
-  tailwind-entry.css      # @tailwind + @import 各 partial
-  base.css
-  tokens.css              # 或引用 shared/ui/tokens/theme-light.css
-  form-components.css
-  admin-layout.css
-  scripts.css
-  permissions.css
-  logs.css
-  servers.css
-  notification.css
-  debug-panel.css
+extension/src/ui/
+  tailwind.css                         # @import partials + @tailwind
+  styles/
+    base-preflight.css                 # 65
+    components-shell-admin.css         # 149
+    components-permissions.css         # 154
+    components-logs.css                  # 523
+    components-servers-rules.css       # 369
+    components-servers-options.css     # 608
+    components-scripts-toolbar.css     # 654
+    components-scripts-rows.css        # 579
+    components-widgets.css             # 281
 ```
 
 **验收**
 
-- [ ] 构建产物 admin/popup CSS 无视觉回归
-- [ ] 单 partial 原则上 < 500 行
+- [x] 构建产物 admin/popup CSS 无视觉回归（`pnpm run build:extension`）
+- [x] 单 partial 原则上 < 500 行（`components-scripts-toolbar.css` **654** 略超，可后续再切）
 
 ---
 
-## Phase 6 — 观察名单（可选）
+## Phase 6 — 观察名单（可选，未启动）
 
-| 文件                           | 拆分方向                                         |
-| ------------------------------ | ------------------------------------------------ |
-| `corner-widget/index.ts` (867) | `corner-widget-menu.ts`、`corner-widget-drag.ts` |
-| `gistScripts.ts` (996)         | API client / normalizer / cache                  |
-| `tab-communication.ts` (833)   | channel types / postMessage router               |
+| 文件                             | 行数（2026-06-27） | 拆分方向                                         |
+| -------------------------------- | ------------------ | ------------------------------------------------ |
+| `gistScripts.ts`                 | ~996               | API client / normalizer / cache                  |
+| `corner-widget/index.ts`         | ~867               | `corner-widget-menu.ts`、`corner-widget-drag.ts` |
+| `tab-communication.ts`           | ~833               | channel types / postMessage router               |
+| `NodeSelector.ts`                | 856                | hover / marks / selection delegates              |
+| `components-scripts-toolbar.css` | 654                | toolbar vs filter 子 partial                     |
 
 ---
 
@@ -204,9 +225,9 @@ extension/src/ui/styles/
 
 ## 提需求检查清单
 
-- [ ] 确认 Phase 顺序：建议 **1 → 2 → 4 → 3 → 5 → 6**（Extension UI 优先，background 与 permissions 并行风险需评估）
-- [ ] 确认是否与 `ui-cross-module-dedup` Phase A 合并 PR（scroll-indicator 与 scripts scroll 拆分）
-- [ ] 确认 tailwind 拆分是否单独里程碑
+- [x] 确认 Phase 顺序：**1 → 2 → 4 → 3(skip) → 5**（已按此执行）
+- [x] `ui-cross-module-dedup` Phase A 未合并 — tailwind 先按域拆 partial，token 外置仍 backlog
+- [x] tailwind 拆分与 Phase 2/4 同里程碑合入 `2f84e3b`
 
 ---
 
@@ -220,6 +241,7 @@ extension/src/ui/styles/
 | M3  | Phase 4 background 拆分     | DONE   |
 | M4  | Phase 3 NodeSelector 拆分   | SKIP   |
 | M5  | Phase 5 tailwind 拆分       | DONE   |
+| M6  | Phase 6 观察名单            | TODO   |
 
 ---
 

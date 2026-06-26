@@ -33,16 +33,16 @@ Generated files, global `.d.ts` aggregates, and test specs are excluded unless l
 - Target: single partial **≤ 500 lines** where practical; domain split preferred over fixed-size chunks.
 - Build check: `pnpm run build:extension` — `shell.css` size stable, no PostCSS `@import` order errors.
 
-### Current baseline (2026-06)
+### Current baseline (2026-06-27)
 
-| Area               | Status                               |
-| ------------------ | ------------------------------------ |
-| `mm-options-app`   | Split (main ≤ 600 lines)             |
-| `mm-scripts-app`   | Split (main ≤ 700 lines)             |
-| `background.ts`    | Split (entry ≤ 250 lines)            |
-| `tailwind.css`     | Split into `styles/` partials        |
-| `NodeSelector.ts`  | 856 lines — under 1000, optional     |
-| Phase 6 watch list | Not started (`gistScripts.ts`, etc.) |
+| Area               | Status                               | Lines (main) |
+| ------------------ | ------------------------------------ | ------------ |
+| `mm-options-app`   | Split                                | 404          |
+| `mm-scripts-app`   | Split                                | 610          |
+| `background.ts`    | Split                                | 98           |
+| `tailwind.css`     | Split into `styles/` partials        | 13 (entry)   |
+| `NodeSelector.ts`  | Watch — under 1000 threshold         | 856          |
+| Phase 6 watch list | Not started (`gistScripts.ts`, etc.) | —            |
 
 ---
 

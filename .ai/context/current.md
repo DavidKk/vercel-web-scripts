@@ -13,6 +13,9 @@ Harden extension shell (script permissions admin) + continue preset runtime Phas
 
 ## Recently landed (extension — keep docs aligned)
 
+- **Large file split** (2026-06-27): `tasks/done/large-file-split.md` — Phase 1–2、4–5 完成（background / mm-scripts / tailwind partials）
+- **CSS logical properties** (2026-06-27): `tasks/done/css-logical-properties-review.md` — P0–P2 完成；约定见 `rules/engineering-standards.md` §2
+- **preset-ui lazy load**: stale GM cache eviction + runtime core host resolution (`optional-ui.ts`, `runtime-core.ts`)
 - **Script permissions**: call-time gate (Tier 1), modal batching, registry + session + once history, Admin **Permissions** tab (`#permissions`) with search/filters and scripts deep link (`#scripts/script/…`)
 - Admin **Logs** tab: unified session debug buffer, filters, incognito badge/collection, Copy all
 - **HTML-only** launcher injection (`injection-gate.ts`)
@@ -34,8 +37,6 @@ Harden extension shell (script permissions admin) + continue preset runtime Phas
 3. Phase C: per-module hash compare, atomic switch, rollback (`tasks/active/current.md`)
 4. Extension: native module-loader to replace interim `page-launcher.js`
 5. UI dedup（待排期）: `tasks/backlog/ui-cross-module-dedup.md` + `specs/ui-cross-module-review.md`
-6. 大文件拆分（待排期）: `tasks/backlog/large-file-split.md`
-7. CSS 逻辑属性审查（待排期）: `tasks/backlog/css-logical-properties-review.md` — padding-inline 等用法与冗余声明
 
 ## Notes
 
