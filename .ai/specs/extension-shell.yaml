@@ -38,7 +38,7 @@ modules:
     path: extension/src/shell/permission-manager.ts
     shared: shared/script-permission.ts
     admin_tab: permissions
-    doc: tasks/active/script-permissions.md
+    doc: tasks/done/script-permissions.md
 
   - id: popup
     title: Toolbar popup

@@ -15,7 +15,7 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
   - Read: `specs/extension-shell.yaml`, `specs/extension-injection-policy.md`
   - Code: `extension/README.md`, `extension/TODO.md`
 - **Script permissions** (gate, modal, admin Permissions tab)
-  - Read: `tasks/active/script-permissions.md`
+  - Read: `tasks/done/script-permissions.md`
   - Code: `shared/script-permission.ts`, `extension/src/shell/permission-manager.ts`
 - **Editor lib（共享代码编辑器 OTA）**
   - Read: `tasks/done/editor-lib.md`, `public/docs/editor-lib-skill.md`, `.cursor/skills/editor-lib/SKILL.md`
@@ -32,9 +32,13 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 - **Gist script history & rollback** (editor version browse/restore — backlog)
   - Read: `tasks/backlog/gist-script-rollback.md`
 - **OTA publish policy** (SERVER per-script autoUpgrade / alpha / version lock)
-  - Read: `specs/ota-publish-policy.md`, `tasks/active/ota-publish-policy.md`
+  - Read: `specs/ota-publish-policy.md`, `tasks/done/ota-publish-policy.md`
+- **Runtime modularization** (Phase A–C done; Phase D backlog)
+  - Read: `tasks/done/runtime-modularization-phase-a-b-c.md`, `tasks/backlog/runtime-phase-d.md`
+- **Extension native loader** (OTA 编排去 TM 化 — backlog)
+  - Read: `tasks/backlog/extension-native-loader.md`, `extension/TODO.md` E25–E27
 - **Extension 本地 ZIP 自更新**（File System Access 绑定目录 + 内存解压写盘）
-  - Read: `tasks/active/extension-fs-update.md`
+  - Read: `tasks/backlog/extension-fs-update.md`
   - Code: `extension/src/shared/extension-update-check.ts`, `app/api/extension/version/route.ts`
 - **Multi-service / scriptKey / Connect**
   - Read: `extension/docs/multi-service-tasks.md` (repo path, not under `.ai/`)
@@ -50,29 +54,32 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 
 ## By topic
 
-| Topic                   | File                                          |
-| ----------------------- | --------------------------------------------- |
-| Preset runtime modules  | `specs/modules-registry.yaml`                 |
-| Extension shell modules | `specs/extension-shell.yaml`                  |
-| HTML-only injection     | `specs/extension-injection-policy.md`         |
-| Runtime split baseline  | `specs/runtime-modularization.md`             |
-| Compatibility policy    | `specs/runtime-compatibility.md`              |
-| OTA publish policy      | `specs/ota-publish-policy.md`                 |
-| Verification checklist  | `specs/runtime-verification-checklist.md`     |
-| Terminology             | `knowledge/glossary.md`                       |
-| Engineering standards   | `rules/engineering-standards.md`              |
-| Requirements process    | `workflow/requirements-audit.md`              |
-| Execution phases        | `workflow/module-development.md`              |
-| Active TODO             | `tasks/active/current.md`                     |
-| Script permissions      | `tasks/active/script-permissions.md`          |
-| OTA publish policy      | `tasks/active/ota-publish-policy.md`          |
-| Extension FS 自更新     | `tasks/active/extension-fs-update.md`         |
-| UI folder restructure   | `tasks/done/ui-folder-restructure.md`         |
-| UI cross-module review  | `specs/ui-cross-module-review.md`             |
-| Editor lib              | `tasks/done/editor-lib.md`                    |
-| Agent chat panel        | `tasks/backlog/agent-chat-panel.md`           |
-| UI cross-module dedup   | `tasks/backlog/ui-cross-module-dedup.md`      |
-| Large file split        | `tasks/done/large-file-split.md`              |
-| CSS logical properties  | `tasks/done/css-logical-properties-review.md` |
-| Gist script rollback    | `tasks/backlog/gist-script-rollback.md`       |
-| Project overview        | `context/summary.md`                          |
+| Topic                   | File                                               |
+| ----------------------- | -------------------------------------------------- |
+| Preset runtime modules  | `specs/modules-registry.yaml`                      |
+| Extension shell modules | `specs/extension-shell.yaml`                       |
+| HTML-only injection     | `specs/extension-injection-policy.md`              |
+| Runtime split baseline  | `specs/runtime-modularization.md`                  |
+| Compatibility policy    | `specs/runtime-compatibility.md`                   |
+| OTA publish policy      | `specs/ota-publish-policy.md`                      |
+| Verification checklist  | `specs/runtime-verification-checklist.md`          |
+| Terminology             | `knowledge/glossary.md`                            |
+| Engineering standards   | `rules/engineering-standards.md`                   |
+| Requirements process    | `workflow/requirements-audit.md`                   |
+| Execution phases        | `workflow/module-development.md`                   |
+| Active TODO             | `tasks/active/current.md`                          |
+| Runtime Phase A–C       | `tasks/done/runtime-modularization-phase-a-b-c.md` |
+| Script permissions      | `tasks/done/script-permissions.md`                 |
+| OTA publish policy      | `tasks/done/ota-publish-policy.md`                 |
+| Extension native loader | `tasks/backlog/extension-native-loader.md`         |
+| Runtime Phase D         | `tasks/backlog/runtime-phase-d.md`                 |
+| Extension FS 自更新     | `tasks/backlog/extension-fs-update.md`             |
+| UI folder restructure   | `tasks/done/ui-folder-restructure.md`              |
+| UI cross-module review  | `specs/ui-cross-module-review.md`                  |
+| Editor lib              | `tasks/done/editor-lib.md`                         |
+| Agent chat panel        | `tasks/backlog/agent-chat-panel.md`                |
+| UI cross-module dedup   | `tasks/backlog/ui-cross-module-dedup.md`           |
+| Large file split        | `tasks/done/large-file-split.md`                   |
+| CSS logical properties  | `tasks/done/css-logical-properties-review.md`      |
+| Gist script rollback    | `tasks/backlog/gist-script-rollback.md`            |
+| Project overview        | `context/summary.md`                               |

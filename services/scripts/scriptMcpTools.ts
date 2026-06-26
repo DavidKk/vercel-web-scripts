@@ -1,3 +1,4 @@
+import type { ScriptOtaPolicy } from '@shared/script-ota-policy'
 import { z } from 'zod'
 
 import { type Tool, tool } from '@/initializer/mcp/tool'
@@ -329,7 +330,16 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
       keywords: z.array(z.string()).optional(),
       ota: scriptOtaPolicySchema.optional(),
     }),
-    async (options) => updateManagedScriptIndexMetadata(options)
+    async (options) => {
+      const ota: Partial<ScriptOtaPolicy> | undefined =
+        options.ota == null
+          ? undefined
+          : {
+              ...options.ota,
+              lockedVersion: options.ota.lockedVersion ?? undefined,
+            }
+      return updateManagedScriptIndexMetadata({ ...options, ota })
+    }
   )
 
   const del = tool(

@@ -247,19 +247,17 @@ sequenceDiagram
 
 ---
 
-## 5. Current implementation snapshot
+## 5. Current implementation snapshot (2026-06-27)
 
-| Area                                        | Status      | Next step                 |
-| ------------------------------------------- | ----------- | ------------------------- |
-| Extension-native shell (background + popup) | **Missing** | E20–E23                   |
-| Extension-native module loader              | **Missing** | E25–E27 (replace TM port) |
-| Interim `launcher-runtime.ts` (TM port)     | Present     | Deprecate after E25       |
-| Fixed popup UX                              | Spec only   | E21                       |
-| Badge                                       | **Missing** | E23                       |
-| RULE + Options                              | **Missing** | E5–E9                     |
-| Scripts page (enable/disable)               | **Missing** | E28                       |
-| `GM_*` compat for page                      | Partial     | E16–E17                   |
-| TM launcher                                 | Unchanged   | No extension coupling     |
+| Area                                                         | Status                        |
+| ------------------------------------------------------------ | ----------------------------- |
+| Extension shell (background + popup + admin)                 | **DONE**                      |
+| Badge, RULE, Scripts/Servers/Logs/Permissions tabs           | **DONE**                      |
+| `GM_*` compat (XHR → background fetch)                       | **DONE**                      |
+| Interim `launcher-runtime.ts` (page-world OTA orchestration) | Present — **backlog** E25–E27 |
+| TM launcher                                                  | Independent path              |
+
+详见 `.ai/tasks/backlog/extension-native-loader.md`。
 
 ---
 
@@ -332,10 +330,10 @@ Status: `TODO` | `IN_PROGRESS` | `DONE` | `BLOCKED`
 
 ### Parallel (decoupled from extension shell)
 
-| ID         | Task                                         | Owner                         |
-| ---------- | -------------------------------------------- | ----------------------------- |
-| TM-\*      | Maintain `tampermonkey.user.js` for TM users | `services/tampermonkey/`      |
-| R-C*, R-D* | Server-side modular runtime                  | `.ai/tasks/active/current.md` |
+| ID         | Task                                         | Owner                                                                      |
+| ---------- | -------------------------------------------- | -------------------------------------------------------------------------- |
+| TM-\*      | Maintain `tampermonkey.user.js` for TM users | `services/tampermonkey/`                                                   |
+| R-C*, R-D* | Server-side modular runtime                  | `.ai/tasks/done/runtime-modularization-phase-a-b-c.md` (Phase D → backlog) |
 
 ---
 

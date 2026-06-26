@@ -1,7 +1,7 @@
 # OTA 发布策略（SERVER 权威 + 单 Gist）
 
 > 状态：**已评审，待实现**  
-> 任务跟踪：`../tasks/active/ota-publish-policy.md`
+> 任务跟踪：`../tasks/done/ota-publish-policy.md`
 
 ## 1. 背景与问题
 

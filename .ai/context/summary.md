@@ -16,18 +16,22 @@ Canonical list: `../specs/modules-registry.yaml`
 | Editor Lib    | ✅ Lazy optional CM6 editor (`ensureEditorLib` / `GME_ensureEditorLib`) |
 | Script Bundle | ✅ OTA remote bundle; aggregate path (match-modular Phase D)            |
 
-Phase A/B contracts and split foundation: **DONE** (see `../tasks/active/current.md`).
+Phase A/B/C: **DONE** — `../tasks/done/runtime-modularization-phase-a-b-c.md`.
 
-Phase C (per-module hash update / rollback) and Phase D (match-based script modules): **TODO**.
+Phase D (match-based script modules): **TODO** — `../tasks/backlog/runtime-phase-d.md`.
 
 ## Engineering / tech debt (2026-06-27)
 
-| Item                                 | Status | Doc                                                    |
-| ------------------------------------ | ------ | ------------------------------------------------------ |
-| Large file split (Phase 1–2, 4–5)    | DONE   | `tasks/done/large-file-split.md`                       |
-| CSS logical properties review        | DONE   | `tasks/done/css-logical-properties-review.md`          |
-| Preset UI lazy-load registration fix | DONE   | `optional-ui.ts`, `runtime-core.ts` (commit `2f84e3b`) |
-| UI cross-module dedup                | TODO   | `tasks/backlog/ui-cross-module-dedup.md`               |
+| Item                              | Status | Doc                                                |
+| --------------------------------- | ------ | -------------------------------------------------- |
+| Large file split (Phase 1–2, 4–5) | DONE   | `tasks/done/large-file-split.md`                   |
+| CSS logical properties review     | DONE   | `tasks/done/css-logical-properties-review.md`      |
+| Script permissions                | DONE   | `tasks/done/script-permissions.md`                 |
+| OTA publish policy                | DONE   | `tasks/done/ota-publish-policy.md`                 |
+| Runtime Phase A–C                 | DONE   | `tasks/done/runtime-modularization-phase-a-b-c.md` |
+| Extension native loader           | TODO   | `tasks/backlog/extension-native-loader.md`         |
+| Runtime Phase D                   | TODO   | `tasks/backlog/runtime-phase-d.md`                 |
+| UI cross-module dedup             | TODO   | `tasks/backlog/ui-cross-module-dedup.md`           |
 
 Normative rules: `rules/engineering-standards.md`.
 
@@ -35,18 +39,18 @@ Normative rules: `rules/engineering-standards.md`.
 
 Canonical map: `../specs/extension-shell.yaml`
 
-| Area                     | Status                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------- |
-| Multi-service            | ✅ Service list + scriptKey scope (see `extension/docs/multi-service-tasks.md`) |
-| Admin tabs               | ✅ Servers, Scripts, Rules, **Logs**, **Permissions** (`admin.html#…`)          |
-| Script permissions       | ✅ Tier-1 gate + modal; registry/session/once history; Admin edit + DEBUG       |
-| Popup                    | ✅ Shell toggle, log mode, reload extension (dev)                               |
-| Debug log viewer         | ✅ Session ring buffer; incognito collection gate; Copy all (TSV)               |
-| HTML-only inject         | ✅ `injection-gate.ts` — non-HTML docs skip launcher                            |
-| Scripts/Logs DEBUG       | ✅ Per-tab floating panels (`mm-*-debug-panel`)                                 |
-| Incognito script toggles | ✅ Separate storage fork for script enabled                                     |
-| Native module-loader     | 🔜 Replace interim page-launcher (see `extension/TODO.md`)                      |
-| Static asset rewrite     | 🔜 Planned separate module (not in launcher path)                               |
+| Area                     | Status                                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| Multi-service            | ✅ Service list + scriptKey scope (see `extension/docs/multi-service-tasks.md`)              |
+| Admin tabs               | ✅ Servers, Scripts, Rules, **Logs**, **Permissions** (`admin.html#…`)                       |
+| Script permissions       | ✅ Tier-1 gate + modal; registry/session/once history; Admin edit + DEBUG                    |
+| Popup                    | ✅ Shell toggle, log mode, reload extension (dev)                                            |
+| Debug log viewer         | ✅ Session ring buffer; incognito collection gate; Copy all (TSV)                            |
+| HTML-only inject         | ✅ `injection-gate.ts` — non-HTML docs skip launcher                                         |
+| Scripts/Logs DEBUG       | ✅ Per-tab floating panels (`mm-*-debug-panel`)                                              |
+| Incognito script toggles | ✅ Separate storage fork for script enabled                                                  |
+| Native module-loader     | 🔜 Backlog — `tasks/backlog/extension-native-loader.md` (XHR 已在 background；编排仍在 page) |
+| Static asset rewrite     | 🔜 Planned separate module (not in launcher path)                                            |
 
 ## Injection policy (important)
 

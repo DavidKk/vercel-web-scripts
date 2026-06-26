@@ -8,18 +8,18 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 
 ## MVP (current)
 
-| Feature                                                                          | Status |
-| -------------------------------------------------------------------------------- | ------ |
-| Toolbar **popup** (fixed menu on every tab)                                      | ✅     |
-| **Badge** — real trigger count; red background if any script failed on this load | ✅     |
-| **Background** — update / reset / network / open editor                          | ✅     |
-| **Scripts page** — enable/disable modules                                        | ✅     |
-| **Servers** — multi-service connections, OTA priority, develop flags             | ✅     |
-| Preset dev mode from Server URL (`localhost` → dev)                              | ✅     |
-| **Sync rules** from server → badge + script list                                 | ✅     |
-| Content bootstrap → OTA preset (interim loader)                                  | ✅     |
-| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅     |
-| Extension-native `module-loader` (replace TM port)                               | 🔜     |
+| Feature                                                                          | Status     |
+| -------------------------------------------------------------------------------- | ---------- |
+| Toolbar **popup** (fixed menu on every tab)                                      | ✅         |
+| **Badge** — real trigger count; red background if any script failed on this load | ✅         |
+| **Background** — update / reset / network / open editor                          | ✅         |
+| **Scripts page** — enable/disable modules                                        | ✅         |
+| **Servers** — multi-service connections, OTA priority, develop flags             | ✅         |
+| Preset dev mode from Server URL (`localhost` → dev)                              | ✅         |
+| **Sync rules** from server → badge + script list                                 | ✅         |
+| Content bootstrap → OTA preset (interim loader)                                  | ✅         |
+| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅         |
+| Extension-native `module-loader` (replace TM-port orchestration)                 | 🔜 backlog |
 
 ## Architecture
 

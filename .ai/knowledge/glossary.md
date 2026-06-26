@@ -93,7 +93,7 @@ Avoid alternative names unless explicitly mapping legacy wording.
   - Meaning: Tier-1 capabilities (`network`, clipboard, `open-tab`, `download`, `unsafe-window`) require modal allow/deny inside user-script scope.
   - **Scope** (UI): how long a grant lasts — `once` (audit only), `session` (this tab), `persistent` (always).
   - **Resource**: for `network`, the request URL host (not `location.hostname`).
-  - Doc: `tasks/active/script-permissions.md`.
+  - Doc: `tasks/done/script-permissions.md`.
 
 ## CSS conventions (Extension / Preset / WEB)
 
