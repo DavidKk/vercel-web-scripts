@@ -1,0 +1,369 @@
+@layer components {
+  .mm-servers-main {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-servers-status {
+    @apply hidden min-w-0 flex-1 truncate text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-servers-status:not(:empty) {
+    @apply block;
+  }
+
+  .mm-servers-body {
+    @apply grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(380px,480px)_minmax(0,1fr)] lg:grid-cols-[minmax(420px,520px)_minmax(0,1fr)];
+  }
+
+  .mm-rules-body {
+    @apply md:grid-cols-2 lg:grid-cols-2;
+  }
+
+  .mm-servers-list-pane {
+    @apply flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-mm-border-light bg-mm-canvas md:border-b-0 md:border-r;
+  }
+
+  .mm-rules-list-pane {
+    @apply bg-mm-canvas;
+  }
+
+  .mm-servers-pane-head {
+    @apply flex shrink-0 items-center justify-between gap-3 border-b border-mm-border-light bg-mm-surface px-4 py-3;
+  }
+
+  .mm-servers-pane-head-copy {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5;
+  }
+
+  .mm-servers-pane-title {
+    @apply m-0 min-w-0 truncate text-sm font-semibold leading-tight text-mm-ink;
+  }
+
+  .mm-servers-pane-desc {
+    @apply m-0 min-w-0 text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-servers-pane-desc:empty {
+    @apply hidden;
+  }
+
+  .mm-servers-pane-head-actions {
+    @apply flex shrink-0 items-center gap-1 self-center;
+  }
+
+  .mm-servers-list-scroll {
+    @apply flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2;
+  }
+
+  .mm-rules-list-scroll {
+    @apply bg-mm-canvas;
+  }
+
+  .mm-rules-list {
+    @apply flex min-h-0 flex-1 flex-col gap-1;
+  }
+
+  .mm-rules-list .mm-options-service-row {
+    @apply gap-1;
+  }
+
+  .mm-rules-list .mm-options-service-card {
+    @apply relative border-mm-border-light bg-white shadow-none;
+  }
+
+  .mm-rules-list .mm-options-service-card:hover {
+    @apply border-mm-accent/45 bg-mm-accent-soft/60;
+  }
+
+  .mm-rules-list .mm-options-service-card[aria-selected='true'] {
+    @apply border-mm-accent/60 bg-mm-accent-soft/70 ring-1 ring-mm-accent/30;
+  }
+
+  .mm-rules-list .mm-options-service-item-body {
+    @apply flex min-h-[60px] items-center gap-3 px-3.5 py-2;
+  }
+
+  .mm-rules-item-content {
+    @apply flex min-w-0 flex-1 flex-col justify-center gap-1;
+  }
+
+  .mm-rules-item-label {
+    @apply flex min-h-0 w-full items-center;
+  }
+
+  .mm-rules-script-text {
+    @apply inline-flex min-w-0 flex-1 items-center truncate text-[13px] leading-tight;
+  }
+
+  .mm-rules-file-text {
+    @apply ml-2 shrink-0 truncate font-mono text-[11px] leading-tight text-mm-text-muted;
+    max-width: 42%;
+  }
+
+  .mm-rules-mode-icon {
+    @apply inline-flex h-6 w-6 shrink-0 items-center justify-center self-center rounded-sm border;
+  }
+
+  .mm-rules-mode-icon .mm-icon-slot,
+  .mm-rules-mode-icon .mm-icon-slot svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-rules-mode-icon .mm-row-icon {
+    color: inherit;
+  }
+
+  .mm-rules-mode-icon.is-include {
+    border-color: rgb(16 185 129 / 0.35);
+    background-color: rgb(16 185 129 / 0.12);
+    color: rgb(4 120 87);
+  }
+
+  .mm-rules-mode-icon.is-exclude {
+    border-color: rgb(239 68 68 / 0.35);
+    background-color: rgb(239 68 68 / 0.16);
+    color: rgb(185 28 28);
+  }
+
+  .mm-rules-list .mm-options-service-item-meta.mm-rules-item-meta {
+    margin-top: 0;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.375rem;
+    @apply truncate font-mono text-[11px] leading-normal text-mm-secondary;
+  }
+
+  .mm-rules-item-meta > .mm-rules-pattern-icon {
+    @apply inline-flex h-2.5 w-2.5 shrink-0 items-center justify-center text-mm-label;
+  }
+
+  .mm-rules-item-meta > .mm-rules-pattern-icon svg {
+    @apply h-2.5 w-2.5 text-mm-label;
+  }
+
+  .mm-rules-pattern-text {
+    @apply inline-flex min-w-0 flex-1 items-center truncate leading-normal text-mm-secondary;
+  }
+
+  .mm-rules-empty {
+    @apply m-0 flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center;
+  }
+
+  .mm-servers-list-scroll.is-empty {
+    @apply items-center justify-center;
+  }
+
+  .mm-nodata-line {
+    @apply m-0 max-w-[15rem] px-2 text-center text-xs leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-icon-btn-sm {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .mm-icon-btn-sm .mm-icon-slot {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-icon-btn-sm .mm-icon-slot svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-servers-detail-pane {
+    @apply flex min-h-0 min-w-0 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-rules-detail-pane {
+    @apply border-l border-mm-border-light bg-white;
+  }
+
+  .mm-servers-detail-body {
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .mm-servers-detail-body.is-empty {
+    @apply bg-mm-surface;
+  }
+
+  .mm-nodata {
+    @apply flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center;
+  }
+
+  .mm-nodata-icon {
+    @apply mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-mm-muted text-mm-icon;
+  }
+
+  .mm-nodata-icon .mm-icon-slot {
+    @apply h-5 w-5;
+  }
+
+  .mm-nodata-icon .mm-icon-slot svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-nodata-title {
+    @apply m-0 text-sm font-medium text-mm-secondary;
+  }
+
+  .mm-nodata-hint {
+    @apply m-0 max-w-[16rem] text-xs leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-servers-detail-form {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .mm-servers-detail-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto;
+  }
+
+  /* Compact form: smaller controls; more space between label and field */
+  .mm-servers-detail-form .mm-options-section {
+    @apply gap-3 px-4 py-3 sm:px-4 sm:py-3;
+  }
+
+  .mm-servers-detail-form .mm-options-section-head {
+    @apply gap-2;
+  }
+
+  .mm-servers-detail-form .mm-options-section-title {
+    @apply text-xs font-semibold;
+  }
+
+  .mm-servers-detail-form .mm-options-section-meta {
+    @apply px-1.5 py-0.5 text-[10px];
+  }
+
+  .mm-servers-detail-form .mm-options-field-grid {
+    @apply gap-3;
+  }
+
+  .mm-servers-detail-form .mm-field-component {
+    @apply gap-2.5;
+  }
+
+  .mm-servers-detail-form .mm-label {
+    @apply text-xs font-semibold leading-snug text-mm-secondary;
+  }
+
+  .mm-servers-detail-form .mm-options-field .mm-native-input,
+  .mm-servers-detail-form .mm-options-field mm-input > input {
+    @apply h-8 rounded px-2.5 text-xs leading-normal;
+  }
+
+  .mm-servers-detail-form .mm-options-field mm-input > input.mm-input-script-key {
+    @apply font-mono tracking-tight;
+  }
+
+  .mm-servers-detail-form .mm-hint {
+    @apply mt-1.5 text-[11px] leading-snug;
+  }
+
+  .mm-servers-detail-form .mm-options-toggle-card {
+    @apply gap-3 border-mm-border-light bg-mm-muted px-3 py-2.5 hover:border-mm-accent/30 hover:bg-mm-accent-soft;
+  }
+
+  .mm-servers-detail-form .mm-options-toggle-title {
+    @apply text-xs font-semibold leading-tight;
+  }
+
+  .mm-servers-detail-form .mm-options-toggle-text {
+    @apply mt-0.5 text-[11px] leading-snug;
+  }
+
+  .mm-servers-detail-form .mm-switch-control {
+    @apply h-[18px] w-8;
+  }
+
+  .mm-servers-detail-form .mm-switch-track {
+    @apply h-[18px] w-8;
+  }
+
+  .mm-servers-detail-form .mm-switch-thumb {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-servers-detail-form .mm-switch-input:checked ~ .mm-switch-thumb {
+    transform: translateX(0.875rem);
+  }
+
+  .mm-servers-form-actions {
+    @apply flex shrink-0 items-center gap-3 border-t border-mm-border-light bg-mm-surface px-4 py-2.5 sm:px-4;
+  }
+
+  .mm-servers-form-actions-btns {
+    @apply ml-auto flex shrink-0 items-center justify-end gap-1.5;
+  }
+
+  .mm-servers-form-actions > mm-button {
+    @apply inline-flex shrink-0;
+  }
+
+  .mm-servers-form-actions .mm-button-native,
+  .mm-servers-form-actions mm-button > button {
+    @apply h-7 whitespace-nowrap px-3 text-xs;
+  }
+
+  /* Shared admin panel toolbar — search, select, and button controls share one height. */
+  .mm-panel-toolbar {
+    --mm-panel-toolbar-h: 2.25rem;
+    @apply flex min-w-0 max-w-full shrink-0 flex-nowrap items-center justify-end gap-1.5;
+  }
+
+  .mm-permissions-head .mm-panel-toolbar {
+    @apply ml-auto;
+  }
+
+  .mm-panel-toolbar > mm-input {
+    @apply block w-[11rem] min-w-[8.5rem] shrink-0;
+  }
+
+  .mm-panel-toolbar > mm-select {
+    @apply block w-auto min-w-[7.5rem] max-w-[9.5rem] shrink-0;
+  }
+
+  .mm-panel-toolbar > mm-button {
+    @apply inline-flex shrink-0;
+  }
+
+  .mm-panel-toolbar mm-input > input,
+  .mm-panel-toolbar .mm-native-input,
+  .mm-panel-toolbar .mm-native-select,
+  .mm-panel-toolbar .mm-select-trigger,
+  .mm-panel-toolbar mm-button > button,
+  .mm-panel-toolbar .mm-button-native {
+    @apply box-border shrink-0 rounded px-2.5 text-xs font-medium leading-none;
+    height: var(--mm-panel-toolbar-h);
+  }
+
+  .mm-panel-toolbar mm-input:has(.mm-input-icon) > input,
+  .mm-panel-toolbar .mm-input-with-icon .mm-native-input {
+    @apply pl-9;
+  }
+
+  .mm-panel-toolbar .mm-input-icon {
+    @apply left-2.5 h-4 w-4;
+  }
+
+  .mm-panel-toolbar .mm-input-icon svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-panel-toolbar .mm-select-trigger {
+    @apply w-full;
+  }
+
+  .mm-panel-toolbar mm-button[variant='secondary'] > button {
+    @apply text-mm-text-muted;
+  }
+
+  .mm-panel-toolbar mm-button > button .mm-icon-slot {
+    @apply h-3.5 w-3.5 shrink-0;
+  }
+
+  .mm-panel-toolbar mm-button.mm-panel-toolbar-btn-danger > button:hover {
+    @apply bg-red-50 text-red-700;
+    box-shadow: 0 0 0 1px theme('colors.red.200');
+  }
+}

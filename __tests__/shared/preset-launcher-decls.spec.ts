@@ -10,9 +10,11 @@ describe('preset-launcher-decls', () => {
     expect(PRESET_LAUNCHER_SANDBOX_DECL_NAMES).toEqual(['__GLOBAL__', '__VWS_SCRIPT_KEY__'])
   })
 
-  it('buildPresetUiExecDecls stages __GLOBAL__ for optional UI eval', () => {
-    expect(buildPresetUiExecDecls()).toContain('var __GLOBAL__ = global;')
-    expect(buildPresetUiExecDecls()).toContain('global.__GLOBAL__ = global;')
+  it('buildPresetUiExecDecls stages __GLOBAL__ and __VWS_CORE__ for optional UI eval', () => {
+    const decls = buildPresetUiExecDecls()
+    expect(decls).toContain('var __GLOBAL__ = global;')
+    expect(decls).toContain('global.__GLOBAL__ = global;')
+    expect(decls).toContain('var __VWS_CORE__ = global.__VWS_CORE__;')
   })
 
   it('isLikelyPresetUiBundle rejects stubs and accepts UI tags', () => {

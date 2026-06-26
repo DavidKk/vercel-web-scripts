@@ -20,6 +20,8 @@ This file is the rule index for AI tasks in this repository.
   - Read `specs/extension-shell.yaml` and `specs/extension-injection-policy.md`
 - Need project-level context
   - Read `context/summary.md` (stable) or `context/current.md` (focus)
+- Code structure / CSS hygiene (refactor, file size, Tailwind partials)
+  - Read `rules/engineering-standards.md`
 
 ## One-line reminders
 

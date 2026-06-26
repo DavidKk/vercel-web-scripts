@@ -1,0 +1,149 @@
+@layer components {
+  mm-field,
+  mm-input,
+  mm-select,
+  mm-button,
+  mm-switch,
+  mm-checkbox {
+    @apply inline-flex shrink-0;
+  }
+
+  mm-options-app,
+  mm-scripts-app,
+  mm-rules-app,
+  mm-logs-app {
+    @apply flex min-h-0 w-full flex-1 flex-col;
+  }
+
+  .mm-tooltip {
+    @apply pointer-events-none fixed z-[10000] max-w-[min(calc(100vw-16px),14rem)] rounded-md border border-mm-border bg-mm-ink px-2.5 py-1.5 text-xs leading-snug text-white shadow-mm;
+    visibility: hidden;
+  }
+
+  .mm-tooltip.is-visible {
+    visibility: visible;
+  }
+
+  .mm-tooltip.is-wide {
+    @apply max-w-[min(calc(100vw-16px),28rem)] break-all font-mono normal-case;
+  }
+
+  [data-mm-tooltip] {
+    @apply select-text;
+  }
+
+  [data-mm-tooltip].mm-switch,
+  [data-mm-tooltip].mm-icon-btn-sm,
+  [data-mm-tooltip].mm-icon-btn {
+    @apply select-none;
+  }
+
+  mm-scripts-app[data-loading] {
+    @apply flex min-h-0 w-full flex-1 flex-col;
+  }
+
+  mm-scripts-app[data-loading] .mm-admin-page {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app[data-loading] .mm-scripts-main {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app[data-loading] .mm-scripts-body {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app [data-ref='skeleton'] {
+    @apply hidden;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='skeleton'] {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  mm-scripts-app [data-ref='toolbar-skeleton'] {
+    @apply hidden;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='toolbar'] {
+    @apply hidden;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='toolbar-skeleton'] {
+    @apply flex;
+  }
+
+  mm-scripts-app[data-loading] [data-ref='list-head'],
+  mm-scripts-app[data-loading] [data-ref='scroll-shell'],
+  mm-scripts-app[data-loading] [data-ref='empty'],
+  mm-scripts-app[data-loading] [data-ref='error'],
+  mm-scripts-app[data-loading] [data-ref='footer'] {
+    @apply hidden;
+  }
+
+  .mm-shell {
+    @apply relative bg-mm-canvas font-sans text-sm text-mm-ink antialiased;
+  }
+
+  .mm-popup-shell {
+    /* Anchor for .mm-popup-toast (absolute bottom-0). */
+    @apply relative;
+  }
+
+  .mm-page {
+    @apply flex min-h-screen w-full flex-col bg-mm-canvas;
+  }
+
+  .mm-admin-page {
+    @apply flex min-h-screen w-full flex-col bg-mm-canvas;
+  }
+
+  .mm-page-header {
+    @apply relative flex shrink-0 items-center gap-3 border-b border-mm-border-light bg-mm-surface px-5 py-3 shadow-mm-sm;
+  }
+
+  .mm-admin-header {
+    @apply relative z-20 flex h-[60px] shrink-0 flex-row flex-nowrap items-center justify-between gap-4 border-b border-solid border-mm-border-light bg-mm-surface px-4 py-0;
+  }
+
+  .mm-admin-brand {
+    @apply flex min-w-0 items-center gap-2.5 p-0;
+  }
+
+  .mm-admin-brand-copy {
+    @apply flex min-w-0 flex-col items-start justify-center gap-px p-0 text-left;
+  }
+
+  .mm-admin-brand img {
+    @apply block h-8 w-8 shrink-0 rounded-md shadow-mm-sm ring-1 ring-mm-border-light;
+  }
+
+  mm-admin-tabs {
+    @apply ml-auto shrink-0;
+  }
+
+  .mm-page-header-title {
+    @apply text-base font-semibold leading-tight tracking-normal text-mm-ink sm:text-lg;
+  }
+
+  .mm-page-header-subtitle {
+    @apply mt-0.5 text-xs text-mm-text-muted sm:text-sm;
+  }
+
+  .mm-page-main {
+    @apply flex flex-1 flex-col px-6 py-6 sm:px-8 sm:py-8;
+  }
+
+  .mm-admin-main {
+    @apply mx-auto flex w-full max-w-[720px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-5;
+  }
+
+  .mm-admin-main-wide {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3 sm:px-4;
+  }
+
+  .mm-scripts-main {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+}

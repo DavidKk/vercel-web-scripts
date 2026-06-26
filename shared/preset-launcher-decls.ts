@@ -23,7 +23,10 @@ export function buildPresetLauncherDecls(presetVarNames: readonly string[]): str
 export function buildPresetUiExecDecls(): string {
   // Match preset-core launcher decls: `var __GLOBAL__` hoists to the user-script IIFE scope so
   // nested preset-ui bundle functions resolve the staged sandbox via closure (not only via with()).
-  return ['var __GLOBAL__ = global;', 'global.__GLOBAL__ = global;'].join('\n')
+  // Mirror __VWS_CORE__ for strict IIFE bundles that cannot see outer `var` bindings.
+  return ['var __GLOBAL__ = global;', 'global.__GLOBAL__ = global;', 'var __VWS_CORE__ = global.__VWS_CORE__;', 'if (__VWS_CORE__) { global.__VWS_CORE__ = __VWS_CORE__; }'].join(
+    '\n'
+  )
 }
 
 /**

@@ -25,10 +25,10 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
   - Related: `.cursor/skills/scripts-api-mcp/SKILL.md`, `public/docs/scripts-ai-skill.md`
 - **UI cross-module dedup** (WEB / Extension / Preset shared layer — backlog)
   - Read: `specs/ui-cross-module-review.md`, `tasks/backlog/ui-cross-module-dedup.md`
-- **Large file split** (>1000 lines → same-folder modules — backlog)
-  - Read: `tasks/backlog/large-file-split.md`
-- **CSS logical properties review** (padding/margin/logical CSS — backlog)
-  - Read: `tasks/backlog/css-logical-properties-review.md`
+- **Large file split** (same-folder modules — done baseline)
+  - Read: `rules/engineering-standards.md` §1, `tasks/done/large-file-split.md`
+- **CSS logical properties review** (padding/margin/logical CSS — done baseline)
+  - Read: `rules/engineering-standards.md` §2, `tasks/done/css-logical-properties-review.md`
 - **Gist script history & rollback** (editor version browse/restore — backlog)
   - Read: `tasks/backlog/gist-script-rollback.md`
 - **OTA publish policy** (SERVER per-script autoUpgrade / alpha / version lock)
@@ -50,28 +50,29 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 
 ## By topic
 
-| Topic                   | File                                             |
-| ----------------------- | ------------------------------------------------ |
-| Preset runtime modules  | `specs/modules-registry.yaml`                    |
-| Extension shell modules | `specs/extension-shell.yaml`                     |
-| HTML-only injection     | `specs/extension-injection-policy.md`            |
-| Runtime split baseline  | `specs/runtime-modularization.md`                |
-| Compatibility policy    | `specs/runtime-compatibility.md`                 |
-| OTA publish policy      | `specs/ota-publish-policy.md`                    |
-| Verification checklist  | `specs/runtime-verification-checklist.md`        |
-| Terminology             | `knowledge/glossary.md`                          |
-| Requirements process    | `workflow/requirements-audit.md`                 |
-| Execution phases        | `workflow/module-development.md`                 |
-| Active TODO             | `tasks/active/current.md`                        |
-| Script permissions      | `tasks/active/script-permissions.md`             |
-| OTA publish policy      | `tasks/active/ota-publish-policy.md`             |
-| Extension FS 自更新     | `tasks/active/extension-fs-update.md`            |
-| UI folder restructure   | `tasks/done/ui-folder-restructure.md`            |
-| UI cross-module review  | `specs/ui-cross-module-review.md`                |
-| Editor lib              | `tasks/done/editor-lib.md`                       |
-| Agent chat panel        | `tasks/backlog/agent-chat-panel.md`              |
-| UI cross-module dedup   | `tasks/backlog/ui-cross-module-dedup.md`         |
-| Large file split        | `tasks/backlog/large-file-split.md`              |
-| CSS logical properties  | `tasks/backlog/css-logical-properties-review.md` |
-| Gist script rollback    | `tasks/backlog/gist-script-rollback.md`          |
-| Project overview        | `context/summary.md`                             |
+| Topic                   | File                                          |
+| ----------------------- | --------------------------------------------- |
+| Preset runtime modules  | `specs/modules-registry.yaml`                 |
+| Extension shell modules | `specs/extension-shell.yaml`                  |
+| HTML-only injection     | `specs/extension-injection-policy.md`         |
+| Runtime split baseline  | `specs/runtime-modularization.md`             |
+| Compatibility policy    | `specs/runtime-compatibility.md`              |
+| OTA publish policy      | `specs/ota-publish-policy.md`                 |
+| Verification checklist  | `specs/runtime-verification-checklist.md`     |
+| Terminology             | `knowledge/glossary.md`                       |
+| Engineering standards   | `rules/engineering-standards.md`              |
+| Requirements process    | `workflow/requirements-audit.md`              |
+| Execution phases        | `workflow/module-development.md`              |
+| Active TODO             | `tasks/active/current.md`                     |
+| Script permissions      | `tasks/active/script-permissions.md`          |
+| OTA publish policy      | `tasks/active/ota-publish-policy.md`          |
+| Extension FS 自更新     | `tasks/active/extension-fs-update.md`         |
+| UI folder restructure   | `tasks/done/ui-folder-restructure.md`         |
+| UI cross-module review  | `specs/ui-cross-module-review.md`             |
+| Editor lib              | `tasks/done/editor-lib.md`                    |
+| Agent chat panel        | `tasks/backlog/agent-chat-panel.md`           |
+| UI cross-module dedup   | `tasks/backlog/ui-cross-module-dedup.md`      |
+| Large file split        | `tasks/done/large-file-split.md`              |
+| CSS logical properties  | `tasks/done/css-logical-properties-review.md` |
+| Gist script rollback    | `tasks/backlog/gist-script-rollback.md`       |
+| Project overview        | `context/summary.md`                          |

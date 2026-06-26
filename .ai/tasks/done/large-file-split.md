@@ -1,6 +1,6 @@
 # 大文件拆分 — task thread
 
-Status: **TODO**（需求待提 / 待排期；仅建立任务，**不改代码**）
+Status: **DONE** (2026-06-27 — Phase 1–2、4–5 完成；Phase 3 NodeSelector 856 行未超 1000 阈值跳过；Phase 6 观察名单未做)
 
 规则（来自需求）：
 
@@ -215,11 +215,11 @@ extension/src/ui/styles/
 | ID  | 条件                        | Status |
 | --- | --------------------------- | ------ |
 | M0  | 扫描 + 本 task              | DONE   |
-| M1  | Phase 1 mm-options-app 拆分 | TODO   |
-| M2  | Phase 2 mm-scripts-app 拆分 | TODO   |
-| M3  | Phase 4 background 拆分     | TODO   |
-| M4  | Phase 3 NodeSelector 拆分   | TODO   |
-| M5  | Phase 5 tailwind 拆分       | TODO   |
+| M1  | Phase 1 mm-options-app 拆分 | DONE   |
+| M2  | Phase 2 mm-scripts-app 拆分 | DONE   |
+| M3  | Phase 4 background 拆分     | DONE   |
+| M4  | Phase 3 NodeSelector 拆分   | SKIP   |
+| M5  | Phase 5 tailwind 拆分       | DONE   |
 
 ---
 

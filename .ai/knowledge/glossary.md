@@ -94,3 +94,11 @@ Avoid alternative names unless explicitly mapping legacy wording.
   - **Scope** (UI): how long a grant lasts — `once` (audit only), `session` (this tab), `persistent` (always).
   - **Resource**: for `network`, the request URL host (not `location.hostname`).
   - Doc: `tasks/active/script-permissions.md`.
+
+## CSS conventions (Extension / Preset / WEB)
+
+- **Default (LTR)**: physical Tailwind utilities — `pl/pr/pt/pb/px/py`, `ml/mr`, `text-left/right`.
+- **RTL-ready components** (if added later): use `ps/pe/ms/me`, `text-start/end`, `border-s/e` consistently.
+- **Do not** combine `px-*` with `pl-*`/`pr-*` on the same rule (use `pl-* pr-*` when sides differ).
+- **CSS variables**: use `-left/-right` with physical utilities, or `-start/-end` with logical utilities (`ps/pe`); do not mix naming styles.
+- **`padding-inline` / `padding-block`**: only when symmetric logical padding is intentional; vertical spacing uses `py-*` or `padding-block`.

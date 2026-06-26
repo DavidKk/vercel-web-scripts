@@ -69,8 +69,7 @@
 /* Progress bar adds a second line — top-align icon/close with message */
 .notification:has(.notification__progress) {
   align-items: flex-start;
-  padding-top: 11px;
-  padding-bottom: 11px;
+  padding-block: 11px;
 }
 
 .notification:has(.notification__progress) .notification__icon,

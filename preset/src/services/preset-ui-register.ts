@@ -1,5 +1,5 @@
 import { createGMELogger } from '@/helpers/logger'
-import { ensureRuntimeCore } from '@/services/runtime-core'
+import { resolveRuntimeCoreForRegistration } from '@/services/runtime-core'
 import { GME_openCommandPalette, GME_registerCommandPaletteCommand } from '@/ui/command-palette/index'
 import { GME_openLogViewer } from '@/ui/log-viewer/index'
 import {
@@ -33,7 +33,7 @@ export function registerPresetUiModule(): void {
       return 'error'
     }
   })()
-  const core = ensureRuntimeCore()
+  const core = resolveRuntimeCoreForRegistration()
   GME_debug(
     `[ModuleLoad][preset-ui] debug:register:start globalDecl=${globalDecl} core=${core && typeof core.register === 'function' ? 'ok' : 'missing'} preset-ui=${typeof core?.get === 'function' && core.get('preset-ui') ? 'already' : 'no'}`
   )

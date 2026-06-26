@@ -1,5 +1,6 @@
 import { executeWithGlobal, executeWithGlobalResilient, isCspEvalError, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { buildPresetUiExecDecls, isLikelyPresetUiBundle } from '@shared/preset-launcher-decls'
+import { isStaticModuleCacheStale } from '@shared/static-module-url'
 
 import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
@@ -316,7 +317,7 @@ async function executeOptionalUiContent(content: string, sourceUrl?: string): Pr
     const mode = isExtensionPageContext() ? await executeWithGlobalResilient(g, body, { preferUserScript: true }) : executeWithGlobal(g, body)
     GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:mode=${mode}`)
     debugPresetUiRuntimeState('execute:after-sync', g, core)
-    const loaded = readRegisteredPresetUi(core) || readRegisteredPresetUiFromGlobal(g)
+    const loaded = readRegisteredPresetUiFromGlobal(g) || readRegisteredPresetUi(core)
     if (!loaded) {
       reportFinishedWithoutRegister()
     }
@@ -335,7 +336,7 @@ async function executeOptionalUiContent(content: string, sourceUrl?: string): Pr
         return null
       }
       synchronizeRuntimeCoreHosts(g)
-      const loaded = readRegisteredPresetUi(core) || readRegisteredPresetUiFromGlobal(g)
+      const loaded = readRegisteredPresetUiFromGlobal(g) || readRegisteredPresetUi(core)
       if (!loaded) {
         debugPresetUiRuntimeState('execute:finished-without-register', g, core)
         reportFinishedWithoutRegister()
@@ -422,10 +423,11 @@ async function ensureOptionalUiOnce(): Promise<OptionalUiApi | null> {
   }
 
   // Prefer local cache for instant availability; refresh in background when network is on.
+  const manifestUrl = isShellNetworkEnabled() ? await resolvePresetUiScriptUrl() : null
   const cache = readOptionalUiCache()
   if (cache?.content) {
-    if (!isLikelyPresetUiBundle(cache.content)) {
-      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-stale clearing invalid cached bytes=${cache.content.length}`)
+    if (!isLikelyPresetUiBundle(cache.content) || isStaticModuleCacheStale(cache.url, manifestUrl, 'preset-ui.js')) {
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-stale clearing invalid or outdated cached bytes=${cache.content.length}`)
       clearOptionalUiCache()
     } else {
       GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-first bytes=${cache.content.length} url=${shortUrlLabel(cache.url, 120) || '(none)'}`)
@@ -435,9 +437,8 @@ async function ensureOptionalUiOnce(): Promise<OptionalUiApi | null> {
         void refreshOptionalUiInBackground(cache)
         return loadedFromCache
       }
-      // Valid cached bundle already consumed one CSP user-script attempt — do not fetch and re-execute the same bytes.
-      void refreshOptionalUiInBackground(cache)
-      return null
+      GME_debug(`${OPTIONAL_UI_LOG_PREFIX} load:cache-register-failed clearing cache and retrying network`)
+      clearOptionalUiCache()
     }
   }
 
@@ -482,9 +483,9 @@ async function ensureOptionalUiOnce(): Promise<OptionalUiApi | null> {
       return null
     }
     const etag = String(response.headers.get('etag') || '').trim()
-    writeOptionalUiCache(content, url, etag)
     const loaded = await executeOptionalUiContent(content, url)
     if (loaded) {
+      writeOptionalUiCache(content, url, etag)
       GME_debug(`${OPTIONAL_UI_LOG_PREFIX} execute:success`)
     }
     return loaded

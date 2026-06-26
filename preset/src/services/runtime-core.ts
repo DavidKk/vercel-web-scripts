@@ -30,10 +30,48 @@ const RUNTIME_CORE_VERSION = 1
  * @returns Shared global object
  */
 function getRuntimeGlobal(): Record<string, unknown> {
-  if (typeof __GLOBAL__ !== 'undefined') return __GLOBAL__ as unknown as Record<string, unknown>
-  if (typeof globalThis !== 'undefined') return globalThis as unknown as Record<string, unknown>
-  if (typeof window !== 'undefined') return window as unknown as Record<string, unknown>
+  if (typeof __GLOBAL__ !== 'undefined') {
+    return __GLOBAL__ as unknown as Record<string, unknown>
+  }
+  if (typeof window !== 'undefined') {
+    const w = window as unknown as Record<string, unknown>
+    const stagedGlobal = w.__GLOBAL__
+    if (stagedGlobal && typeof stagedGlobal === 'object') {
+      return stagedGlobal as Record<string, unknown>
+    }
+  }
+  if (typeof globalThis !== 'undefined') {
+    return globalThis as unknown as Record<string, unknown>
+  }
+  if (typeof window !== 'undefined') {
+    return window as unknown as Record<string, unknown>
+  }
   return {}
+}
+
+/**
+ * Resolve the runtime core used when an optional module bundle registers itself.
+ * Prefers mirrored {@link RUNTIME_CORE_KEY} on window / launcher sandbox before creating a new registry.
+ * @returns Runtime core API instance
+ */
+export function resolveRuntimeCoreForRegistration(): RuntimeCoreApi {
+  const hosts: Record<string, unknown>[] = []
+  if (typeof __GLOBAL__ !== 'undefined') {
+    hosts.push(__GLOBAL__ as unknown as Record<string, unknown>)
+  }
+  if (typeof window !== 'undefined') {
+    const w = window as unknown as Record<string, unknown>
+    if (!hosts.includes(w)) {
+      hosts.push(w)
+    }
+  }
+  for (const host of hosts) {
+    const mirrored = host[RUNTIME_CORE_KEY] as RuntimeCoreApi | undefined
+    if (mirrored && typeof mirrored.register === 'function') {
+      return mirrored
+    }
+  }
+  return ensureRuntimeCore()
 }
 
 /**

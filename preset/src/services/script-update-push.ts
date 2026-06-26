@@ -10,6 +10,7 @@ import {
   SCRIPT_UPDATE_PUSH_PENDING_KEY,
 } from '@shared/ota-passive-update'
 
+import { GME_debug } from '@/helpers/logger'
 import { isEditorPage } from '@/services/dev-mode/constants'
 import { clearAllRuntimeGmCachesInPage } from '@/services/launcher-bootstrap-storage'
 import { getScriptUpdate } from '@/services/script-update'

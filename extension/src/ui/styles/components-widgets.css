@@ -1,0 +1,281 @@
+@layer components {
+  .mm-scroll-indicator-shell {
+    @apply relative min-h-0 min-w-0;
+  }
+
+  .mm-scroll-indicator-scroller {
+    scrollbar-width: none;
+  }
+
+  .mm-scroll-indicator-scroller::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .mm-scroll-indicator-track {
+    @apply pointer-events-none absolute bottom-1 right-0 top-1 w-px overflow-hidden bg-mm-border-light/50;
+  }
+
+  .mm-scroll-indicator-thumb {
+    @apply absolute left-0 top-0 block w-full bg-mm-secondary/40;
+    transition:
+      height 120ms ease,
+      transform 80ms linear,
+      opacity 160ms ease;
+  }
+
+  .mm-search-select-empty {
+    @apply px-2 py-2 text-xs text-mm-text-muted;
+  }
+
+  /* Buttons: match light DOM in HTML before scripts.js adds component classes */
+  mm-button,
+  .mm-button-component {
+    @apply inline-flex;
+  }
+
+  mm-button[block],
+  .mm-button-component[block] {
+    @apply flex w-full;
+  }
+
+  mm-button > button,
+  .mm-button-native {
+    @apply flex h-8 items-center justify-center gap-2 rounded px-3 text-[13px] font-semibold leading-none transition active:brightness-95;
+    border: none;
+    box-shadow: none;
+    background-image: none;
+  }
+
+  mm-button[variant='primary'] > button,
+  .mm-button-component[variant='primary'] .mm-button-native {
+    @apply bg-mm-accent text-white hover:bg-mm-accent-hover;
+  }
+
+  mm-button[variant='secondary'] > button,
+  .mm-button-component[variant='secondary'] .mm-button-native {
+    @apply bg-mm-surface text-mm-secondary hover:bg-mm-accent-soft;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  mm-button[variant='secondary'] > button:hover,
+  .mm-button-component[variant='secondary'] .mm-button-native:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  mm-button[variant='ghost'] > button,
+  .mm-button-component[variant='ghost'] .mm-button-native {
+    @apply text-mm-secondary shadow-none hover:bg-mm-muted;
+  }
+
+  mm-button[variant='danger'] > button,
+  .mm-button-component[variant='danger'] .mm-button-native {
+    @apply bg-mm-danger text-white hover:brightness-95;
+  }
+
+  mm-button[variant='warn'] > button,
+  .mm-button-component[variant='warn'] .mm-button-native {
+    @apply bg-mm-warn text-white hover:bg-mm-warn-hover;
+  }
+
+  mm-button[block] > button,
+  .mm-button-component[block] .mm-button-native {
+    @apply w-full;
+  }
+
+  mm-button > button:disabled,
+  .mm-button-native:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  mm-input,
+  .mm-input-component {
+    @apply relative block;
+  }
+
+  mm-input:has(.mm-input-icon) > input,
+  .mm-input-with-icon .mm-native-input {
+    @apply pl-9;
+  }
+
+  mm-input:has(.mm-input-action) > input,
+  .mm-input-with-action .mm-native-input {
+    @apply pr-9;
+  }
+
+  .mm-input-action {
+    @apply absolute right-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-mm-icon transition hover:bg-mm-muted hover:text-mm-secondary;
+  }
+
+  .mm-input-action .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  mm-input > input.mm-input-script-key {
+    @apply font-mono text-xs tracking-tight;
+  }
+
+  mm-input > input {
+    @apply box-border block h-9 w-full rounded border-0 bg-mm-surface px-3 text-sm leading-normal text-mm-ink placeholder:text-mm-text-muted;
+    outline: none;
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  mm-input > input:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  mm-input > input:focus {
+    @apply bg-mm-surface;
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  mm-input:focus-within .mm-input-icon,
+  .mm-input-component:focus-within .mm-input-icon {
+    @apply text-mm-accent;
+  }
+
+  mm-select,
+  .mm-select-component {
+    @apply relative block;
+  }
+
+  .mm-switch-component {
+    @apply inline-flex cursor-pointer items-center gap-3;
+  }
+
+  .mm-switch-control {
+    @apply relative inline-block h-5 w-9 shrink-0;
+  }
+
+  .mm-switch-component .mm-switch-input {
+    @apply sr-only;
+  }
+
+  .mm-switch-component .mm-switch-track {
+    @apply block h-5 w-9 rounded-full bg-mm-border transition-colors;
+  }
+
+  .mm-switch-component .mm-switch-input:checked + .mm-switch-track {
+    background: linear-gradient(90deg, #2563eb, #8b5cf6);
+  }
+
+  .mm-switch-component .mm-switch-thumb {
+    @apply pointer-events-none absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-mm-surface shadow-mm-sm ring-1 ring-mm-border-light/80 transition-transform;
+  }
+
+  .mm-switch-component .mm-switch-input:checked ~ .mm-switch-thumb {
+    transform: translateX(1rem);
+  }
+
+  .mm-switch-label {
+    @apply min-w-0 flex-1 text-sm leading-snug text-mm-secondary;
+  }
+
+  .mm-footer {
+    @apply flex items-center justify-between gap-2 border-t border-mm-border-light bg-mm-surface px-3 py-2;
+  }
+
+  .mm-popup-footer {
+    @apply justify-center px-2.5 py-0.5;
+  }
+
+  .mm-popup-footer-version {
+    @apply flex w-full min-h-[10px] items-center justify-center gap-0.5 font-mono text-[10px] leading-[10px] tabular-nums text-mm-text-muted;
+  }
+
+  .mm-popup-footer-version-text {
+    @apply inline-block min-h-[10px] whitespace-nowrap;
+  }
+
+  .mm-popup-footer-version-text.mm-popup-footer-version-loading {
+    @apply text-mm-text-muted;
+  }
+
+  .mm-popup-footer-update {
+    @apply cursor-pointer border-0 bg-transparent p-0 font-mono text-[10px] leading-none text-mm-accent hover:underline;
+  }
+
+  /* Quick add local rule — match main popup row / settings typography (13px). */
+  .mm-popup-rules-view mm-input > input,
+  .mm-popup-rules-view .mm-select-trigger,
+  .mm-popup-rules-view .mm-search-select-trigger {
+    @apply h-8 text-[13px] leading-none;
+  }
+
+  .mm-popup-rules-view .mm-primary-btn {
+    @apply py-2 text-[13px] font-semibold leading-none;
+  }
+
+  .mm-badge {
+    @apply shrink-0 rounded-sm bg-mm-muted px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-mm-text-muted ring-1 ring-mm-border-light;
+  }
+
+  mm-notification-host,
+  .mm-notification-host {
+    @apply pointer-events-none fixed right-3 top-[4.5rem] z-[99999] flex w-[min(calc(100vw-1.5rem),20rem)] flex-col gap-2;
+  }
+
+  .mm-notification-stack {
+    @apply flex flex-col gap-2;
+  }
+
+  .mm-notification {
+    @apply pointer-events-auto flex items-center gap-2.5 rounded-lg border bg-white px-3 py-2.5 text-sm leading-snug text-mm-ink shadow-mm opacity-0 transition-all duration-300 ease-out;
+    transform: translateY(-0.35rem);
+  }
+
+  .mm-notification.is-visible {
+    @apply opacity-100;
+    transform: translateY(0);
+  }
+
+  .mm-notification-icon {
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center;
+  }
+
+  .mm-notification-icon-svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-notification-icon-svg path {
+    fill: currentColor;
+  }
+
+  .mm-notification-message {
+    @apply m-0 min-w-0 flex-1;
+  }
+
+  .mm-notification-success {
+    @apply border-mm-success/35;
+  }
+
+  .mm-notification-success .mm-notification-icon-svg {
+    @apply text-mm-success;
+  }
+
+  .mm-notification-error {
+    @apply border-mm-danger/35;
+  }
+
+  .mm-notification-error .mm-notification-icon-svg {
+    @apply text-mm-danger;
+  }
+
+  .mm-notification-info {
+    @apply border-mm-accent/35;
+  }
+
+  .mm-notification-info .mm-notification-icon-svg {
+    @apply text-mm-accent;
+  }
+
+  .mm-notification-warn {
+    @apply border-mm-warn/45;
+  }
+
+  .mm-notification-warn .mm-notification-icon-svg {
+    @apply text-mm-warn;
+  }
+}

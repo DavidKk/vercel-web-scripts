@@ -2,68 +2,29 @@ import { isDebugLogViewerIncognito } from '@ext/shared/debug-log-utils'
 import { ACCEPT_ALPHA_PREFIX } from '@ext/shared/extension-multi-service-pure'
 import {
   INCOGNITO_SCRIPT_ENABLED_PREFIX,
-  loadScriptEnabledMapForScriptKey,
-  loadScriptInstalledMapForScriptKey,
-  loadScriptKeyScriptsGroupsFromCache,
   parseScriptEnabledStorageKey,
   parseScriptInstalledStorageKey,
   SCRIPT_ENABLED_PREFIX,
   SCRIPT_INSTALLED_PREFIX,
   SCRIPTKEY_LIST_CACHE_PREFIX,
-  type ScriptKeyScriptsGroupView,
   setScriptEnabled,
-  setScriptInstalled,
-  syncScriptKeyScriptsListIfNeeded,
 } from '@ext/shared/extension-storage'
-import { parseAcceptAlphaStorageKey, readAcceptAlphaMapForScriptKey, setAcceptAlphaForScript } from '@ext/shared/extension-storage/accept-alpha'
-import { navigateExtensionPage } from '@ext/shared/focus-or-open-tab'
+import { parseAcceptAlphaStorageKey, setAcceptAlphaForScript } from '@ext/shared/extension-storage/accept-alpha'
 import { SERVICES_STORAGE_KEY } from '@ext/types'
-import { LEGACY_SCRIPT_OTA_DEFAULTS, type ScriptOtaPolicy } from '@shared/script-ota-policy'
-import { computeScrollThumbMetrics } from '@shared/ui/scroll-indicator'
 
 import { type AdminRoute, buildAdminHash, parseAdminHash } from '../admin/mm-admin-hash'
 import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
 import type { MmSearchSelect } from '../mm-form-components/mm-search-select'
 import { hydrateMmIcons } from '../mm-icons'
-import { buildRulesPageScriptUrl } from '../rules/mm-rules-hash'
-import { formatScriptUpdatedAt } from '../shared/mm-format-relative-time'
 import { createMmScriptsSwitch } from '../shared/mm-scripts-switch'
 import { MmToast } from '../shared/mm-toast'
 import { initMmTooltipDelegation, updateMmTooltip } from '../shared/mm-tooltip'
 import { computeScriptsFooterStats, formatScriptsFooterText } from './mm-scripts-footer'
-import { createMockScriptKeyScriptsGroups, getScriptsDebugOverrides, subscribeScriptsDebug } from './scripts-debug-state'
-
-const STAGE_BADGE_CLASS: Record<'stable' | 'alpha', string> = {
-  stable: 'mm-script-stage-badge mm-script-stage-badge--stable',
-  alpha: 'mm-script-stage-badge mm-script-stage-badge--alpha',
-}
-
-type ScriptRow = {
-  scriptKey: string
-  file: string
-  label: string
-  description?: string
-  icon?: string
-  version?: string
-  author?: string
-  contentHash?: string
-  updatedAt?: number
-  /** SERVER OTA policy (resolved defaults when omitted in index). */
-  ota: ScriptOtaPolicy
-  /** Per scriptKey: subscribe to alpha bundle artifacts. */
-  acceptAlpha: boolean
-  serviceLabel: string
-  serviceUrl: string
-  installed: boolean
-  enabled: boolean
-  groupActive: boolean
-  /** Stable server list order within scriptKey group. */
-  sortIndex: number
-}
-
-type ScriptKeyGroupView = ScriptKeyScriptsGroupView & {
-  rows: ScriptRow[]
-}
+import { reloadList } from './mm-scripts-list-data'
+import { renderGroupRows } from './mm-scripts-row-render'
+import { bindScrollIndicator, updateScrollIndicator } from './mm-scripts-scroll'
+import type { ScriptKeyGroupView, ScriptRow } from './mm-scripts-types'
+import { subscribeScriptsDebug } from './scripts-debug-state'
 
 /**
  * Scripts page — scriptKey-grouped scroll list.
@@ -71,22 +32,22 @@ type ScriptKeyGroupView = ScriptKeyScriptsGroupView & {
 export class MmScriptsApp extends HTMLElement {
   private bound = false
   private storageListener: ((changes: Record<string, chrome.storage.StorageChange>, area: string) => void) | undefined
-  private enabledByKey = new Map<string, boolean>()
-  private groups: ScriptKeyGroupView[] = []
+  enabledByKey = new Map<string, boolean>()
+  groups: ScriptKeyGroupView[] = []
   private unsubscribeDebug: (() => void) | undefined
-  private scrollResizeObserver: ResizeObserver | undefined
-  private reloadToken = 0
+  scrollResizeObserver: ResizeObserver | undefined
+  reloadToken = 0
   private pendingScriptFocus: { scriptKey: string; file: string } | null = null
   private focusFilterClearedOnce = false
   private unsubscribeAdminView: (() => void) | undefined
   private masterSwitchInput: HTMLInputElement | null = null
   private masterSwitchRoot: HTMLLabelElement | null = null
   private bulkToggleInProgress = false
-  private installToggleInProgress = false
-  private readonly acceptAlphaByFile = new Map<string, boolean>()
-  private readonly scriptTogglesIncognito = isDebugLogViewerIncognito()
-  private readonly handleListScroll = (): void => this.updateScrollIndicator()
-  private readonly toast = new MmToast(document)
+  installToggleInProgress = false
+  readonly acceptAlphaByFile = new Map<string, boolean>()
+  readonly scriptTogglesIncognito = isDebugLogViewerIncognito()
+  readonly handleListScroll = (): void => updateScrollIndicator(this)
+  readonly toast = new MmToast(document)
 
   connectedCallback(): void {
     if (this.bound) {
@@ -97,14 +58,14 @@ export class MmScriptsApp extends HTMLElement {
     this.prepareInitialLoadingShell()
     this.bindEvents()
     this.syncServiceFilterOptions()
-    this.bindScrollIndicator()
+    bindScrollIndicator(this, this)
     this.unsubscribeAdminView = subscribeAdminViewActivated('scripts', (route) => {
       this.captureScriptFocusFromRoute(route)
-      void this.reloadList({ showShell: true })
+      void reloadList(this, this, { showShell: true })
     })
 
     this.unsubscribeDebug = subscribeScriptsDebug(() => {
-      void this.reloadList({ showShell: true })
+      void reloadList(this, this, { showShell: true })
     })
 
     this.storageListener = (changes, area) => {
@@ -189,7 +150,7 @@ export class MmScriptsApp extends HTMLElement {
         return
       }
       if (keys.some((k) => k.startsWith(SCRIPTKEY_LIST_CACHE_PREFIX) || k === SERVICES_STORAGE_KEY)) {
-        void this.reloadList({ showShell: true })
+        void reloadList(this, this, { showShell: true })
       }
     }
     chrome.storage.onChanged.addListener(this.storageListener)
@@ -207,7 +168,7 @@ export class MmScriptsApp extends HTMLElement {
     this.scrollResizeObserver?.disconnect()
   }
 
-  private enabledMapKey(scriptKey: string, file: string): string {
+  enabledMapKey(scriptKey: string, file: string): string {
     return `${scriptKey}:${file}`
   }
 
@@ -218,148 +179,11 @@ export class MmScriptsApp extends HTMLElement {
     return key.startsWith(SCRIPT_ENABLED_PREFIX)
   }
 
-  private wrapScriptTextCell(column: 'index' | 'name' | 'release' | 'file' | 'service', inner: HTMLElement): HTMLDivElement {
-    const cell = document.createElement('div')
-    cell.className = `mm-script-cell mm-script-cell--${column}`
-    cell.append(inner)
-    return cell
-  }
-
-  private renderNameCell(item: ScriptRow): HTMLDivElement {
-    const cell = document.createElement('div')
-    cell.className = 'mm-script-cell mm-script-cell--name'
-
-    const block = document.createElement('div')
-    block.className = 'mm-script-name-block'
-
-    const iconWrap = document.createElement('div')
-    iconWrap.className = 'mm-script-name-icon'
-    if (item.icon) {
-      const img = document.createElement('img')
-      img.className = 'mm-script-name-icon-img'
-      img.src = item.icon
-      img.alt = ''
-      img.loading = 'lazy'
-      img.decoding = 'async'
-      iconWrap.append(img)
-    } else {
-      iconWrap.classList.add('mm-script-name-icon--fallback')
-      const slot = document.createElement('span')
-      slot.className = 'mm-icon-slot'
-      slot.setAttribute('data-icon', 'scripts')
-      iconWrap.append(slot)
-    }
-
-    const text = document.createElement('div')
-    text.className = 'mm-script-name-text'
-
-    const nameText = item.label || item.file
-    const titleLine = document.createElement('div')
-    titleLine.className = 'mm-script-name-title'
-
-    const nameInner = document.createElement('span')
-    nameInner.className = 'mm-script-name'
-    nameInner.textContent = nameText
-    titleLine.append(nameInner)
-
-    const authorText = item.author?.trim()
-    if (authorText) {
-      const authorInner = document.createElement('span')
-      authorInner.className = 'mm-script-author-suffix'
-      authorInner.textContent = ` @${authorText}`
-      titleLine.append(authorInner)
-    }
-
-    text.append(titleLine)
-
-    const descriptionText = item.description?.trim()
-    if (descriptionText) {
-      const descriptionInner = document.createElement('span')
-      descriptionInner.className = 'mm-script-description'
-      descriptionInner.textContent = descriptionText
-      text.append(descriptionInner)
-    }
-
-    block.append(iconWrap, text)
-    cell.append(block)
-    return cell
-  }
-
-  private renderReleaseCell(item: ScriptRow): HTMLDivElement {
-    const cell = document.createElement('div')
-    cell.className = 'mm-script-cell mm-script-cell--release'
-
-    const inner = document.createElement('div')
-    inner.className = 'mm-script-release-inner'
-
-    const versionLine = document.createElement('div')
-    versionLine.className = 'mm-script-version-line'
-
-    const versionText = item.version?.trim() ?? ''
-    const versionInner = document.createElement('span')
-    versionInner.className = 'mm-script-version'
-    versionInner.textContent = versionText || '—'
-    versionLine.append(versionInner)
-
-    const stageBadge = document.createElement('span')
-    stageBadge.className = STAGE_BADGE_CLASS[item.ota.stage]
-    stageBadge.textContent = item.ota.stage === 'alpha' ? 'ALP' : 'STB'
-    versionLine.append(stageBadge)
-
-    if (item.ota.autoUpgrade === false) {
-      const autoBadge = document.createElement('span')
-      autoBadge.className = 'mm-script-stage-badge mm-script-stage-badge--manual'
-      autoBadge.textContent = 'MAN'
-      autoBadge.title = 'Auto-upgrade disabled (server policy)'
-      versionLine.append(autoBadge)
-    }
-
-    if (item.ota.lockedVersion) {
-      const lockBadge = document.createElement('span')
-      lockBadge.className = 'mm-script-lock-badge'
-      lockBadge.textContent = `🔒 ${item.ota.lockedVersion}`
-      lockBadge.title = `Fleet-locked to version ${item.ota.lockedVersion}`
-      versionLine.append(lockBadge)
-    }
-
-    inner.append(versionLine)
-
-    const updatedLabel = formatScriptUpdatedAt(item.updatedAt)
-    const updatedInner = document.createElement('span')
-    updatedInner.className = 'mm-script-updated'
-    updatedInner.textContent = updatedLabel
-    inner.append(updatedInner)
-
-    cell.append(inner)
-    return cell
-  }
-
-  private renderOtaCell(item: ScriptRow): HTMLDivElement {
-    const cell = document.createElement('div')
-    cell.className = 'mm-script-cell mm-script-cell--ota'
-
-    const { root: switchRoot, input } = createMmScriptsSwitch({
-      variant: 'stable-alpha',
-      checked: item.acceptAlpha,
-      disabled: !item.groupActive,
-    })
-    this.setOtaSwitchTooltip(switchRoot, input, item)
-    if (item.groupActive) {
-      input.addEventListener('change', () => {
-        this.setOtaSwitchTooltip(switchRoot, input, item)
-        void this.handleAcceptAlphaToggle(item.scriptKey, item.file, input.checked)
-      })
-    }
-
-    cell.append(switchRoot)
-    return cell
-  }
-
-  private acceptAlphaMapKey(scriptKey: string, file: string): string {
+  acceptAlphaMapKey(scriptKey: string, file: string): string {
     return `${scriptKey}:${file}`
   }
 
-  private async handleAcceptAlphaToggle(scriptKey: string, file: string, acceptAlpha: boolean): Promise<void> {
+  async handleAcceptAlphaToggle(scriptKey: string, file: string, acceptAlpha: boolean): Promise<void> {
     await setAcceptAlphaForScript(scriptKey, file, acceptAlpha)
     const mapKey = this.acceptAlphaMapKey(scriptKey, file)
     this.acceptAlphaByFile.set(mapKey, acceptAlpha)
@@ -373,208 +197,6 @@ export class MmScriptsApp extends HTMLElement {
     this.applyFilters()
   }
 
-  private renderRow(item: ScriptRow, index: number): HTMLElement {
-    const row = document.createElement('div')
-    row.className = 'mm-script-row'
-    row.dataset.scriptKey = item.scriptKey
-    row.dataset.scriptFile = item.file
-    if (!item.groupActive) {
-      row.classList.add('mm-script-row--inactive')
-    }
-
-    const indexInner = document.createElement('span')
-    indexInner.className = 'mm-script-index'
-    indexInner.textContent = String(index + 1)
-
-    const fileInner = document.createElement('span')
-    fileInner.className = 'mm-script-file'
-    fileInner.textContent = item.file
-
-    const installBtn = this.renderInstallButton(item)
-
-    const rulesLink = document.createElement('button')
-    rulesLink.type = 'button'
-    rulesLink.className = 'mm-script-rules-link mm-icon-btn-sm'
-    rulesLink.setAttribute('aria-label', 'Manage local rules for this script')
-    rulesLink.setAttribute('data-mm-tooltip', 'Manage local rules')
-    rulesLink.disabled = !item.groupActive || !item.installed
-    this.applyScriptTooltipPlacement(rulesLink)
-    const rulesIcon = document.createElement('span')
-    rulesIcon.className = 'mm-icon-slot'
-    rulesIcon.setAttribute('data-icon', 'rulesManage')
-    rulesLink.append(rulesIcon)
-    rulesLink.addEventListener('click', (event) => {
-      event.stopPropagation()
-      navigateExtensionPage(buildRulesPageScriptUrl(item.scriptKey, item.file))
-    })
-
-    const actionsCell = document.createElement('div')
-    actionsCell.className = 'mm-script-cell mm-script-cell--actions'
-    actionsCell.append(rulesLink, installBtn)
-
-    const rowChildren: HTMLElement[] = [
-      this.wrapScriptTextCell('index', indexInner),
-      this.renderNameCell(item),
-      this.wrapScriptTextCell('file', fileInner),
-      this.renderReleaseCell(item),
-      this.renderOtaCell(item),
-      this.renderServiceCell(item),
-      actionsCell,
-    ]
-
-    if (item.installed) {
-      const switchDisabled = !item.groupActive
-      const { root: switchRoot, input } = createMmScriptsSwitch({ variant: 'on-off', checked: item.enabled, disabled: switchDisabled })
-      this.setSwitchTooltip(switchRoot, input, item)
-      rowChildren.push(switchRoot)
-
-      if (item.groupActive) {
-        const applyToggle = (): void => {
-          void (async () => {
-            const enabled = input.checked
-            await setScriptEnabled(item.scriptKey, item.file, enabled, { incognito: this.scriptTogglesIncognito })
-            this.enabledByKey.set(this.enabledMapKey(item.scriptKey, item.file), enabled)
-            item.enabled = enabled
-            this.setSwitchTooltip(switchRoot, input, item)
-            this.applyFilters()
-            this.toast.show(enabled ? `Enabled ${item.file}` : `Disabled ${item.file}`, 'success')
-          })()
-        }
-
-        input.addEventListener('change', applyToggle)
-      }
-    }
-
-    row.append(...rowChildren)
-
-    return row
-  }
-
-  private renderInstallButton(item: ScriptRow): HTMLButtonElement {
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = `mm-script-install-btn mm-icon-btn-sm ${item.installed ? 'is-installed' : 'is-uninstalled'}`
-    btn.disabled = !item.groupActive
-    const icon = document.createElement('span')
-    icon.className = 'mm-icon-slot'
-    icon.setAttribute('data-icon', item.installed ? 'uninstall' : 'install')
-    btn.append(icon)
-
-    if (item.installed) {
-      btn.setAttribute('aria-label', 'Uninstall script')
-      btn.setAttribute('data-mm-tooltip', 'Uninstall script')
-    } else {
-      btn.setAttribute('aria-label', 'Install script')
-      btn.setAttribute('data-mm-tooltip', 'Install script')
-    }
-    this.applyScriptTooltipPlacement(btn)
-
-    btn.addEventListener('click', (event) => {
-      event.stopPropagation()
-      void this.applyInstallToggle(item, btn, icon)
-    })
-
-    return btn
-  }
-
-  private async applyInstallToggle(item: ScriptRow, btn: HTMLButtonElement, icon: HTMLElement): Promise<void> {
-    if (!item.groupActive) {
-      return
-    }
-
-    const nextInstalled = !item.installed
-    btn.disabled = true
-    this.installToggleInProgress = true
-    try {
-      if (nextInstalled) {
-        await setScriptInstalled(item.scriptKey, item.file, true)
-        await setScriptEnabled(item.scriptKey, item.file, true, { incognito: this.scriptTogglesIncognito })
-        item.installed = true
-        item.enabled = true
-      } else {
-        await setScriptInstalled(item.scriptKey, item.file, false, item.contentHash)
-        await setScriptEnabled(item.scriptKey, item.file, false, { incognito: this.scriptTogglesIncognito })
-        item.installed = false
-        item.enabled = false
-      }
-      this.enabledByKey.set(this.enabledMapKey(item.scriptKey, item.file), item.enabled)
-      this.applyFilters()
-      this.toast.show(nextInstalled ? `Installed ${item.file}` : `Uninstalled ${item.file}`, 'success')
-    } finally {
-      this.installToggleInProgress = false
-      btn.disabled = false
-      btn.classList.toggle('is-installed', item.installed)
-      btn.classList.toggle('is-uninstalled', !item.installed)
-      icon.setAttribute('data-icon', item.installed ? 'uninstall' : 'install')
-      hydrateMmIcons(btn)
-      if (item.installed) {
-        btn.setAttribute('aria-label', 'Uninstall script')
-        updateMmTooltip(btn, 'Uninstall script', 'bottom')
-      } else {
-        btn.setAttribute('aria-label', 'Install script')
-        updateMmTooltip(btn, 'Install script', 'bottom')
-      }
-    }
-  }
-
-  private applyScriptTooltipPlacement(el: HTMLElement): void {
-    el.setAttribute('data-mm-tooltip-placement', 'bottom')
-    el.setAttribute('data-mm-tooltip-align', 'center')
-    el.setAttribute('data-mm-tooltip-no-flip', '')
-  }
-
-  private setSwitchTooltip(root: HTMLLabelElement, input: HTMLInputElement, item: ScriptRow): void {
-    const text = !item.groupActive ? 'Service disabled — enable in Servers' : !item.installed ? 'Install script first' : input.checked ? 'Disable script' : 'Enable script'
-    this.applyScriptTooltipPlacement(root)
-    updateMmTooltip(root, text, 'bottom')
-    input.setAttribute('aria-label', text)
-  }
-
-  private setOtaSwitchTooltip(root: HTMLLabelElement, input: HTMLInputElement, item: ScriptRow): void {
-    const text = !item.groupActive ? 'Service disabled — enable in Servers' : input.checked ? 'Use stable' : 'Use alpha'
-    this.applyScriptTooltipPlacement(root)
-    updateMmTooltip(root, text, 'bottom')
-    input.setAttribute('aria-label', text)
-  }
-
-  private renderServiceCell(item: ScriptRow): HTMLDivElement {
-    const cell = document.createElement('div')
-    cell.className = 'mm-script-cell mm-script-cell--service'
-
-    if (!item.serviceUrl) {
-      const inner = document.createElement('span')
-      inner.className = 'mm-script-service'
-      inner.textContent = item.serviceLabel
-      if (item.serviceLabel) {
-        inner.title = item.serviceLabel
-      }
-      cell.append(inner)
-      return cell
-    }
-
-    const link = document.createElement('a')
-    link.className = 'mm-script-service mm-script-service-link'
-    link.href = item.serviceUrl
-    link.target = '_blank'
-    link.rel = 'noopener noreferrer'
-    link.textContent = item.serviceLabel || item.serviceUrl
-    link.setAttribute('data-mm-tooltip', 'Open service in new tab')
-    this.applyScriptTooltipPlacement(link)
-    link.addEventListener('click', (event) => {
-      event.stopPropagation()
-    })
-    cell.append(link)
-    return cell
-  }
-
-  private renderGroupRows(rows: ScriptRow[], startIndex: number): DocumentFragment {
-    const fragment = document.createDocumentFragment()
-    for (let offset = 0; offset < rows.length; offset++) {
-      fragment.appendChild(this.renderRow(rows[offset], startIndex + offset))
-    }
-    return fragment
-  }
-
   private mountMasterSwitch(): void {
     const slot = this.querySelector('[data-ref="list-head"] [data-ref="master-switch"]') as HTMLElement | null
     if (!slot || slot.querySelector('.mm-scripts-switch')) {
@@ -586,11 +208,17 @@ export class MmScriptsApp extends HTMLElement {
     slot.append(root)
     this.masterSwitchRoot = root
     this.masterSwitchInput = input
-    this.applyScriptTooltipPlacement(root)
+    this.applyMasterSwitchTooltipPlacement(root)
 
     input.addEventListener('change', () => {
       void this.applyBulkScriptToggle(input.checked)
     })
+  }
+
+  private applyMasterSwitchTooltipPlacement(root: HTMLLabelElement): void {
+    root.setAttribute('data-mm-tooltip-placement', 'bottom')
+    root.setAttribute('data-mm-tooltip-align', 'center')
+    root.setAttribute('data-mm-tooltip-no-flip', '')
   }
 
   private getActiveScriptRows(): ScriptRow[] {
@@ -692,7 +320,7 @@ export class MmScriptsApp extends HTMLElement {
     return this.querySelector('[data-ref="service-select"]') as MmSearchSelect | null
   }
 
-  private syncServiceFilterOptions(): void {
+  syncServiceFilterOptions(): void {
     const select = this.getServiceSelect()
     if (!select) {
       return
@@ -709,22 +337,7 @@ export class MmScriptsApp extends HTMLElement {
     select.setValue(next)
   }
 
-  private bindScrollIndicator(): void {
-    const scroller = this.querySelector('[data-ref="scroller"]') as HTMLElement | null
-    const content = this.querySelector('[data-ref="content"]') as HTMLElement | null
-    if (!scroller) {
-      return
-    }
-    scroller.addEventListener('scroll', this.handleListScroll, { passive: true })
-    this.scrollResizeObserver = new ResizeObserver(() => this.updateScrollIndicator())
-    this.scrollResizeObserver.observe(scroller)
-    if (content) {
-      this.scrollResizeObserver.observe(content)
-    }
-    this.updateScrollIndicator()
-  }
-
-  private setLoading(loading: boolean): void {
+  setLoading(loading: boolean): void {
     if (loading) {
       this.setAttribute('data-loading', '')
     } else {
@@ -770,7 +383,7 @@ export class MmScriptsApp extends HTMLElement {
   }
 
   /** Show skeleton and hide list before any async storage/API work. */
-  private showLoadingShell(): void {
+  showLoadingShell(): void {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
     this.setLoading(true)
@@ -779,7 +392,7 @@ export class MmScriptsApp extends HTMLElement {
     errorEl?.classList.add('hidden')
   }
 
-  private presentError(message: string): void {
+  presentError(message: string): void {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
     this.groups = []
@@ -795,7 +408,7 @@ export class MmScriptsApp extends HTMLElement {
     }
   }
 
-  private presentEmpty(html: string): void {
+  presentEmpty(html: string): void {
     const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
     const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
     this.groups = []
@@ -811,7 +424,7 @@ export class MmScriptsApp extends HTMLElement {
     this.syncScriptsFooter()
   }
 
-  private setListVisible(visible: boolean): void {
+  setListVisible(visible: boolean): void {
     const listHead = this.querySelector('[data-ref="list-head"]') as HTMLElement | null
     const scrollShell = this.querySelector('[data-ref="scroll-shell"]') as HTMLElement | null
     if (listHead) {
@@ -819,160 +432,10 @@ export class MmScriptsApp extends HTMLElement {
       listHead.setAttribute('aria-hidden', visible ? 'false' : 'true')
     }
     scrollShell?.classList.toggle('hidden', !visible)
-    this.updateScrollIndicator()
+    updateScrollIndicator(this)
   }
 
-  private async reloadList(options?: { showShell?: boolean }): Promise<void> {
-    const token = ++this.reloadToken
-    const emptyEl = this.querySelector('[data-ref="empty"]') as HTMLElement | null
-
-    if (!emptyEl) {
-      return
-    }
-
-    const debug = getScriptsDebugOverrides()
-
-    if (debug.forceLoading) {
-      this.showLoadingShell()
-      return
-    }
-
-    if (token !== this.reloadToken) {
-      return
-    }
-
-    if (debug.forceError !== null) {
-      this.presentError(debug.forceError || debug.errorMessage)
-      return
-    }
-
-    if (debug.mockSampleRows) {
-      await this.applyScriptGroups(createMockScriptKeyScriptsGroups(), emptyEl)
-      this.setLoading(false)
-      return
-    }
-
-    const cachedGroups = await loadScriptKeyScriptsGroupsFromCache()
-    if (token !== this.reloadToken) {
-      return
-    }
-
-    if (debug.forceEmpty) {
-      const hasServices = cachedGroups.length > 0
-      const hint = hasServices
-        ? 'No script files on the server. Add <code class="font-mono text-[11px]">.js</code> / <code class="font-mono text-[11px]">.ts</code> files in the editor (rules JSON is not listed here).'
-        : 'Configure <strong class="font-medium text-mm-secondary">Servers</strong> (server URL and script key), then reload this page.'
-      this.presentEmpty(hint)
-      return
-    }
-
-    const hasAnyScripts = cachedGroups.some((g) => g.scripts.length > 0)
-    if (cachedGroups.length > 0 && hasAnyScripts) {
-      await this.applyScriptGroups(cachedGroups, emptyEl)
-      this.setLoading(false)
-    } else if (options?.showShell) {
-      this.showLoadingShell()
-    }
-
-    for (const group of cachedGroups) {
-      if (!group.active) {
-        continue
-      }
-      const fresh = await syncScriptKeyScriptsListIfNeeded(group.scriptKey)
-      if (token !== this.reloadToken) {
-        return
-      }
-      if (fresh && fresh.length > 0) {
-        const nextGroups = cachedGroups.map((g) => (g.scriptKey === group.scriptKey ? { ...g, scripts: fresh } : g))
-        await this.applyScriptGroups(nextGroups, emptyEl)
-        this.setLoading(false)
-      }
-    }
-
-    if (cachedGroups.length === 0) {
-      this.presentEmpty('Configure <strong class="font-medium text-mm-secondary">Servers</strong> (server URL and script key), then reload this page.')
-      return
-    }
-
-    if (!hasAnyScripts) {
-      this.presentEmpty(
-        'No script files on the server. Add <code class="font-mono text-[11px]">.js</code> / <code class="font-mono text-[11px]">.ts</code> files in the editor (rules JSON is not listed here).'
-      )
-    }
-  }
-
-  private async applyScriptGroups(groups: ScriptKeyScriptsGroupView[], emptyEl: HTMLElement): Promise<void> {
-    const debug = getScriptsDebugOverrides()
-    const totalScripts = groups.reduce((sum, g) => sum + g.scripts.length, 0)
-    if (totalScripts === 0) {
-      this.groups = []
-      this.syncServiceFilterOptions()
-      this.setListVisible(false)
-      this.renderGroups([])
-      return
-    }
-
-    emptyEl.classList.add('hidden')
-    const errorEl = this.querySelector('[data-ref="error"]') as HTMLElement | null
-    errorEl?.classList.add('hidden')
-
-    const nextGroups: ScriptKeyGroupView[] = []
-    let globalSortIndex = 0
-    for (const group of groups) {
-      const groupActive = group.active && !debug.forceInactiveGroups
-      const enabledByName = await loadScriptEnabledMapForScriptKey(
-        group.scriptKey,
-        group.scripts.map((s) => s.file),
-        { incognito: this.scriptTogglesIncognito }
-      )
-      const installedByName = await loadScriptInstalledMapForScriptKey(
-        group.scriptKey,
-        group.scripts.map((s) => s.file),
-        new Map(group.scripts.map((s) => [s.file, s.contentHash]))
-      )
-      const serviceLabel = group.primaryServiceLabel
-      const serviceUrl = group.editorBaseUrl.trim().replace(/\/+$/, '')
-      const acceptAlphaMap = await readAcceptAlphaMapForScriptKey(
-        group.scriptKey,
-        group.scripts.map((s) => s.file)
-      )
-      const rows: ScriptRow[] = group.scripts.map((s) => {
-        const installed = installedByName.get(s.file) !== false
-        const enabled = installed && enabledByName.get(s.file) !== false
-        this.enabledByKey.set(this.enabledMapKey(group.scriptKey, s.file), enabled)
-        const ota = s.ota ?? LEGACY_SCRIPT_OTA_DEFAULTS
-        const acceptAlpha = acceptAlphaMap.get(s.file) === true
-        this.acceptAlphaByFile.set(this.acceptAlphaMapKey(group.scriptKey, s.file), acceptAlpha)
-        return {
-          scriptKey: group.scriptKey,
-          file: s.file,
-          label: s.name,
-          description: s.description,
-          icon: s.icon,
-          version: s.version,
-          author: s.author,
-          contentHash: s.contentHash,
-          updatedAt: s.updatedAt,
-          ota,
-          acceptAlpha,
-          serviceLabel,
-          serviceUrl,
-          installed,
-          enabled,
-          groupActive,
-          sortIndex: globalSortIndex++,
-        }
-      })
-      nextGroups.push({ ...group, rows })
-    }
-
-    this.groups = nextGroups
-    this.syncServiceFilterOptions()
-    this.setListVisible(true)
-    this.applyFilters()
-  }
-
-  private applyFilters(): void {
+  applyFilters(): void {
     const search = ((this.querySelector('[data-ref="search"]') as HTMLInputElement | null)?.value ?? '').trim().toLowerCase()
     const filter = ((this.querySelector('[data-ref="filter"]') as HTMLInputElement | null)?.value ?? 'all') as 'all' | 'installed' | 'uninstalled'
     const serviceFilter = this.getServiceSelect()?.getValue() || 'all'
@@ -1122,7 +585,7 @@ export class MmScriptsApp extends HTMLElement {
     this.playScriptRowFocusAnimation(rowEl)
   }
 
-  private renderGroups(filtered: Array<{ group: ScriptKeyGroupView; rows: ScriptRow[] }>): void {
+  renderGroups(filtered: Array<{ group: ScriptKeyGroupView; rows: ScriptRow[] }>): void {
     const content = this.querySelector('[data-ref="content"]') as HTMLElement | null
     if (!content) {
       return
@@ -1132,46 +595,16 @@ export class MmScriptsApp extends HTMLElement {
     let index = 0
 
     if (installed.length > 0) {
-      fragment.appendChild(this.renderGroupRows(installed, index))
+      fragment.appendChild(renderGroupRows(this, installed, index))
       index += installed.length
     }
 
     if (uninstalled.length > 0) {
-      fragment.appendChild(this.renderGroupRows(uninstalled, index))
+      fragment.appendChild(renderGroupRows(this, uninstalled, index))
     }
 
     content.replaceChildren(fragment)
     hydrateMmIcons(content)
-    this.updateScrollIndicator()
-  }
-
-  private updateScrollIndicator(): void {
-    requestAnimationFrame(() => {
-      const scroller = this.querySelector('[data-ref="scroller"]') as HTMLElement | null
-      const scrollbar = this.querySelector('[data-ref="scrollbar"]') as HTMLElement | null
-      const thumb = this.querySelector('[data-ref="scrollbar-thumb"]') as HTMLElement | null
-      if (!scroller || !scrollbar || !thumb || scrollbar.offsetParent === null) {
-        return
-      }
-
-      const { scrollable, thumbHeight, thumbTop } = computeScrollThumbMetrics(
-        {
-          scrollHeight: scroller.scrollHeight,
-          clientHeight: scroller.clientHeight,
-          scrollTop: scroller.scrollTop,
-          trackHeight: scrollbar.clientHeight,
-        },
-        { minThumbHeight: 18 }
-      )
-      scrollbar.classList.toggle('hidden', !scrollable)
-      if (!scrollable) {
-        thumb.style.height = '0px'
-        thumb.style.transform = 'translateY(0)'
-        return
-      }
-
-      thumb.style.height = `${thumbHeight}px`
-      thumb.style.transform = `translateY(${thumbTop}px)`
-    })
+    updateScrollIndicator(this)
   }
 }

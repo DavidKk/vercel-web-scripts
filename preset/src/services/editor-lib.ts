@@ -1,5 +1,6 @@
 import { executeWithGlobal, executeWithGlobalResilient, isCspEvalError, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
 import { buildEditorLibExecDecls, isLikelyEditorLibBundle } from '@shared/preset-launcher-decls'
+import { isStaticModuleCacheStale } from '@shared/static-module-url'
 
 import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
@@ -270,8 +271,9 @@ async function ensureEditorLibOnce(): Promise<EditorLibApi | null> {
   }
 
   const cache = readEditorLibCache()
+  const manifestUrl = isShellNetworkEnabled() ? await resolveEditorLibScriptUrl() : null
   if (cache?.content) {
-    if (!isLikelyEditorLibBundle(cache.content)) {
+    if (!isLikelyEditorLibBundle(cache.content) || isStaticModuleCacheStale(cache.url, manifestUrl, 'editor-lib.js')) {
       clearEditorLibCache()
     } else {
       const loadedFromCache = await executeEditorLibContent(cache.content, cache.url)
@@ -279,8 +281,7 @@ async function ensureEditorLibOnce(): Promise<EditorLibApi | null> {
         void refreshEditorLibInBackground(cache)
         return loadedFromCache
       }
-      void refreshEditorLibInBackground(cache)
-      return null
+      clearEditorLibCache()
     }
   }
 
@@ -306,8 +307,11 @@ async function ensureEditorLibOnce(): Promise<EditorLibApi | null> {
       return null
     }
     const etag = String(response.headers.get('etag') || '').trim()
-    writeEditorLibCache(content, url, etag)
-    return executeEditorLibContent(content, url)
+    const loaded = await executeEditorLibContent(content, url)
+    if (loaded) {
+      writeEditorLibCache(content, url, etag)
+    }
+    return loaded
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     reportEditorLibLoadFailure('load:exception', message)

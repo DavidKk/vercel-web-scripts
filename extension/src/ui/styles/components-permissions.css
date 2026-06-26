@@ -1,0 +1,154 @@
+@layer components {
+  .mm-permissions-main {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-permissions-head {
+    @apply flex shrink-0 items-center justify-between gap-3 border-0 border-b border-solid border-mm-border-light px-4 py-3;
+  }
+
+  .mm-permissions-head-copy {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5;
+  }
+
+  .mm-permissions-body {
+    @apply min-h-0 flex-1 overflow-auto p-0;
+  }
+
+  .mm-permissions-empty {
+    @apply m-4 rounded-lg border border-dashed border-mm-border-light bg-mm-muted/20 px-4 py-4 text-sm text-mm-text-muted;
+  }
+
+  .mm-permissions-list-shell {
+    @apply min-h-full;
+  }
+
+  .mm-permissions-cards {
+    @apply flex flex-col gap-2 px-4 py-2;
+  }
+
+  .mm-permissions-card {
+    @apply overflow-hidden rounded-lg border border-solid border-mm-border-light bg-mm-surface;
+    border-width: 1px;
+  }
+
+  .mm-permissions-card--debug {
+    @apply border-amber-200/80 bg-amber-50/25;
+  }
+
+  .mm-permissions-card-head {
+    @apply flex items-start gap-3 border-0 border-b border-solid border-mm-border-light/60 bg-mm-muted/15 px-3 py-3.5;
+  }
+
+  .mm-permissions-card-head-main {
+    @apply flex min-w-0 flex-1 items-start gap-2.5;
+  }
+
+  .mm-permissions-card-head-policy {
+    @apply flex shrink-0 items-center self-center;
+  }
+
+  .mm-permissions-card-items {
+    @apply flex flex-col;
+  }
+
+  .mm-permissions-item-head,
+  .mm-permissions-item {
+    box-sizing: border-box;
+    display: grid;
+    width: 100%;
+    align-items: center;
+    column-gap: 0.625rem;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.95fr) minmax(4.5rem, 5.5rem) minmax(7.5rem, 9rem);
+    min-height: 2.75rem;
+    @apply py-3 px-3;
+  }
+
+  .mm-permissions-item-head {
+    @apply shrink-0 border-0 border-b border-solid border-mm-border-light/40 text-[10px] font-medium uppercase leading-none tracking-wide text-mm-text-muted;
+  }
+
+  .mm-permissions-item {
+    @apply border-0 border-b border-solid border-mm-border-light/35 text-[12px] leading-snug text-mm-secondary transition-colors last:border-b-0;
+  }
+
+  .mm-permissions-card:hover .mm-permissions-item {
+    @apply bg-mm-accent-soft/15;
+  }
+
+  .mm-permissions-item-capability {
+    @apply min-w-0 truncate;
+  }
+
+  .mm-permissions-item-resource {
+    @apply min-w-0;
+  }
+
+  .mm-permissions-item-updated {
+    @apply text-center text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-permissions-item-policy {
+    @apply flex justify-end;
+  }
+
+  .mm-permissions-script-copy {
+    @apply inline-flex max-w-full flex-row flex-wrap items-center gap-1.5;
+  }
+
+  .mm-permissions-script-copy--stacked {
+    @apply flex-col items-start gap-0.5;
+  }
+
+  .mm-permissions-script-name-row {
+    @apply inline-flex max-w-full flex-wrap items-center gap-1.5;
+  }
+
+  .mm-permissions-script-sep {
+    @apply shrink-0 text-[11px] leading-none text-mm-text-muted/70;
+  }
+
+  .mm-permissions-script-name {
+    @apply max-w-full truncate text-[13px] font-semibold leading-snug text-mm-secondary;
+  }
+
+  .mm-permissions-index {
+    @apply mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-mm-muted/60 text-[11px] font-medium leading-none text-mm-label;
+  }
+
+  .mm-permissions-script-cell {
+    @apply min-w-0 max-w-full;
+  }
+
+  .mm-permissions-script-file {
+    @apply inline-flex max-w-full cursor-pointer truncate border-0 bg-transparent p-0 font-mono text-[11px] leading-snug text-mm-text-muted underline-offset-2 hover:text-mm-accent hover:underline;
+  }
+
+  .mm-permissions-script-file--primary {
+    @apply font-sans text-[12px] font-medium text-mm-secondary;
+  }
+
+  .mm-permissions-script-file--static {
+    @apply cursor-default hover:text-mm-text-muted hover:no-underline;
+  }
+
+  .mm-permissions-script-file--static.mm-permissions-script-file--primary {
+    @apply hover:text-mm-secondary;
+  }
+
+  .mm-permissions-debug-badge {
+    @apply inline-flex shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-700 ring-1 ring-amber-200/80;
+  }
+
+  .mm-permissions-resource {
+    @apply block truncate font-mono text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-permissions-policy-label {
+    @apply text-xs font-medium text-mm-secondary;
+  }
+
+  .mm-permissions-footer {
+    @apply shrink-0 border-0 border-t border-solid border-mm-border-light bg-mm-muted/20 px-4 py-2 text-[11px] leading-snug text-mm-text-muted;
+  }
+}

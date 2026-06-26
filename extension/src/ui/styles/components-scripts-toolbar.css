@@ -1,0 +1,654 @@
+@layer components {
+  .mm-scripts-head {
+    @apply flex shrink-0 items-center justify-between gap-3 border-0 border-b border-solid border-mm-border-light bg-mm-surface px-4 py-3;
+  }
+
+  .mm-scripts-head-copy {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5;
+  }
+
+  .mm-scripts-body {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    --mm-script-grid-cols: 1.5rem minmax(15rem, 26rem) minmax(14rem, 24rem) 13.5rem 9.5rem minmax(6.5rem, 1fr) 3.25rem 3.25rem;
+  }
+
+  .mm-scripts-footer {
+    @apply shrink-0 border-0 border-t border-solid border-mm-border-light bg-mm-muted/20 px-4 py-2 text-[11px] leading-snug text-mm-text-muted;
+  }
+
+  .mm-scripts-toolbar {
+    @apply mm-panel-toolbar;
+    --mm-panel-toolbar-h: 1.75rem;
+  }
+
+  .mm-scripts-status {
+    @apply hidden min-w-0 shrink truncate text-xs leading-none text-mm-text-muted;
+  }
+
+  .mm-scripts-status:not(:empty) {
+    @apply block max-w-[12rem];
+  }
+
+  .mm-scripts-status.text-mm-success:not(:empty),
+  .mm-scripts-status.text-mm-danger:not(:empty) {
+    @apply max-w-[16rem];
+  }
+
+  .mm-scripts-toolbar > mm-input {
+    @apply block w-36 shrink-0;
+  }
+
+  .mm-scripts-toolbar > mm-select {
+    @apply block w-32 shrink-0;
+  }
+
+  .mm-scripts-toolbar > mm-select.mm-scripts-service-filter {
+    @apply w-32;
+  }
+
+  .mm-scripts-toolbar > mm-search-select.mm-scripts-service-filter {
+    @apply relative block w-32 shrink-0;
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-trigger {
+    @apply box-border w-full shrink-0 rounded px-2.5 text-xs font-medium leading-none text-mm-secondary shadow-none outline-none transition;
+    height: var(--mm-panel-toolbar-h);
+    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-trigger:hover {
+    @apply bg-mm-accent-soft/60;
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-chevron,
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-chevron svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-menu {
+    @apply left-auto right-0 w-max min-w-full max-w-[16rem];
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-search-wrap {
+    @apply px-0;
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-search {
+    @apply h-7 px-2 text-xs;
+  }
+
+  .mm-scripts-toolbar mm-search-select.mm-scripts-service-filter .mm-search-select-option {
+    @apply h-7 px-2.5 text-xs;
+  }
+
+  .mm-scripts-toolbar > mm-button {
+    @apply inline-flex shrink-0;
+  }
+
+  .mm-scripts-toolbar .mm-input-with-icon .mm-native-input,
+  .mm-scripts-toolbar mm-input:has(.mm-input-icon) > input {
+    @apply pl-7;
+  }
+
+  .mm-scripts-toolbar .mm-input-icon {
+    @apply left-2 h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-input-icon svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-select-trigger {
+    @apply gap-1;
+  }
+
+  .mm-scripts-toolbar .mm-select-leading,
+  .mm-scripts-toolbar .mm-select-chevron {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-select-leading svg,
+  .mm-scripts-toolbar .mm-select-chevron svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-scripts-toolbar .mm-button-native,
+  .mm-scripts-toolbar mm-button > button {
+    @apply font-medium;
+  }
+
+  .mm-scripts-toolbar-skeleton {
+    @apply pointer-events-none;
+  }
+
+  .mm-page-fill {
+    @apply flex h-screen min-h-screen flex-col overflow-hidden;
+  }
+
+  .mm-admin-views {
+    @apply relative min-h-0 flex-1 overflow-hidden;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  .mm-admin-view {
+    @apply hidden min-h-0 flex-col overflow-hidden;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .mm-admin-view.is-active {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  .mm-admin-view-host {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .mm-page-body-fill {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-5;
+  }
+
+  .mm-admin-title {
+    @apply m-0 p-0 shrink-0 whitespace-nowrap text-sm font-semibold leading-none tracking-normal text-mm-ink;
+  }
+
+  .mm-admin-kicker {
+    @apply m-0 max-w-[min(100vw-12rem,28rem)] truncate p-0 text-[11px] leading-tight text-mm-text-muted;
+  }
+
+  .mm-admin-toolbar {
+    @apply ml-auto flex shrink-0 items-center gap-2 md:ml-0;
+  }
+
+  .mm-admin-nav {
+    @apply relative ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-mm-border-light/90 bg-mm-muted/60 p-1;
+    --mm-nav-outer-r: 0.5rem;
+    --mm-nav-pad: 0.25rem;
+    --mm-nav-inner-r: calc(var(--mm-nav-outer-r) - var(--mm-nav-pad));
+    --mm-nav-indicator-x: 0px;
+    --mm-nav-indicator-w: 0px;
+    --mm-nav-indicator-opacity: 0;
+  }
+
+  .mm-admin-nav-link {
+    @apply relative z-[1] cursor-pointer px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted no-underline transition hover:text-mm-ink;
+    border-radius: var(--mm-nav-inner-r);
+  }
+
+  .mm-admin-nav-link[aria-current='page'] {
+    @apply text-mm-ink;
+  }
+
+  .mm-admin-nav-link:not([aria-current='page']):hover {
+    @apply text-mm-ink;
+  }
+
+  .mm-admin-nav-indicator {
+    @apply pointer-events-none absolute z-0 bg-mm-surface shadow-mm-sm;
+    top: var(--mm-nav-pad);
+    bottom: var(--mm-nav-pad);
+    left: var(--mm-nav-indicator-x);
+    width: var(--mm-nav-indicator-w);
+    border-radius: var(--mm-nav-inner-r);
+    opacity: var(--mm-nav-indicator-opacity);
+    transition: none;
+  }
+
+  .mm-admin-nav.is-indicator-entering .mm-admin-nav-indicator {
+    transition:
+      left 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      width 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 260ms ease-out;
+  }
+
+  .mm-admin-nav.is-indicator-ready .mm-admin-nav-indicator {
+    transition:
+      left 200ms cubic-bezier(0.4, 0, 0.2, 1),
+      width 200ms cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 140ms ease;
+  }
+
+  .mm-admin-nav-github {
+    @apply ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-mm-text-muted no-underline transition hover:bg-mm-surface/60 hover:text-mm-ink;
+  }
+
+  .mm-admin-nav-github svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-admin-meta {
+    @apply ml-auto hidden min-w-0 items-center gap-2 truncate text-xs text-mm-text-muted md:flex;
+  }
+
+  .mm-admin-meta > span {
+    @apply truncate;
+  }
+
+  .mm-admin-meta > span:empty {
+    @apply hidden;
+  }
+
+  .mm-admin-meta > span + span:not(:empty)::before {
+    @apply pr-2 text-mm-label;
+    content: '/';
+  }
+
+  .mm-content-bar {
+    @apply mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2;
+  }
+
+  .mm-content-title {
+    @apply text-sm font-semibold leading-tight text-mm-ink;
+  }
+
+  .mm-content-meta {
+    @apply mt-0.5 flex min-h-4 flex-wrap items-center gap-2 text-xs leading-none text-mm-text-muted;
+  }
+
+  .mm-content-meta > span:empty {
+    @apply hidden;
+  }
+
+  .mm-content-meta > span + span:not(:empty)::before {
+    @apply pr-2 text-mm-label;
+    content: '/';
+  }
+
+  .mm-content-actions {
+    @apply ml-auto flex shrink-0 items-center gap-2;
+  }
+
+  .mm-settings-panel {
+    @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface;
+  }
+
+  .mm-settings-panel-header {
+    @apply border-b border-mm-border-light px-4 py-3;
+  }
+
+  .mm-settings-panel-body {
+    @apply grid gap-4 px-4 py-4;
+  }
+
+  .mm-settings-panel-footer {
+    @apply flex flex-wrap items-center justify-end gap-2.5 border-t border-mm-border-light bg-mm-muted/50 px-4 py-3;
+  }
+
+  .mm-options-main {
+    @apply mx-auto flex w-full max-w-[1024px] flex-1 flex-col px-4 py-4 sm:px-5 lg:py-6;
+  }
+
+  /* Legacy card layout — servers page now uses mm-servers-* wide layout */
+  .mm-options-panel {
+    @apply overflow-hidden rounded border border-mm-border-light bg-mm-surface shadow-mm-sm;
+  }
+
+  .mm-options-panel-header {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-mm-border-light bg-mm-surface px-4 py-4 sm:px-5;
+  }
+
+  .mm-options-panel-heading {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .mm-options-panel-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded bg-mm-accent-soft text-mm-accent ring-1 ring-mm-border-light;
+  }
+
+  .mm-options-panel-icon svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-options-title {
+    @apply m-0 truncate text-base font-semibold leading-tight text-mm-ink;
+  }
+
+  .mm-options-subtitle {
+    @apply mt-0.5 text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-status-pill {
+    @apply min-h-7 max-w-full truncate rounded-full bg-mm-muted px-3 py-1.5 text-xs font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-status-pill.text-mm-success {
+    @apply bg-mm-success-soft ring-1;
+    color: #10b981;
+    --tw-ring-color: rgb(16 185 129 / 0.16);
+  }
+
+  .mm-options-status-pill.text-mm-danger {
+    @apply bg-mm-danger-soft ring-1;
+    color: #ef4444;
+    --tw-ring-color: rgb(239 68 68 / 0.16);
+  }
+
+  .mm-options-panel-body {
+    @apply grid gap-0 divide-y divide-mm-border-light;
+  }
+
+  .mm-options-section {
+    @apply grid gap-4 border-b border-mm-border-light/80 bg-mm-surface px-4 py-4 last:border-b-0 sm:px-5 sm:py-5;
+  }
+
+  .mm-options-section-head {
+    @apply flex items-center justify-between gap-3;
+  }
+
+  .mm-options-section-head-main {
+    @apply flex min-w-0 flex-wrap items-center gap-2;
+  }
+
+  .mm-servers-connection-test-btn {
+    @apply h-8 w-8 shrink-0 self-center p-0;
+  }
+
+  .mm-servers-connection-test-btn .mm-icon-slot,
+  .mm-servers-connection-test-btn .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-servers-connection-test-btn.is-ok {
+    @apply text-mm-success hover:text-mm-success;
+  }
+
+  .mm-servers-connection-test-btn.is-error {
+    @apply text-mm-danger hover:text-mm-danger;
+  }
+
+  .mm-servers-connection-test-btn.is-test-feedback-exit {
+    @apply opacity-0 transition-opacity duration-200;
+  }
+
+  .mm-servers-connection-test-btn:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .mm-options-section-title {
+    @apply m-0 text-sm font-semibold leading-none text-mm-ink;
+  }
+
+  .mm-options-section-meta {
+    @apply rounded-full bg-mm-muted px-2 py-1 text-[11px] font-medium leading-none text-mm-text-muted;
+  }
+
+  .mm-options-field-grid {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+
+  .mm-options-field {
+    @apply flex w-full min-w-0 flex-col;
+  }
+
+  .mm-options-field .mm-native-input,
+  .mm-options-field mm-input > input {
+    @apply h-10 rounded-md bg-mm-surface;
+    box-shadow: 0 0 0 1px theme('colors.mm.border');
+  }
+
+  .mm-options-field .mm-native-input:hover,
+  .mm-options-field mm-input > input:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  .mm-options-field .mm-native-input:focus,
+  .mm-options-field mm-input > input:focus {
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  .mm-options-field mm-select {
+    @apply block w-full max-w-full;
+  }
+
+  .mm-options-field mm-select .mm-select-trigger {
+    @apply h-10 w-full;
+  }
+
+  .mm-servers-detail-form .mm-options-field mm-select .mm-select-trigger {
+    @apply h-8 w-full gap-1.5 rounded px-2.5 text-xs font-medium leading-none;
+  }
+
+  .mm-servers-detail-form .mm-options-field .mm-select-leading,
+  .mm-servers-detail-form .mm-options-field .mm-select-leading svg,
+  .mm-servers-detail-form .mm-options-field .mm-select-chevron,
+  .mm-servers-detail-form .mm-options-field .mm-select-chevron svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-options-field mm-select .mm-select-menu {
+    @apply inset-x-0 w-full min-w-full;
+  }
+
+  .mm-field-component.is-invalid .mm-native-input,
+  .mm-field-component.is-invalid mm-input > input,
+  .mm-field-component.is-invalid .mm-select-trigger {
+    box-shadow: 0 0 0 1px theme('colors.mm.danger');
+  }
+
+  .mm-field-component.is-invalid .mm-native-input:focus,
+  .mm-field-component.is-invalid mm-input:focus-within > input,
+  .mm-field-component.is-invalid .mm-select-trigger:focus {
+    box-shadow:
+      0 0 0 1px theme('colors.mm.danger'),
+      0 0 0 3px rgb(220 38 38 / 0.18);
+  }
+
+  .mm-field-error {
+    @apply mt-1 text-xs leading-snug text-mm-danger;
+  }
+
+  .mm-field-error[hidden] {
+    display: none;
+  }
+
+  .mm-options-field code,
+  .mm-options-toggle-card code {
+    @apply rounded bg-mm-muted px-1 py-0.5 font-mono text-[11px] text-mm-secondary;
+  }
+
+  .mm-options-toggle-card {
+    @apply flex cursor-pointer items-center justify-between gap-4 rounded-md border border-mm-border-light bg-mm-muted px-4 py-3 transition hover:border-mm-accent/30 hover:bg-mm-accent-soft;
+  }
+
+  .mm-options-toggle-copy {
+    @apply min-w-0 flex-1;
+  }
+
+  .mm-options-toggle-title {
+    @apply block text-sm font-semibold leading-tight text-mm-secondary;
+  }
+
+  .mm-options-toggle-text {
+    @apply mt-1 block text-xs leading-snug text-mm-text-muted;
+  }
+
+  .mm-options-panel-footer {
+    @apply flex flex-col-reverse gap-2.5 border-t border-mm-border-light bg-mm-muted/40 px-4 py-3 sm:flex-row sm:justify-end sm:px-5;
+  }
+
+  .mm-options-layout {
+    @apply grid min-h-[420px] lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] lg:divide-x lg:divide-mm-border-light;
+  }
+
+  .mm-options-service-list {
+    @apply flex flex-col gap-3 border-b border-mm-border-light p-4 sm:p-5 lg:border-b-0;
+  }
+
+  .mm-options-service-list-head {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  .mm-options-service-list-title {
+    @apply m-0 text-sm font-semibold text-mm-ink;
+  }
+
+  .mm-options-add-btn {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .mm-options-service-items {
+    @apply m-0 flex list-none flex-col gap-1.5 p-0;
+  }
+
+  .mm-options-service-items.is-list-dragging {
+    @apply select-none;
+  }
+
+  .mm-options-service-row {
+    @apply flex items-center gap-0.5;
+  }
+
+  .mm-options-service-row[draggable='true'] {
+    @apply outline-none;
+  }
+
+  .mm-options-service-row.is-dragging {
+    @apply relative;
+  }
+
+  .mm-options-service-row.is-dragging > .mm-servers-drag-handle,
+  .mm-options-service-row.is-dragging > .mm-options-service-card {
+    @apply invisible;
+  }
+
+  .mm-options-service-row.is-dragging::after {
+    content: '';
+    @apply pointer-events-none absolute inset-0 rounded-md border-2 border-dashed border-mm-border bg-mm-muted/50;
+  }
+
+  .mm-servers-drop-placeholder {
+    @apply pointer-events-none m-0 box-border min-h-[4.5rem] list-none rounded-md border-2 border-dashed border-mm-accent/55 bg-mm-accent-soft/35;
+  }
+
+  .mm-servers-drag-ghost {
+    @apply cursor-grabbing rounded-md border border-mm-border bg-mm-surface opacity-[0.97];
+    box-shadow:
+      0 4px 6px rgb(22 32 51 / 0.06),
+      0 16px 32px rgb(22 32 51 / 0.14);
+  }
+
+  .mm-servers-drag-handle {
+    @apply flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center self-center rounded text-mm-icon outline-none transition hover:bg-mm-border-light/60 hover:text-mm-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-mm-accent/35 active:cursor-grabbing;
+  }
+
+  .mm-servers-drag-handle .mm-icon-slot {
+    @apply pointer-events-none h-4 w-4;
+    -webkit-user-drag: none;
+  }
+
+  .mm-servers-drag-handle .mm-icon-slot svg {
+    @apply h-4 w-4;
+    -webkit-user-drag: none;
+  }
+
+  .mm-options-service-card {
+    @apply flex min-w-0 flex-1 items-center gap-0 overflow-hidden rounded-md border border-mm-border bg-mm-surface text-left shadow-mm-sm transition hover:border-mm-accent/40 hover:bg-mm-accent-soft;
+  }
+
+  .mm-options-service-card[aria-selected='true'] {
+    @apply border-mm-accent/55 bg-mm-accent-soft shadow-mm-sm ring-2 ring-mm-accent/30;
+  }
+
+  .mm-options-service-card.is-service-off {
+    @apply opacity-70;
+  }
+
+  .mm-options-service-card.is-test-fail {
+    @apply border-mm-danger ring-2 ring-mm-danger/30;
+  }
+
+  .mm-options-service-card.is-test-fail[aria-selected='true'] {
+    @apply border-mm-danger bg-mm-danger-soft/25 ring-mm-danger/30;
+  }
+
+  .mm-options-service-items.is-test-all-active .mm-servers-item-action,
+  .mm-options-service-card.is-test-feedback .mm-servers-item-action {
+    @apply pointer-events-auto opacity-100;
+  }
+
+  .mm-options-service-card.is-test-feedback-exit .mm-servers-item-action {
+    @apply opacity-0 transition-opacity duration-200;
+  }
+
+  .mm-options-service-card.is-test-fail .mm-servers-item-action.is-error {
+    @apply text-mm-danger;
+  }
+
+  .mm-options-service-card.is-test-feedback:not(.is-test-fail) .mm-servers-item-action.is-ok {
+    @apply text-mm-success;
+  }
+
+  .mm-options-service-item-body {
+    @apply min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-3 py-2.5 text-left outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-mm-accent/35 focus-visible:ring-inset;
+  }
+
+  /* Row action icons: hidden until row hover; hover deepens icon color only (no fill). */
+  .mm-servers-item-action {
+    @apply pointer-events-none mr-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-mm-icon opacity-0 outline-none transition-[opacity,color] duration-150 hover:bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-mm-accent/35 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .mm-servers-item-action:last-child {
+    @apply mr-1.5;
+  }
+
+  .mm-servers-item-action .mm-icon-slot,
+  .mm-servers-item-action .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action,
+  .mm-options-service-row:focus-within .mm-servers-item-action {
+    @apply pointer-events-auto opacity-100;
+  }
+
+  .mm-servers-item-action:hover {
+    @apply text-mm-secondary;
+  }
+
+  .mm-servers-item-action[data-action='delete-service-item']:hover {
+    @apply text-mm-danger;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-on,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-on {
+    @apply text-mm-success;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-on:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-on:hover {
+    @apply brightness-90;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-off,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-off {
+    @apply text-mm-secondary;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-service-off:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-service-off:hover {
+    @apply text-mm-ink brightness-90;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-ok,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-ok {
+    @apply text-mm-success;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-ok:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-ok:hover {
+    @apply brightness-90;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-error,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-error {
+    @apply text-mm-danger;
+  }
+
+  .mm-options-service-row:hover .mm-servers-item-action.is-error:hover,
+  .mm-options-service-row:focus-within .mm-servers-item-action.is-error:hover {
+    @apply brightness-90;
+  }
+}

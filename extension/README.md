@@ -58,7 +58,7 @@ pnpm pack:extension
 
 Production `pnpm build` runs `pack:extension` automatically so the editor can offer the ZIP download.
 
-All UI uses **Tailwind CSS** only (`extension/src/ui/tailwind.css` inlined into Shadow DOM; `shell.css` for page layout). Extension page markup lives in **`src/html/pages/*.ejs`** with reusable partials under **`src/html/partials/`**, compiled at build time via `extension/scripts/compile-extension-html.mjs`. Built via `extension/vite.config.ts`.
+All UI uses **Tailwind CSS** only (`extension/src/ui/tailwind.css` imports `extension/src/ui/styles/*.css` partials, inlined into Shadow DOM; `shell.css` for page layout). Extension page markup lives in **`src/html/pages/*.ejs`** with reusable partials under **`src/html/partials/`**, compiled at build time via `extension/scripts/compile-extension-html.mjs`. Built via `extension/vite.config.ts`.
 
 After rebuilding, reload the extension at `chrome://extensions` (not just the page tab).
 
