@@ -1,6 +1,8 @@
 # Extension 原生 loader — task thread
 
-Status: **TODO**（待排期；**不改代码**直至立项）
+Status: **TODO**（待排期；E25–E27 本体未实现）
+
+**实施记录（2026-06-27 同步）**：前置能力已就绪（shell、GM_XHR→background、多 scriptKey `page/index.ts`、UPDATE/RESET 清缓存）。**OTA 编排仍在** `extension/src/page/launcher-runtime.ts`（~778 行）；`extension/src/runtime/module-loader.ts` **不存在**。
 
 关联: `extension/TODO.md` E25–E27、`extension/README.md`
 

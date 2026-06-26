@@ -1,18 +1,14 @@
 'use client'
 
+import { computeMmTooltipPosition, type MmTooltipPlacement } from '@shared/ui/tooltip-position'
 import { type CSSProperties, type ReactElement, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-
-const GAP = 6
-const PADDING = 8
-
-type TooltipPlacement = 'top' | 'bottom' | 'left' | 'right'
 
 export interface TooltipProps {
   /** Short tooltip text */
   content: string
   /** Preferred placement relative to trigger */
-  placement?: TooltipPlacement
+  placement?: MmTooltipPlacement
   /** Trigger element */
   children: ReactElement
 }
@@ -40,27 +36,11 @@ export function Tooltip(props: TooltipProps) {
     const rect = trigger.getBoundingClientRect()
     const tw = tooltip.offsetWidth
     const th = tooltip.offsetHeight
-    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024
-    const vh = typeof window !== 'undefined' ? window.innerHeight : 768
-
-    let left = 0
-    let top = 0
-
-    if (preferredPlacement === 'right') {
-      left = Math.max(PADDING, Math.min(vw - tw - PADDING, rect.right + GAP))
-      top = Math.max(PADDING, Math.min(vh - th - PADDING, rect.top + rect.height / 2 - th / 2))
-    } else if (preferredPlacement === 'left') {
-      left = Math.max(PADDING, rect.left - GAP - tw)
-      top = Math.max(PADDING, Math.min(vh - th - PADDING, rect.top + rect.height / 2 - th / 2))
-    } else if (preferredPlacement === 'top') {
-      top = Math.max(PADDING, rect.top - GAP - th)
-      left = Math.max(PADDING, Math.min(vw - tw - PADDING, rect.left + rect.width / 2 - tw / 2))
-    } else {
-      const canPlaceBottom = rect.bottom + GAP + th <= vh - PADDING
-      top = canPlaceBottom ? rect.bottom + GAP : Math.max(PADDING, rect.top - GAP - th)
-      left = Math.max(PADDING, Math.min(vw - tw - PADDING, rect.left + rect.width / 2 - tw / 2))
+    const viewport = {
+      width: typeof window !== 'undefined' ? window.innerWidth : 1024,
+      height: typeof window !== 'undefined' ? window.innerHeight : 768,
     }
-
+    const { left, top } = computeMmTooltipPosition(rect, tw, th, preferredPlacement, viewport)
     setStyle({ left, top, position: 'fixed', visibility: 'visible' })
   }, [open, preferredPlacement])
 

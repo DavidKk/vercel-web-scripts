@@ -1,6 +1,8 @@
 # Extension 本地 ZIP 自更新（File System Access）— task thread
 
-Status: **TODO**（技术方案已定，**待排期实现**；本任务仅记录方案，不改代码）
+Status: **TODO**（方案已定，**实现未启动**）
+
+**实施记录（2026-06-27 同步）**：仅有版本检测与手动下载（`extension-update-check.ts`、`GET /api/extension/version`、Popup 打开 `downloadUrl`）。**无** `extension-fs-update/` 模块、`fflate`、`showDirectoryPicker` 绑定目录、一键写盘更新。
 
 关联:
 

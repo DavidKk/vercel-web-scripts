@@ -22,16 +22,16 @@ Phase D (match-based script modules): **TODO** — `../tasks/backlog/runtime-pha
 
 ## Engineering / tech debt (2026-06-27)
 
-| Item                              | Status | Doc                                                |
-| --------------------------------- | ------ | -------------------------------------------------- |
-| Large file split (Phase 1–2, 4–5) | DONE   | `tasks/done/large-file-split.md`                   |
-| CSS logical properties review     | DONE   | `tasks/done/css-logical-properties-review.md`      |
-| Script permissions                | DONE   | `tasks/done/script-permissions.md`                 |
-| OTA publish policy                | DONE   | `tasks/done/ota-publish-policy.md`                 |
-| Runtime Phase A–C                 | DONE   | `tasks/done/runtime-modularization-phase-a-b-c.md` |
-| Extension native loader           | TODO   | `tasks/backlog/extension-native-loader.md`         |
-| Runtime Phase D                   | TODO   | `tasks/backlog/runtime-phase-d.md`                 |
-| UI cross-module dedup             | TODO   | `tasks/backlog/ui-cross-module-dedup.md`           |
+| Item                              | Status         | Doc                                                    |
+| --------------------------------- | -------------- | ------------------------------------------------------ |
+| Large file split (Phase 1–2, 4–5) | DONE           | `tasks/done/large-file-split.md`                       |
+| CSS logical properties review     | DONE           | `tasks/done/css-logical-properties-review.md`          |
+| Script permissions                | DONE           | `tasks/done/script-permissions.md`                     |
+| OTA publish policy                | DONE           | `tasks/done/ota-publish-policy.md`                     |
+| Runtime Phase A–C                 | DONE           | `tasks/done/runtime-modularization-phase-a-b-c.md`     |
+| Extension native loader           | TODO           | `tasks/backlog/extension-native-loader.md`             |
+| Runtime Phase D                   | TODO           | `tasks/backlog/runtime-phase-d.md`                     |
+| UI cross-module dedup             | DONE (Phase A) | `tasks/backlog/ui-cross-module-dedup.md` (B/C/D defer) |
 
 Normative rules: `rules/engineering-standards.md`.
 

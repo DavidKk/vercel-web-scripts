@@ -15,15 +15,16 @@
 - **OTA publish policy**: SERVER alpha/stable/lock — `tasks/done/ota-publish-policy.md`
 - **Large file split** + **CSS logical properties** — `tasks/done/large-file-split.md`, `css-logical-properties-review.md`
 - **preset-ui lazy load** fix — stale cache + runtime core host resolution
+- **UI cross-module Phase A** — `shared/ui` scroll + tooltip；B/C/D defer 至触 UI 改动时
 
 ## Backlog (next candidates)
 
-| 优先级 | 任务                          | 文档                                       |
-| ------ | ----------------------------- | ------------------------------------------ |
-| 中     | Extension 原生 loader         | `tasks/backlog/extension-native-loader.md` |
-| 大     | Runtime Phase D（match 加载） | `tasks/backlog/runtime-phase-d.md`         |
-| 低     | Extension ZIP 自更新          | `tasks/backlog/extension-fs-update.md`     |
-| 低     | UI 跨模块去重                 | `tasks/backlog/ui-cross-module-dedup.md`   |
+| 优先级 | 任务                          | 文档                                       | 说明                   |
+| ------ | ----------------------------- | ------------------------------------------ | ---------------------- |
+| 中     | Extension 原生 loader         | `tasks/backlog/extension-native-loader.md` | E25–E27 **未实现**     |
+| 大     | Runtime Phase D（match 加载） | `tasks/backlog/runtime-phase-d.md`         | D1 完成；D2–D5 未启动  |
+| 低     | Extension ZIP 自更新          | `tasks/backlog/extension-fs-update.md`     | 方案 only              |
+| 低     | UI 跨模块去重                 | `tasks/backlog/ui-cross-module-dedup.md`   | Phase A ✅；其余 defer |
 
 ## Confirmed decisions
 

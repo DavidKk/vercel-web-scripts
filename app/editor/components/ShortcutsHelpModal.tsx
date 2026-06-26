@@ -1,5 +1,6 @@
 'use client'
 
+import { computeScrollThumbMetrics, type ScrollThumbMetrics } from '@shared/ui/scroll-indicator'
 import { useEffect, useRef, useState } from 'react'
 
 import { getShortcutsForHelp } from '@/app/editor/config/shortcuts'
@@ -11,13 +12,16 @@ export interface ShortcutsHelpModalProps {
   onClose: () => void
 }
 
+const EMPTY_SCROLL_METRICS: ScrollThumbMetrics = { scrollable: false, thumbHeight: 0, thumbTop: 0 }
+
 /**
  * Modal that displays all keyboard shortcuts for the editor page.
  * Content is scrollable when the list is long.
  */
 export function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModalProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [scrollState, setScrollState] = useState({ canScroll: false, top: 0, height: 100 })
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [scrollState, setScrollState] = useState<ScrollThumbMetrics>(EMPTY_SCROLL_METRICS)
 
   useEffect(() => {
     if (!open) return
@@ -26,20 +30,22 @@ export function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModalProps) {
     if (!element) return
 
     const updateScrollIndicator = () => {
-      const { clientHeight, scrollHeight, scrollTop } = element
-      const canScroll = scrollHeight > clientHeight + 1
-      if (!canScroll) {
-        setScrollState({ canScroll: false, top: 0, height: 100 })
-        return
-      }
-
-      const height = Math.max(18, (clientHeight / scrollHeight) * 100)
-      const maxTop = 100 - height
-      const top = (scrollTop / Math.max(1, scrollHeight - clientHeight)) * maxTop
-      setScrollState({ canScroll: true, top, height })
+      const track = trackRef.current
+      if (!track) return
+      const metrics = computeScrollThumbMetrics(
+        {
+          scrollHeight: element.scrollHeight,
+          clientHeight: element.clientHeight,
+          scrollTop: element.scrollTop,
+          trackHeight: track.clientHeight,
+        },
+        { minThumbHeight: 18 }
+      )
+      setScrollState(metrics)
     }
 
     updateScrollIndicator()
+    requestAnimationFrame(updateScrollIndicator)
     element.addEventListener('scroll', updateScrollIndicator, { passive: true })
     window.addEventListener('resize', updateScrollIndicator)
     return () => {
@@ -90,17 +96,17 @@ export function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModalProps) {
               </div>
             ))}
           </div>
-          {scrollState.canScroll ? (
-            <div className="pointer-events-none absolute right-2 top-3 bottom-3 w-px bg-[#2a303a]">
+          <div ref={trackRef} className="pointer-events-none absolute right-2 top-3 bottom-3 w-px bg-[#2a303a]">
+            {scrollState.scrollable ? (
               <div
                 className="absolute left-1/2 w-px -translate-x-1/2 rounded-full bg-[#6f7a8a]"
                 style={{
-                  top: `${scrollState.top}%`,
-                  height: `${scrollState.height}%`,
+                  top: scrollState.thumbTop,
+                  height: scrollState.thumbHeight,
                 }}
               />
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
         <div className="px-4 py-3 border-t border-[#2a303a] flex justify-end flex-shrink-0">
           <button type="button" onClick={onClose} className="px-3 py-1.5 rounded bg-[#3a4352] text-[#cbd5e1] hover:bg-[#3a4352] transition-colors text-sm">

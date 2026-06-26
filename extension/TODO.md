@@ -290,33 +290,33 @@ Status: `TODO` | `IN_PROGRESS` | `DONE` | `BLOCKED`
 
 ### P0 — Extension-native shell (not TM launcher)
 
-| ID  | Task                                                                                     | Status | Notes                       |
-| --- | ---------------------------------------------------------------------------------------- | ------ | --------------------------- |
-| E20 | `shell/background.ts` + manifest service worker                                          | TODO   | Loader home; badge          |
-| E21 | `shell/popup/` + `default_popup`                                                         | TODO   | Fixed menu §3.1             |
-| E22 | Popup → background: editor, update, reset, network                                       | TODO   | Product defaults            |
-| E23 | Badge: RULE match count per tab                                                          | TODO   | Independent of popup layout |
-| E25 | **`runtime/module-loader.ts`** — manifest/preset fetch via background + `chrome.storage` | TODO   | **New code**, not TM port   |
-| E26 | Wire content/page-host to background loader (messages, not launcher IIFE)                | TODO   |                             |
-| E27 | **Remove / retire `launcher-runtime.ts` TM port** after E25–E26                          | TODO   | Delete duplication          |
-| E24 | Restructure folders: `shell/` + `runtime/`                                               | TODO   |                             |
-| E2  | OTA via popup Update (no CRX rebuild)                                                    | TODO   |                             |
-| E4  | README + TODO: extension shell ≠ TM launcher                                             | TODO   |                             |
+| ID  | Task                                                                                     | Status  | Notes                                                                               |
+| --- | ---------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------- |
+| E20 | `shell/background.ts` + manifest service worker                                          | DONE    | Loader home; badge                                                                  |
+| E21 | `shell/popup/` + `default_popup`                                                         | DONE    | Fixed menu §3.1                                                                     |
+| E22 | Popup → background: editor, update, reset, network                                       | DONE    | Product defaults                                                                    |
+| E23 | Badge: RULE match count per tab                                                          | DONE    | Independent of popup layout                                                         |
+| E25 | **`runtime/module-loader.ts`** — manifest/preset fetch via background + `chrome.storage` | TODO    | **New code**, not TM port                                                           |
+| E26 | Wire content/page-host to background loader (messages, not launcher IIFE)                | TODO    |                                                                                     |
+| E27 | **Remove / retire `launcher-runtime.ts` TM port** after E25–E26                          | TODO    | Delete duplication                                                                  |
+| E24 | Restructure folders: `shell/` + `runtime/`                                               | PARTIAL | `shell/` done; `runtime/` pending E25                                               |
+| E2  | OTA via popup Update (no CRX rebuild)                                                    | PARTIAL | Runtime OTA update/reset ✅; ZIP fs-update → `tasks/backlog/extension-fs-update.md` |
+| E4  | README + TODO: extension shell ≠ TM launcher                                             | DONE    | `extension/README.md`                                                               |
 
 **Cancelled / replaced:** ~~E1 Extract shared launcher-runtime with TM~~ — extension loader is **independent**; only share constants + URL contracts.
 
 ### P1 — RULE + scripts
 
-| ID  | Task                                                                | Status | Notes               |
-| --- | ------------------------------------------------------------------- | ------ | ------------------- |
-| E5  | `ExtensionRuleEntry` schema                                         | TODO   |                     |
-| E6  | Options RULE CRUD                                                   | TODO   |                     |
-| E7  | Inject only when match count > 0                                    | TODO   | Popup still opens   |
-| E8  | Inject `setGlobalRules` / matchRule data into page                  | TODO   |                     |
-| E9  | Sync rules from server                                              | TODO   |                     |
-| E10 | Per-script `enabled` flags + Scripts page UI                        | TODO   | §3.7; not in popup  |
-| E28 | Add `pages/scripts/` + `scripts.html` + popup “Manage scripts” link | TODO   | Opens in new tab    |
-| E11 | Preset hook for extension enabled flags                             | TODO   | Small preset change |
+| ID  | Task                                                                | Status | Notes                      |
+| --- | ------------------------------------------------------------------- | ------ | -------------------------- |
+| E5  | `ExtensionRuleEntry` schema                                         | DONE   |                            |
+| E6  | Options RULE CRUD                                                   | DONE   | Admin `#rules`             |
+| E7  | Inject only when match count > 0                                    | TODO   | MVP injects all HTML pages |
+| E8  | Inject `setGlobalRules` / matchRule data into page                  | DONE   |                            |
+| E9  | Sync rules from server                                              | DONE   |                            |
+| E10 | Per-script `enabled` flags + Scripts page UI                        | DONE   | Admin `#scripts`           |
+| E28 | Add `pages/scripts/` + `scripts.html` + popup “Manage scripts” link | DONE   | `admin.html#scripts`       |
+| E11 | Preset hook for extension enabled flags                             | DONE   |                            |
 
 ### P2 — Page compat + quality
 

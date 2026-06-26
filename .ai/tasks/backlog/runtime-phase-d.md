@@ -1,6 +1,8 @@
 # Runtime Phase D — 按 match 加载脚本模块 — task thread
 
-Status: **TODO**（待排期）
+Status: **TODO**（D2–D5 待排期）
+
+**实施记录（2026-06-27 同步）**：**D1 已完成**（聚合 `script-bundle` / `tampermonkey-remote.js` 为默认路径，Phase A–C 已归档）。D2–D5 无代码实现；per-file OTA 缓存与 Extension 模块过滤属于 Phase C，**不是** match-based 按需加载。
 
 关联: `../../specs/runtime-modularization.md` §Phase D、`../done/runtime-modularization-phase-a-b-c.md`
 

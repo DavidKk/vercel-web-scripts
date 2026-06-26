@@ -1,6 +1,10 @@
 # UI 跨模块去重与公共层 — task thread
 
-Status: **TODO**（需求待提 / 待排期；仅建立任务，**不改代码**）
+Status: **DONE (Phase A)** — B/C/D **defer**（触 UI 改动时再按需推进）
+
+**结案（2026-06-27）**：Phase A 高价值部分已落地；A3 token、Phase B/C/D 不强行推进，后续改 UI 时顺带统一。
+
+**已落地**：`shared/ui/scroll-indicator.ts`、`shared/ui/tooltip-position.ts`；Preset/Extension consumer + Jest；WEB `Tooltip`、`ShortcutsHelpModal` 接入；删除遗留 `FilterBar` / `ClearableSelect`。
 
 Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)  
 前置: `../done/ui-folder-restructure.md`（Extension 内部目录已重组）
@@ -31,19 +35,20 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 
 ### Phase A — `shared/ui/` 基础设施（跨端，低风险）
 
-- [ ] **A1** 合并 scroll-indicator：`preset/.../scroll-indicator.ts` + `extension/.../scroll-indicator.ts` → `shared/ui/scroll-indicator.ts` + CSS；Extension `mm-scripts-app` 停用自研 scrollbar
-- [ ] **A2** 提升 tooltip 定位：`extension/.../mm-tooltip-position.ts` → `shared/ui/tooltip-position.ts`；WEB `components/Tooltip` 接入同一算法
-- [ ] **A3** 设计 token 单一来源：`shared/ui/tokens/semantic` + `theme-dark.css` + `theme-light.css`；WEB `homePalette`、Preset `vws-ui-tokens.css`、Extension `mmPalette` 改为 re-export / 引用
+- [x] **A1** 合并 scroll-indicator：`shared/ui/scroll-indicator.ts`；Preset/Extension re-export + `__tests__/shared/scroll-indicator.spec.ts`
+- [ ] **A1b** （**defer**）Extension scripts tab 专用 scrollbar — 已共用 `computeScrollThumbMetrics`；完整 `bindScrollIndicator` 迁移非必须
+- [x] **A2** 提升 tooltip 定位：`shared/ui/tooltip-position.ts`；Extension re-export + WEB `components/Tooltip` 接入
+- [ ] **A3** （**defer**）设计 token 单一来源 — 改 UI 颜色时再建 `shared/ui/tokens/`
 
 **Phase A 验收**
 
-- [ ] `shared/ui/` 存在，Preset + Extension 各至少 1 处 consumer
-- [ ] scroll-indicator 单测在 shared 模块（迁移 `__tests__/preset/scroll-indicator.spec.ts`）
-- [ ] dark 主题 token 改一处即 WEB + Preset 同步
+- [x] `shared/ui/` 存在，Preset + Extension 各至少 1 处 consumer
+- [x] scroll-indicator 单测在 shared 模块（`__tests__/shared/scroll-indicator.spec.ts`）
+- [ ] dark 主题 token 改一处即 WEB + Preset 同步 — **defer**（依赖 A3，非阻断）
 
 ---
 
-### Phase B — Extension 内部去重（中风险，高收益）
+### Phase B — Extension 内部去重（**defer** — 新增 admin debug tab 或大规模改 admin 时再考虑）
 
 - [ ] **B1** Debug panel 抽象：`mm-scripts-debug-panel` / `mm-logs-debug-panel` / `mm-permissions-debug-panel` → 共用 base（draggable trigger、四件套 override UI）
 - [ ] **B2** Debug state factory：`scripts-debug-state` / `logs-debug-state` / `permissions-debug-state` → `createDebugState<T>()`
@@ -58,13 +63,13 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 
 ---
 
-### Phase C — 行为对齐与 WEB 清理（中优先级）
+### Phase C — 行为对齐与 WEB 清理（**defer** — 改 notification / 编辑器 shell 时再考虑）
 
 - [ ] **C1** Notification variant 命名与 auto-dismiss 约定对齐（WEB / Extension admin / Preset）；共用 icon 映射常量
 - [ ] **C2** Extension admin 可选补齐 loading toast（参考 Preset notification）
 - [ ] **C3** WEB `editorUi` Tailwind 类名包（仿 `homeUi`），减少 inline hex 重复
-- [ ] **C4** 清理 WEB 遗留：`FilterBar.tsx`、`ClearableSelect.tsx`（无引用、风格脱节）— 删除或重写
-- [ ] **C5** `ShortcutsHelpModal` 改用 shared scroll-indicator
+- [x] **C4** 清理 WEB 遗留：`FilterBar.tsx`、`ClearableSelect.tsx` 已删除（无引用）
+- [x] **C5** `ShortcutsHelpModal` 改用 shared `computeScrollThumbMetrics`
 
 **Phase C 验收**
 
@@ -73,7 +78,7 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 
 ---
 
-### Phase D — 架构决策项（需产品/技术确认后执行）
+### Phase D — 架构决策项（**defer** — D1 已完成）
 
 - [x] **D1** Preset 孤儿模块：`string-tool` / `compiled-code-viewer` / `codemirror-editor` — **已删除**（2026-06；见 `../done/preset-cm-ui-removal.md`）
 - [ ] **D2** Modal 行为共享：`shared/ui/modal-behavior.ts`（Escape、backdrop、focus 约定）；CSS 仍按主题分叉
@@ -122,11 +127,11 @@ Review 来源: `../../specs/ui-cross-module-review.md` (2026-06-18)
 | ID  | 条件                                      | Status |
 | --- | ----------------------------------------- | ------ |
 | M0  | Review 文档 + 本 task 建立                | DONE   |
-| M1  | Phase A 合并 + 验收                       | TODO   |
-| M2  | Phase B Extension 去重 + 验收             | TODO   |
-| M3  | Phase C 对齐 + WEB 清理                   | TODO   |
-| M4  | Phase D 决策项关闭                        | TODO   |
-| M5  | `ui-cross-module-review.md` Status → DONE | TODO   |
+| M1  | Phase A 合并 + 验收                       | DONE   |
+| M2  | Phase B Extension 去重 + 验收             | DEFER  |
+| M3  | Phase C 对齐 + WEB 清理                   | DEFER  |
+| M4  | Phase D 决策项关闭                        | DEFER  |
+| M5  | `ui-cross-module-review.md` Status → DONE | DEFER  |
 
 ---
 
