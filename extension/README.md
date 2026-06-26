@@ -99,7 +99,9 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 
 ## Install
 
-### Manual ZIP (not on Chrome Web Store)
+扩展壳计划通过 **Chrome Web Store** 分发与自动更新。开发期仍可用下方手动 ZIP / Load unpacked。
+
+### Manual ZIP（开发 / 过渡）
 
 1. Download `/downloads/magickmonkey-chrome-extension.zip` from the web app (editor header when extension is not detected), or run `pnpm pack:extension` locally.
 2. Unzip, then Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → select the extracted folder (must contain `manifest.json`).

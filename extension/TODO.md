@@ -290,18 +290,18 @@ Status: `TODO` | `IN_PROGRESS` | `DONE` | `BLOCKED`
 
 ### P0 — Extension-native shell (not TM launcher)
 
-| ID  | Task                                                                                     | Status  | Notes                                                                               |
-| --- | ---------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------- |
-| E20 | `shell/background.ts` + manifest service worker                                          | DONE    | Loader home; badge                                                                  |
-| E21 | `shell/popup/` + `default_popup`                                                         | DONE    | Fixed menu §3.1                                                                     |
-| E22 | Popup → background: editor, update, reset, network                                       | DONE    | Product defaults                                                                    |
-| E23 | Badge: RULE match count per tab                                                          | DONE    | Independent of popup layout                                                         |
-| E25 | **`runtime/module-loader.ts`** — manifest/preset fetch via background + `chrome.storage` | TODO    | **New code**, not TM port                                                           |
-| E26 | Wire content/page-host to background loader (messages, not launcher IIFE)                | TODO    |                                                                                     |
-| E27 | **Remove / retire `launcher-runtime.ts` TM port** after E25–E26                          | TODO    | Delete duplication                                                                  |
-| E24 | Restructure folders: `shell/` + `runtime/`                                               | PARTIAL | `shell/` done; `runtime/` pending E25                                               |
-| E2  | OTA via popup Update (no CRX rebuild)                                                    | PARTIAL | Runtime OTA update/reset ✅; ZIP fs-update → `tasks/backlog/extension-fs-update.md` |
-| E4  | README + TODO: extension shell ≠ TM launcher                                             | DONE    | `extension/README.md`                                                               |
+| ID  | Task                                                                                     | Status  | Notes                                                    |
+| --- | ---------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------- |
+| E20 | `shell/background.ts` + manifest service worker                                          | DONE    | Loader home; badge                                       |
+| E21 | `shell/popup/` + `default_popup`                                                         | DONE    | Fixed menu §3.1                                          |
+| E22 | Popup → background: editor, update, reset, network                                       | DONE    | Product defaults                                         |
+| E23 | Badge: RULE match count per tab                                                          | DONE    | Independent of popup layout                              |
+| E25 | **`runtime/module-loader.ts`** — manifest/preset fetch via background + `chrome.storage` | TODO    | **New code**, not TM port                                |
+| E26 | Wire content/page-host to background loader (messages, not launcher IIFE)                | TODO    |                                                          |
+| E27 | **Remove / retire `launcher-runtime.ts` TM port** after E25–E26                          | TODO    | Delete duplication                                       |
+| E24 | Restructure folders: `shell/` + `runtime/`                                               | PARTIAL | `shell/` done; `runtime/` pending E25                    |
+| E2  | OTA via popup Update (runtime modules, no CRX rebuild)                                   | DONE    | Update/Reset runtime ✅；扩展壳更新改走 Chrome Web Store |
+| E4  | README + TODO: extension shell ≠ TM launcher                                             | DONE    | `extension/README.md`                                    |
 
 **Cancelled / replaced:** ~~E1 Extract shared launcher-runtime with TM~~ — extension loader is **independent**; only share constants + URL contracts.
 

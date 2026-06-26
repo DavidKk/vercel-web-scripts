@@ -12,3 +12,4 @@ Completed tasks and milestone snapshots.
 | Editor lib module                  | `editor-lib.md`                         |
 | Preset CM UI removal               | `preset-cm-ui-removal.md`               |
 | UI folder restructure              | `ui-folder-restructure.md`              |
+| Extension ZIP 自更新（已取消）     | `extension-fs-update.md` — 改走上架 CWS |

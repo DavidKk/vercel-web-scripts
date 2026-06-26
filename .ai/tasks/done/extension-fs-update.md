@@ -1,8 +1,10 @@
 # Extension 本地 ZIP 自更新（File System Access）— task thread
 
-Status: **TODO**（方案已定，**实现未启动**）
+Status: **CANCELLED** (2026-06-27)
 
-**实施记录（2026-06-27 同步）**：仅有版本检测与手动下载（`extension-update-check.ts`、`GET /api/extension/version`、Popup 打开 `downloadUrl`）。**无** `extension-fs-update/` 模块、`fflate`、`showDirectoryPicker` 绑定目录、一键写盘更新。
+**决策**：不再做 ZIP 绑定目录 + 内存解压写盘的一键自更新；扩展壳后续通过 **Chrome Web Store** 分发与自动更新。开发期仍可用 `pnpm pack:extension` / Load unpacked；Popup 版本检测 + 打开下载页保留作过渡。
+
+**实施记录**：方案已写，**零实现**。运行时 OTA（preset/script）仍通过 Popup **Update runtime** 完成，与扩展壳更新无关。
 
 关联:
 
