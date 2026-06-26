@@ -194,6 +194,28 @@ If you add or modify any `GM_*` / `GME_*` interface in the preset (source of tru
 7. Validate or inspect the final script content with `scripts_validate` or an equivalent local check.
 8. User can publish from UI or rely on Gist sync as configured.
 
+## OTA publish policy (SERVER-authoritative)
+
+Each managed script may carry an `ota` block in `magickmonkey.scripts.index.json`:
+
+| Field           | Meaning                                                              |
+| --------------- | -------------------------------------------------------------------- |
+| `stage`         | `stable` or `alpha` — which artifact track clients auto-subscribe to |
+| `autoUpgrade`   | When `false`, clients keep cached hash until manual update           |
+| `lockedVersion` | Fleet pin to `releases/{file}@{version}` snapshot                    |
+
+**MCP tools**
+
+- `scripts_ota_publish_stable` — promote current file to stable (writes releases snapshot)
+- `scripts_ota_lock_version` — fleet-lock to semver (defaults to header `@version`)
+- `scripts_ota_unlock_version` — remove fleet lock
+
+**REST**
+
+- `POST /api/v1/scripts/{filename}/ota` with body `{ "action": "publish-stable" | "lock" | "unlock", "version"?: "1.2.0" }`
+
+Editor UI: blue cloud = save as debug (alpha), green cloud = publish stable; account menu = lock/unlock version.
+
 ## Overlay UI (Gist modals / panels)
 
 When building **in-page overlay UIs** in Gist scripts (modals, file explorers beside `editor-lib`):

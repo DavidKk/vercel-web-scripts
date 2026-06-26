@@ -4,8 +4,10 @@
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
 import { buildGrantsFromGlobal, type CspScriptExecuteMode, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
-import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY } from '@shared/launcher-constants'
+import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY, SCRIPT_MODULE_CACHE_KEY } from '@shared/launcher-constants'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
+import { buildRemoteModuleCacheFromBundle, mergeRemoteBundleWithOtaPolicy } from '@shared/remote-script-ota-merge'
+import type { ScriptOtaPolicy } from '@shared/script-ota-policy'
 import { buildWithGlobalExecutionSandbox } from '@shared/with-global-sandbox'
 
 import { isExtensionPageContext } from '@/helpers/env'
@@ -75,9 +77,85 @@ function writeRemoteScriptCache(content: string, etag: string): void {
     GM_setValue(keys.etag, etag)
     GM_setValue(REMOTE_SCRIPT_CACHE_KEY, content)
     GM_setValue(REMOTE_SCRIPT_ETAG_KEY, etag)
+    writeRemoteModuleCache(content)
   } catch {
     /* ignore cache write failures */
   }
+}
+
+function moduleCacheKeyPrefix(): string {
+  return `${SCRIPT_MODULE_CACHE_KEY}:${getRemoteScriptCacheScope()}:`
+}
+
+function readRemoteModuleCache(): Record<string, string> {
+  const prefix = moduleCacheKeyPrefix()
+  const cache: Record<string, string> = {}
+  try {
+    for (const key of GM_listValues()) {
+      if (key.startsWith(prefix)) {
+        const file = key.slice(prefix.length)
+        if (!file) {
+          continue
+        }
+        const value = GM_getValue(key, '')
+        if (typeof value === 'string' && value.length > 0) {
+          cache[file] = value
+        }
+      }
+    }
+  } catch {
+    /* ignore cache read failures */
+  }
+  return cache
+}
+
+function writeRemoteModuleCache(content: string): void {
+  const prefix = moduleCacheKeyPrefix()
+  const next = buildRemoteModuleCacheFromBundle(content)
+  const staleKeys = new Set<string>()
+  try {
+    for (const key of GM_listValues()) {
+      if (key.startsWith(prefix)) {
+        staleKeys.add(key)
+      }
+    }
+    for (const [file, body] of Object.entries(next)) {
+      const key = `${prefix}${file}`
+      GM_setValue(key, body)
+      staleKeys.delete(key)
+    }
+    for (const stale of staleKeys) {
+      GM_deleteValue(stale)
+    }
+  } catch {
+    /* ignore per-file cache write failures */
+  }
+}
+
+function readRemoteOtaContext(): {
+  scriptPolicies: Record<string, ScriptOtaPolicy & { version?: string }>
+  manualUpdate: boolean
+} {
+  const g = (typeof __GLOBAL__ !== 'undefined' ? __GLOBAL__ : typeof globalThis !== 'undefined' ? globalThis : {}) as Record<string, unknown>
+  const policies = g.__VWS_SCRIPT_POLICIES__
+  return {
+    scriptPolicies: policies && typeof policies === 'object' && !Array.isArray(policies) ? (policies as Record<string, ScriptOtaPolicy & { version?: string }>) : {},
+    manualUpdate: g.__VWS_OTA_MANUAL_UPDATE__ === true,
+  }
+}
+
+function prepareRemoteBundleContent(rawContent: string): string {
+  const ota = readRemoteOtaContext()
+  const merged = mergeRemoteBundleWithOtaPolicy({
+    content: rawContent,
+    scriptPolicies: ota.scriptPolicies,
+    moduleCache: readRemoteModuleCache(),
+    manualUpdate: ota.manualUpdate,
+  })
+  if (merged.pinnedFromCache.length > 0) {
+    GME_debug(`[Remote script] ota:pinned ${merged.pinnedFromCache.join(', ')}`)
+  }
+  return merged.content
 }
 
 /**
@@ -173,7 +251,7 @@ async function refreshRemoteScriptInBackground(url: string, previousCache: Remot
     }
 
     const etag = normalizeRemoteEtag(String(response.headers.get('etag') || ''))
-    const content = await response.text()
+    const content = prepareRemoteBundleContent(await response.text())
     if (!content) return
 
     const changed = !previousCache || previousCache.content !== content
@@ -205,10 +283,11 @@ export async function executeRemoteScript(url?: string): Promise<void> {
   logRemoteScriptCacheInventory(cached, scriptUrl)
 
   if (cached?.content && isShellNetworkEffectivelyEnabled()) {
-    GME_debug(`[Remote script] load:cache-first bytes=${cached.content.length} modules=${countCompiledRemoteModules(cached.content)} rules=${getRulesCacheStats().ruleCount}`)
-    GME_debug(`[Remote script] execute:start bytes=${cached.content.length} modules=${countCompiledRemoteModules(cached.content)} scripts=${getRulesCacheStats().scriptCount}`)
+    const executable = prepareRemoteBundleContent(cached.content)
+    GME_debug(`[Remote script] load:cache-first bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} rules=${getRulesCacheStats().ruleCount}`)
+    GME_debug(`[Remote script] execute:start bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} scripts=${getRulesCacheStats().scriptCount}`)
     GME_ok('Remote script ready.')
-    await executeScript(cached.content)
+    await executeScript(executable)
     void refreshRemoteScriptInBackground(scriptUrl, cached)
     return
   }
@@ -220,8 +299,9 @@ export async function executeRemoteScript(url?: string): Promise<void> {
     } else {
       GME_debug('[Remote script] Shell network off and no cache, attempting one-time bootstrap fetch')
       try {
-        content = await fetchScript(scriptUrl)
-        if (content) {
+        const fetched = await fetchScript(scriptUrl)
+        if (fetched) {
+          content = prepareRemoteBundleContent(fetched)
           writeRemoteScriptCache(content, '')
           GME_debug('[Remote script] Bootstrap fetch succeeded, remote script cached')
         }
@@ -234,8 +314,9 @@ export async function executeRemoteScript(url?: string): Promise<void> {
   } else {
     GME_debug('[Remote script] load:remote-first no local cache — fetch from server before execute url=' + shortUrlLabel(scriptUrl, 120))
     try {
-      content = await fetchScript(scriptUrl)
-      if (content) {
+      const fetched = await fetchScript(scriptUrl)
+      if (fetched) {
+        content = prepareRemoteBundleContent(fetched)
         writeRemoteScriptCache(content, '')
         GME_debug(`[Remote script] load:remote-first fetch:success bytes=${content.length}`)
       }
@@ -251,9 +332,10 @@ export async function executeRemoteScript(url?: string): Promise<void> {
     return
   }
 
-  GME_debug(`[Remote script] execute:start bytes=${content.length} modules=${countCompiledRemoteModules(content)} scripts=${getRulesCacheStats().scriptCount}`)
+  const executable = prepareRemoteBundleContent(content)
+  GME_debug(`[Remote script] execute:start bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} scripts=${getRulesCacheStats().scriptCount}`)
   GME_ok('Remote script ready.')
-  await executeScript(content)
+  await executeScript(executable)
 }
 
 /**

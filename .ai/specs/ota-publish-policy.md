@@ -282,10 +282,10 @@ stable bundle 仍为 **聚合包**。当 bundle hash 变化但部分脚本被 `l
 
 ### 13.2 实现时必须覆盖
 
-- [ ] Tampermonkey launcher 与 Extension launcher **同一套** manifest 策略逻辑
-- [ ] 聚合 bundle 的 **per-file 缓存**（§7.1），避免「bundle 升级拖垮锁定脚本」
-- [ ] `releases/` 纳入 managed 文件常量与 EXCLUDED 规则
-- [ ] 历史脚本无 `ota` 时迁移默认为 `stable` + `autoUpgrade=true`
+- [x] Tampermonkey launcher 与 Extension launcher **同一套** manifest 策略逻辑
+- [x] 聚合 bundle 的 **per-file 缓存**（§7.1），避免「bundle 升级拖垮锁定脚本」
+- [x] `releases/` 纳入 managed 文件常量与 EXCLUDED 规则
+- [x] 历史脚本无 `ota` 时迁移默认为 `stable` + `autoUpgrade=true`
 
 ### 13.3 产品待确认（不阻塞写 spec）
 
@@ -295,13 +295,13 @@ stable bundle 仍为 **聚合包**。当 bundle hash 变化但部分脚本被 `l
 
 ## 14. 验收标准
 
-- [ ] alpha 脚本修改后，stable bundle hash **不变**；未开 acceptAlpha 的客户端 **不**更新该脚本
-- [ ] `ota.autoUpgrade=false` 时，自动轮询 **不**应用新 hash；手动 Update 可以
-- [ ] `lockedVersion` + releases 快照：stable 用户持续运行锁定版本，直至 promote / 解锁
-- [ ] 「发布 stable」写入 releases 且 index 元数据正确；MCP/API 可读 `ota`
-- [ ] Extension Scripts 页展示 SERVER 策略；acceptAlpha 仅影响 alpha 模块拉取
-- [ ] Tampermonkey 安装路径行为与 Extension 一致（仅 stable）
-- [ ] semver prerelease 比较与 `@version` 校验一致
+- [x] alpha 脚本修改后，stable bundle hash **不变**；未开 acceptAlpha 的客户端 **不**更新该脚本
+- [x] `ota.autoUpgrade=false` 时，自动轮询 **不**应用新 hash；手动 Update 可以
+- [x] `lockedVersion` + releases 快照：stable 用户持续运行锁定版本，直至 promote / 解锁
+- [x] 「发布 stable」写入 releases 且 index 元数据正确；MCP/API 可读 `ota`
+- [x] Extension Scripts 页展示 SERVER 策略；acceptAlpha 仅影响 alpha 模块拉取
+- [x] Tampermonkey 安装路径行为与 Extension 一致（仅 stable）
+- [x] semver prerelease 比较与 `@version` 校验一致
 
 ## 15. 关联代码（实现入口）
 

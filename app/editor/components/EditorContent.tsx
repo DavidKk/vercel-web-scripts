@@ -1,9 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { fetchFiles, publishScriptStable, saveScriptFiles } from '@/app/api/scripts/actions'
+import { fetchFiles, fetchManagedScriptMeta, lockScriptVersion, publishScriptStable, saveScriptFiles, unlockScriptVersion } from '@/app/api/scripts/actions'
 import { useNotification } from '@/components/Notification'
 import { useFileState } from '@/components/ScriptEditor/context/FileStateContext'
 import { useTabBar } from '@/components/ScriptEditor/hooks/useTabBar'
@@ -11,6 +11,7 @@ import { ScriptEditorContent } from '@/components/ScriptEditor/ScriptEditorConte
 import { FileStatus } from '@/components/ScriptEditor/types'
 import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, isManagedScriptFilename, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import type { RuleConfig } from '@/services/tampermonkey/types'
+import type { ScriptOtaPolicy } from '@/shared/script-ota-policy'
 
 import { AIPanel } from './AIPanel'
 import { EditorHeaderWrapper } from './EditorHeaderWrapper'
@@ -56,6 +57,7 @@ export function EditorContent({
   const tabBar = useTabBar()
   const router = useRouter()
   const [isPublishing, setIsPublishing] = useState(false)
+  const [activeScriptOta, setActiveScriptOta] = useState<ScriptOtaPolicy | null>(null)
   const notification = useNotification()
 
   // Only compile + push when file content changed (avoids POST and re-execution every 2s when user didn't change code)
@@ -137,6 +139,23 @@ export function EditorContent({
     const latest = await fetchFiles()
     return Object.fromEntries(Object.entries(latest.files).map(([path, info]) => [path, info.content]))
   }, [])
+
+  const refreshActiveScriptOta = useCallback(async (filename: string | null) => {
+    if (!filename || !isManagedScriptFilename(filename)) {
+      setActiveScriptOta(null)
+      return
+    }
+    try {
+      const meta = await fetchManagedScriptMeta(filename)
+      setActiveScriptOta(meta?.ota ?? null)
+    } catch {
+      setActiveScriptOta(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshActiveScriptOta(tabBar.activeTab)
+  }, [tabBar.activeTab, refreshActiveScriptOta])
 
   const triggerScriptUpdatePush = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -267,6 +286,10 @@ export function EditorContent({
 
       notification.success('Saved as debug (ALPHA). Reload extension tabs to pick up changes.')
 
+      if (tabBar.activeTab && (filesToPublish[tabBar.activeTab] !== undefined || filesToDelete.includes(tabBar.activeTab))) {
+        await refreshActiveScriptOta(tabBar.activeTab)
+      }
+
       // Trigger script update push so Tampermonkey tabs reload the script
       triggerScriptUpdatePush()
     } catch (error) {
@@ -276,7 +299,7 @@ export function EditorContent({
     } finally {
       setIsPublishing(false)
     }
-  }, [fileState, router, isPublishing, isSaving, notification, triggerScriptUpdatePush])
+  }, [fileState, router, isPublishing, isSaving, notification, triggerScriptUpdatePush, tabBar.activeTab, refreshActiveScriptOta])
 
   /**
    * Publish the active managed script to stable (releases snapshot).
@@ -317,6 +340,7 @@ export function EditorContent({
       fileState.markFileAsUnchanged(filename)
 
       await publishScriptStable(filename)
+      await refreshActiveScriptOta(filename)
       router.refresh()
       notification.success(`Published ${filename} to stable`)
       triggerScriptUpdatePush()
@@ -327,7 +351,63 @@ export function EditorContent({
     } finally {
       setIsPublishing(false)
     }
-  }, [fileState, tabBar.activeTab, router, isPublishing, isSaving, notification, triggerScriptUpdatePush])
+  }, [fileState, tabBar.activeTab, router, isPublishing, isSaving, notification, triggerScriptUpdatePush, refreshActiveScriptOta])
+
+  const handleLockVersion = useCallback(async () => {
+    if (isPublishing || isSaving) {
+      return
+    }
+    const filename = tabBar.activeTab
+    if (!filename || !isManagedScriptFilename(filename)) {
+      notification.warning('Select a .ts or .js script file to lock version')
+      return
+    }
+    const confirmed = window.confirm(`Fleet-lock ${filename} to its current @version? Clients on stable track will pin to the releases snapshot.`)
+    if (!confirmed) {
+      return
+    }
+    setIsPublishing(true)
+    try {
+      const updated = await lockScriptVersion(filename)
+      setActiveScriptOta(updated.ota ?? null)
+      router.refresh()
+      notification.success(`Locked ${filename} to v${updated.ota?.lockedVersion ?? updated.version ?? '?'}`)
+    } catch (error) {
+      notification.error(`Lock failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [tabBar.activeTab, isPublishing, isSaving, notification, router])
+
+  const handleUnlockVersion = useCallback(async () => {
+    if (isPublishing || isSaving) {
+      return
+    }
+    const filename = tabBar.activeTab
+    if (!filename || !isManagedScriptFilename(filename)) {
+      notification.warning('Select a .ts or .js script file to unlock version')
+      return
+    }
+    if (!activeScriptOta?.lockedVersion) {
+      notification.warning('Script is not fleet-locked')
+      return
+    }
+    const confirmed = window.confirm(`Remove fleet lock from ${filename}?`)
+    if (!confirmed) {
+      return
+    }
+    setIsPublishing(true)
+    try {
+      const updated = await unlockScriptVersion(filename)
+      setActiveScriptOta(updated.ota ?? null)
+      router.refresh()
+      notification.success(`Unlocked ${filename}`)
+    } catch (error) {
+      notification.error(`Unlock failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [tabBar.activeTab, activeScriptOta?.lockedVersion, isPublishing, isSaving, notification, router])
 
   const canPublishStable = Boolean(tabBar.activeTab && isManagedScriptFilename(tabBar.activeTab))
 
@@ -339,6 +419,9 @@ export function EditorContent({
         onSave={handlePublish}
         onPublishStable={handlePublishStable}
         canPublishStable={canPublishStable}
+        activeScriptOta={activeScriptOta}
+        onLockVersion={handleLockVersion}
+        onUnlockVersion={handleUnlockVersion}
         isSaving={isPublishing || isSaving}
         isEditorDevMode={isEditorDevMode}
         onToggleEditorDevMode={onToggleEditorDevMode}

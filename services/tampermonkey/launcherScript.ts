@@ -12,6 +12,7 @@ import { PENDING_SEGMENT } from '@/services/runtime/contentAddressedAssets'
 import {
   LEGACY_AUTO_UPDATE_SCRIPT_KEY,
   MODULE_MANIFEST_ETAG_KEY,
+  OTA_MANUAL_UPDATE_KEY,
   PRESET_ACTIVATED_HASH_KEY,
   PRESET_CACHE_KEY,
   PRESET_ETAG_KEY,
@@ -77,6 +78,7 @@ export function createLauncherScript(params: CreateLauncherScriptParams): string
   const scopedScriptBundleUrlKey = `${SCRIPT_BUNDLE_URL_KEY}:${cacheScope}`
   const scopedRemoteCacheKey = `${REMOTE_SCRIPT_CACHE_KEY}:${cacheScope}`
   const scopedRemoteEtagKey = `${REMOTE_SCRIPT_ETAG_KEY}:${cacheScope}`
+  const scopedOtaManualUpdateKey = `${OTA_MANUAL_UPDATE_KEY}:${cacheScope}`
 
   const uri = new URL(launcherScriptUrl)
   const { protocol, hostname, port } = uri
@@ -146,6 +148,7 @@ ${grantLines}
   const SCRIPT_BUNDLE_URL_KEY_SCOPED = ${JSON.stringify(scopedScriptBundleUrlKey)};
   const REMOTE_SCRIPT_CACHE_KEY_SCOPED = ${JSON.stringify(scopedRemoteCacheKey)};
   const REMOTE_SCRIPT_ETAG_KEY_SCOPED = ${JSON.stringify(scopedRemoteEtagKey)};
+  const OTA_MANUAL_UPDATE_KEY_SCOPED = ${JSON.stringify(scopedOtaManualUpdateKey)};
   var DEFAULT_SCRIPT_URL = ${JSON.stringify(remoteScriptUrl)};
   var runtimeScriptUrl = DEFAULT_SCRIPT_URL;
   const MODULE_LOG_PREFIX = '[ModuleLoad][preset-core]';
@@ -289,6 +292,8 @@ ${grantLines}
     var bytes = presetCode && typeof presetCode === 'string' ? presetCode.length : 0;
     bootLog('info', MODULE_LOG_PREFIX, 'execute:start bytes=' + bytes);
     const g = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : {};
+    g.__VWS_SCRIPT_POLICIES__ = (lastManifestData && lastManifestData.scriptPolicies) ? lastManifestData.scriptPolicies : {};
+    g.__VWS_OTA_MANUAL_UPDATE__ = otaManualUpdateForLoad;
     try {
       var body = ASSIGN_GLOBALS + '\\nwith(g) {\\n' + PRESET_VAR_DECLS + '\\n' + presetCode + '\\n}';
       new Function(${grantParamList}, body)(${grantArgList});
@@ -349,6 +354,42 @@ ${grantLines}
     return normalizeEtag(mod.hash.value);
   }
 
+  var lastManifestData = null;
+  var otaManualUpdateForLoad = false;
+
+  function consumeManualUpdateFlag() {
+    var scoped = OTA_MANUAL_UPDATE_KEY_SCOPED;
+    var legacy = ${JSON.stringify(OTA_MANUAL_UPDATE_KEY)};
+    var flag = GM_getValue(scoped) || GM_getValue(legacy);
+    if (flag) {
+      GM_deleteValue(scoped);
+      GM_deleteValue(legacy);
+      return true;
+    }
+    return false;
+  }
+
+  function shouldApplyPresetOta(remoteHash, localHash, hasLocalCache, manualUpdate) {
+    if (!remoteHash || remoteHash === localHash) {
+      return false;
+    }
+    var rt = lastManifestData && lastManifestData.runtime ? lastManifestData.runtime : null;
+    var projectVersion = lastManifestData && lastManifestData.projectVersion ? lastManifestData.projectVersion : '';
+    if (!rt) {
+      return false;
+    }
+    if (rt.stage === 'alpha') {
+      return false;
+    }
+    if (rt.autoUpgrade === false && hasLocalCache && !manualUpdate) {
+      return false;
+    }
+    if (rt.lockedVersion && projectVersion && projectVersion !== rt.lockedVersion) {
+      return false;
+    }
+    return true;
+  }
+
   /**
    * Fetch module manifest; supports If-None-Match → 304 (small) so we avoid preset.js when nothing changed.
    * @param ifNoneMatch Stored manifest ETag (normalized) or ''
@@ -378,6 +419,7 @@ ${grantLines}
         if (res.status === 200 && res.responseText) {
           try {
             var data = JSON.parse(res.responseText);
+            lastManifestData = data;
             var etag = normalizeEtag(getResponseHeader(res, 'etag'));
             var pcm = extractPresetCoreModule(data);
             var rh = hashFromPresetCoreModule(pcm);
@@ -421,6 +463,9 @@ ${grantLines}
   }
 
   function applyScriptBundleUrlFromManifest(data, manifestNotModified) {
+    if (data) {
+      lastManifestData = data;
+    }
     if (manifestNotModified) {
       var cachedUrl = readScopedValue(SCRIPT_BUNDLE_URL_KEY_SCOPED, ${JSON.stringify(SCRIPT_BUNDLE_URL_KEY)}, '');
       if (cachedUrl && typeof cachedUrl === 'string') {
@@ -524,6 +569,7 @@ ${grantLines}
 
   function loadAndRun(skipConditionalRequest) {
     pendingManifestEtag = '';
+    otaManualUpdateForLoad = consumeManualUpdateFlag();
     skipPresetExecute = false;
     var presetCode0 = readScopedValue(PRESET_CACHE_KEY_SCOPED, ${JSON.stringify(PRESET_CACHE_KEY)}, '');
     var localH0 = normalizeEtag(readScopedValue(PRESET_ETAG_KEY_SCOPED, ${JSON.stringify(PRESET_ETAG_KEY)}, ''));
@@ -652,6 +698,20 @@ ${grantLines}
               return;
             }
             bootLog('ok', MODULE_LOG_PREFIX, 'preset-core:validate:ok applying body etag=' + shortHash(normalizedEtag || expectedHash));
+            var remoteHash = normalizedEtag || expectedHash || '';
+            var activeHash = readScopedValue(PRESET_ACTIVATED_HASH_KEY_SCOPED, ${JSON.stringify(PRESET_ACTIVATED_HASH_KEY)}, '');
+            var hasLocalCache = !!(presetCode || activeHash);
+            var manualUpdate = otaManualUpdateForLoad;
+            if (!shouldApplyPresetOta(remoteHash, localPresetHash || activeHash, hasLocalCache, manualUpdate)) {
+              bootLog('info', MODULE_LOG_PREFIX, 'preset-core:upgrade:skipped ota-policy');
+              if (skipPresetExecute) {
+                return;
+              }
+              if (presetCode) {
+                runPreset(presetCode);
+              }
+              return;
+            }
             applyPresetWithAtomicSwitch(res.responseText, normalizedEtag || expectedHash || '');
             return;
           }
@@ -790,6 +850,8 @@ ${grantLines}
     }
     GM_setValue(PRESET_UPDATED_NOTIFY_KEY_SCOPED, 1);
     GM_setValue(${JSON.stringify(PRESET_UPDATED_NOTIFY_KEY)}, 1);
+    GM_setValue(OTA_MANUAL_UPDATE_KEY_SCOPED, Date.now());
+    GM_setValue(${JSON.stringify(OTA_MANUAL_UPDATE_KEY)}, Date.now());
     setTimeout(function () {
       if (isTabActive()) {
         location.reload();

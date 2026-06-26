@@ -59,4 +59,30 @@ describe('ota-apply-policy', () => {
       })
     ).toEqual({ apply: true, reason: 'manual-update' })
   })
+
+  it('should not let manual update bypass alpha runtime stage', () => {
+    expect(
+      decideOtaModuleApply({
+        moduleId: 'preset-core',
+        remoteHash: 'remote',
+        localHash: 'local',
+        hasLocalCache: true,
+        runtimePolicy: { stage: 'alpha', autoUpgrade: true, lockedVersion: null },
+        clientPrefs: { manualUpdate: true },
+      })
+    ).toEqual({ apply: false, reason: 'stage-not-allowed' })
+  })
+
+  it('should not let manual update bypass locked runtime version', () => {
+    expect(
+      decideOtaModuleApply({
+        moduleId: 'preset-core',
+        remoteHash: 'remote',
+        localHash: 'local',
+        hasLocalCache: true,
+        runtimePolicy: { stage: 'stable', autoUpgrade: true, lockedVersion: '1.0.0', projectVersion: '2.0.0' },
+        clientPrefs: { manualUpdate: true },
+      })
+    ).toEqual({ apply: false, reason: 'locked-version-mismatch' })
+  })
 })

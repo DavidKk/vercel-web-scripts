@@ -8,11 +8,14 @@ import {
   getManagedScriptFile,
   getManagedScriptSnippet,
   listManagedScriptFiles,
+  lockManagedScriptVersion,
   patchManagedScriptFile,
+  publishManagedScriptStable,
   rebuildManagedScriptIndex,
   renameManagedScriptFile,
   replaceManagedScriptFile,
   searchManagedScriptFiles,
+  unlockManagedScriptVersion,
   updateManagedScriptIndexMetadata,
   upsertManagedScriptFile,
   validateManagedScriptFile,
@@ -311,6 +314,12 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     async () => rebuildManagedScriptIndex()
   )
 
+  const scriptOtaPolicySchema = z.object({
+    stage: z.enum(['stable', 'alpha']).optional(),
+    autoUpgrade: z.boolean().optional(),
+    lockedVersion: z.string().nullable().optional(),
+  })
+
   const indexUpdateMetadata = tool(
     'scripts_index_update_metadata',
     'Update human-maintained search metadata for one managed userscript in magickmonkey.scripts.index.json. Derived fields such as @name, @description, @version, @match, and @run-at still come from the script file.',
@@ -318,6 +327,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
       filename: z.string().min(1),
       aliases: z.array(z.string()).optional(),
       keywords: z.array(z.string()).optional(),
+      ota: scriptOtaPolicySchema.optional(),
     }),
     async (options) => updateManagedScriptIndexMetadata(options)
   )
@@ -354,6 +364,43 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     async () => buildRuntimeSummary()
   )
 
+  const otaPublishStable = tool(
+    'scripts_ota_publish_stable',
+    'Publish a managed userscript to stable: write releases/{file}@{version} snapshot and set OTA policy stage=stable with autoUpgrade=true. Requires valid @version in the script header.',
+    z.object({
+      filename: z.string().min(1).describe('Managed script filename (e.g. my-script.ts)'),
+    }),
+    async ({ filename }) => {
+      const script = await publishManagedScriptStable(filename)
+      return { ok: true as const, filename, script }
+    }
+  )
+
+  const otaLockVersion = tool(
+    'scripts_ota_lock_version',
+    'Fleet-lock a managed userscript to a semver (defaults to header @version). Stable clients pin to the matching releases snapshot.',
+    z.object({
+      filename: z.string().min(1),
+      version: z.string().min(1).optional().describe('Explicit semver; defaults to @version from the script header'),
+    }),
+    async ({ filename, version }) => {
+      const script = await lockManagedScriptVersion(filename, version)
+      return { ok: true as const, filename, script }
+    }
+  )
+
+  const otaUnlockVersion = tool(
+    'scripts_ota_unlock_version',
+    'Remove fleet version lock from a managed userscript OTA policy.',
+    z.object({
+      filename: z.string().min(1),
+    }),
+    async ({ filename }) => {
+      const script = await unlockManagedScriptVersion(filename)
+      return { ok: true as const, filename, script }
+    }
+  )
+
   return new Map([
     [list.name, list],
     [search.name, search],
@@ -370,5 +417,8 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
     [del.name, del],
     [rename.name, rename],
     [runtimeSummary.name, runtimeSummary],
+    [otaPublishStable.name, otaPublishStable],
+    [otaLockVersion.name, otaLockVersion],
+    [otaUnlockVersion.name, otaUnlockVersion],
   ])
 }

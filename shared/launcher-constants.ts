@@ -37,6 +37,12 @@ export const RUNTIME_STATE_KEY_PREFIX = 'vws_'
 
 /** GM_setValue key: project version (package.json) reported when preset last executed */
 export const PRESET_PROJECT_VERSION_KEY = 'vws_preset_project_version'
+/** GM_setValue key: runtime OTA stage (stable | alpha) from last manifest apply */
+export const RUNTIME_OTA_STAGE_KEY = 'vws_runtime_ota_stage'
+/** GM_setValue key: next preset-core fetch should bypass autoUpgrade=false (popup Update runtime) */
+export const OTA_MANUAL_UPDATE_KEY = 'vws_ota_manual_update'
+/** GM_setValue key prefix: per-file remote module cache (`{prefix}{scope}:{file}`) */
+export const SCRIPT_MODULE_CACHE_KEY = 'vws_script_module_cache'
 
 /** Ring buffer key on globalThis (must match preset log-store) */
 export const BOOT_LOG_KEY = '__VWS_BOOT_LOG__'

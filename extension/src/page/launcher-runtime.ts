@@ -10,6 +10,7 @@ import {
   LEGACY_AUTO_UPDATE_SCRIPT_KEY,
   MODULE_LOG_PREFIX,
   MODULE_MANIFEST_ETAG_KEY,
+  OTA_MANUAL_UPDATE_KEY,
   PRESET_ACTIVATED_HASH_KEY,
   PRESET_CACHE_KEY,
   PRESET_ETAG_KEY,
@@ -19,6 +20,7 @@ import {
   PRESET_UPDATED_NOTIFY_KEY,
   REMOTE_SCRIPT_CACHE_KEY,
   REMOTE_SCRIPT_ETAG_KEY,
+  RUNTIME_OTA_STAGE_KEY,
   SCRIPT_BUNDLE_URL_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
@@ -93,6 +95,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   let pendingManifestEtag = ''
   let skipPresetExecute = false
   let lastManifestData: ModuleManifest | null = null
+  let otaManualUpdateForLoad = false
 
   const PRESET_RUN_ATTEMPTED_KEY = '__VWS_PRESET_RUN_ATTEMPTED__'
   const PRESET_IN_FLIGHT_KEY = '__VWS_PRESET_EXECUTE_IN_FLIGHT__'
@@ -243,6 +246,8 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
     g.__GLOBAL__ = g
     g.__VWS_SCRIPT_KEY__ = scriptKey
     g.__VWS_ENABLED_SCRIPTS__ = enabledScripts
+    g.__VWS_SCRIPT_POLICIES__ = lastManifestData?.scriptPolicies ?? {}
+    g.__VWS_OTA_MANUAL_UPDATE__ = otaManualUpdateForLoad
     setActiveGmScope(gmScope)
     const decls = buildPresetLauncherDecls(PRESET_VAR_NAMES)
     setPresetExecuteInFlight(true)
@@ -305,6 +310,16 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
   function writeScopedAndLegacy(scopedKey: string, legacyKey: string, value: unknown): void {
     gm.GM_setValue(scopedKey, value)
     gm.GM_setValue(legacyKey, value)
+  }
+
+  function consumeManualUpdateFlag(): boolean {
+    const scoped = `${OTA_MANUAL_UPDATE_KEY}:${cacheScope}`
+    const flag = readScopedValue(scoped, OTA_MANUAL_UPDATE_KEY, '')
+    if (flag) {
+      writeScopedAndLegacy(scoped, OTA_MANUAL_UPDATE_KEY, '')
+      return true
+    }
+    return false
   }
 
   function extractPresetCoreModule(data: ModuleManifest | null): ManifestModule | null {
@@ -396,10 +411,11 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   function persistProjectVersionFromManifest(data: ModuleManifest | null | undefined): void {
     const version = data?.projectVersion
-    if (typeof version !== 'string' || !version.trim()) {
-      return
+    if (typeof version === 'string' && version.trim()) {
+      writeScopedAndLegacy(`${PRESET_PROJECT_VERSION_KEY}:${cacheScope}`, PRESET_PROJECT_VERSION_KEY, version.trim())
     }
-    writeScopedAndLegacy(`${PRESET_PROJECT_VERSION_KEY}:${cacheScope}`, PRESET_PROJECT_VERSION_KEY, version.trim())
+    const stage = data?.runtime?.stage === 'alpha' ? 'alpha' : 'stable'
+    writeScopedAndLegacy(`${RUNTIME_OTA_STAGE_KEY}:${cacheScope}`, RUNTIME_OTA_STAGE_KEY, stage)
   }
 
   function applyScriptBundleUrlFromManifest(data: ModuleManifest | null, manifestNotModified: boolean): void {
@@ -531,7 +547,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
           const remoteHash = normalizedEtag || expectedHash || ''
           const activeHash = readScopedValue(scopedPresetActivatedHashKey, PRESET_ACTIVATED_HASH_KEY, '') as string
           const hasLocalCache = Boolean(presetCode || activeHash)
-          if (!shouldApplyPresetCoreUpgrade(remoteHash, localPresetHash || activeHash, hasLocalCache)) {
+          if (!shouldApplyPresetCoreUpgrade(remoteHash, localPresetHash || activeHash, hasLocalCache, otaManualUpdateForLoad)) {
             if (skipPresetExecute) {
               return
             }
@@ -627,6 +643,7 @@ export function startLauncher(urls: LauncherUrls, gm: GMApi, options: LauncherSt
 
   function loadAndRun(skipConditionalRequest = false): void {
     pendingManifestEtag = ''
+    otaManualUpdateForLoad = consumeManualUpdateFlag()
     if (!skipConditionalRequest) {
       skipPresetExecute = false
     }

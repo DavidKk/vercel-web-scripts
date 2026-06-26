@@ -1,5 +1,7 @@
 /** Marker line before each compiled GIST module in remote bundles (`// file.ts`). */
-const REMOTE_MODULE_MARKER_RE = /^\s*\/\/\s+([\w./-]+\.(?:js|ts))\s*$/gm
+import { joinRemoteBundleModules, REMOTE_MODULE_MARKER_RE, splitRemoteBundleModules } from './remote-script-bundle-modules'
+
+export { REMOTE_MODULE_MARKER_RE }
 
 /**
  * Read extension per-file enable map from the launcher sandbox global.
@@ -35,27 +37,13 @@ export function filterDisabledRemoteModules(content: string, enabledScripts: Rec
     return content
   }
 
-  const markers: Array<{ file: string; start: number }> = []
-  const re = new RegExp(REMOTE_MODULE_MARKER_RE.source, 'gm')
-  let match: RegExpExecArray | null
-  while ((match = re.exec(content)) !== null) {
-    markers.push({ file: match[1], start: match.index })
-  }
-  if (markers.length === 0) {
+  const modules = splitRemoteBundleModules(content)
+  if (modules.length === 0) {
     return content
   }
 
-  const kept: string[] = []
-  for (let i = 0; i < markers.length; i++) {
-    const { file, start } = markers[i]
-    if (disabled.has(file)) {
-      continue
-    }
-    const end = i + 1 < markers.length ? markers[i + 1].start : content.length
-    kept.push(content.slice(start, end))
-  }
-
-  return kept.join('\n\n').trim()
+  const kept = modules.filter((module) => !disabled.has(module.file))
+  return joinRemoteBundleModules(kept)
 }
 
 /**
@@ -74,13 +62,8 @@ export function listDisabledRemoteModules(content: string, enabledScripts: Recor
     return []
   }
   const disabledSet = new Set(disabled)
-  const present = new Set<string>()
-  const re = new RegExp(REMOTE_MODULE_MARKER_RE.source, 'gm')
-  let match: RegExpExecArray | null
-  while ((match = re.exec(content)) !== null) {
-    if (disabledSet.has(match[1])) {
-      present.add(match[1])
-    }
-  }
-  return [...present].sort()
+  return splitRemoteBundleModules(content)
+    .filter((module) => disabledSet.has(module.file))
+    .map((module) => module.file)
+    .sort()
 }

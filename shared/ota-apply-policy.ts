@@ -59,7 +59,7 @@ export function decideOtaModuleApply(input: OtaApplyDecisionInput): OtaApplyDeci
   const isScriptBundle = input.moduleId === 'script-bundle' || input.moduleId === 'script-bundle-alpha'
   const isAlphaBundle = input.moduleId === 'script-bundle-alpha'
 
-  if (isAlphaBundle && !acceptAlpha && !manualUpdate) {
+  if (isAlphaBundle && !acceptAlpha) {
     return { apply: false, reason: 'alpha-bundle-not-subscribed' }
   }
 
@@ -67,7 +67,7 @@ export function decideOtaModuleApply(input: OtaApplyDecisionInput): OtaApplyDeci
 
   const stage: OtaReleaseStage = isAlphaBundle ? 'alpha' : (policy?.stage ?? 'stable')
 
-  if (!isOtaStageAllowedForClient(stage, acceptAlpha) && !manualUpdate) {
+  if (!isOtaStageAllowedForClient(stage, acceptAlpha)) {
     return { apply: false, reason: 'stage-not-allowed' }
   }
 
@@ -78,8 +78,8 @@ export function decideOtaModuleApply(input: OtaApplyDecisionInput): OtaApplyDeci
   }
 
   if (policy && 'lockedVersion' in policy && policy.lockedVersion) {
-    const remoteVersion = 'version' in policy ? policy.version : undefined
-    if (remoteVersion && remoteVersion !== policy.lockedVersion && !manualUpdate) {
+    const remoteVersion = input.moduleId === 'preset-core' || input.moduleId === 'preset-ui' ? input.runtimePolicy?.projectVersion : input.scriptPolicy?.version
+    if (remoteVersion && remoteVersion !== policy.lockedVersion) {
       return { apply: false, reason: 'locked-version-mismatch' }
     }
   }

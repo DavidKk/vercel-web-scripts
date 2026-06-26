@@ -164,6 +164,46 @@ export const SCRIPTS_OPENAPI_V1 = {
         },
       },
     },
+    '/api/v1/scripts/{filename}/ota': {
+      post: {
+        operationId: 'postScriptOta',
+        summary: 'OTA publish-stable, lock, or unlock',
+        parameters: [
+          {
+            name: 'filename',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'URL-encoded managed script filename',
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ScriptOtaActionRequest' },
+              examples: {
+                publishStable: { value: { action: 'publish-stable' } },
+                lock: { value: { action: 'lock', version: '1.2.0' } },
+                unlock: { value: { action: 'unlock' } },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Updated script metadata',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ScriptOtaActionResponse' },
+              },
+            },
+          },
+          '400': { description: 'Invalid action or filename' },
+          '401': { description: 'Unauthorized' },
+        },
+      },
+    },
   },
   components: {
     schemas: {
@@ -194,8 +234,45 @@ export const SCRIPTS_OPENAPI_V1 = {
           aliases: { type: 'array', items: { type: 'string' }, description: 'Human-maintained search aliases preserved from the script index.' },
           keywords: { type: 'array', items: { type: 'string' }, description: 'Human-maintained search keywords preserved from the script index.' },
           updatedAt: { type: 'integer', description: 'Last content change time for this file (epoch ms).' },
+          ota: { $ref: '#/components/schemas/ScriptOtaPolicy' },
         },
         required: ['filename', 'byteLength'],
+      },
+      ScriptOtaPolicy: {
+        type: 'object',
+        properties: {
+          stage: { type: 'string', enum: ['stable', 'alpha'], description: 'SERVER release stage for this script.' },
+          autoUpgrade: { type: 'boolean', description: 'Whether clients may auto-apply newer artifact hashes.' },
+          lockedVersion: { type: 'string', description: 'Fleet pin: stable builds use releases/{file}@{version} when set.' },
+        },
+        required: ['stage', 'autoUpgrade'],
+      },
+      ScriptOtaActionRequest: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['publish-stable', 'lock', 'unlock'] },
+          version: { type: 'string', description: 'Required for lock when not inferring from @version' },
+        },
+        required: ['action'],
+      },
+      ScriptOtaActionResponse: {
+        allOf: [
+          { $ref: '#/components/schemas/StandardEnvelope' },
+          {
+            type: 'object',
+            properties: {
+              data: {
+                type: 'object',
+                properties: {
+                  filename: { type: 'string' },
+                  action: { type: 'string' },
+                  script: { $ref: '#/components/schemas/ScriptFileMeta' },
+                },
+                required: ['filename', 'action', 'script'],
+              },
+            },
+          },
+        ],
       },
       ListScriptsResponse: {
         allOf: [

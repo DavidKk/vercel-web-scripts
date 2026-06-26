@@ -2,7 +2,7 @@
 
 import { withAuthAction } from '@/initializer/wrapper'
 import { fetchGist, getGistInfo } from '@/services/gist'
-import { lockManagedScriptVersion, publishManagedScriptStable, saveManagedScriptFiles, unlockManagedScriptVersion } from '@/services/scripts/gistScripts'
+import { listManagedScriptFiles, lockManagedScriptVersion, publishManagedScriptStable, saveManagedScriptFiles, unlockManagedScriptVersion } from '@/services/scripts/gistScripts'
 
 export const fetchFiles = withAuthAction(async () => {
   const { gistId, gistToken } = getGistInfo()
@@ -54,4 +54,13 @@ export const lockScriptVersion = withAuthAction(async (filename: string, version
  */
 export const unlockScriptVersion = withAuthAction(async (filename: string) => {
   return unlockManagedScriptVersion(filename)
+})
+
+/**
+ * Read managed script index metadata (including OTA policy) for the editor.
+ * @param filename Managed script filename
+ */
+export const fetchManagedScriptMeta = withAuthAction(async (filename: string) => {
+  const { files } = await listManagedScriptFiles()
+  return files.find((file) => file.filename === filename) ?? null
 })

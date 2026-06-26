@@ -6,6 +6,7 @@ import {
   loadExtensionConfig,
   loadGmScopeForScriptKey,
   readPresetProjectVersion,
+  readRuntimeOtaStage,
 } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
@@ -341,7 +342,7 @@ export class MmPopupApp extends HTMLElement {
       network.checked = s.networkEnabled
     }
     this.syncLogOutputTabs(s.logOutputMode)
-    this.renderVersionFooter({ presetVersion: s.presetVersion, presetLoading: false })
+    this.renderVersionFooter({ presetVersion: s.presetVersion, runtimeStage: s.runtimeStage, presetLoading: false })
     this.renderExtensionUpdateHint(s)
     this.syncShellMasterSwitch(s)
     this.quickRuleCurrentUrl = s.activeTabUrl || ''
@@ -452,14 +453,17 @@ export class MmPopupApp extends HTMLElement {
     }
   }
 
-  private renderVersionFooter(options?: { presetVersion?: string | null; presetLoading?: boolean }): void {
+  private renderVersionFooter(options?: { presetVersion?: string | null; runtimeStage?: 'stable' | 'alpha' | null; presetLoading?: boolean }): void {
     const version = this.querySelector('[data-ref="version"]') as HTMLElement | null
     if (!version) {
       return
     }
     const presetVersion = options?.presetVersion
     const presetLoading = options?.presetLoading === true && !presetVersion?.trim()
-    version.textContent = formatPopupVersionFooter(getExtensionVersion(), presetVersion, { presetLoading })
+    version.textContent = formatPopupVersionFooter(getExtensionVersion(), presetVersion, {
+      presetLoading,
+      runtimeStage: options?.runtimeStage ?? null,
+    })
     version.classList.toggle('mm-popup-footer-version-loading', presetLoading)
   }
 
@@ -468,9 +472,9 @@ export class MmPopupApp extends HTMLElement {
     try {
       const config = await loadExtensionConfig()
       const gmScope = config.scriptKey.trim() ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
-      const presetVersion = await readPresetProjectVersion(config, gmScope)
-      if (presetVersion?.trim()) {
-        this.renderVersionFooter({ presetVersion })
+      const [presetVersion, runtimeStage] = await Promise.all([readPresetProjectVersion(config, gmScope), readRuntimeOtaStage(config, gmScope)])
+      if (presetVersion?.trim() || runtimeStage) {
+        this.renderVersionFooter({ presetVersion, runtimeStage })
       }
     } catch {
       // Keep manifest + loading placeholder until refresh() resolves.

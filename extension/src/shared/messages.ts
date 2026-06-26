@@ -172,6 +172,8 @@ export interface ShellStatus {
   extensionDownloadUrl: string | null
   /** Project version last reported by preset on an http(s) tab; null before first page load. */
   presetVersion: string | null
+  /** Runtime OTA stage (stable | alpha) from launcher or manifest; null when unknown. */
+  runtimeStage: 'stable' | 'alpha' | null
   /** False when master switch is off globally or for the active tab. */
   shellEnabledOnActiveTab: boolean
   /** False when master switch is off for all tabs. */

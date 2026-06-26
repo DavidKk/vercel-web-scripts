@@ -1,4 +1,5 @@
-import { PRESET_PROJECT_VERSION_KEY } from '@shared/launcher-constants'
+import { PRESET_PROJECT_VERSION_KEY, RUNTIME_OTA_STAGE_KEY } from '@shared/launcher-constants'
+import type { OtaReleaseStage } from '@shared/script-ota-policy'
 
 import type { ExtensionConfig } from '../../types'
 import { serviceEndpointKey } from '../extension-services'
@@ -7,6 +8,7 @@ import { gmStorageKey } from './runtime-cache'
 /** Minimal module-manifest shape for project version lookup */
 export interface ModuleManifestProjectVersion {
   projectVersion?: string
+  runtime?: { stage?: string }
 }
 
 /**
@@ -116,4 +118,85 @@ export async function resolvePresetProjectVersion(config: ExtensionConfig, gmSco
     return fromManifest
   }
   return null
+}
+
+/**
+ * Chrome storage keys that may hold the last applied runtime OTA stage.
+ * @param config Primary OTA representative config
+ * @param gmScope GM namespace prefix for scoped GM keys
+ * @returns Keys in lookup priority order
+ */
+export function buildRuntimeOtaStageStorageKeys(config: ExtensionConfig, gmScope?: string): string[] {
+  if (!config.baseUrl.trim() || !config.scriptKey.trim()) {
+    return [gmStorageKey(RUNTIME_OTA_STAGE_KEY)]
+  }
+  const scope = encodeURIComponent(serviceEndpointKey(config.baseUrl, config.scriptKey))
+  const logicalScoped = `${RUNTIME_OTA_STAGE_KEY}:${scope}`
+  const keys: string[] = []
+  if (gmScope?.trim()) {
+    keys.push(gmStorageKey(`${gmScope.trim()}_${logicalScoped}`))
+  }
+  keys.push(gmStorageKey(logicalScoped))
+  keys.push(gmStorageKey(RUNTIME_OTA_STAGE_KEY))
+  return keys
+}
+
+/**
+ * Read runtime OTA stage last reported by launcher on an http(s) tab.
+ * @param config Primary OTA representative config
+ * @param gmScope GM namespace prefix for scoped GM keys
+ * @returns stable | alpha or null when unknown
+ */
+export async function readRuntimeOtaStage(config: ExtensionConfig, gmScope?: string): Promise<OtaReleaseStage | null> {
+  const keys = buildRuntimeOtaStageStorageKeys(config, gmScope)
+  const result = await chrome.storage.local.get(keys)
+  for (const key of keys) {
+    const value = result[key]
+    if (value === 'alpha' || value === 'stable') {
+      return value
+    }
+  }
+  return null
+}
+
+/**
+ * Fetch runtime OTA stage from module-manifest.json.
+ * @param config Primary OTA representative config
+ * @returns stable | alpha or null when unavailable
+ */
+export async function fetchRuntimeOtaStageFromManifest(config: ExtensionConfig): Promise<OtaReleaseStage | null> {
+  const baseUrl = config.baseUrl.trim().replace(/\/+$/, '')
+  const scriptKey = config.scriptKey.trim()
+  if (!baseUrl || !scriptKey) {
+    return null
+  }
+  const url = `${baseUrl}/static/${encodeURIComponent(scriptKey)}/module-manifest.json`
+  try {
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) {
+      return null
+    }
+    const data = (await res.json()) as ModuleManifestProjectVersion
+    return data.runtime?.stage === 'alpha' ? 'alpha' : data.runtime?.stage === 'stable' ? 'stable' : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Resolve runtime OTA stage: GM storage first, then module-manifest when allowed.
+ * @param config Primary OTA representative config
+ * @param gmScope GM namespace prefix for scoped GM keys
+ * @param options allowManifestFetch when shell network is enabled
+ * @returns stable | alpha or null
+ */
+export async function resolveRuntimeOtaStage(config: ExtensionConfig, gmScope?: string, options?: { allowManifestFetch?: boolean }): Promise<OtaReleaseStage | null> {
+  const fromStorage = await readRuntimeOtaStage(config, gmScope)
+  if (fromStorage) {
+    return fromStorage
+  }
+  if (options?.allowManifestFetch === false) {
+    return null
+  }
+  return fetchRuntimeOtaStageFromManifest(config)
 }

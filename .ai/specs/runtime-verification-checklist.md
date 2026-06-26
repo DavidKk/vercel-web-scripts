@@ -24,6 +24,10 @@ Use this checklist when validating each phase of runtime modularization.
 - [ ] Validation mismatch: module activation rejected
 - [ ] Atomic switch updates active pointer only after successful validation
 - [ ] Rollback restores previous known-good artifact on failure
+- [ ] OTA policy: alpha script edits do not change stable `script-bundle` hash for non-alpha clients
+- [ ] OTA policy: `autoUpgrade=false` blocks automatic preset-core apply; popup **Update runtime** bypasses via manual flag
+- [ ] OTA policy: fleet `lockedVersion` pins stable clients to releases snapshot
+- [ ] Extension popup footer shows preset semver and runtime stage (STB / ALP)
 
 ## Phase D - Script modularization
 

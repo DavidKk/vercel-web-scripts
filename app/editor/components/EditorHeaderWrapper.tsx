@@ -1,6 +1,7 @@
 'use client'
 
 import { useLayout } from '@/components/ScriptEditor/hooks/useLayout'
+import type { ScriptOtaPolicy } from '@/shared/script-ota-policy'
 
 import EditorHeader from './EditorHeader'
 
@@ -10,6 +11,9 @@ interface EditorHeaderWrapperProps {
   onSave: () => void
   onPublishStable?: () => void
   canPublishStable?: boolean
+  activeScriptOta?: ScriptOtaPolicy | null
+  onLockVersion?: () => void
+  onUnlockVersion?: () => void
   isSaving: boolean
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void

@@ -28,6 +28,7 @@ import {
   resetRuntimeStateForEnabledScriptKeys,
   resolveEditorServiceConfig,
   resolvePresetProjectVersion,
+  resolveRuntimeOtaStage,
   setIncognitoLogCollectionEnabled,
   setShellLogOutputMode,
   setShellNetworkEnabled,
@@ -311,6 +312,7 @@ async function buildStatus(): Promise<ShellStatus> {
   ])
   const gmScope = config.scriptKey ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
   const presetVersion = await resolvePresetProjectVersion(config, gmScope, { allowManifestFetch: networkEnabled })
+  const runtimeStage = await resolveRuntimeOtaStage(config, gmScope, { allowManifestFetch: networkEnabled })
   const url = tab?.url ?? ''
   const enabledServices = servicesState.services.filter((service) => service.enabled)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
@@ -345,6 +347,7 @@ async function buildStatus(): Promise<ShellStatus> {
     latestExtensionVersion,
     extensionDownloadUrl,
     presetVersion,
+    runtimeStage,
     shellEnabledOnActiveTab,
     shellGloballyEnabled,
   }

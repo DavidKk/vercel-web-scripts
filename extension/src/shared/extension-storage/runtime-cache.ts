@@ -1,6 +1,7 @@
 import {
   LEGACY_AUTO_UPDATE_SCRIPT_KEY,
   MODULE_MANIFEST_ETAG_KEY,
+  OTA_MANUAL_UPDATE_KEY,
   PRESET_ACTIVATED_HASH_KEY,
   PRESET_CACHE_KEY,
   PRESET_ETAG_KEY,
@@ -8,8 +9,10 @@ import {
   PRESET_PROJECT_VERSION_KEY,
   PRESET_UPDATE_CHANNEL_KEY,
   PRESET_UPDATED_NOTIFY_KEY,
+  RUNTIME_OTA_STAGE_KEY,
   RUNTIME_STATE_KEY_PREFIX,
   SCRIPT_BUNDLE_URL_KEY,
+  SCRIPT_MODULE_CACHE_KEY,
   SHELL_LOG_PERSIST_ENABLED_KEY,
   SHELL_NETWORK_ENABLED_KEY,
 } from '@shared/launcher-constants'
@@ -29,7 +32,7 @@ import { GM_STORAGE_PREFIX, SCRIPT_LIST_CACHE_KEY, SCRIPT_LIST_STORAGE_KEY, SHEL
 import { SCRIPT_INSTALL_REGISTRY_KEY } from './script-install-registry'
 import { SCRIPT_PERMISSION_HISTORY_KEY } from './script-permission-history'
 import { SCRIPT_PERMISSION_REGISTRY_KEY } from './script-permission-registry'
-import { ensureExtensionServicesState, serviceProfileToExtensionConfig } from './services-state'
+import { ensureExtensionServicesState, loadGmScopeForScriptKey, serviceProfileToExtensionConfig } from './services-state'
 
 export function gmStorageKey(key: string): string {
   return `${GM_STORAGE_PREFIX}${key}`
@@ -79,6 +82,7 @@ function scopedKeys(config: ExtensionConfig): string[] {
     `${PRESET_ACTIVATED_HASH_KEY}:${scope}`,
     `${PRESET_PROJECT_VERSION_KEY}:${scope}`,
     `${PRESET_PREVIOUS_HASH_KEY}:${scope}`,
+    `${RUNTIME_OTA_STAGE_KEY}:${scope}`,
     `${MODULE_MANIFEST_ETAG_KEY}:${scope}`,
     `${SCRIPT_BUNDLE_URL_KEY}:${scope}`,
   ]
@@ -93,6 +97,7 @@ export async function clearRuntimeModuleCache(config: ExtensionConfig): Promise<
     PRESET_ACTIVATED_HASH_KEY,
     PRESET_PROJECT_VERSION_KEY,
     PRESET_PREVIOUS_HASH_KEY,
+    RUNTIME_OTA_STAGE_KEY,
     MODULE_MANIFEST_ETAG_KEY,
     SCRIPT_BUNDLE_URL_KEY,
   ]
@@ -100,8 +105,31 @@ export async function clearRuntimeModuleCache(config: ExtensionConfig): Promise<
   for (const k of keysToRemove) {
     gmRemoves.push(gmStorageKey(k))
   }
+
+  const scope = encodeURIComponent(`${config.baseUrl}|${config.scriptKey}`)
+  const gmScope = config.scriptKey.trim() ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
+  const moduleCachePrefix = gmScope ? `${gmScope}_${SCRIPT_MODULE_CACHE_KEY}:${scope}:` : `${SCRIPT_MODULE_CACHE_KEY}:${scope}:`
+  const legacyModuleCachePrefix = `${SCRIPT_MODULE_CACHE_KEY}:${scope}:`
+  const all = await chrome.storage.local.get(null)
+  for (const key of Object.keys(all)) {
+    if (key.startsWith(gmStorageKey(moduleCachePrefix)) || key.startsWith(gmStorageKey(legacyModuleCachePrefix))) {
+      gmRemoves.push(key)
+    }
+  }
+
   await chrome.storage.local.remove([...keysToRemove, ...gmRemoves])
-  await chrome.storage.local.set({ [gmStorageKey(PRESET_UPDATE_CHANNEL_KEY)]: Date.now() })
+
+  const manualScoped = `${OTA_MANUAL_UPDATE_KEY}:${scope}`
+  const manualWrites: Record<string, number> = {
+    [gmStorageKey(PRESET_UPDATE_CHANNEL_KEY)]: Date.now(),
+    [gmStorageKey(manualScoped)]: Date.now(),
+    [gmStorageKey(OTA_MANUAL_UPDATE_KEY)]: Date.now(),
+  }
+  if (gmScope) {
+    manualWrites[gmStorageKey(`${gmScope}_${manualScoped}`)] = Date.now()
+    manualWrites[gmStorageKey(`${gmScope}_${OTA_MANUAL_UPDATE_KEY}`)] = Date.now()
+  }
+  await chrome.storage.local.set(manualWrites)
 }
 
 /**

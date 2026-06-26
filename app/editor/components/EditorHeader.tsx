@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FiChevronDown, FiLogOut, FiPlay, FiPlayCircle, FiUser, FiZap } from 'react-icons/fi'
+import { FiChevronDown, FiLock, FiLogOut, FiPlay, FiPlayCircle, FiUnlock, FiUser, FiZap } from 'react-icons/fi'
 import { IoExtensionPuzzleOutline } from 'react-icons/io5'
 import { LuAsterisk } from 'react-icons/lu'
 import { MdOutlineCloudDone, MdOutlineCloudUpload, MdOutlineKeyboard } from 'react-icons/md'
@@ -12,6 +12,7 @@ import { SiTampermonkey } from 'react-icons/si'
 import { Spinner } from '@/components/Spinner'
 import { Tooltip } from '@/components/Tooltip'
 import { CHROME_EXTENSION_ZIP_FILENAME, CHROME_EXTENSION_ZIP_PATH } from '@/shared/chrome-extension-download'
+import type { ScriptOtaPolicy } from '@/shared/script-ota-policy'
 
 import { EditorIntegrationModals } from './EditorIntegrationModals'
 import { ShortcutsHelpModal } from './ShortcutsHelpModal'
@@ -79,6 +80,9 @@ interface EditorHeaderProps {
   onSave: () => void
   onPublishStable?: () => void
   canPublishStable?: boolean
+  activeScriptOta?: ScriptOtaPolicy | null
+  onLockVersion?: () => void
+  onUnlockVersion?: () => void
   isSaving: boolean
   isEditorDevMode: boolean
   onToggleEditorDevMode: () => void
@@ -99,6 +103,9 @@ export default function EditorHeader({
   onSave,
   onPublishStable,
   canPublishStable = false,
+  activeScriptOta = null,
+  onLockVersion,
+  onUnlockVersion,
   isSaving,
   isEditorDevMode,
   onToggleEditorDevMode,
@@ -396,6 +403,42 @@ export default function EditorHeader({
             <div className="px-3 py-2 text-xs text-[#9aa4b2] border-b border-[#2a303a] truncate" title={displayUsername}>
               {displayUsername}
             </div>
+            {canPublishStable && activeScriptOta ? (
+              <div className="px-3 py-2 text-xs text-[#9aa4b2] border-b border-[#2a303a]">
+                OTA: {activeScriptOta.stage === 'alpha' ? 'ALPHA' : 'STABLE'}
+                {activeScriptOta.lockedVersion ? ` · locked v${activeScriptOta.lockedVersion}` : ''}
+              </div>
+            ) : null}
+            {onLockVersion && canPublishStable ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#e6eaf0] hover:bg-[#2a303a] text-left disabled:opacity-50"
+                disabled={isSaving || Boolean(activeScriptOta?.lockedVersion)}
+                onClick={() => {
+                  setUserMenuOpen(false)
+                  void onLockVersion()
+                }}
+              >
+                <FiLock className="w-4 h-4" />
+                Lock to @version
+              </button>
+            ) : null}
+            {onUnlockVersion && canPublishStable && activeScriptOta?.lockedVersion ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#e6eaf0] hover:bg-[#2a303a] text-left disabled:opacity-50"
+                disabled={isSaving}
+                onClick={() => {
+                  setUserMenuOpen(false)
+                  void onUnlockVersion()
+                }}
+              >
+                <FiUnlock className="w-4 h-4" />
+                Unlock version
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"

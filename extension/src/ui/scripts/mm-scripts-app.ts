@@ -225,16 +225,6 @@ export class MmScriptsApp extends HTMLElement {
     return cell
   }
 
-  private buildScriptNameTooltip(item: ScriptRow, nameText: string): string {
-    const authorText = item.author?.trim()
-    const descriptionText = item.description?.trim()
-    const title = authorText ? `${nameText} @${authorText}` : nameText
-    if (!descriptionText) {
-      return title
-    }
-    return `${title}\n${descriptionText}`
-  }
-
   private renderNameCell(item: ScriptRow): HTMLDivElement {
     const cell = document.createElement('div')
     cell.className = 'mm-script-cell mm-script-cell--name'
@@ -290,8 +280,6 @@ export class MmScriptsApp extends HTMLElement {
       text.append(descriptionInner)
     }
 
-    this.setFullTextTooltip(text, this.buildScriptNameTooltip(item, nameText))
-
     block.append(iconWrap, text)
     cell.append(block)
     return cell
@@ -317,6 +305,23 @@ export class MmScriptsApp extends HTMLElement {
     stageBadge.className = STAGE_BADGE_CLASS[item.ota.stage]
     stageBadge.textContent = item.ota.stage === 'alpha' ? 'ALP' : 'STB'
     versionLine.append(stageBadge)
+
+    if (item.ota.autoUpgrade === false) {
+      const autoBadge = document.createElement('span')
+      autoBadge.className = 'mm-script-stage-badge mm-script-stage-badge--manual'
+      autoBadge.textContent = 'MAN'
+      autoBadge.title = 'Auto-upgrade disabled (server policy)'
+      versionLine.append(autoBadge)
+    }
+
+    if (item.ota.lockedVersion) {
+      const lockBadge = document.createElement('span')
+      lockBadge.className = 'mm-script-lock-badge'
+      lockBadge.textContent = `🔒 ${item.ota.lockedVersion}`
+      lockBadge.title = `Fleet-locked to version ${item.ota.lockedVersion}`
+      versionLine.append(lockBadge)
+    }
+
     inner.append(versionLine)
 
     const updatedLabel = formatScriptUpdatedAt(item.updatedAt)
@@ -324,20 +329,6 @@ export class MmScriptsApp extends HTMLElement {
     updatedInner.className = 'mm-script-updated'
     updatedInner.textContent = updatedLabel
     inner.append(updatedInner)
-
-    const releaseTooltipLines = [versionText || '—', `Server: ${item.ota.stage.toUpperCase()}`, updatedLabel]
-    if (item.ota.autoUpgrade) {
-      releaseTooltipLines.push('Auto-upgrade on')
-    } else {
-      releaseTooltipLines.push('Auto-upgrade off')
-    }
-    if (item.ota.lockedVersion) {
-      releaseTooltipLines.push(`Pinned ${item.ota.lockedVersion}`)
-    }
-    if (typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)) {
-      releaseTooltipLines.push(new Date(item.updatedAt).toLocaleString())
-    }
-    this.setFullTextTooltip(inner, releaseTooltipLines.join('\n'))
 
     cell.append(inner)
     return cell
@@ -352,11 +343,10 @@ export class MmScriptsApp extends HTMLElement {
       checked: item.acceptAlpha,
       disabled: !item.groupActive,
     })
-    const trackLabel = item.acceptAlpha ? 'ALP' : 'STB'
-    input.setAttribute('aria-label', `${item.file} OTA track ${trackLabel}`)
-    this.setFullTextTooltip(switchRoot, `${item.file}: STB = stable bundle, ALP = alpha bundle (reload tabs after changing)`)
+    this.setOtaSwitchTooltip(switchRoot, input, item)
     if (item.groupActive) {
       input.addEventListener('change', () => {
+        this.setOtaSwitchTooltip(switchRoot, input, item)
         void this.handleAcceptAlphaToggle(item.scriptKey, item.file, input.checked)
       })
     }
@@ -399,7 +389,6 @@ export class MmScriptsApp extends HTMLElement {
     const fileInner = document.createElement('span')
     fileInner.className = 'mm-script-file'
     fileInner.textContent = item.file
-    this.setFullTextTooltip(fileInner, item.file)
 
     const installBtn = this.renderInstallButton(item)
 
@@ -534,18 +523,15 @@ export class MmScriptsApp extends HTMLElement {
     el.setAttribute('data-mm-tooltip-no-flip', '')
   }
 
-  private setFullTextTooltip(el: HTMLElement, text: string): void {
-    const value = text.trim()
-    if (!value) {
-      return
-    }
-    el.setAttribute('data-mm-tooltip-wide', '')
-    this.applyScriptTooltipPlacement(el)
-    updateMmTooltip(el, value, 'bottom')
-  }
-
   private setSwitchTooltip(root: HTMLLabelElement, input: HTMLInputElement, item: ScriptRow): void {
     const text = !item.groupActive ? 'Service disabled — enable in Servers' : !item.installed ? 'Install script first' : input.checked ? 'Disable script' : 'Enable script'
+    this.applyScriptTooltipPlacement(root)
+    updateMmTooltip(root, text, 'bottom')
+    input.setAttribute('aria-label', text)
+  }
+
+  private setOtaSwitchTooltip(root: HTMLLabelElement, input: HTMLInputElement, item: ScriptRow): void {
+    const text = !item.groupActive ? 'Service disabled — enable in Servers' : input.checked ? 'Use stable' : 'Use alpha'
     this.applyScriptTooltipPlacement(root)
     updateMmTooltip(root, text, 'bottom')
     input.setAttribute('aria-label', text)
