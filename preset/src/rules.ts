@@ -1,5 +1,6 @@
 import { formatCacheInventory, parseRulesCacheStats } from '@shared/cache-debug'
 import { RULE_CACHE_KEY } from '@shared/runtime-cache-clear'
+import { matchUrlPattern } from '@shared/url-pattern-match'
 
 import { parseStaticKeyFromScriptUrl, readLauncherBaseUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { GME_debug, GME_fail } from '@/helpers/logger'
@@ -10,9 +11,7 @@ let globalRules: Array<{ wildcard?: string; script?: string }> = []
 const RULE_FETCH_RETRY_DELAYS_MS = [500, 1000] as const
 
 export function matchUrl(pattern: string, url = window.location.href) {
-  const regexPattern = pattern.replace(/([\.\?])/g, '\\$1').replace(/\*/g, '.*')
-  const regex = new RegExp(`^${regexPattern}$`)
-  return regex.test(url)
+  return matchUrlPattern(pattern, url)
 }
 
 /**
@@ -61,6 +60,13 @@ function resolveRuleApiUrl(): string {
  */
 export function setGlobalRules(rules: Array<{ wildcard?: string; script?: string }>): void {
   globalRules = rules
+}
+
+/**
+ * Snapshot of RULE rows for URL-based script module matching (Phase D).
+ */
+export function getGlobalRulesSnapshot(): Array<{ wildcard?: string; script?: string }> {
+  return globalRules
 }
 
 /**

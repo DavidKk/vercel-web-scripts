@@ -10,11 +10,12 @@ import { BOOT_LOG_KEY } from '@shared/launcher-constants'
 import { setPermissionTrustScriptKeys } from '@shared/script-permission-scope'
 
 import { flushBootDebugLogs } from '../bridge/debug-log-relay'
+import type { RuntimeLoadFailedPayload, RuntimeLoadResult, RuntimePresetReadyPayload } from '../runtime/loader-types'
 import { buildLauncherUrls } from './config'
 import { installGmApiOnPage } from './gm-bridge'
-import { startLauncher } from './launcher-runtime'
 import { mergeScriptKeyEnabledScripts } from './merge-enabled-scripts'
 import { setPageBridgeToken } from './page-bridge-client'
+import { startPageHost } from './page-host'
 import { hydratePagePermissionAllowKeys } from './page-permission-allow-cache'
 import { installPagePermissionAllowSyncListener } from './permission-allow-sync-listener'
 import { seedScriptConnectPermissions } from './script-permission-scope'
@@ -42,9 +43,13 @@ function loadBootstrapData(): void {
       gmStore?: Window['__VWS_GM_STORE__']
       bridgeToken?: string
       permissionAllowKeys?: string[]
+      runtimeLoadResults?: RuntimeLoadResult[]
     }
     window.__VWS_PAGE_CONFIG__ = parsed.config
     window.__VWS_GM_STORE__ = parsed.gmStore ?? {}
+    if (Array.isArray(parsed.runtimeLoadResults)) {
+      window.__VWS_RUNTIME_LOAD__ = parsed.runtimeLoadResults
+    }
     if (typeof parsed.bridgeToken === 'string' && parsed.bridgeToken) {
       setPageBridgeToken(parsed.bridgeToken)
     }
@@ -79,14 +84,44 @@ function resolveBootstrapEntries(config: PageBootstrapConfig): ScriptKeyBootstra
   return []
 }
 
-function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<typeof installGmApiOnPage>, mergedEnabledScripts: Record<string, boolean>): void {
+function omitRuntimeLoadType<T extends RuntimeLoadResult>(result: T): Omit<T, 'type'> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip discriminant
+  const { type, ...rest } = result
+  return rest
+}
+
+function findInitialReady(scriptKey: string): RuntimePresetReadyPayload | undefined {
+  const results = window.__VWS_RUNTIME_LOAD__
+  if (!Array.isArray(results)) {
+    return undefined
+  }
+  const match = results.find((r) => r.type === 'ready' && r.scriptKey === scriptKey)
+  if (!match || match.type !== 'ready') {
+    return undefined
+  }
+  return omitRuntimeLoadType(match)
+}
+
+function findInitialFailed(scriptKey: string): RuntimeLoadFailedPayload | undefined {
+  const results = window.__VWS_RUNTIME_LOAD__
+  if (!Array.isArray(results)) {
+    return undefined
+  }
+  const match = results.find((r) => r.type === 'failed' && r.scriptKey === scriptKey)
+  if (!match || match.type !== 'failed') {
+    return undefined
+  }
+  return omitRuntimeLoadType(match)
+}
+
+function startPageHostForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<typeof installGmApiOnPage>, mergedEnabledScripts: Record<string, boolean>): void {
   const shortKey = entry.scriptKey.length > 8 ? `${entry.scriptKey.slice(0, 8)}…` : entry.scriptKey
   const urls = buildLauncherUrls({
     baseUrl: entry.baseUrl,
     scriptKey: entry.scriptKey,
     developMode: entry.developMode,
   })
-  startLauncher(urls, gm, {
+  startPageHost(gm, {
     scriptKey: entry.scriptKey,
     gmScope: entry.gmScope,
     enabledScripts: { ...entry.enabledScripts, ...mergedEnabledScripts },
@@ -94,6 +129,9 @@ function startLauncherForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<ty
     acceptAlphaByFile: entry.acceptAlphaByFile,
     acceptAlpha: entry.acceptAlpha === true,
     logPrefix: `[ModuleLoad][${shortKey}]`,
+    urls,
+    initialReady: findInitialReady(entry.scriptKey),
+    initialFailed: findInitialFailed(entry.scriptKey),
   })
 }
 
@@ -126,7 +164,7 @@ function main(): void {
     started.push(entry.scriptKey)
 
     try {
-      startLauncherForEntry(entry, gm, mergedEnabledScripts)
+      startPageHostForEntry(entry, gm, mergedEnabledScripts)
     } catch (error) {
       extensionLogger.error(`Failed to start launcher for scriptKey ${entry.scriptKey}:`, error)
     }

@@ -11,12 +11,17 @@ export interface ScriptOtaPolicy {
   lockedVersion?: string
 }
 
+/** How clients load Gist script modules (Phase D). */
+export type RuntimeScriptLoadMode = 'aggregate' | 'match-fallback'
+
 /** SERVER-authoritative OTA policy for preset / platform runtime. */
 export interface RuntimeOtaPolicy {
   projectVersion?: string
   stage: OtaReleaseStage
   autoUpgrade: boolean
   lockedVersion?: string | null
+  /** Per-script module load strategy; default `aggregate`. */
+  scriptLoadMode?: RuntimeScriptLoadMode
 }
 
 /** Gist path prefix for immutable release snapshots (`releases/foo.js@1.2.0`). */
@@ -42,6 +47,7 @@ export const DEFAULT_RUNTIME_OTA: RuntimeOtaPolicy = {
   stage: 'stable',
   autoUpgrade: true,
   lockedVersion: null,
+  scriptLoadMode: 'aggregate',
 }
 
 /**
@@ -133,11 +139,14 @@ export function resolveRuntimeOtaPolicy(raw: Partial<RuntimeOtaPolicy> | undefin
   const autoUpgrade = typeof raw.autoUpgrade === 'boolean' ? raw.autoUpgrade : stage === 'alpha' ? false : true
   const lockedVersion =
     raw.lockedVersion === null || raw.lockedVersion === undefined ? null : typeof raw.lockedVersion === 'string' && raw.lockedVersion.trim() ? raw.lockedVersion.trim() : null
+  const scriptLoadMode: RuntimeScriptLoadMode =
+    raw.scriptLoadMode === 'match-fallback' ? 'match-fallback' : raw.scriptLoadMode === 'aggregate' ? 'aggregate' : (base.scriptLoadMode ?? 'aggregate')
   return {
     projectVersion: typeof raw.projectVersion === 'string' && raw.projectVersion.trim() ? raw.projectVersion.trim() : base.projectVersion,
     stage,
     autoUpgrade,
     lockedVersion,
+    scriptLoadMode,
   }
 }
 

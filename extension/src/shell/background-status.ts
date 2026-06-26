@@ -8,8 +8,7 @@ import {
   isShellEnabledForTab,
   loadExtensionConfig,
   loadGmScopeForScriptKey,
-  resolvePresetProjectVersion,
-  resolveRuntimeOtaStage,
+  resolvePresetAndRuntimeStage,
 } from '@ext/shared/extension-storage'
 import type { ShellStatus } from '@ext/shared/messages'
 import { getTabTriggerCount, hydrateTabTriggerCounts } from '@ext/shared/tab-trigger-badge'
@@ -23,7 +22,13 @@ import { hydrateScriptPermissionSession } from './permission-manager'
 
 export const updateBadgeForTab = createBadgeRefreshHandler(isShellEnabledForTab)
 
-export async function buildStatus(): Promise<ShellStatus> {
+export interface BuildStatusOptions {
+  /** When false, skip manifest/extension network checks (fast path for popup interactions). */
+  network?: boolean
+}
+
+export async function buildStatus(options?: BuildStatusOptions): Promise<ShellStatus> {
+  const allowNetwork = options?.network === true
   const tab = await getActiveTab()
   const [config, servicesState, networkEnabled, logOutputMode, scriptTotals] = await Promise.all([
     loadExtensionConfig(),
@@ -33,8 +38,9 @@ export async function buildStatus(): Promise<ShellStatus> {
     countEnabledScriptsForEnabledScriptKeys({ incognito: tab?.incognito === true }),
   ])
   const gmScope = config.scriptKey ? await loadGmScopeForScriptKey(config.scriptKey, config.baseUrl) : ''
-  const presetVersion = await resolvePresetProjectVersion(config, gmScope, { allowManifestFetch: networkEnabled })
-  const runtimeStage = await resolveRuntimeOtaStage(config, gmScope, { allowManifestFetch: networkEnabled })
+  const { presetVersion, runtimeStage } = await resolvePresetAndRuntimeStage(config, gmScope, {
+    allowManifestFetch: allowNetwork && networkEnabled,
+  })
   const url = tab?.url ?? ''
   const enabledServices = servicesState.services.filter((service) => service.enabled)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
@@ -47,7 +53,7 @@ export async function buildStatus(): Promise<ShellStatus> {
   let extensionUpdateAvailable = false
   let latestExtensionVersion: string | null = null
   let extensionDownloadUrl: string | null = null
-  if (networkEnabled && config.baseUrl.trim()) {
+  if (allowNetwork && networkEnabled && config.baseUrl.trim()) {
     const updateInfo = await fetchExtensionUpdateInfo(config.baseUrl, extensionVersion)
     extensionUpdateAvailable = updateInfo.updateAvailable
     latestExtensionVersion = updateInfo.latestVersion

@@ -70,7 +70,7 @@ describe('preset-project-version', () => {
       })
     ).resolves.toBe('1.2.3')
 
-    expect(fetchMock).toHaveBeenCalledWith('https://example.com/static/abc123/module-manifest.json', { cache: 'no-store' })
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/static/abc123/module-manifest.json', expect.objectContaining({ cache: 'no-store' }))
   })
 
   it('should resolve from storage before manifest fetch', async () => {

@@ -41,6 +41,55 @@ export async function compileRemoteScriptBundlePayload(files: Record<string, str
 }
 
 /**
+ * Compile a single Gist script file into a remote module payload.
+ * @param file Managed script filename
+ * @param source Script source text
+ * @param track Bundle track
+ * @param scriptBuiltAt Stable timestamp for log wrappers
+ */
+export async function compileRemoteScriptModulePayload(file: string, source: string, track: ScriptBundleTrack, scriptBuiltAt: number): Promise<RemoteScriptBundlePayload | null> {
+  return compileRemoteScriptBundlePayload({ [file]: source }, track, scriptBuiltAt)
+}
+
+/**
+ * Fetch and compile one script module from Gist for the given track.
+ * @param filename Managed script filename
+ * @param track Bundle track
+ */
+export async function buildRemoteScriptModuleFromGist(filename: string, track: ScriptBundleTrack = 'stable'): Promise<RemoteScriptBundlePayload | null> {
+  try {
+    const { gistId, gistToken } = getGistInfo()
+    const gist = await fetchGist({ gistId, gistToken })
+    const gistFiles = Object.fromEntries(Object.entries(gist.files).map(([name, file]) => [name, { content: file.content }]))
+
+    let scripts: ScriptFileMeta[] = []
+    const indexContent = gistFiles[SCRIPT_INDEX_FILE]?.content
+    if (indexContent) {
+      try {
+        const parsed = JSON.parse(indexContent) as { scripts?: ScriptFileMeta[] }
+        scripts = Array.isArray(parsed.scripts) ? parsed.scripts : []
+      } catch {
+        scripts = []
+      }
+    }
+
+    const script = scripts.find((row) => row.filename === filename)
+    if (!script) {
+      return null
+    }
+    const files = buildScriptFilesForBundleTrack([script], gistFiles, track)
+    const source = files[filename]
+    if (!source) {
+      return null
+    }
+    const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
+    return compileRemoteScriptModulePayload(filename, source, track, gistUpdatedAtMs)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Fetch Gist, compile script files for the given track, return body + content hash.
  * @param track `stable` (default) or `alpha`
  * @returns Payload or null when Gist/config unavailable or compile yields empty

@@ -4,9 +4,11 @@
 
 import { countCompiledRemoteModules, formatCacheInventory, shortCacheLabel } from '@shared/cache-debug'
 import { buildGrantsFromGlobal, type CspScriptExecuteMode, executeWithGlobal, executeWithGlobalResilient, isCspExtensionFallbackRequired } from '@shared/csp-script-executor'
-import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY, SCRIPT_MODULE_CACHE_KEY } from '@shared/launcher-constants'
+import { REMOTE_SCRIPT_CACHE_KEY, REMOTE_SCRIPT_ETAG_KEY, RUNTIME_SCRIPT_LOAD_MODE_KEY, RUNTIME_SCRIPT_MODULES_KEY, SCRIPT_MODULE_CACHE_KEY } from '@shared/launcher-constants'
+import { joinRemoteBundleModules, type RemoteBundleModule } from '@shared/remote-script-bundle-modules'
 import { filterDisabledRemoteModules, listDisabledRemoteModules, readExtensionEnabledScripts } from '@shared/remote-script-module-filter'
-import { buildRemoteModuleCacheFromBundle, mergeRemoteBundleWithOtaPolicy } from '@shared/remote-script-ota-merge'
+import { buildRemoteModuleCacheFromBundle, mergeRemoteBundleWithOtaPolicy, shouldApplyRemoteScriptModuleUpgrade } from '@shared/remote-script-ota-merge'
+import { filterScriptModulesByUrl, type RuntimeScriptModuleCatalogEntry, topoSortScriptModulesWithDeps } from '@shared/runtime-script-modules'
 import type { ScriptOtaPolicy } from '@shared/script-ota-policy'
 import { buildWithGlobalExecutionSandbox } from '@shared/with-global-sandbox'
 
@@ -14,7 +16,8 @@ import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
 import { getLauncherBootstrapCacheScope, parseStaticKeyFromScriptUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
 import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
-import { getRulesCacheStats } from '@/rules'
+import { GME_sha1 } from '@/helpers/utils'
+import { getGlobalRulesSnapshot, getRulesCacheStats } from '@/rules'
 import { fetchScript } from '@/scripts'
 import { EDITOR_DEV_EVENT_KEY, getEditorDevHost, getLocalDevHost, isEditorDevMode, isLocalDevMode, LOCAL_DEV_EVENT_KEY } from '@/services/dev-mode/constants'
 import { handlePassiveOtaUpdate } from '@/services/ota-passive-update'
@@ -226,6 +229,135 @@ function logRemoteScriptCacheInventory(cached: RemoteScriptCacheRecord | null, u
   )
 }
 
+function readRuntimeScriptLoadMode(): 'aggregate' | 'match-fallback' {
+  const scope = getRemoteScriptCacheScope()
+  const scoped = String(GM_getValue(`${RUNTIME_SCRIPT_LOAD_MODE_KEY}:${scope}`, '') || '')
+  const raw = scoped || String(GM_getValue(RUNTIME_SCRIPT_LOAD_MODE_KEY, 'aggregate') || 'aggregate')
+  return raw === 'match-fallback' ? 'match-fallback' : 'aggregate'
+}
+
+function readRuntimeScriptModulesCatalog(): RuntimeScriptModuleCatalogEntry[] {
+  const scope = getRemoteScriptCacheScope()
+  const raw = String(GM_getValue(`${RUNTIME_SCRIPT_MODULES_KEY}:${scope}`, '') || GM_getValue(RUNTIME_SCRIPT_MODULES_KEY, '') || '')
+  if (!raw) {
+    return []
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? (parsed as RuntimeScriptModuleCatalogEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
+function writePerFileModuleCache(file: string, content: string): void {
+  const key = `${moduleCacheKeyPrefix()}${file}`
+  GM_setValue(key, content)
+}
+
+function normalizeModuleHash(value: string | undefined): string {
+  return String(value || '')
+    .trim()
+    .replace(/^W\//i, '')
+    .replace(/"/g, '')
+    .toLowerCase()
+}
+
+async function verifyScriptModuleBodyHash(body: string, entry: RuntimeScriptModuleCatalogEntry): Promise<boolean> {
+  const expected = normalizeModuleHash(entry.hash?.value)
+  if (!expected) {
+    return true
+  }
+  const actual = normalizeModuleHash(await GME_sha1(body))
+  return actual === expected
+}
+
+async function fetchScriptModuleBody(entry: RuntimeScriptModuleCatalogEntry, moduleCache: Record<string, string>): Promise<RemoteBundleModule | null> {
+  const ota = readRemoteOtaContext()
+  const policy = ota.scriptPolicies[entry.file] ?? {}
+  const cached = moduleCache[entry.file]
+  const hasLocalCache = typeof cached === 'string' && cached.length > 0
+
+  if (!isShellNetworkEffectivelyEnabled() && hasLocalCache) {
+    return { file: entry.file, content: cached }
+  }
+
+  try {
+    const headers: Record<string, string> = {}
+    if (entry.hash?.value) {
+      headers['If-None-Match'] = entry.hash.value
+    }
+    const response = await GME_fetch(entry.url, { method: 'GET', headers })
+    if (response.status === 304 && hasLocalCache) {
+      return { file: entry.file, content: cached }
+    }
+    if (!response.ok) {
+      return hasLocalCache ? { file: entry.file, content: cached } : null
+    }
+    const body = await response.text()
+    if (!body.trim()) {
+      return hasLocalCache ? { file: entry.file, content: cached } : null
+    }
+    if (!(await verifyScriptModuleBodyHash(body, entry))) {
+      GME_debug(`[Remote script] match-fallback: hash mismatch for ${entry.file}`)
+      return null
+    }
+    const applyRemote = shouldApplyRemoteScriptModuleUpgrade(entry.file, policy, hasLocalCache, ota.manualUpdate)
+    if (!applyRemote && hasLocalCache) {
+      return { file: entry.file, content: cached }
+    }
+    writePerFileModuleCache(entry.file, body)
+    return { file: entry.file, content: body }
+  } catch {
+    return hasLocalCache ? { file: entry.file, content: cached } : null
+  }
+}
+
+/**
+ * Match-fallback path: load only URL-matched per-file modules; returns false to fall back to aggregate bundle.
+ */
+async function tryExecuteMatchFallbackModules(): Promise<boolean> {
+  if (readRuntimeScriptLoadMode() !== 'match-fallback') {
+    return false
+  }
+  const catalog = readRuntimeScriptModulesCatalog()
+  if (!catalog.length) {
+    GME_debug('[Remote script] match-fallback: empty catalog')
+    return false
+  }
+  const pageUrl = typeof location !== 'undefined' ? location.href : ''
+  const matched = filterScriptModulesByUrl(catalog, pageUrl, getGlobalRulesSnapshot())
+  if (!matched.length) {
+    GME_debug('[Remote script] match-fallback: no modules matched URL')
+    return false
+  }
+  let ordered: RuntimeScriptModuleCatalogEntry[]
+  try {
+    ordered = topoSortScriptModulesWithDeps(matched, catalog)
+  } catch (error) {
+    GME_debug(`[Remote script] match-fallback: dependency error ${error instanceof Error ? error.message : String(error)}`)
+    return false
+  }
+
+  const moduleCache = readRemoteModuleCache()
+  const modules: RemoteBundleModule[] = []
+  for (const entry of ordered) {
+    const body = await fetchScriptModuleBody(entry, moduleCache)
+    if (!body) {
+      GME_debug(`[Remote script] match-fallback: fetch failed for ${entry.file}`)
+      return false
+    }
+    modules.push(body)
+  }
+
+  const content = joinRemoteBundleModules(modules)
+  const executable = prepareRemoteBundleContent(content)
+  GME_debug(`[Remote script] match-fallback: execute modules=${modules.map((m) => m.file).join(', ')} bytes=${executable.length}`)
+  GME_ok('Remote script ready (match-fallback).')
+  await executeScript(executable)
+  return true
+}
+
 async function refreshRemoteScriptInBackground(url: string, previousCache: RemoteScriptCacheRecord | null): Promise<void> {
   if (!isShellNetworkEnabled()) return
 
@@ -274,6 +406,10 @@ async function refreshRemoteScriptInBackground(url: string, previousCache: Remot
  * @param url Script URL to fetch and execute
  */
 export async function executeRemoteScript(url?: string): Promise<void> {
+  if (await tryExecuteMatchFallbackModules()) {
+    return
+  }
+
   const scriptUrl = resolveLauncherScriptUrl(url)
   if (!scriptUrl) {
     GME_fail('[Remote script] Missing __SCRIPT_URL__ — cannot load remote bundle')

@@ -43,6 +43,12 @@ export const RUNTIME_OTA_STAGE_KEY = 'vws_runtime_ota_stage'
 export const OTA_MANUAL_UPDATE_KEY = 'vws_ota_manual_update'
 /** GM_setValue key prefix: per-file remote module cache (`{prefix}{scope}:{file}`) */
 export const SCRIPT_MODULE_CACHE_KEY = 'vws_script_module_cache'
+/** GM_setValue key: runtime script load mode from manifest (`aggregate` | `match-fallback`) */
+export const RUNTIME_SCRIPT_LOAD_MODE_KEY = 'vws_runtime_script_load_mode'
+/** GM_setValue key: JSON catalog of per-file script modules from manifest */
+export const RUNTIME_SCRIPT_MODULES_KEY = 'vws_runtime_script_modules'
+/** GM_setValue key: JSON map of per-file OTA policies from manifest.scriptPolicies */
+export const RUNTIME_SCRIPT_POLICIES_KEY = 'vws_runtime_script_policies'
 
 /** Ring buffer key on globalThis (must match preset log-store) */
 export const BOOT_LOG_KEY = '__VWS_BOOT_LOG__'

@@ -1,10 +1,20 @@
 import { createHash } from 'crypto'
 
-import { buildVersionedStaticModuleUrl } from '@/services/runtime/contentAddressedAssets'
+import { fetchGist, getGistInfo } from '@/services/gist'
+import { buildVersionedScriptModuleUrl, buildVersionedStaticModuleUrl } from '@/services/runtime/contentAddressedAssets'
+import type { ScriptFileMeta } from '@/services/scripts/gistScripts'
 import { readManagedScriptIndex } from '@/services/scripts/gistScripts'
 import { getEditorLibManifest, getExplorerLibManifest, getPresetManifest, getPresetUiManifest } from '@/services/tampermonkey/gmCore'
-import { buildRemoteScriptBundlesFromGist } from '@/services/tampermonkey/remoteScriptBundle.server'
-import { buildScriptPolicySummary, resolveRuntimeOtaPolicy, type RuntimeOtaPolicy, type ScriptOtaPolicy } from '@/shared/script-ota-policy'
+import { buildRemoteScriptBundlesFromGist, compileRemoteScriptModulePayload } from '@/services/tampermonkey/remoteScriptBundle.server'
+import { buildScriptFilesForBundleTrack } from '@/shared/script-bundle-track'
+import {
+  buildScriptPolicySummary,
+  resolveRuntimeOtaPolicy,
+  resolveScriptOtaPolicy,
+  type RuntimeOtaPolicy,
+  type ScriptBundleTrack,
+  type ScriptOtaPolicy,
+} from '@/shared/script-ota-policy'
 
 import pkg from '../../package.json'
 
@@ -52,6 +62,16 @@ export interface RuntimeModuleDefinition {
 /** Manifest script policy summary keyed by Gist filename. */
 export type RuntimeScriptPolicies = Record<string, ScriptOtaPolicy & { version?: string }>
 
+/** Per-script module catalog entry for match-based loading (Phase D). */
+export interface RuntimeScriptModule {
+  file: string
+  match: string[]
+  track: ScriptBundleTrack
+  url: string
+  hash: RuntimeModuleHash
+  dependsOn: string[]
+}
+
 /**
  * Runtime module manifest response contract.
  */
@@ -63,6 +83,43 @@ export interface RuntimeModuleManifest {
   runtime: RuntimeOtaPolicy
   scriptPolicies: RuntimeScriptPolicies
   modules: RuntimeModuleDefinition[]
+  /** Per-file script modules for match-fallback loading. */
+  scriptModules?: RuntimeScriptModule[]
+}
+
+/**
+ * Build per-script module catalog entries for manifest (Phase D).
+ */
+async function buildScriptModulesForManifest(
+  baseUrl: string,
+  scriptKey: string,
+  scripts: ScriptFileMeta[],
+  gistFiles: Record<string, { content: string }>,
+  gistUpdatedAtMs: number
+): Promise<RuntimeScriptModule[]> {
+  const modules: RuntimeScriptModule[] = []
+  for (const script of scripts) {
+    const ota = resolveScriptOtaPolicy(script.ota)
+    const track: ScriptBundleTrack = ota.stage === 'alpha' ? 'alpha' : 'stable'
+    const files = buildScriptFilesForBundleTrack([script], gistFiles, track)
+    const source = files[script.filename]
+    if (!source) {
+      continue
+    }
+    const payload = await compileRemoteScriptModulePayload(script.filename, source, track, gistUpdatedAtMs)
+    if (!payload) {
+      continue
+    }
+    modules.push({
+      file: script.filename,
+      match: Array.isArray(script.match) ? script.match.filter((pattern): pattern is string => typeof pattern === 'string' && Boolean(pattern)) : [],
+      track,
+      url: buildVersionedScriptModuleUrl(baseUrl, scriptKey, script.filename, payload.hash, track),
+      hash: { algorithm: 'sha1', value: payload.hash },
+      dependsOn: Array.isArray(script.dependsOn) ? script.dependsOn.filter((dep): dep is string => typeof dep === 'string' && Boolean(dep.trim())) : [],
+    })
+  }
+  return modules
 }
 
 /**
@@ -86,10 +143,20 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
 
   let scriptPolicies: RuntimeScriptPolicies = {}
   let runtimePolicy: RuntimeOtaPolicy = resolveRuntimeOtaPolicy(null, presetManifest?.projectVersion?.trim() || defaultProjectVersion)
+  let scriptModules: RuntimeScriptModule[] = []
   try {
     const index = await readManagedScriptIndex()
     scriptPolicies = Object.fromEntries(index.scripts.map((script) => [script.filename, buildScriptPolicySummary(script)]))
     runtimePolicy = resolveRuntimeOtaPolicy(index.runtime ?? null, presetManifest?.projectVersion?.trim() || defaultProjectVersion)
+    try {
+      const { gistId, gistToken } = getGistInfo()
+      const gist = await fetchGist({ gistId, gistToken })
+      const gistFiles = Object.fromEntries(Object.entries(gist.files).map(([name, file]) => [name, { content: file.content }]))
+      const gistUpdatedAtMs = new Date(gist.updated_at).getTime()
+      scriptModules = await buildScriptModulesForManifest(baseUrl, key, index.scripts, gistFiles, gistUpdatedAtMs)
+    } catch {
+      scriptModules = []
+    }
   } catch {
     runtimePolicy = resolveRuntimeOtaPolicy(null, presetManifest?.projectVersion?.trim() || defaultProjectVersion)
   }
@@ -190,6 +257,7 @@ export async function buildRuntimeModuleManifest(baseUrl: string, key: string): 
     runtime: runtimePolicy,
     scriptPolicies,
     modules,
+    ...(scriptModules.length > 0 ? { scriptModules } : {}),
   }
 }
 
@@ -206,6 +274,7 @@ export function buildRuntimeModuleManifestEtag(manifest: RuntimeModuleManifest):
     runtime: manifest.runtime,
     scriptPolicies: manifest.scriptPolicies,
     modules: manifest.modules,
+    scriptModules: manifest.scriptModules ?? [],
   }
   return createHash('sha1').update(JSON.stringify(stable), 'utf8').digest('hex')
 }

@@ -316,12 +316,11 @@
   }
 
   .mm-shell-disable-menu {
-    @apply absolute right-0 top-full z-20 mt-1 min-w-[9.5rem] overflow-hidden rounded-lg bg-mm-surface py-1 shadow-mm-sm;
-    box-shadow: 0 0 0 1px theme('colors.mm.border-light');
+    @apply pointer-events-auto absolute right-0 top-full z-[100] mt-1 min-w-[9.5rem] overflow-hidden rounded-lg border border-mm-border-light bg-mm-surface py-1 shadow-mm-sm;
   }
 
   .mm-shell-disable-menu-item {
-    @apply block w-full px-3 py-2 text-left text-[13px] text-mm-secondary transition hover:bg-mm-accent-soft/60;
+    @apply block w-full cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-[13px] text-mm-secondary transition hover:bg-mm-accent-soft/60;
   }
 
   .mm-shell-disable-menu-divider {

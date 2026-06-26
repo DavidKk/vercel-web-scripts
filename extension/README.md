@@ -8,18 +8,19 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 
 ## MVP (current)
 
-| Feature                                                                          | Status     |
-| -------------------------------------------------------------------------------- | ---------- |
-| Toolbar **popup** (fixed menu on every tab)                                      | ✅         |
-| **Badge** — real trigger count; red background if any script failed on this load | ✅         |
-| **Background** — update / reset / network / open editor                          | ✅         |
-| **Scripts page** — enable/disable modules                                        | ✅         |
-| **Servers** — multi-service connections, OTA priority, develop flags             | ✅         |
-| Preset dev mode from Server URL (`localhost` → dev)                              | ✅         |
-| **Sync rules** from server → badge + script list                                 | ✅         |
-| Content bootstrap → OTA preset (interim loader)                                  | ✅         |
-| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅         |
-| Extension-native `module-loader` (replace TM-port orchestration)                 | 🔜 backlog |
+| Feature                                                                          | Status |
+| -------------------------------------------------------------------------------- | ------ |
+| Toolbar **popup** (fixed menu on every tab)                                      | ✅     |
+| **Badge** — real trigger count; red background if any script failed on this load | ✅     |
+| **Background** — update / reset / network / open editor                          | ✅     |
+| **Scripts page** — enable/disable modules                                        | ✅     |
+| **Servers** — multi-service connections, OTA priority, develop flags             | ✅     |
+| Preset dev mode from Server URL (`localhost` → dev)                              | ✅     |
+| **Sync rules** from server → badge + script list                                 | ✅     |
+| Content bootstrap → background OTA loader + page-host preset execute             | ✅     |
+| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅     |
+| Extension-native `module-loader` (background orchestration)                      | ✅     |
+| Runtime Phase D `match-fallback` (Extension; TM stays aggregate)                 | ✅     |
 
 ## Architecture
 
@@ -31,8 +32,8 @@ extension/dist/
 ├── servers.html       # legacy redirect → admin.html#servers
 ├── scripts.html       # legacy redirect → admin.html#scripts
 ├── rules.html         # legacy redirect → admin.html#rules (+ hash migration)
-├── content-bridge.js  # inject preset when RULE allows
-└── page-launcher.js   # interim OTA bootstrap (to be replaced)
+├── content-bridge.js  # inject page-host + RUNTIME_ENSURE_LOAD
+└── page-launcher.js   # page-host: GM + preset execute (no manifest fetch)
 ```
 
 Admin URLs use hash routes on a single page:
@@ -182,3 +183,12 @@ The shell does **not** treat CSR URL changes specially:
 - Counts are stored in `chrome.storage.session` so a short MV3 service-worker sleep does not zero the badge while you stay on the same URL.
 
 For SPA sites (e.g. Douyin): use a **root `@match`** (e.g. `*://www.douyin.com/*`) and handle route/slide changes inside the script (DOM observers, `location`, optional Tampermonkey `window.onurlchange`). This matches Tampermonkey’s model and keeps the extension shell simple and predictable.
+
+## Script load modes (Phase D)
+
+| Client           | Default                                            | Optional                                                     |
+| ---------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| **Extension**    | `aggregate` — full `tampermonkey-remote.js` bundle | `match-fallback` when SERVER `runtime.scriptLoadMode` is set |
+| **Tampermonkey** | `aggregate` only                                   | —                                                            |
+
+With `match-fallback`, the extension loads only URL-matched per-file modules from `module-manifest.json` `scriptModules[]`; on no match or fetch failure it falls back to the aggregate bundle. Tampermonkey continues to use the aggregate path only.

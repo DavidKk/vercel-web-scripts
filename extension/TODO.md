@@ -60,11 +60,12 @@
 
 ### 1.2 Interim vs target (current repo)
 
-|                                          | Status                                     | Action                                                                          |
-| ---------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `extension/src/page/launcher-runtime.ts` | **Interim** — copied from TM launcher flow | **Replace** with extension-native loader (E25–E27)                              |
-| `extension/src/page/gm-bridge.ts`        | Interim GM shim for preset in page world   | Keep until preset runs in page; evolve toward background fetch + minimal inject |
-| `extension/src/shell/`                   | **Missing**                                | **Primary work** — real product shell                                           |
+|                                          | Status                                   | Action                                                                          |
+| ---------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| `extension/src/page/page-host.ts`        | Page world: GM + preset execute          | **DONE** — no manifest fetch in page world                                      |
+| `extension/src/runtime/module-loader.ts` | Background OTA orchestration             | **DONE** (E25–E27)                                                              |
+| `extension/src/page/gm-bridge.ts`        | Interim GM shim for preset in page world | Keep until preset runs in page; evolve toward background fetch + minimal inject |
+| `extension/src/shell/`                   | **Missing**                              | **Primary work** — real product shell                                           |
 
 ---
 
@@ -249,15 +250,15 @@ sequenceDiagram
 
 ## 5. Current implementation snapshot (2026-06-27)
 
-| Area                                                         | Status                        |
-| ------------------------------------------------------------ | ----------------------------- |
-| Extension shell (background + popup + admin)                 | **DONE**                      |
-| Badge, RULE, Scripts/Servers/Logs/Permissions tabs           | **DONE**                      |
-| `GM_*` compat (XHR → background fetch)                       | **DONE**                      |
-| Interim `launcher-runtime.ts` (page-world OTA orchestration) | Present — **backlog** E25–E27 |
-| TM launcher                                                  | Independent path              |
+| Area                                                        | Status             |
+| ----------------------------------------------------------- | ------------------ |
+| Extension shell (background + popup + admin)                | **DONE**           |
+| Badge, RULE, Scripts/Servers/Logs/Permissions tabs          | **DONE**           |
+| `GM_*` compat (XHR → background fetch)                      | **DONE**           |
+| Native `module-loader.ts` + `page-host.ts` (background OTA) | **DONE** (E25–E27) |
+| TM launcher                                                 | Independent path   |
 
-详见 `.ai/tasks/backlog/extension-native-loader.md`。
+详见 `.ai/tasks/done/extension-native-loader.md`。
 
 ---
 
@@ -290,18 +291,18 @@ Status: `TODO` | `IN_PROGRESS` | `DONE` | `BLOCKED`
 
 ### P0 — Extension-native shell (not TM launcher)
 
-| ID  | Task                                                                                     | Status  | Notes                                                    |
-| --- | ---------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------- |
-| E20 | `shell/background.ts` + manifest service worker                                          | DONE    | Loader home; badge                                       |
-| E21 | `shell/popup/` + `default_popup`                                                         | DONE    | Fixed menu §3.1                                          |
-| E22 | Popup → background: editor, update, reset, network                                       | DONE    | Product defaults                                         |
-| E23 | Badge: RULE match count per tab                                                          | DONE    | Independent of popup layout                              |
-| E25 | **`runtime/module-loader.ts`** — manifest/preset fetch via background + `chrome.storage` | TODO    | **New code**, not TM port                                |
-| E26 | Wire content/page-host to background loader (messages, not launcher IIFE)                | TODO    |                                                          |
-| E27 | **Remove / retire `launcher-runtime.ts` TM port** after E25–E26                          | TODO    | Delete duplication                                       |
-| E24 | Restructure folders: `shell/` + `runtime/`                                               | PARTIAL | `shell/` done; `runtime/` pending E25                    |
-| E2  | OTA via popup Update (runtime modules, no CRX rebuild)                                   | DONE    | Update/Reset runtime ✅；扩展壳更新改走 Chrome Web Store |
-| E4  | README + TODO: extension shell ≠ TM launcher                                             | DONE    | `extension/README.md`                                    |
+| ID  | Task                                                                                     | Status | Notes                                                    |
+| --- | ---------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| E20 | `shell/background.ts` + manifest service worker                                          | DONE   | Loader home; badge                                       |
+| E21 | `shell/popup/` + `default_popup`                                                         | DONE   | Fixed menu §3.1                                          |
+| E22 | Popup → background: editor, update, reset, network                                       | DONE   | Product defaults                                         |
+| E23 | Badge: RULE match count per tab                                                          | DONE   | Independent of popup layout                              |
+| E25 | **`runtime/module-loader.ts`** — manifest/preset fetch via background + `chrome.storage` | DONE   |                                                          |
+| E26 | Wire content/page-host to background loader (messages, not launcher IIFE)                | DONE   | `RUNTIME_ENSURE_LOAD` / `RUNTIME_PRESET_READY`           |
+| E27 | **Remove / retire `launcher-runtime.ts` TM port** after E25–E26                          | DONE   | Deleted                                                  |
+| E24 | Restructure folders: `shell/` + `runtime/`                                               | DONE   | `shell/` + `runtime/`                                    |
+| E2  | OTA via popup Update (runtime modules, no CRX rebuild)                                   | DONE   | Update/Reset runtime ✅；扩展壳更新改走 Chrome Web Store |
+| E4  | README + TODO: extension shell ≠ TM launcher                                             | DONE   | `extension/README.md`                                    |
 
 **Cancelled / replaced:** ~~E1 Extract shared launcher-runtime with TM~~ — extension loader is **independent**; only share constants + URL contracts.
 
@@ -358,15 +359,15 @@ Status: `TODO` | `IN_PROGRESS` | `DONE` | `BLOCKED`
 
 ## 9. References
 
-| Topic                   | Location                                                | Extension relationship          |
-| ----------------------- | ------------------------------------------------------- | ------------------------------- |
-| TM launcher (TM only)   | `services/tampermonkey/launcherScript.ts`               | **Do not port** — parallel path |
-| Interim loader (remove) | `extension/src/page/launcher-runtime.ts`                | Replace with E25                |
-| Server manifest         | `services/runtime/moduleManifest.ts`                    | **Consume**                     |
-| Cache key names         | `shared/launcher-constants.ts`                          | **Share** (storage compat)      |
-| Match helpers           | `preset/src/rules.ts`                                   | Reuse logic, not TM shell       |
-| GM surface for Gist     | `services/tampermonkey/grant.ts`, `editor-typings.d.ts` | **Compat target** for page      |
-| GME registration        | `preset/src/services/global-registry.ts`                | Via OTA preset only             |
+| Topic                 | Location                                                       | Extension relationship          |
+| --------------------- | -------------------------------------------------------------- | ------------------------------- |
+| TM launcher (TM only) | `services/tampermonkey/launcherScript.ts`                      | **Do not port** — parallel path |
+| Native loader         | `extension/src/runtime/module-loader.ts` + `page/page-host.ts` | E25–E27 done                    |
+| Server manifest       | `services/runtime/moduleManifest.ts`                           | **Consume**                     |
+| Cache key names       | `shared/launcher-constants.ts`                                 | **Share** (storage compat)      |
+| Match helpers         | `preset/src/rules.ts`                                          | Reuse logic, not TM shell       |
+| GM surface for Gist   | `services/tampermonkey/grant.ts`, `editor-typings.d.ts`        | **Compat target** for page      |
+| GME registration      | `preset/src/services/global-registry.ts`                       | Via OTA preset only             |
 
 ---
 

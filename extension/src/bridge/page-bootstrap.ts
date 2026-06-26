@@ -1,10 +1,13 @@
+import type { RuntimeLoadResult } from '../runtime/loader-types'
 import { buildPageBootstrapConfig } from '../shared/extension-storage'
 import type { ShellResponse } from '../shared/messages'
+import type { ScriptKeyBootstrapEntry } from '../types'
 import { GM_STORAGE_PREFIX } from './constants'
 import { getExtensionVersion, getRuntimeId, isExtensionContextInvalidated } from './extension-context'
 import { loadGmStore, postStorageChanged } from './gm-storage-bridge'
 import { isHtmlDocumentForInjection } from './injection-gate'
 import { injectPageLauncherWhenReady } from './page-injector'
+import { installRuntimeMessageRelay } from './runtime-relay'
 
 function isHttpPageUrl(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://')
@@ -126,8 +129,35 @@ export async function bootstrapPageBridge(): Promise<void> {
     isExtensionContextInvalidated(error)
   }
 
-  await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys)
+  const runtimeLoadResults = await requestRuntimeEnsureLoad(pageConfig.scriptKeys, url)
+  try {
+    gmStore = await loadGmStore()
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      return
+    }
+    throw error
+  }
+
+  await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys, runtimeLoadResults)
+  installRuntimeMessageRelay()
   notifyBootstrapReady(url)
+}
+
+async function requestRuntimeEnsureLoad(entries: ScriptKeyBootstrapEntry[], pageUrl: string): Promise<RuntimeLoadResult[]> {
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: 'RUNTIME_ENSURE_LOAD',
+      details: { pageUrl, entries },
+    })) as ShellResponse
+    if (res.ok && 'runtimeLoadResults' in res && Array.isArray(res.runtimeLoadResults)) {
+      return res.runtimeLoadResults
+    }
+    return []
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+    return []
+  }
 }
 
 /** Notify background that a top-level http(s) document loaded. */

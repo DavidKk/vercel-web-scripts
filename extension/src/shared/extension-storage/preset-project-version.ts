@@ -3,6 +3,7 @@ import type { OtaReleaseStage } from '@shared/script-ota-policy'
 
 import type { ExtensionConfig } from '../../types'
 import { serviceEndpointKey } from '../extension-services'
+import { fetchWithTimeout } from '../fetch-with-timeout'
 import { gmStorageKey } from './runtime-cache'
 
 /** Minimal module-manifest shape for project version lookup */
@@ -82,7 +83,7 @@ export async function fetchPresetProjectVersionFromManifest(config: ExtensionCon
   }
   const url = `${baseUrl}/static/${encodeURIComponent(scriptKey)}/module-manifest.json`
   try {
-    const res = await fetch(url, { cache: 'no-store' })
+    const res = await fetchWithTimeout(url, { cache: 'no-store' })
     if (!res.ok) {
       return null
     }
@@ -95,6 +96,58 @@ export async function fetchPresetProjectVersionFromManifest(config: ExtensionCon
     return null
   }
   return null
+}
+
+/**
+ * Fetch projectVersion and runtime stage from module-manifest.json in one request.
+ */
+export async function fetchModuleManifestSummary(config: ExtensionConfig): Promise<{ projectVersion: string | null; stage: OtaReleaseStage | null }> {
+  const baseUrl = config.baseUrl.trim().replace(/\/+$/, '')
+  const scriptKey = config.scriptKey.trim()
+  if (!baseUrl || !scriptKey) {
+    return { projectVersion: null, stage: null }
+  }
+  const url = `${baseUrl}/static/${encodeURIComponent(scriptKey)}/module-manifest.json`
+  try {
+    const res = await fetchWithTimeout(url, { cache: 'no-store' })
+    if (!res.ok) {
+      return { projectVersion: null, stage: null }
+    }
+    const data = (await res.json()) as ModuleManifestProjectVersion
+    const version = typeof data.projectVersion === 'string' && data.projectVersion.trim() ? data.projectVersion.trim() : null
+    const stage = data.runtime?.stage === 'alpha' ? 'alpha' : data.runtime?.stage === 'stable' ? 'stable' : null
+    return { projectVersion: version, stage }
+  } catch {
+    return { projectVersion: null, stage: null }
+  }
+}
+
+/**
+ * Read preset version and OTA stage from storage; optionally backfill from one manifest fetch.
+ */
+export async function resolvePresetAndRuntimeStage(
+  config: ExtensionConfig,
+  gmScope: string | undefined,
+  options?: { allowManifestFetch?: boolean }
+): Promise<{ presetVersion: string | null; runtimeStage: OtaReleaseStage | null }> {
+  const [presetVersion, runtimeStage] = await Promise.all([readPresetProjectVersion(config, gmScope), readRuntimeOtaStage(config, gmScope)])
+  if (presetVersion && runtimeStage) {
+    return { presetVersion, runtimeStage }
+  }
+  if (options?.allowManifestFetch === false) {
+    return { presetVersion, runtimeStage }
+  }
+  const summary = await fetchModuleManifestSummary(config)
+  let nextVersion = presetVersion
+  let nextStage = runtimeStage
+  if (!nextVersion && summary.projectVersion) {
+    nextVersion = summary.projectVersion
+    await writePresetProjectVersionToStorage(config, gmScope, nextVersion)
+  }
+  if (!nextStage && summary.stage) {
+    nextStage = summary.stage
+  }
+  return { presetVersion: nextVersion, runtimeStage: nextStage }
 }
 
 /**
@@ -172,7 +225,7 @@ export async function fetchRuntimeOtaStageFromManifest(config: ExtensionConfig):
   }
   const url = `${baseUrl}/static/${encodeURIComponent(scriptKey)}/module-manifest.json`
   try {
-    const res = await fetch(url, { cache: 'no-store' })
+    const res = await fetchWithTimeout(url, { cache: 'no-store' })
     if (!res.ok) {
       return null
     }

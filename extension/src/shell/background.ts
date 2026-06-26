@@ -5,6 +5,7 @@ import { clearTabTriggerState } from '@ext/shared/tab-trigger-badge'
 import { SHELL_INCOGNITO_LOG_COLLECTION_KEY, SHELL_LOG_OUTPUT_MODE_KEY, shouldLogToMemoryForMode } from '@shared/shell-log-output'
 
 import { DEV_BUILD_STAMP } from '../dev-build-stamp'
+import { installPassiveOtaListener } from '../runtime/passive-ota-listener'
 import { DEBUG_LOG_PORT_NAME } from '../shared/debug-log-types'
 import { getCachedIncognitoLogCollection, getCachedShellLogOutputMode, refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { handleShellMessage } from './background-message-handlers'
@@ -96,3 +97,4 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, sender, sendRespons
 
 initDevExtensionReload()
 void restoreAdminPageAfterDevReload()
+installPassiveOtaListener()

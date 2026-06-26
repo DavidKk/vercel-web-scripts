@@ -10,6 +10,7 @@
 
 ## Recently landed (2026-06-27)
 
+- **Extension native loader (E25–E27)** + **Runtime Phase D match-fallback** — `tasks/done/extension-native-loader.md`, `tasks/done/runtime-phase-d.md`
 - **Runtime Phase A–C**: hash OTA、rollback、懒加载 optional 模块 — `tasks/done/runtime-modularization-phase-a-b-c.md`
 - **Script permissions**: gate + Admin Permissions — `tasks/done/script-permissions.md`
 - **OTA publish policy**: SERVER alpha/stable/lock — `tasks/done/ota-publish-policy.md`
@@ -19,16 +20,14 @@
 
 ## Backlog (next candidates)
 
-| 优先级 | 任务                          | 文档                                       | 说明                   |
-| ------ | ----------------------------- | ------------------------------------------ | ---------------------- |
-| 中     | Extension 原生 loader         | `tasks/backlog/extension-native-loader.md` | E25–E27 **未实现**     |
-| 大     | Runtime Phase D（match 加载） | `tasks/backlog/runtime-phase-d.md`         | D1 完成；D2–D5 未启动  |
-| 低     | UI 跨模块去重                 | `tasks/backlog/ui-cross-module-dedup.md`   | Phase A ✅；其余 defer |
+| 优先级 | 任务          | 文档                                     | 说明                   |
+| ------ | ------------- | ---------------------------------------- | ---------------------- |
+| 低     | UI 跨模块去重 | `tasks/backlog/ui-cross-module-dedup.md` | Phase A ✅；其余 defer |
 
 ## Confirmed decisions
 
 - Launcher inject **only on `text/html`** documents
-- Extension `GM_xmlhttpRequest` → background `fetch`（编排仍在 page `launcher-runtime.ts`，待 native loader）
+- Extension `GM_xmlhttpRequest` → background `fetch`；OTA 编排在 `extension/src/runtime/module-loader.ts`（page `page-host.ts` 仅执行）
 - Multi-service: Service = connection; scriptKey = capability scope
 - Extension 壳更新：计划 **Chrome Web Store** 上架；不做 ZIP File System 自更新（见 `tasks/done/extension-fs-update.md`）
 

@@ -1,4 +1,5 @@
 import type { GMValue } from './page/gm-types'
+import type { RuntimeLoadResult } from './runtime/loader-types'
 import type { PageBootstrapConfig } from './types'
 
 declare global {
@@ -13,6 +14,8 @@ declare global {
     __VWS_SCRIPT_KEY__?: string
     /** Per-file enable map (`false` = skip module); mirrored on launcher sandbox via `__GLOBAL__`. */
     __VWS_ENABLED_SCRIPTS__?: Record<string, boolean>
+    /** Bootstrap-time runtime load results from background loader (avoids READY race). */
+    __VWS_RUNTIME_LOAD__?: RuntimeLoadResult[]
   }
 }
 

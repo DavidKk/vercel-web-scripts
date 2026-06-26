@@ -1,13 +1,6 @@
 import { getExtensionVersion } from '@ext/bridge/extension-context'
 import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
-import {
-  buildQuickRuleScriptSelectOptions,
-  countEnabledScriptsForEnabledScriptKeys,
-  loadExtensionConfig,
-  loadGmScopeForScriptKey,
-  readPresetProjectVersion,
-  readRuntimeOtaStage,
-} from '@ext/shared/extension-storage'
+import { buildQuickRuleScriptSelectOptions, loadExtensionConfig, loadGmScopeForScriptKey, readPresetProjectVersion, readRuntimeOtaStage } from '@ext/shared/extension-storage'
 import { sendShellMessage } from '@ext/shared/messages'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
@@ -35,6 +28,7 @@ export class MmPopupApp extends HTMLElement {
   private extensionDownloadUrl: string | null = null
   private shellDisableMenuOpen = false
   private shellDisableMenuOutsideListener: ((event: MouseEvent) => void) | null = null
+  private shellEnabledOnActiveTab = true
   private static readonly QUICK_RULE_RECENT_SCRIPT_KEY = 'vws_popup_quick_rule_recent_script'
   private defaultPopupSize: { width: number; height: number } | null = null
 
@@ -51,12 +45,14 @@ export class MmPopupApp extends HTMLElement {
     this.bindEvents()
     this.ensureVersionFooterInitial()
     void this.hydrateCachedPresetVersion()
-    void this.refresh().then(() => {
+    void (async () => {
+      await this.refresh({ network: false })
       requestAnimationFrame(() => {
         this.captureDefaultPopupSize()
         this.applyDefaultPopupSize()
       })
-    })
+      await this.refresh({ network: true })
+    })()
   }
 
   disconnectedCallback(): void {
@@ -72,17 +68,21 @@ export class MmPopupApp extends HTMLElement {
     })
     this.querySelector('[data-action="shell-master"]')?.addEventListener('click', (event) => {
       event.stopPropagation()
-      void this.handleShellMasterClick()
+      this.handleShellMasterClick()
     })
-    this.querySelector('[data-action="shell-disable-tab"]')?.addEventListener('click', () => {
+    this.querySelector('[data-action="shell-disable-tab"]')?.addEventListener('click', (event) => {
+      event.stopPropagation()
       this.closeShellDisableMenu()
       void this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: false, scope: 'tab' }), 'shell-master')
     })
-    this.querySelector('[data-action="shell-disable-all"]')?.addEventListener('click', () => {
+    this.querySelector('[data-action="shell-disable-all"]')?.addEventListener('click', (event) => {
+      event.stopPropagation()
       this.closeShellDisableMenu()
       void this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: false, scope: 'global' }), 'shell-master')
     })
-    this.querySelector('[data-action="shell-reload"]')?.addEventListener('click', () => {
+    this.querySelector('[data-action="shell-reload"]')?.addEventListener('click', (event) => {
+      event.stopPropagation()
+      this.closeShellDisableMenu()
       void this.reloadExtension()
     })
     this.querySelector('[data-action="update"]')?.addEventListener('click', () => {
@@ -292,7 +292,7 @@ export class MmPopupApp extends HTMLElement {
     })
   }
 
-  private async run(action: () => Promise<{ ok: boolean; error?: string; message?: string }>, loadingAction: string): Promise<void> {
+  private async run(action: () => Promise<{ ok: boolean; error?: string; message?: string }>, loadingAction: string, options?: { refreshNetwork?: boolean }): Promise<void> {
     this.setActionLoading(loadingAction, true)
     try {
       const res = await action()
@@ -307,14 +307,14 @@ export class MmPopupApp extends HTMLElement {
       } else {
         this.logPopupAction(loadingAction, 'info', 'OK')
       }
-      await this.refresh()
+      await this.refresh({ network: options?.refreshNetwork })
     } finally {
       this.setActionLoading(loadingAction, false)
     }
   }
 
-  private async refresh(): Promise<void> {
-    const [res, scriptTotals] = await Promise.all([sendShellMessage({ type: 'GET_STATUS' }), countEnabledScriptsForEnabledScriptKeys()])
+  private async refresh(options?: { network?: boolean }): Promise<void> {
+    const res = await sendShellMessage({ type: 'GET_STATUS', network: options?.network })
     if (!res.ok) {
       this.showToast(res.error, true)
       return
@@ -324,7 +324,7 @@ export class MmPopupApp extends HTMLElement {
       return
     }
     const s = res.status
-    const configured = scriptTotals.serverCount > 0
+    const configured = s.enabledServiceCount > 0
 
     const subtitle = this.querySelector('[data-ref="subtitle"]')
     if (subtitle) {
@@ -332,7 +332,7 @@ export class MmPopupApp extends HTMLElement {
         subtitle.textContent = 'Configure in Servers'
         subtitle.classList.remove('hidden')
       } else {
-        subtitle.textContent = this.formatRuntimeSummary(scriptTotals.serverCount, scriptTotals.enabledScriptCount)
+        subtitle.textContent = this.formatRuntimeSummary(s.enabledServiceCount, s.enabledScriptCount)
         subtitle.classList.remove('hidden')
       }
     }
@@ -350,6 +350,7 @@ export class MmPopupApp extends HTMLElement {
 
   private syncShellMasterSwitch(status: { shellEnabledOnActiveTab: boolean; shellGloballyEnabled: boolean }): void {
     const enabled = status.shellEnabledOnActiveTab
+    this.shellEnabledOnActiveTab = enabled
     const icon = this.querySelector('[data-ref="shell-master-icon"]') as HTMLElement | null
     const btn = this.querySelector('[data-action="shell-master"]') as HTMLButtonElement | null
     if (icon) {
@@ -366,13 +367,9 @@ export class MmPopupApp extends HTMLElement {
     }
   }
 
-  private async handleShellMasterClick(): Promise<void> {
-    const res = await sendShellMessage({ type: 'GET_STATUS' })
-    if (!res.ok || !('status' in res) || !res.status) {
-      return
-    }
-    if (!res.status.shellEnabledOnActiveTab) {
-      await this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: true }), 'shell-master')
+  private handleShellMasterClick(): void {
+    if (!this.shellEnabledOnActiveTab) {
+      void this.run(() => sendShellMessage({ type: 'SET_SHELL_ENABLED', enabled: true }), 'shell-master')
       return
     }
     if (this.shellDisableMenuOpen) {
@@ -405,7 +402,7 @@ export class MmPopupApp extends HTMLElement {
       this.closeShellDisableMenu()
     }
     window.setTimeout(() => {
-      document.addEventListener('click', this.shellDisableMenuOutsideListener!, true)
+      document.addEventListener('click', this.shellDisableMenuOutsideListener!)
     }, 0)
   }
 
@@ -416,7 +413,7 @@ export class MmPopupApp extends HTMLElement {
     this.shellDisableMenuOpen = false
     btn?.setAttribute('aria-expanded', 'false')
     if (this.shellDisableMenuOutsideListener) {
-      document.removeEventListener('click', this.shellDisableMenuOutsideListener, true)
+      document.removeEventListener('click', this.shellDisableMenuOutsideListener)
       this.shellDisableMenuOutsideListener = null
     }
   }
@@ -636,7 +633,19 @@ export class MmPopupApp extends HTMLElement {
   }
 
   private async setLogOutputMode(mode: ShellLogOutputMode): Promise<void> {
-    await this.run(() => sendShellMessage({ type: 'SET_LOG_OUTPUT_MODE', mode }), 'log-output')
+    this.syncLogOutputTabs(mode)
+    this.setActionLoading('log-output', true)
+    try {
+      const res = await sendShellMessage({ type: 'SET_LOG_OUTPUT_MODE', mode })
+      if (!res.ok) {
+        this.showToast(res.error ?? 'Failed', true)
+        await this.refresh({ network: false })
+        return
+      }
+      this.logPopupAction('log-output', 'info', 'OK')
+    } finally {
+      this.setActionLoading('log-output', false)
+    }
   }
 
   private async submitQuickRule(): Promise<void> {
@@ -650,7 +659,7 @@ export class MmPopupApp extends HTMLElement {
       if (res.message) {
         this.showToast(res.message)
       }
-      await this.refresh()
+      await this.refresh({ network: false })
     } finally {
       this.setActionLoading('quick-add-rule', false)
     }

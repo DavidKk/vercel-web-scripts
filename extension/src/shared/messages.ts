@@ -9,6 +9,7 @@ import type {
 } from '@shared/script-permission'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
+import type { RuntimeLoadResult } from '../runtime/loader-types'
 import type { PermissionModalResultPayload } from '../shell/permission-manager'
 import type { DebugLogAppendInput, DebugLogEntry } from './debug-log-types'
 
@@ -53,7 +54,7 @@ export interface QuickAddRuleContextItem {
 }
 
 export type ShellMessage =
-  | { type: 'GET_STATUS' }
+  | { type: 'GET_STATUS'; network?: boolean }
   | { type: 'SET_NETWORK'; enabled: boolean }
   | { type: 'SET_SHELL_ENABLED'; enabled: boolean; scope?: 'tab' | 'global' }
   | { type: 'GET_SHELL_ENABLED_FOR_SENDER' }
@@ -146,6 +147,22 @@ export type ShellMessage =
   | { type: 'SET_INCOGNITO_LOG_COLLECTION'; enabled: boolean }
   | { type: 'CLEAR_DEBUG_LOGS' }
   | { type: 'EXECUTE_USER_SCRIPT'; details: { mode: 'preset'; decls: string; presetCode: string } | { mode: 'global'; withBody: string } }
+  | {
+      type: 'RUNTIME_ENSURE_LOAD'
+      details: {
+        pageUrl: string
+        entries: Array<{
+          scriptKey: string
+          baseUrl: string
+          gmScope: string
+          developMode: boolean
+          enabledScripts: Record<string, boolean>
+          acceptAlphaByFile?: Record<string, boolean>
+          acceptAlpha?: boolean
+          contentHashByFile?: Record<string, string>
+        }>
+      }
+    }
 
 export interface ShellStatus {
   configured: boolean
@@ -228,6 +245,7 @@ export type ShellResponse =
       }>
     }
   | { ok: true; removed?: boolean }
+  | { ok: true; runtimeLoadResults?: RuntimeLoadResult[] }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

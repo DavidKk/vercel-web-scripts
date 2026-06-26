@@ -40,6 +40,7 @@ import {
   setTabBadgePhase,
 } from '@ext/shared/tab-trigger-badge'
 
+import { ensureRuntimeLoad } from '../runtime/module-loader'
 import { extensionLogger, permissionLogger } from '../shared/logger'
 import { refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
 import { enrichDebugLogFromSender, handleBridgeXhr, handleWebConnect } from './background-bridge'
@@ -72,6 +73,23 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
   switch (message.type) {
     case 'GM_XHR': {
       return handleBridgeXhr(message.details, sender.tab?.id)
+    }
+    case 'RUNTIME_ENSURE_LOAD': {
+      const tabId = sender.tab?.id
+      if (tabId == null) {
+        return { ok: false, error: 'No tab for runtime load.' }
+      }
+      try {
+        const runtimeLoadResults = await ensureRuntimeLoad({
+          tabId,
+          pageUrl: message.details.pageUrl,
+          entries: message.details.entries,
+        })
+        return { ok: true, runtimeLoadResults }
+      } catch (error) {
+        extensionLogger.error('[ModuleLoad] RUNTIME_ENSURE_LOAD failed:', error)
+        return { ok: false, error: error instanceof Error ? error.message : String(error) }
+      }
     }
     case 'SCRIPT_PERMISSION_ENSURE': {
       const tabId = sender.tab?.id
@@ -188,7 +206,7 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
       return handleWebConnect(message.details)
     }
     case 'GET_STATUS': {
-      return { ok: true, status: await buildStatus() }
+      return { ok: true, status: await buildStatus({ network: message.network }) }
     }
     case 'GET_SHELL_ENABLED_FOR_SENDER': {
       const tabId = sender?.tab?.id

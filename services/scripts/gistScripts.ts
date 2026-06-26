@@ -36,6 +36,8 @@ export interface ScriptFileMeta {
   author?: string
   /** Userscript @match values */
   match?: string[]
+  /** Other Gist filenames that must load before this module (Phase D). */
+  dependsOn?: string[]
   /** Userscript @grant values */
   grants?: string[]
   /** Userscript @connect values */

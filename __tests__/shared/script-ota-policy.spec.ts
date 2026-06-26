@@ -36,6 +36,11 @@ describe('script-ota-policy', () => {
       stage: 'stable',
       autoUpgrade: true,
       projectVersion: '0.2.0',
+      scriptLoadMode: 'aggregate',
     })
+  })
+
+  it('should resolve match-fallback scriptLoadMode when set in index', () => {
+    expect(resolveRuntimeOtaPolicy({ scriptLoadMode: 'match-fallback' }, '0.2.0').scriptLoadMode).toBe('match-fallback')
   })
 })

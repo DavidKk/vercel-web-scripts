@@ -135,8 +135,9 @@ These may be delivered incrementally after core modular runtime contracts are st
 
 ### Phase D - Script modularization
 
-- Introduce script-level loading based on match
-- Keep aggregate fallback during transition
+- Introduce script-level loading based on match (`match-fallback` strategy)
+- Keep aggregate fallback during transition (default `scriptLoadMode=aggregate`)
+- **Tampermonkey**: remains aggregate-only (`tampermonkey-remote.js`); Extension supports match-fallback when SERVER enables it
 
 ## 9. Risks and mitigations
 

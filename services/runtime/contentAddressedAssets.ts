@@ -51,6 +51,24 @@ export function buildVersionedStaticModuleUrl(
 }
 
 /**
+ * Build per-script module URL under `/static/{key}/scripts/...` or content-addressed variant.
+ * @param baseUrl Origin (no trailing slash)
+ * @param scriptKey Tampermonkey script key
+ * @param filename Gist script filename
+ * @param hash Content SHA-1 or null
+ * @param track Bundle track (`alpha` uses `/scripts/alpha/` prefix)
+ */
+export function buildVersionedScriptModuleUrl(baseUrl: string, scriptKey: string, filename: string, hash: string | null | undefined, track: 'stable' | 'alpha' = 'stable'): string {
+  const encodedKey = encodeURIComponent(scriptKey)
+  const encodedFile = encodeURIComponent(filename)
+  const alphaPrefix = track === 'alpha' ? 'alpha/' : ''
+  if (!hash || !isSha1ContentHash(hash)) {
+    return `${baseUrl}/static/${encodedKey}/scripts/${alphaPrefix}${encodedFile}`
+  }
+  return `${baseUrl}/static/${encodedKey}/${encodeURIComponent(hash)}/scripts/${alphaPrefix}${encodedFile}`
+}
+
+/**
  * Whether the request `h` query matches the currently deployed artifact hash (safe for immutable caching).
  * @param hParam Raw `h` query value
  * @param currentHash Hash from disk manifest (current build)

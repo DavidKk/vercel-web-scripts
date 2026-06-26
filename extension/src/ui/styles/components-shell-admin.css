@@ -91,6 +91,10 @@
     @apply relative;
   }
 
+  .mm-popup-header {
+    @apply relative z-30 overflow-visible;
+  }
+
   .mm-page {
     @apply flex min-h-screen w-full flex-col bg-mm-canvas;
   }

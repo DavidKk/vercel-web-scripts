@@ -2,7 +2,7 @@
 
 Use this checklist when validating each phase of runtime modularization.
 
-**Baseline (2026-06-27)**: Phase A–C implemented per `../tasks/done/runtime-modularization-phase-a-b-c.md`. Phase D not started (`../tasks/backlog/runtime-phase-d.md`). Checkboxes below are for **release-candidate re-verification**, not open work items.
+**Baseline (2026-06-27)**: Phase A–C + Phase D match-fallback implemented. Extension native loader (E25–E27) done. Checkboxes below are for **release-candidate re-verification**.
 
 ## Phase A - Contracts and docs
 
@@ -33,10 +33,11 @@ Use this checklist when validating each phase of runtime modularization.
 
 ## Phase D - Script modularization
 
-- [ ] Aggregate script fallback remains available
-- [ ] At least one script module loads by match rule
-- [ ] Script module failure is isolated and does not crash core
-- [ ] Dependency ordering for script modules is respected
+- [x] Aggregate script fallback remains available (default `scriptLoadMode=aggregate`)
+- [x] Match-fallback loads per-file modules when `runtime.scriptLoadMode=match-fallback` and URL matches
+- [x] No match or per-module fetch failure falls back to aggregate bundle
+- [x] Dependency ordering for script modules is respected (`dependsOn` + topo sort)
+- [x] Tampermonkey path documented as aggregate-only (see `runtime-phase-d.md`)
 
 ## Minimal smoke test (before each release candidate)
 

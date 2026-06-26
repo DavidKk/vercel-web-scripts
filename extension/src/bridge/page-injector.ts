@@ -1,3 +1,4 @@
+import type { RuntimeLoadResult } from '../runtime/loader-types'
 import type { PageBootstrapConfig } from '../types'
 import { getBridgeToken } from './bridge-token'
 import { BOOTSTRAP_DATA_PREFIX, LAUNCHER_SCRIPT_PREFIX } from './constants'
@@ -19,7 +20,7 @@ function waitForDocumentBody(): Promise<void> {
   })
 }
 
-function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>, permissionAllowKeys: string[]): void {
+function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>, permissionAllowKeys: string[], runtimeLoadResults: RuntimeLoadResult[]): void {
   const runtimeId = getRuntimeId()
   if (!runtimeId) {
     return
@@ -37,7 +38,7 @@ function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, u
 
   const data = document.createElement('template')
   data.id = bootstrapId
-  data.textContent = JSON.stringify({ config, gmStore, bridgeToken: getBridgeToken(), permissionAllowKeys })
+  data.textContent = JSON.stringify({ config, gmStore, bridgeToken: getBridgeToken(), permissionAllowKeys, runtimeLoadResults })
   ;(document.documentElement || document.head || document.body).appendChild(data)
 
   const script = document.createElement('script')
@@ -53,7 +54,12 @@ function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, u
 }
 
 /** Load bootstrap payload and inject page-world launcher when extension is configured. */
-export async function injectPageLauncherWhenReady(bootstrapConfig: PageBootstrapConfig, gmStore: Record<string, unknown>, permissionAllowKeys: string[] = []): Promise<void> {
+export async function injectPageLauncherWhenReady(
+  bootstrapConfig: PageBootstrapConfig,
+  gmStore: Record<string, unknown>,
+  permissionAllowKeys: string[] = [],
+  runtimeLoadResults: RuntimeLoadResult[] = []
+): Promise<void> {
   await waitForDocumentBody()
-  injectPageScript(bootstrapConfig, gmStore, permissionAllowKeys)
+  injectPageScript(bootstrapConfig, gmStore, permissionAllowKeys, runtimeLoadResults)
 }
