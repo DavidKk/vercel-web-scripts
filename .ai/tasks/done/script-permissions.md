@@ -19,7 +19,7 @@ Gate **Tier-1 capabilities** at call time (not a separate `requestPermission` AP
 | **Subject**           | `scriptKey` + `file` (not tied to storefront hostname)                                                     |
 | **Resource**          | Request URL **host** for `network`; capability-specific resource for others (e.g. `*` for `unsafe-window`) |
 | **Tier 0 (no gate)**  | storage, DOM, GME menu, etc.                                                                               |
-| **Tier 1 (gated)**    | `network`, `clipboard-write`, `open-tab`, `download`, `unsafe-window`                                      |
+| **Tier 1 (gated)**    | `network`, `clipboard-write`, `open-tab`, `download`, `capture-screenshot`, `unsafe-window`                |
 | **Enforcement scope** | User scripts inside `enterScriptPermissionScope` only; preset/launcher paths do not enforce                |
 
 ### Remember levels (`ScriptPermissionRemember`)

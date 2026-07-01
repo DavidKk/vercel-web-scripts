@@ -1,7 +1,14 @@
 /** High-sensitivity script capabilities gated at runtime (extension path). */
-export type ScriptPermissionCapability = 'network' | 'clipboard-write' | 'open-tab' | 'download' | 'unsafe-window'
+export type ScriptPermissionCapability = 'network' | 'clipboard-write' | 'open-tab' | 'download' | 'capture-screenshot' | 'unsafe-window'
 
-export const SCRIPT_PERMISSION_CAPABILITIES: readonly ScriptPermissionCapability[] = ['network', 'clipboard-write', 'open-tab', 'download', 'unsafe-window'] as const
+export const SCRIPT_PERMISSION_CAPABILITIES: readonly ScriptPermissionCapability[] = [
+  'network',
+  'clipboard-write',
+  'open-tab',
+  'download',
+  'capture-screenshot',
+  'unsafe-window',
+] as const
 
 export const PERMISSION_DENIED_CODE = 'PERMISSION_DENIED'
 
@@ -152,6 +159,8 @@ export function formatPermissionCapabilityLabel(capability: ScriptPermissionCapa
       return 'Open new tab'
     case 'download':
       return 'Download file'
+    case 'capture-screenshot':
+      return 'Capture page screenshot'
     case 'unsafe-window':
       return 'Access page window'
     default:

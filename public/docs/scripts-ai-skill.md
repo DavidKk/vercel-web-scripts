@@ -109,7 +109,7 @@ Default to `GME_*` helpers when they match the task. Use `GM_*` when you need Ta
 | Menus (richer than GM)  | `GME_registerMenuCommand`, `GME_updateMenuCommand`                                                                                 |
 | Command palette         | `GME_registerCommandPaletteCommand`, `GME_openCommandPalette`                                                                      |
 | Node toolbar / dev UX   | `GME_registerNodeToolbar`, `GME_registerNodeToolbarQuery`, `GME_unregisterNodeToolbar`                                             |
-| Network / tooling       | `GME_fetch`, `GME_curl`, `GME_preview`                                                                                             |
+| Network / tooling       | `GME_fetch`, `GME_curl`, `GME_preview`, `GME_captureScreenshot` (extension shell only)                                             |
 | DOM / timing            | `GME_waitFor`, `GME_watchFor`, `GME_watchForVisible`, `GME_pollFor`, `GME_sleep`, `GME_isVisible`                                  |
 | Utilities               | `GME_debounce`, `GME_throttle`, `GME_sha1`, `GME_md5`, `GME_uuid`                                                                  |
 | Logging / notifications | `GME_ok`, `GME_info`, `GME_warn`, `GME_fail`, `GME_group`, `GME_notification`, `GME_notification_update`, `GME_notification_close` |

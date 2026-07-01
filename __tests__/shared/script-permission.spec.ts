@@ -15,6 +15,7 @@ describe('script-permission', () => {
 
   it('builds stable registry keys', () => {
     expect(buildScriptPermissionRegistryKey('key-a', 'demo.ts', 'network', 'example.com')).toBe('key-a:demo.ts:network:example.com')
+    expect(buildScriptPermissionRegistryKey('key-a', 'demo.ts', 'capture-screenshot', 'example.com')).toBe('key-a:demo.ts:capture-screenshot:example.com')
   })
 
   it('encodes scriptKey and file segments with special characters', () => {

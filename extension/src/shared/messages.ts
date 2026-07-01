@@ -135,6 +135,11 @@ export type ShellMessage =
     }
   | { type: 'VWS_PERMISSION_MODAL_RESULT'; payload: PermissionModalResultPayload }
   | { type: 'GM_XHR'; details: BridgeXhrDetails }
+  | {
+      type: 'CAPTURE_VISIBLE_TAB'
+      options: { format?: 'png' | 'jpeg'; quality?: number }
+      permission?: ScriptPermissionRequest
+    }
   | { type: 'WEB_CONNECT_EXTENSION'; details: WebConnectDetails }
   | { type: 'TAB_PAGE_LOAD'; details: { url: string } }
   | { type: 'PAGE_BOOTSTRAP_READY'; details: { url: string } }
@@ -214,6 +219,7 @@ export type ShellResponse =
       }>
     }
   | { ok: true; xhr: BridgeXhrResponse }
+  | { ok: true; dataUrl: string }
   | { ok: true; quickAddRuleContext?: { activeTabUrl: string; items: QuickAddRuleContextItem[] } }
   | { ok: true; shellEnabled?: boolean }
   | { ok: true; debugLogs?: DebugLogEntry[] }

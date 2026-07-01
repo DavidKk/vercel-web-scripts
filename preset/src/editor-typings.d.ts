@@ -510,6 +510,8 @@ declare interface CommandPaletteCommand {
   keywords?: string[]
   title?: string
   icon?: string
+  /** Raw HTML (e.g. inline MDI SVG). Used when set, else `icon`. */
+  iconHtml?: string
   hint?: string
   /** Boost sort: only `page` (本页) is moved to the top; DEBUG commands always stay last. */
   contextScope?: 'page' | 'domain'
@@ -696,6 +698,20 @@ declare function GME_curl(content: string): Promise<any>
  * @param content File content to preview
  */
 declare function GME_preview(file: string, content: string): void
+
+/** Options for {@link GME_captureScreenshot}. */
+declare interface CaptureScreenshotOptions {
+  format?: 'png' | 'jpeg'
+  quality?: number
+}
+
+/**
+ * Capture the visible viewport of the current tab (MagickMonkey Chrome extension only).
+ * Prompts for `capture-screenshot` permission on the current page host.
+ * @param options Optional image format and JPEG quality
+ * @returns PNG or JPEG blob
+ */
+declare function GME_captureScreenshot(options?: CaptureScreenshotOptions): Promise<Blob>
 
 /**
  * Wait for DOM elements to appear

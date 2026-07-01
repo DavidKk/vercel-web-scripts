@@ -52,6 +52,7 @@ export interface GMApi {
   GM_notification: (details: string | { text?: string; title?: string; timeout?: number; onclick?: () => void }, ondone?: () => void) => void
   GM_openInTab: (url: string, options?: unknown) => Window | null
   GM_setClipboard: (data: string, info?: unknown, cb?: () => void) => void
+  GM_captureVisibleTab: (options?: { format?: 'png' | 'jpeg'; quality?: number }) => Promise<Blob>
   GM_download: (
     details: string | { url: string | Blob | File; name?: string; onerror?: (error: { error: string }) => void; onload?: () => void },
     name?: string

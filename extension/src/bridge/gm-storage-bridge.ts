@@ -88,6 +88,19 @@ export function handleBridgeRequest(value: unknown): void {
         respond(id, result)
         return
       }
+      if (method === 'captureScreenshot') {
+        const [options, permission] = args as [{ format?: 'png' | 'jpeg'; quality?: number } | undefined, ScriptPermissionRequest | undefined]
+        const response = (await chrome.runtime.sendMessage({
+          type: 'CAPTURE_VISIBLE_TAB',
+          options: options ?? {},
+          permission,
+        })) as ShellResponse
+        if (!response?.ok || !('dataUrl' in response) || typeof response.dataUrl !== 'string') {
+          throw new Error(response?.ok === false ? response.error : 'CAPTURE_VISIBLE_TAB failed')
+        }
+        respond(id, response.dataUrl)
+        return
+      }
       if (method === 'permission') {
         const [request] = args as [ScriptPermissionRequest]
         permissionLogger.info('bridge:permission-received', {

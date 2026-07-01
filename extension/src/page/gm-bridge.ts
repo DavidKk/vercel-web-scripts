@@ -139,6 +139,37 @@ function buildXhrPermissionRequest(details: GMRequestDetails, context: ReturnTyp
   }
 }
 
+function buildCapturePermissionRequest(context: ReturnType<typeof getActiveScriptPermissionContext>): ScriptPermissionRequest | undefined {
+  if (!context) {
+    return undefined
+  }
+  const resource = normalizePermissionNetworkHost(location.href)
+  if (!resource) {
+    return undefined
+  }
+  return {
+    ...context,
+    capability: 'capture-screenshot',
+    resource,
+  }
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',')
+  if (comma < 0) {
+    throw new Error('Invalid capture data URL')
+  }
+  const header = dataUrl.slice(0, comma)
+  const base64 = dataUrl.slice(comma + 1)
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png'
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new Blob([bytes], { type: mime })
+}
+
 function createUnsafeWindowGate(): Window {
   type AccessState = 'idle' | 'pending' | 'granted' | 'denied'
   let state: AccessState = 'idle'
@@ -453,6 +484,19 @@ export function installGmApiOnPage(): GMApi {
           gmLogger.error('setClipboard failed:', error)
         }
       })()
+    },
+    async GM_captureVisibleTab(options?: { format?: 'png' | 'jpeg'; quality?: number }): Promise<Blob> {
+      const enforced = isScriptPermissionEnforced()
+      const permissionContext = enforced ? getActiveScriptPermissionContext() : null
+      const permissionRequest = enforced ? buildCapturePermissionRequest(permissionContext) : undefined
+      if (enforced) {
+        if (!permissionRequest) {
+          throw new ScriptPermissionDeniedError('Invalid page URL for capture-screenshot permission')
+        }
+        await ensureScriptPermission('capture-screenshot', permissionRequest.resource, permissionContext)
+      }
+      const dataUrl = await sendRequest<string>('captureScreenshot', [options ?? {}, permissionRequest], 60_000)
+      return dataUrlToBlob(dataUrl)
     },
     GM_download(
       details:

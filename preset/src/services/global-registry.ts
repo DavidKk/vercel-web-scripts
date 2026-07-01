@@ -8,6 +8,7 @@
  * Must be loaded after all helpers, services, and UI modules and before main.
  */
 
+import * as captureScreenshot from '@/helpers/capture-screenshot'
 import * as dom from '@/helpers/dom'
 import * as http from '@/helpers/http'
 import * as locator from '@/helpers/locator'
@@ -98,6 +99,7 @@ export function registerGlobals(): void {
     // Helpers (public API for GIST scripts)
     ...utils,
     ...http,
+    ...captureScreenshot,
     ...logger,
     ...scriptPermissionScope,
     ...dom,

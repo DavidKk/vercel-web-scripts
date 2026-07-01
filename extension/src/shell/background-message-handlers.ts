@@ -43,7 +43,7 @@ import {
 import { ensureRuntimeLoad } from '../runtime/module-loader'
 import { extensionLogger, permissionLogger } from '../shared/logger'
 import { refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
-import { enrichDebugLogFromSender, handleBridgeXhr, handleWebConnect } from './background-bridge'
+import { enrichDebugLogFromSender, handleBridgeXhr, handleCaptureVisibleTab, handleWebConnect } from './background-bridge'
 import { handleDebugClearTabSessionPermissions, handleDebugPermissionPrompt, handleDebugRunGmPermissionTest } from './background-debug-permission'
 import { buildStatus, refreshAllBadges, updateBadgeForTab } from './background-status'
 import { getActiveTab, isReloadableTabUrl, reloadAllReloadableTabs, reloadTab } from './background-tab-utils'
@@ -73,6 +73,14 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
   switch (message.type) {
     case 'GM_XHR': {
       return handleBridgeXhr(message.details, sender.tab?.id)
+    }
+    case 'CAPTURE_VISIBLE_TAB': {
+      try {
+        return await handleCaptureVisibleTab(message, sender.tab?.id, sender.tab?.windowId, sender.tab?.url)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        return { ok: false, error: msg }
+      }
     }
     case 'RUNTIME_ENSURE_LOAD': {
       const tabId = sender.tab?.id

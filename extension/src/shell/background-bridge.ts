@@ -88,6 +88,30 @@ export async function handleBridgeXhr(details: Extract<ShellMessage, { type: 'GM
   }
 }
 
+export async function handleCaptureVisibleTab(
+  message: Extract<ShellMessage, { type: 'CAPTURE_VISIBLE_TAB' }>,
+  tabId: number | undefined,
+  windowId: number | undefined,
+  tabUrl: string | undefined
+): Promise<ShellResponse> {
+  if (tabId == null || windowId == null) {
+    throw new Error('CAPTURE_VISIBLE_TAB missing tab')
+  }
+  if (message.permission) {
+    if (!tabUrl || !permissionResourceMatchesUrl(message.permission.resource, tabUrl)) {
+      throw new Error(PERMISSION_DENIED_CODE)
+    }
+    const allowed = await ensureScriptPermissionForTab(tabId, message.permission)
+    if (!allowed) {
+      throw new Error(PERMISSION_DENIED_CODE)
+    }
+  }
+  const format = message.options.format === 'jpeg' ? 'jpeg' : 'png'
+  const quality = typeof message.options.quality === 'number' ? message.options.quality : undefined
+  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format, quality })
+  return { ok: true, dataUrl }
+}
+
 export function normalizeWebConnectConfig(details: Extract<ShellMessage, { type: 'WEB_CONNECT_EXTENSION' }>['details']): ExtensionConfig {
   const baseUrl = details.baseUrl.trim().replace(/\/+$/, '')
   return {
