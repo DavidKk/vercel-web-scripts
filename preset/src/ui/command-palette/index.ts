@@ -227,11 +227,23 @@ export class CommandPaletteUI extends HTMLElement {
   }
 
   /**
+   * Bubble-phase on palette input. Shadow DOM retargets `event.target` to the host on
+   * document, so page shortcuts that skip INPUT/TEXTAREA still fire — stop propagation
+   * here after the input has handled the key (including IME composition).
+   */
+  #inputKeyBubbleHandler = (event: KeyboardEvent): void => {
+    if (!this.classList.contains(CommandPaletteUI.OPEN_CLASS)) {
+      return
+    }
+    event.stopPropagation()
+  }
+
+  /**
    * Capture-phase keydown on document. When palette is open, consume keydown
    * so page shortcuts (e.g. on doc sites) never run; apply keys to our input ourselves.
    * Cmd/Ctrl+A/C/V/X are not consumed so the input keeps native select-all/copy/paste/cut.
-   * Single-character keys (and when IME is composing) are not intercepted so the input
-   * receives them natively — avoids duplicate input when using IME (e.g. Chinese).
+   * During IME composition, capture does not intercept so the input receives keys natively;
+   * bubble handler above prevents those keys from reaching page listeners.
    */
   #captureKeydownHandler = (event: KeyboardEvent): void => {
     if (!this.classList.contains(CommandPaletteUI.OPEN_CLASS)) {
@@ -250,7 +262,13 @@ export class CommandPaletteUI extends HTMLElement {
     }
 
     const isSingleChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
-    if (isSingleChar || event.isComposing) {
+    if (event.isComposing || event.key === 'Process') {
+      return
+    }
+    if (isSingleChar) {
+      event.stopPropagation()
+      event.preventDefault()
+      this.#applyKeyToInput(event, input)
       return
     }
 
@@ -368,6 +386,8 @@ export class CommandPaletteUI extends HTMLElement {
     const list = this.#shadowRoot?.querySelector('.command-palette__list')
 
     input?.addEventListener('input', this.#inputHandler)
+    input?.addEventListener('keydown', this.#inputKeyBubbleHandler)
+    input?.addEventListener('keyup', this.#inputKeyBubbleHandler)
     backdrop?.addEventListener('click', () => this.close())
     list?.addEventListener('click', this.#listClickHandler)
 
@@ -387,6 +407,9 @@ export class CommandPaletteUI extends HTMLElement {
   }
 
   disconnectedCallback(): void {
+    const input = this.#shadowRoot?.querySelector('.command-palette__input') as HTMLInputElement | null
+    input?.removeEventListener('keydown', this.#inputKeyBubbleHandler)
+    input?.removeEventListener('keyup', this.#inputKeyBubbleHandler)
     document.removeEventListener('keydown', this.#globalKeydownHandler)
     document.removeEventListener('keydown', this.#captureKeydownHandler, true)
   }
