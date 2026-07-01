@@ -135,7 +135,7 @@ function buildRuntimeSummary() {
       commandPalette: ['GME_registerCommandPaletteCommand', 'GME_openCommandPalette'],
       nodeToolbar: ['GME_registerNodeToolbar', 'GME_registerNodeToolbarQuery', 'GME_unregisterNodeToolbar'],
       editorLib: ['GME_ensureEditorLib'],
-      networkAndTooling: ['GME_fetch', 'GME_curl', 'GME_preview', 'GME_captureScreenshot'],
+      networkAndTooling: ['GME_fetch', 'GME_curl', 'GME_preview', 'GME_captureScreenshot', 'GME_downloadScreenshot'],
       domAndTiming: ['GME_waitFor', 'GME_watchFor', 'GME_watchForVisible', 'GME_pollFor', 'GME_sleep', 'GME_isVisible'],
       utilities: ['GME_debounce', 'GME_throttle', 'GME_sha1', 'GME_md5', 'GME_uuid'],
       notificationsAndLogs: ['GME_ok', 'GME_info', 'GME_warn', 'GME_fail', 'GME_group', 'GME_notification', 'GME_notification_update', 'GME_notification_close'],

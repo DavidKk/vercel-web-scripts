@@ -2,6 +2,7 @@ export const GRANTS = [
   'GM_addElement',
   'GM_addStyle',
   'GM_download',
+  'GM_captureVisibleTab',
   'GM_getResourceText',
   'GM_getResourceURL',
   'GM_info',

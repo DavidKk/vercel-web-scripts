@@ -714,6 +714,11 @@ declare interface CaptureScreenshotOptions {
 declare function GME_captureScreenshot(options?: CaptureScreenshotOptions): Promise<Blob>
 
 /**
+ * Capture the visible viewport and download PNG/JPEG (MagickMonkey Chrome extension only).
+ */
+declare function GME_downloadScreenshot(options?: CaptureScreenshotOptions): Promise<void>
+
+/**
  * Wait for DOM elements to appear
  * @param query Query function that returns elements
  * @param options Optional wait options

@@ -47,6 +47,8 @@ const EXTENSION_GRANTS = [
   'GM_xmlhttpRequest',
   'GM_registerMenuCommand',
   'GM_unregisterMenuCommand',
+  'GM_captureVisibleTab',
+  'GM_download',
   'GM_info',
   'unsafeWindow',
 ] as const

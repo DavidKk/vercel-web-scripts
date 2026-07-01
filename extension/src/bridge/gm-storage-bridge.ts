@@ -1,10 +1,13 @@
 import type { ScriptPermissionContext, ScriptPermissionRequest } from '@shared/script-permission'
 
 import type { GMRequestDetails } from '../page/gm-types'
-import { permissionLogger } from '../shared/logger'
+import { createExtensionLogger, permissionLogger } from '../shared/logger'
 import type { ShellResponse } from '../shared/messages'
 import { BRIDGE_MESSAGE_SOURCE, GM_STORAGE_PREFIX, RESPONSE_EVENT, STORAGE_CHANGED_EVENT } from './constants'
 import { isExtensionContextInvalidated } from './extension-context'
+
+const screenshotLogger = createExtensionLogger('Screenshot')
+const CAPTURE_MESSAGE_TIMEOUT_MS = 65_000
 
 function storageKey(key: string): string {
   return `${GM_STORAGE_PREFIX}${key}`
@@ -28,6 +31,22 @@ export async function loadGmStore(): Promise<Record<string, unknown>> {
 
 function respond(id: number, result?: unknown, error?: string): void {
   window.postMessage({ source: BRIDGE_MESSAGE_SOURCE, type: RESPONSE_EVENT, payload: { id, result, error } }, '*')
+}
+
+async function sendShellMessageWithTimeout(message: Record<string, unknown>, timeoutMs: number): Promise<ShellResponse> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return (await Promise.race([
+      chrome.runtime.sendMessage(message),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Background message timeout after ${timeoutMs}ms`)), timeoutMs)
+      }),
+    ])) as ShellResponse
+  } finally {
+    if (timer) {
+      clearTimeout(timer)
+    }
+  }
 }
 
 export function postStorageChanged(key: string, oldValue: unknown, newValue: unknown): void {
@@ -90,14 +109,19 @@ export function handleBridgeRequest(value: unknown): void {
       }
       if (method === 'captureScreenshot') {
         const [options, permission] = args as [{ format?: 'png' | 'jpeg'; quality?: number } | undefined, ScriptPermissionRequest | undefined]
-        const response = (await chrome.runtime.sendMessage({
-          type: 'CAPTURE_VISIBLE_TAB',
-          options: options ?? {},
-          permission,
-        })) as ShellResponse
+        screenshotLogger.info('bridge:captureScreenshot:start', { id, messageType: 'CAPTURE_VISIBLE_TAB' })
+        const response = await sendShellMessageWithTimeout(
+          {
+            type: 'CAPTURE_VISIBLE_TAB',
+            options: options ?? {},
+            permission,
+          },
+          CAPTURE_MESSAGE_TIMEOUT_MS
+        )
         if (!response?.ok || !('dataUrl' in response) || typeof response.dataUrl !== 'string') {
           throw new Error(response?.ok === false ? response.error : 'CAPTURE_VISIBLE_TAB failed')
         }
+        screenshotLogger.ok('bridge:captureScreenshot:success', { id, bytes: response.dataUrl.length })
         respond(id, response.dataUrl)
         return
       }

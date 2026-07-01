@@ -15,6 +15,7 @@ import { registerCommandPaletteOtaDebug } from './debug-ota'
 import { registerCommandPalettePermissionDebug } from './debug-permissions'
 import paletteCss from './index.css?raw'
 import paletteHtml from './index.html?raw'
+import { registerCommandPaletteScreenshotCommands } from './screenshot-commands'
 import { sortCommandPaletteCommands } from './sort-commands'
 
 const TAG = 'vercel-web-script-command-palette'
@@ -464,6 +465,7 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
 // DEBUG tail block is grouped by sortCommandPaletteCommands (Permission → OTA → other).
 registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
 registerCommandPaletteOtaDebug(GME_registerCommandPaletteCommand)
+registerCommandPaletteScreenshotCommands(GME_registerCommandPaletteCommand)
 
 export function GME_openCommandPalette(): void {
   const el = document.querySelector(TAG) as CommandPaletteUI | null
