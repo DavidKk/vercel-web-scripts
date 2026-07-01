@@ -425,6 +425,11 @@ export class MmPopupApp extends HTMLElement {
     } catch {
       // ignore capture errors; reload should still proceed
     }
+    try {
+      await sendShellMessage({ type: 'RELOAD_ACTIVE_TAB' })
+    } catch {
+      // ignore tab reload errors (e.g. chrome://); extension reload should still proceed
+    }
     chrome.runtime.reload()
   }
 
