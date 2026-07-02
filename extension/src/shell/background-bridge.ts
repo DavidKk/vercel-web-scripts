@@ -8,6 +8,7 @@ import type { DebugLogAppendInput } from '../shared/debug-log-types'
 import { buildDebugLogMetaFromTab } from '../shared/debug-log-utils'
 import { buildStatus } from './background-status'
 import { getActiveTab, reloadTab } from './background-tab-utils'
+import { captureVisibleTabThrottled } from './capture-visible-tab-throttle'
 import { ensureScriptPermissionForTab } from './permission-manager'
 
 export function enrichDebugLogFromSender(entry: DebugLogAppendInput, sender: chrome.runtime.MessageSender): DebugLogAppendInput {
@@ -108,7 +109,7 @@ export async function handleCaptureVisibleTab(
   }
   const format = message.options.format === 'jpeg' ? 'jpeg' : 'png'
   const quality = typeof message.options.quality === 'number' ? message.options.quality : undefined
-  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format, quality })
+  const dataUrl = await captureVisibleTabThrottled(windowId, { format, quality })
   return { ok: true, dataUrl }
 }
 
