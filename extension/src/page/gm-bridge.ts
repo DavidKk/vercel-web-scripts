@@ -74,8 +74,8 @@ function getStore(): Record<string, GMValue> {
   return window.__VWS_GM_STORE__
 }
 
-function sendRequest<T>(method: string, args: unknown[]): Promise<T> {
-  return sendPageBridgeRequest<T>(method, args)
+function sendRequest<T>(method: string, args: unknown[], timeoutMs?: number): Promise<T> {
+  return sendPageBridgeRequest<T>(method, args, timeoutMs)
 }
 
 function handleStorageChanged(payload: unknown): void {

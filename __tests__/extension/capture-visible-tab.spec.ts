@@ -19,7 +19,7 @@ describe('handleCaptureVisibleTab', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockedEnsure.mockResolvedValue(true)
-    ;(globalThis as { chrome?: { tabs: { captureVisibleTab: jest.Mock } } }).chrome = {
+    ;(globalThis as unknown as { chrome?: { tabs: { captureVisibleTab: jest.Mock } } }).chrome = {
       tabs: {
         captureVisibleTab: jest.fn().mockResolvedValue('data:image/png;base64,abc'),
       },
