@@ -10,7 +10,7 @@ import { readPermissionHosts } from '@shared/script-permission-scope'
 
 import { isExtensionPageContext } from '@/helpers/env'
 
-import { GME_captureScreenshot, GME_downloadScreenshot } from '../../preset/src/helpers/capture-screenshot'
+import { GME_captureScreenshot } from '../../preset/src/helpers/capture-screenshot'
 
 const mockedIsExtensionPageContext = isExtensionPageContext as jest.MockedFunction<typeof isExtensionPageContext>
 const mockedReadPermissionHosts = readPermissionHosts as jest.MockedFunction<typeof readPermissionHosts>
@@ -42,45 +42,5 @@ describe('GME_captureScreenshot', () => {
 
     expect(capture).toHaveBeenCalledWith({ format: 'png', quality: 90 })
     expect(result).toBe(blob)
-  })
-})
-
-describe('GME_downloadScreenshot', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-    mockedIsExtensionPageContext.mockReturnValue(true)
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2026-07-02T12:34:56.789Z'))
-  })
-
-  afterEach(() => {
-    jest.useRealTimers()
-  })
-
-  it('should download captured blob via GM_download with a timestamped filename', async () => {
-    const blob = new Blob(['png'], { type: 'image/png' })
-    const capture = jest.fn().mockResolvedValue(blob)
-    const download = jest.fn(({ onload }: { onload?: () => void }) => {
-      onload?.()
-      return { abort: jest.fn() }
-    })
-    mockedReadPermissionHosts.mockReturnValue([{ GM_captureVisibleTab: capture, GM_download: download }])
-
-    await GME_downloadScreenshot({ format: 'png' })
-
-    expect(capture).toHaveBeenCalledWith({ format: 'png' })
-    expect(download).toHaveBeenCalledWith(
-      expect.objectContaining({
-        url: blob,
-        name: 'page-viewport-2026-07-02T12-34-56.png',
-      })
-    )
-  })
-
-  it('should reject when GM_download is unavailable', async () => {
-    const blob = new Blob(['png'], { type: 'image/png' })
-    mockedReadPermissionHosts.mockReturnValue([{ GM_captureVisibleTab: jest.fn().mockResolvedValue(blob) }])
-
-    await expect(GME_downloadScreenshot()).rejects.toThrow('GME_downloadScreenshot requires GM_download')
   })
 })

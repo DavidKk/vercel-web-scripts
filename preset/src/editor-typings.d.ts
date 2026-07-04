@@ -200,7 +200,7 @@ declare function GM_log(...messages: any[]): void
  * @param info Clipboard format - can be a string ('text' or 'html') or an object with type and optional mimetype
  * @param cb Optional callback function called when the clipboard has been set
  */
-declare function GM_setClipboard(data: string, info?: 'text' | 'html' | { type: 'text' | 'html'; mimetype?: string }, cb?: () => void): void
+declare function GM_setClipboard(data: string | Blob, info?: 'text' | 'html' | { type: 'text' | 'html' | 'image'; mimetype?: string }, cb?: () => void): void
 
 /**
  * Register a menu command in the userscript menu
@@ -708,15 +708,11 @@ declare interface CaptureScreenshotOptions {
 /**
  * Capture the visible viewport of the current tab (MagickMonkey Chrome extension only).
  * Prompts for `capture-screenshot` permission on the current page host.
+ * Download, clipboard, and UI flow are left to user scripts (`GM_download`, `GM_setClipboard`, etc.).
  * @param options Optional image format and JPEG quality
  * @returns PNG or JPEG blob
  */
 declare function GME_captureScreenshot(options?: CaptureScreenshotOptions): Promise<Blob>
-
-/**
- * Capture the visible viewport and download PNG/JPEG (MagickMonkey Chrome extension only).
- */
-declare function GME_downloadScreenshot(options?: CaptureScreenshotOptions): Promise<void>
 
 /**
  * Wait for DOM elements to appear

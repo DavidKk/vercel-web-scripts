@@ -75,7 +75,7 @@ declare function GM_openInTab(
   onclose: () => void
   closed: boolean
 }
-declare function GM_setClipboard(data: string, info?: 'text' | 'html' | { type: 'text' | 'html'; mimetype?: string }, cb?: () => void): void
+declare function GM_setClipboard(data: string | Blob, info?: 'text' | 'html' | { type: 'text' | 'html' | 'image'; mimetype?: string }, cb?: () => void): void
 declare function GM_addElement(
   parentOrTagName: HTMLElement | Document | string,
   tagNameOrAttributes?: string | Record<string, string>,

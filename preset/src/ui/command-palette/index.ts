@@ -15,7 +15,7 @@ import { registerCommandPaletteOtaDebug } from './debug-ota'
 import { registerCommandPalettePermissionDebug } from './debug-permissions'
 import paletteCss from './index.css?raw'
 import paletteHtml from './index.html?raw'
-import { registerCommandPaletteScreenshotCommands } from './screenshot-commands'
+import { isCommandPaletteBackquoteKey, isKeyboardEventInEditableTarget } from './shortcut-keys'
 import { sortCommandPaletteCommands } from './sort-commands'
 
 const TAG = 'vercel-web-script-command-palette'
@@ -340,10 +340,8 @@ export class CommandPaletteUI extends HTMLElement {
       return
     }
 
-    if (event.key === '`') {
-      const target = event.target as HTMLElement
-      const inEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target.isContentEditable && target.getAttribute('contenteditable') === 'true')
-      if (inEditable) {
+    if (isCommandPaletteBackquoteKey(event)) {
+      if (event.repeat || isKeyboardEventInEditableTarget(event)) {
         return
       }
       const now = Date.now()
@@ -352,6 +350,7 @@ export class CommandPaletteUI extends HTMLElement {
         this.#lastBacktickTime = 0
         this.open()
       } else {
+        event.preventDefault()
         this.#lastBacktickTime = now
       }
     }
@@ -465,7 +464,6 @@ if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
 // DEBUG tail block is grouped by sortCommandPaletteCommands (Permission → OTA → other).
 registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
 registerCommandPaletteOtaDebug(GME_registerCommandPaletteCommand)
-registerCommandPaletteScreenshotCommands(GME_registerCommandPaletteCommand)
 
 export function GME_openCommandPalette(): void {
   const el = document.querySelector(TAG) as CommandPaletteUI | null

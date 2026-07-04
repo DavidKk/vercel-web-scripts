@@ -470,15 +470,23 @@ export function installGmApiOnPage(): GMApi {
       })()
       return null
     },
-    GM_setClipboard(data: string, _info?: unknown, cb?: () => void): void {
+    GM_setClipboard(data: string | Blob, _info?: unknown, cb?: () => void): void {
       void (async () => {
         try {
           if (isScriptPermissionEnforced()) {
             const permissionContext = getActiveScriptPermissionContext()
             await ensureScriptPermission('clipboard-write', '*', permissionContext)
           }
-          const write = navigator.clipboard?.writeText(data) ?? Promise.resolve()
-          await write
+          if (isBlobLike(data)) {
+            if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+              throw new Error('Image clipboard write is not supported in this browser')
+            }
+            const type = data.type || 'image/png'
+            await navigator.clipboard.write([new ClipboardItem({ [type]: data })])
+          } else {
+            const write = navigator.clipboard?.writeText(data) ?? Promise.resolve()
+            await write
+          }
           cb?.()
         } catch (error) {
           gmLogger.error('setClipboard failed:', error)
