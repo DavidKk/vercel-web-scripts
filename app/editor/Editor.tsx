@@ -11,6 +11,7 @@ import { ENTRY_SCRIPT_RULES_FILE } from '@/constants/file'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 
 import { EditorContent } from './components/EditorContent'
+import { EditorPageHandleProvider, EditorPageWebMcpHost } from './webmcp'
 
 /** PostMessage type that Tampermonkey preset listens for (must match preset dev-mode.ts) */
 const EDITOR_POST_MESSAGE_TYPE = 'web-script-editor-message'
@@ -85,26 +86,29 @@ export default function Editor(props: EditorProps) {
   }, [])
 
   return (
-    <NotificationProvider maxNotifications={10}>
-      <FileStateProvider initialFiles={initialFiles}>
-        <LayoutProvider storageKey={`${scriptKey}-layout`}>
-          <TabBarProvider>
-            <EditorContent
-              scriptKey={scriptKey}
-              displayUsername={displayUsername}
-              initialFiles={initialFiles}
-              tampermonkeyTypings={props.tampermonkeyTypings}
-              rules={rules}
-              onRulesChange={handleRulesChange}
-              isSaving={isSaving}
-              isEditorDevMode={isEditorDevMode}
-              editorHostId={editorHostId}
-              onToggleEditorDevMode={handleToggleEditorDevMode}
-            />
-            <NotificationStack />
-          </TabBarProvider>
-        </LayoutProvider>
-      </FileStateProvider>
-    </NotificationProvider>
+    <EditorPageHandleProvider pageId="editor">
+      <EditorPageWebMcpHost />
+      <NotificationProvider maxNotifications={10}>
+        <FileStateProvider initialFiles={initialFiles}>
+          <LayoutProvider storageKey={`${scriptKey}-layout`}>
+            <TabBarProvider>
+              <EditorContent
+                scriptKey={scriptKey}
+                displayUsername={displayUsername}
+                initialFiles={initialFiles}
+                tampermonkeyTypings={props.tampermonkeyTypings}
+                rules={rules}
+                onRulesChange={handleRulesChange}
+                isSaving={isSaving}
+                isEditorDevMode={isEditorDevMode}
+                editorHostId={editorHostId}
+                onToggleEditorDevMode={handleToggleEditorDevMode}
+              />
+              <NotificationStack />
+            </TabBarProvider>
+          </LayoutProvider>
+        </FileStateProvider>
+      </NotificationProvider>
+    </EditorPageHandleProvider>
   )
 }

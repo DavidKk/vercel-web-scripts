@@ -13,6 +13,7 @@ import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, isManagedScriptFilename, SCRIP
 import type { RuleConfig } from '@/services/tampermonkey/types'
 import type { ScriptOtaPolicy } from '@/shared/script-ota-policy'
 
+import { useEditorContentWebMcpSlots } from '../webmcp/slots/useEditorContentWebMcpSlots'
 import { AIPanel } from './AIPanel'
 import { EditorHeaderWrapper } from './EditorHeaderWrapper'
 import { RulePanel } from './RulePanel'
@@ -409,6 +410,18 @@ export function EditorContent({
   }, [tabBar.activeTab, activeScriptOta?.lockedVersion, isPublishing, isSaving, notification, router])
 
   const canPublishStable = Boolean(tabBar.activeTab && isManagedScriptFilename(tabBar.activeTab))
+
+  useEditorContentWebMcpSlots({
+    isEditorDevMode,
+    editorHostId,
+    activeScriptOta,
+    rules,
+    onRulesChange,
+    onToggleEditorDevMode,
+    onPublishDebug: handlePublish,
+    onPublishStable: handlePublishStable,
+    onPushDevMode: sendEditorDevModeFiles,
+  })
 
   return (
     <div className="w-full h-screen overflow-hidden flex flex-col">

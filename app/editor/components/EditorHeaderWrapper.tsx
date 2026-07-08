@@ -3,6 +3,7 @@
 import { useLayout } from '@/components/ScriptEditor/hooks/useLayout'
 import type { ScriptOtaPolicy } from '@/shared/script-ota-policy'
 
+import { useEditorPageSlot } from '../webmcp/editorPageHandleSystem'
 import EditorHeader from './EditorHeader'
 
 interface EditorHeaderWrapperProps {
@@ -27,6 +28,26 @@ interface EditorHeaderWrapperProps {
  */
 export function EditorHeaderWrapper(props: EditorHeaderWrapperProps) {
   const layout = useLayout()
+
+  useEditorPageSlot(
+    'layout',
+    {
+      togglePanel: (type) => layout.toggleRightPanel(type),
+      getRightPanel: () => {
+        const panel = layout.rightPanelType
+        return panel === 'ai' || panel === 'rules' ? panel : null
+      },
+      getLayout: () => {
+        const panel = layout.rightPanelType
+        return {
+          leftPanelWidth: layout.leftPanelWidth,
+          rightPanelWidth: layout.rightPanelWidth,
+          rightPanel: panel === 'ai' || panel === 'rules' ? panel : null,
+        }
+      },
+    },
+    'EditorHeaderWrapper'
+  )
 
   return (
     <EditorHeader

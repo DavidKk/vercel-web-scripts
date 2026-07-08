@@ -3,6 +3,7 @@
 import { DiffEditor, Editor } from '@monaco-editor/react'
 import { useRef, useState } from 'react'
 
+import { useOptionalEditorPageSlot } from '@/app/editor/webmcp/editorPageHandleSystem'
 import { Spinner } from '@/components/Spinner'
 
 import { DEFAULT_EDITOR_OPTIONS, DIFF_EDITOR_OPTIONS, setupMonacoEditor } from './config'
@@ -48,6 +49,18 @@ export default function InternalCodeEditor({
 
   const [isEditorReady, setIsEditorReady] = useState(false)
   const [isDiffEditorReady, setIsDiffEditorReady] = useState(false)
+
+  useOptionalEditorPageSlot(
+    'monaco',
+    {
+      navigateToLine: (line: number) => {
+        if (editorRef?.current?.isReady()) {
+          editorRef.current.navigateToLine(line)
+        }
+      },
+    },
+    'InternalCodeEditor'
+  )
 
   const handleEditorWillMount = (monaco: any) => {
     setupMonacoEditor(monaco, extraLibs)

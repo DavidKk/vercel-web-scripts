@@ -88,6 +88,8 @@ import { rewriteCode } from '@/app/api/ai/actions'
 import { useFileState } from '@/components/ScriptEditor/context/FileStateContext'
 import { useTabBar } from '@/components/ScriptEditor/hooks/useTabBar'
 
+import { useEditorPageSlot } from '../webmcp/editorPageHandleSystem'
+
 export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
   const fileState = useFileState()
   const tabBar = useTabBar()
@@ -117,14 +119,15 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
   }
 
   // Rewrite handler using the imported action
-  const handleRewrite = async () => {
-    if (!instruction.trim() || !activeTab) return
+  const runRewrite = async (userInstruction: string): Promise<{ ok: boolean; messageId?: string; error?: string }> => {
+    if (!userInstruction.trim() || !activeTab) {
+      return { ok: false, error: 'instruction and active tab are required' }
+    }
 
-    const userInstruction = instruction.trim()
     const messageId = generateMessageId()
     const newMessage: ChatMessage = {
       id: messageId,
-      instruction: userInstruction,
+      instruction: userInstruction.trim(),
       rewrittenContent: null,
       error: null,
       timestamp: Date.now(),
@@ -132,19 +135,84 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
 
     setChatHistory((prev) => [...prev, newMessage])
     setSelectedMessageId(messageId)
-    setInstruction('')
     setIsLoading(true)
 
     try {
-      const result = await rewriteCode(originalContent, filePath, userInstruction, tampermonkeyTypings, language)
+      const result = await rewriteCode(originalContent, filePath, userInstruction.trim(), tampermonkeyTypings, language)
       setChatHistory((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, rewrittenContent: result } : msg)))
+      return { ok: true, messageId }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to rewrite code'
       setChatHistory((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, error: errorMessage } : msg)))
+      return { ok: false, messageId, error: errorMessage }
     } finally {
       setIsLoading(false)
     }
   }
+
+  const handleRewrite = async () => {
+    if (!instruction.trim()) return
+    const userInstruction = instruction.trim()
+    setInstruction('')
+    await runRewrite(userInstruction)
+  }
+
+  /**
+   * Reset panel state
+   */
+  function resetState() {
+    setInstruction('')
+    setChatHistory([])
+    setSelectedMessageId(null)
+  }
+
+  useEditorPageSlot(
+    'ai',
+    {
+      isAvailable: () => true,
+      rewrite: runRewrite,
+      getPendingDiff: () => {
+        const messageId = selectedMessageId
+        if (!messageId) {
+          return null
+        }
+        const message = chatHistory.find((msg) => msg.id === messageId)
+        if (!message) {
+          return null
+        }
+        return {
+          messageId: message.id,
+          instruction: message.instruction,
+          rewrittenContent: message.rewrittenContent,
+          error: message.error,
+        }
+      },
+      applyDiff: (messageId?: string) => {
+        const id = messageId ?? selectedMessageId
+        if (!id) {
+          return { ok: false as const, error: 'No pending AI diff selected' }
+        }
+        const message = chatHistory.find((msg) => msg.id === id)
+        if (!message?.rewrittenContent || !activeTab) {
+          return { ok: false as const, error: 'No rewritten content to apply' }
+        }
+        fileState.updateFile(activeTab, message.rewrittenContent)
+        resetState()
+        onApplyDiff()
+        return { ok: true as const }
+      },
+      rejectDiff: (messageId?: string) => {
+        const id = messageId ?? selectedMessageId
+        if (!id) {
+          return { ok: false as const }
+        }
+        setChatHistory((prev) => prev.filter((msg) => msg.id !== id))
+        setSelectedMessageId(null)
+        return { ok: true as const }
+      },
+    },
+    'AIPanel'
+  )
 
   // Handle Accept - Update file content via context
   function handleAccept(messageId: string) {
@@ -155,15 +223,6 @@ export function AIPanel({ onApplyDiff, tampermonkeyTypings }: AIPanelProps) {
       resetState()
       onApplyDiff()
     }
-  }
-
-  /**
-   * Reset panel state
-   */
-  function resetState() {
-    setInstruction('')
-    setChatHistory([])
-    setSelectedMessageId(null)
   }
 
   // Focus instruction textarea when mounted

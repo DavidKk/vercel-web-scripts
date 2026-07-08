@@ -23,6 +23,9 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 - **Agent chat panel** (script management Agent — backlog)
   - Read: `tasks/backlog/agent-chat-panel.md`
   - Related: `.cursor/skills/scripts-api-mcp/SKILL.md`, `public/docs/scripts-ai-skill.md`
+- **Editor WebMCP** (Chrome browser-native tools on `/editor` — backlog)
+  - Read: `tasks/backlog/editor-webmcp.md`
+  - Related: `app/api/mcp/` (HTTP MCP), `app/editor/`, [Chrome WebMCP docs](https://developer.chrome.com/docs/ai/webmcp)
 - **UI cross-module dedup** (Phase A done; B/C/D defer until UI work)
   - Read: `specs/ui-cross-module-review.md`, `tasks/backlog/ui-cross-module-dedup.md`
 - **Large file split** (same-folder modules — done baseline)
@@ -75,6 +78,7 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 | UI cross-module review         | `specs/ui-cross-module-review.md`                           |
 | Editor lib                     | `tasks/done/editor-lib.md`                                  |
 | Agent chat panel               | `tasks/backlog/agent-chat-panel.md`                         |
+| Editor WebMCP                  | `tasks/backlog/editor-webmcp.md`                            |
 | UI cross-module dedup          | `tasks/backlog/ui-cross-module-dedup.md` (Phase A done)     |
 | Large file split               | `tasks/done/large-file-split.md`                            |
 | CSS logical properties         | `tasks/done/css-logical-properties-review.md`               |

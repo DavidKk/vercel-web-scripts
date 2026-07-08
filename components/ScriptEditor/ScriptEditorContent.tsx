@@ -13,6 +13,7 @@ import { useLayout } from './hooks/useLayout'
 import { useTabBar } from './hooks/useTabBar'
 import type { ScriptEditorProps } from './ScriptEditor'
 import { type FileMetadata, FileStatus } from './types'
+import { useScriptEditorWebMcpSlots } from './webmcp/useScriptEditorWebMcpSlots'
 
 /**
  * Inner content: uses LocalMap context for readOnly when in local map mode.
@@ -63,6 +64,18 @@ function ScriptEditorContentBody({
   const codeEditorRef = useRef<CodeEditorRef>(null)
   const lastActiveTabRef = useRef<string | null>(null)
   const activeTabRef = useRef<string | null>(null)
+
+  useScriptEditorWebMcpSlots({
+    onSaveLocal: async (filename) => {
+      await fileStorage.saveFile(filename)
+      if (onSaveProp) {
+        const file = fileState.getFile(filename)
+        if (file) {
+          await onSaveProp(filename, file.content.modifiedContent)
+        }
+      }
+    },
+  })
 
   // Sync editor content when active tab changes
   useEffect(() => {

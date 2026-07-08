@@ -1,6 +1,17 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // WebMCP tool registration is gated behind the Permissions-Policy-controlled "tools" feature.
+          { key: 'Permissions-Policy', value: 'tools=(self)' },
+        ],
+      },
+    ]
+  },
   webpack(config) {
     // Allow `import foo from './file.ts?raw'` to inline file content as string
     // This rule must be added BEFORE other loaders to ensure it takes precedence
