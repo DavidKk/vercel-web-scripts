@@ -1,6 +1,7 @@
 import { getExtensionVersion } from '@ext/bridge/extension-context'
 import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
 import { buildQuickRuleScriptSelectOptions, loadExtensionConfig, loadGmScopeForScriptKey, readPresetProjectVersion, readRuntimeOtaStage } from '@ext/shared/extension-storage'
+import { fetchExtensionUpdateInfo } from '@ext/shared/extension-update-check'
 import { sendShellMessage } from '@ext/shared/messages'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
@@ -8,7 +9,8 @@ import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from '../admin/mm-admin-nav'
 import { hydrateIconSlot, hydrateMmIcons, setIconSlotLoading } from '../mm-icons'
-import { formatPopupVersionFooter } from './popup-version-footer'
+import { bindComboClickTrigger } from '../shared/combo-click-trigger'
+import { formatPopupVersionFooter, POPUP_VERSION_FOOTER_COMBO_CLICKS } from './popup-version-footer'
 
 type SearchSelectOption = { value: string; label: string }
 type SearchSelectElement = HTMLElement & {
@@ -29,6 +31,8 @@ export class MmPopupApp extends HTMLElement {
   private shellDisableMenuOpen = false
   private shellDisableMenuOutsideListener: ((event: MouseEvent) => void) | null = null
   private shellEnabledOnActiveTab = true
+  private versionFooterComboCleanup: (() => void) | null = null
+  private versionFooterDownloadPending = false
   private static readonly QUICK_RULE_RECENT_SCRIPT_KEY = 'vws_popup_quick_rule_recent_script'
   private defaultPopupSize: { width: number; height: number } | null = null
 
@@ -59,6 +63,8 @@ export class MmPopupApp extends HTMLElement {
     if (this.toastTimer) {
       clearTimeout(this.toastTimer)
     }
+    this.versionFooterComboCleanup?.()
+    this.versionFooterComboCleanup = null
     this.closeShellDisableMenu()
   }
 
@@ -112,6 +118,7 @@ export class MmPopupApp extends HTMLElement {
     this.querySelector('[data-ref="extension-update"]')?.addEventListener('click', () => {
       void this.downloadExtensionUpdate()
     })
+    this.bindVersionFooterComboDownload()
     this.querySelector('[data-ref="network"]')?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked
       void this.run(() => sendShellMessage({ type: 'SET_NETWORK', enabled: checked }), 'network')
@@ -133,6 +140,50 @@ export class MmPopupApp extends HTMLElement {
     this.querySelector('[data-ref="quick-pattern"]')?.addEventListener('input', () => {
       this.syncQuickTemplateFromPatternInput()
     })
+  }
+
+  private bindVersionFooterComboDownload(): void {
+    const version = this.querySelector('[data-ref="version"]') as HTMLElement | null
+    if (!version) {
+      return
+    }
+    this.versionFooterComboCleanup?.()
+    this.versionFooterComboCleanup = bindComboClickTrigger(version, {
+      targetCount: POPUP_VERSION_FOOTER_COMBO_CLICKS,
+      onTrigger: () => this.triggerExtensionDownloadFromVersionCombo(),
+    })
+  }
+
+  /** Easter egg: rapid-click version footer to fetch and download the latest extension ZIP. */
+  private async triggerExtensionDownloadFromVersionCombo(): Promise<void> {
+    if (this.versionFooterDownloadPending) {
+      return
+    }
+    this.versionFooterDownloadPending = true
+    try {
+      const config = await loadExtensionConfig()
+      const baseUrl = config.baseUrl?.trim() ?? ''
+      if (!baseUrl) {
+        this.showToast('Configure server in Options first', true)
+        return
+      }
+      const info = await fetchExtensionUpdateInfo(baseUrl, getExtensionVersion(), { skipCache: true })
+      if (info.updateAvailable && info.downloadUrl) {
+        try {
+          await chrome.tabs.create({ url: info.downloadUrl })
+        } catch {
+          this.showToast('Failed to open download', true)
+        }
+        return
+      }
+      if (info.latestVersion) {
+        this.showToast('插件已经是最新的')
+        return
+      }
+      this.showToast('Could not check extension version', true)
+    } finally {
+      this.versionFooterDownloadPending = false
+    }
   }
 
   private getActionIconSlot(action: string): HTMLElement | null {

@@ -3,6 +3,9 @@ import type { OtaReleaseStage } from '@shared/script-ota-policy'
 /** Preset slot while async status has not resolved yet — same monospace width as semver. */
 export const POPUP_PRESET_VERSION_LOADING = '…'
 
+/** Rapid clicks on the popup version footer required to trigger extension download. */
+export const POPUP_VERSION_FOOTER_COMBO_CLICKS = 10
+
 function formatRuntimeStageLabel(stage: OtaReleaseStage | null | undefined): string {
   if (stage === 'alpha') {
     return ' · ALP'

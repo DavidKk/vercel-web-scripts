@@ -13,13 +13,24 @@ export interface ExtensionUpdateInfo {
 const EXTENSION_UPDATE_CACHE_TTL_MS = 5 * 60_000
 let extensionUpdateCache: { baseUrl: string; currentVersion: string; at: number; result: ExtensionUpdateInfo } | null = null
 
+/** Clears in-memory update cache (for unit tests). */
+export function clearExtensionUpdateCacheForTests(): void {
+  extensionUpdateCache = null
+}
+
+export type FetchExtensionUpdateInfoOptions = {
+  /** When true, bypass the in-memory TTL cache (e.g. manual download trigger). */
+  skipCache?: boolean
+}
+
 /**
  * Fetch latest extension release from the MagickMonkey server and compare semver.
  * @param baseUrl MagickMonkey server origin from Options
  * @param currentVersion Installed extension manifest version
+ * @param options Optional fetch behavior
  * @returns Update availability and download URL when server responds
  */
-export async function fetchExtensionUpdateInfo(baseUrl: string, currentVersion: string): Promise<ExtensionUpdateInfo> {
+export async function fetchExtensionUpdateInfo(baseUrl: string, currentVersion: string, options?: FetchExtensionUpdateInfoOptions): Promise<ExtensionUpdateInfo> {
   const normalized = baseUrl.trim().replace(/\/+$/, '')
   const version = currentVersion.trim() || '0.0.0'
   if (!normalized) {
@@ -27,6 +38,7 @@ export async function fetchExtensionUpdateInfo(baseUrl: string, currentVersion: 
   }
   const now = Date.now()
   if (
+    !options?.skipCache &&
     extensionUpdateCache &&
     extensionUpdateCache.baseUrl === normalized &&
     extensionUpdateCache.currentVersion === version &&

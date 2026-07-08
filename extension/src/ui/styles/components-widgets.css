@@ -186,7 +186,7 @@
   }
 
   .mm-popup-footer-version-text {
-    @apply inline-block min-h-[10px] whitespace-nowrap;
+    @apply inline-block min-h-[10px] cursor-pointer select-none whitespace-nowrap;
   }
 
   .mm-popup-footer-version-text.mm-popup-footer-version-loading {
