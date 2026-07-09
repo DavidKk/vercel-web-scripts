@@ -140,6 +140,41 @@ function buildRuntimeSummary() {
       utilities: ['GME_debounce', 'GME_throttle', 'GME_sha1', 'GME_md5', 'GME_uuid'],
       notificationsAndLogs: ['GME_ok', 'GME_info', 'GME_warn', 'GME_fail', 'GME_group', 'GME_notification', 'GME_notification_update', 'GME_notification_close'],
       scriptLoggingRuntime: ['createScriptGMELogger', 'createScriptLogger', 'enterScriptLogScope', 'exitScriptLogScope'],
+      webMcp: ['GME_registerWebMcpTool'],
+    },
+    integrationPaths: {
+      httpMcp: {
+        endpoint: '/api/mcp',
+        scope: 'Remote Gist CRUD via scripts_* tools only',
+        doesNot: 'Control the user open browser tab or call page WebMCP tools',
+      },
+      pageWebMcp: {
+        api: 'GME_registerWebMcpTool',
+        scope: 'Register structured page actions on the current tab',
+        canonicalName: 'vws.{scriptKey}.{localName}',
+        provider: 'magickmonkey',
+        registry: '__VWS_WEBMCP_TOOL_REGISTRY__',
+        prerequisites: ['Chrome WebMCP flag (chrome://flags/#enable-webmcp-testing)', 'Extension shell with __VWS_SCRIPT_KEY__ for full behavior'],
+        authorDocs: 'public/docs/gme-webmcp-skill.md',
+        mcpResource: 'skill://magickmonkey/gme-webmcp-skill.md',
+      },
+      extensionWebMcpAgent: {
+        status: 'backlog',
+        scope: 'Chrome side panel Agent discovers and calls page WebMCP tools on the active tab',
+        taskDoc: '.ai/tasks/backlog/extension-webmcp-agent.md',
+        defaultToolFilter: 'provider === magickmonkey (vws.* prefix)',
+      },
+    },
+    otaPublishPolicy: {
+      metadata: 'ScriptFileMeta.ota in magickmonkey.scripts.index.json',
+      fields: {
+        stage: 'stable | alpha — which artifact track clients auto-subscribe to',
+        autoUpgrade: 'When false, clients keep cached hash until manual update',
+        lockedVersion: 'Fleet pin to releases/{file}@{version} snapshot',
+      },
+      mcpTools: ['scripts_ota_publish_stable', 'scripts_ota_lock_version', 'scripts_ota_unlock_version'],
+      restEndpoint: 'POST /api/v1/scripts/{filename}/ota',
+      docsSection: 'public/docs/scripts-ai-skill.md#ota-publish-policy-server-authoritative',
     },
     globalApiGuidance: {
       preferredDefault: 'Prefer GME_* helpers when they match the task.',
@@ -159,6 +194,9 @@ function buildRuntimeSummary() {
       editorLibDocs: 'public/docs/editor-lib-skill.md',
       scriptsUiDocs: 'public/docs/scripts-ui-skill.md',
       scriptsUiResource: 'skill://magickmonkey/scripts-ui-skill.md',
+      gmeWebmcpDocs: 'public/docs/gme-webmcp-skill.md',
+      gmeWebmcpResource: 'skill://magickmonkey/gme-webmcp-skill.md',
+      gmeWebmcpSpec: '.ai/specs/preset-gme-webmcp.md',
     },
   }
 }
@@ -369,7 +407,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const runtimeSummary = tool(
     'scripts_runtime_summary',
-    'Return routing hints and runtime/preset capability summary for MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script authoring (GM_*, GME_*, constants, and constraints). Call this before generating script content.',
+    'Return routing hints and runtime/preset capability summary for MagickMonkey-managed userscript authoring: usage boundaries, GM_*/GME_* (including GME_registerWebMcpTool / page WebMCP), integrationPaths (HTTP MCP vs page WebMCP vs extension Agent), OTA publish policy tools, constants, and authoring constraints. Call before generating script content.',
     z.object({}),
     async () => buildRuntimeSummary()
   )

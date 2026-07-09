@@ -10,6 +10,7 @@ Status: **TODO**（需求待确认 / 待排期；**不改代码**）
 - `app/api/mcp/` — HTTP MCP Server（Cursor / VS Code 等外部客户端）
 - `app/editor/` — WebMCP 主要落点
 - `.ai/tasks/backlog/agent-chat-panel.md` — 服务端 Agent 聊天框（互补，非替代）
+- `.ai/tasks/backlog/extension-webmcp-agent.md` — 扩展 Side Panel WebMCP Agent（任意网页 + 脚本，非编辑器主路径）
 
 ---
 

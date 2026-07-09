@@ -16,6 +16,12 @@ const UI_SKILL_RESOURCE_URI_LEGACY = 'skill://magickmonkey/scripts-ui-skill'
 const UI_SKILL_RESOURCE_NAME = 'magickmonkey-scripts-ui-skill.md'
 const UI_SKILL_RESOURCE_DESCRIPTION = 'Gist overlay UI spec aligned with preset vws-ui-tokens (command palette, log viewer, notifications).'
 const UI_SKILL_DOC_PATH = path.join(process.cwd(), 'public/docs/scripts-ui-skill.md')
+const WEBMCP_SKILL_RESOURCE_URI = 'skill://magickmonkey/gme-webmcp-skill.md'
+const WEBMCP_SKILL_RESOURCE_URI_LEGACY = 'skill://magickmonkey/gme-webmcp-skill'
+const WEBMCP_SKILL_RESOURCE_NAME = 'magickmonkey-gme-webmcp-skill.md'
+const WEBMCP_SKILL_RESOURCE_DESCRIPTION =
+  'Page WebMCP authoring for Gist userscripts (GME_registerWebMcpTool). Not HTTP MCP — registers vws.{scriptKey}.* tools for the extension Agent.'
+const WEBMCP_SKILL_DOC_PATH = path.join(process.cwd(), 'public/docs/gme-webmcp-skill.md')
 const ROUTING_RESOURCE_TEXT = `# MagickMonkey Scripts Routing
 
 Primary intent: manage_magickmonkey_userscripts
@@ -40,6 +46,7 @@ const SKILL_DOC_PATH = path.join(process.cwd(), 'public/docs/scripts-ai-skill.md
 
 let cachedUiSkillDoc: string | null = null
 let cachedSkillDoc: string | null = null
+let cachedWebmcpSkillDoc: string | null = null
 
 async function loadSkillDocMarkdown(): Promise<string> {
   if (cachedSkillDoc !== null) {
@@ -55,6 +62,14 @@ async function loadUiSkillDocMarkdown(): Promise<string> {
   }
   cachedUiSkillDoc = await readFile(UI_SKILL_DOC_PATH, 'utf8')
   return cachedUiSkillDoc
+}
+
+async function loadWebmcpSkillDocMarkdown(): Promise<string> {
+  if (cachedWebmcpSkillDoc !== null) {
+    return cachedWebmcpSkillDoc
+  }
+  cachedWebmcpSkillDoc = await readFile(WEBMCP_SKILL_DOC_PATH, 'utf8')
+  return cachedWebmcpSkillDoc
 }
 
 /**
@@ -83,6 +98,12 @@ export function createMcpSkillResourceProvider() {
           description: SKILL_RESOURCE_DESCRIPTION,
           mimeType: 'text/markdown' as const,
         },
+        {
+          uri: WEBMCP_SKILL_RESOURCE_URI,
+          name: WEBMCP_SKILL_RESOURCE_NAME,
+          description: WEBMCP_SKILL_RESOURCE_DESCRIPTION,
+          mimeType: 'text/markdown' as const,
+        },
       ]
     },
     async readResource(uri: string) {
@@ -95,6 +116,13 @@ export function createMcpSkillResourceProvider() {
       }
       if (normalizedUri === UI_SKILL_RESOURCE_URI || normalizedUri === UI_SKILL_RESOURCE_URI_LEGACY) {
         const markdown = await loadUiSkillDocMarkdown()
+        return {
+          mimeType: 'text/markdown',
+          text: markdown,
+        }
+      }
+      if (normalizedUri === WEBMCP_SKILL_RESOURCE_URI || normalizedUri === WEBMCP_SKILL_RESOURCE_URI_LEGACY) {
+        const markdown = await loadWebmcpSkillDocMarkdown()
         return {
           mimeType: 'text/markdown',
           text: markdown,

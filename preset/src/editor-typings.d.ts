@@ -714,6 +714,34 @@ declare interface CaptureScreenshotOptions {
  */
 declare function GME_captureScreenshot(options?: CaptureScreenshotOptions): Promise<Blob>
 
+/** Input for {@link GME_registerWebMcpTool} (short local tool name). */
+declare interface GME_WebMcpToolDefinition {
+  /** Short local name; registered as `vws.{scriptKey}.{name}`. */
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  execute: (input: Record<string, unknown>) => unknown | Promise<unknown>
+  annotations?: { readOnlyHint?: boolean }
+  title?: string
+}
+
+/** Result of {@link GME_registerWebMcpTool}. */
+declare interface GME_RegisterWebMcpToolResult {
+  ok: boolean
+  canonicalName?: string
+  reason?: 'unsupported' | 'missing_script_key' | 'invalid_local_name' | 'duplicate' | 'register_failed'
+  message?: string
+}
+
+/**
+ * Register a WebMCP tool for the MagickMonkey extension Agent (MagickMonkey plugin namespace).
+ * Requires Chrome WebMCP testing flag. No-ops with warning when API is unavailable.
+ * @param definition Tool metadata and execute handler
+ * @param options Optional abort signal to unregister
+ * @returns Registration result with canonical `vws.{scriptKey}.{name}` when successful
+ */
+declare function GME_registerWebMcpTool(definition: GME_WebMcpToolDefinition, options?: { signal?: AbortSignal }): Promise<GME_RegisterWebMcpToolResult>
+
 /**
  * Wait for DOM elements to appear
  * @param query Query function that returns elements

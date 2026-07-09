@@ -32,6 +32,7 @@ Use this when you should **read or change user script files** stored in the proj
 - Do **not** use this to install runtime for browser end users. Browser users install the launcher userscript URL, not `/api/mcp`.
 - Do **not** use this to edit the launcher, preset bundle, generated entry file, rules JSON, or other project source files.
 - Do **not** use this for generic browser automation or scraping when no Gist script file should be read or changed.
+- Do **not** use HTTP MCP to control the user's open browser tab (player UI, fullscreen, danmaku, etc.); use page WebMCP (`GME_registerWebMcpTool`) and the extension Agent when available.
 - Do **not** call write tools when the target domains, path patterns, activation mode, or runtime timing are unclear.
 - Do **not** default to broad `@match` patterns like `*://*/*`, broad `@connect` targets, or unnecessary `@grant` values.
 - Do **not** put API keys into Gist files, generated scripts, page DOM, console examples, prompts, commits, or user-visible output.
@@ -67,6 +68,7 @@ Tools:
 - Discovery/search: `scripts_find` for natural-language filename / `@name` / `@description` / aliases / keywords lookup, `scripts_search` for line-level full-content matches. If `scripts_find` reports a missing or unreadable index, call `scripts_index_rebuild` once and retry.
 - Index maintenance: `scripts_index_rebuild`, `scripts_index_update_metadata`.
 - Token-efficient reads/edits: `scripts_snippet`, `scripts_replace`, `scripts_patch`, `scripts_batch_patch`, `scripts_validate`.
+- OTA publish policy: `scripts_ota_publish_stable`, `scripts_ota_lock_version`, `scripts_ota_unlock_version` (see [OTA publish policy](#ota-publish-policy-server-authoritative)).
 
 **End users do not “install” `/api/mcp`.** That URL is only for MCP clients (e.g. Cursor) that call JSON-RPC to edit **Gist files**. It does **not** run in the browser and does **not** load the preset.
 
@@ -75,6 +77,52 @@ Tools:
 `https://<host>/static/<scriptKey>/tampermonkey.user.js`
 
 After they install that once, the launcher loads **preset** and **remote bundle** in the page. They use **preset** automatically (`GME_*`, injected constants, etc.); nothing extra is configured via MCP for runtime.
+
+### Three integration paths (do not confuse)
+
+| Path                                       | Where             | Use for                                              |
+| ------------------------------------------ | ----------------- | ---------------------------------------------------- |
+| **HTTP MCP** (`/api/mcp`)                  | Server / IDE      | Gist CRUD (`scripts_*` tools)                        |
+| **Page WebMCP** (`GME_registerWebMcpTool`) | Browser tab       | Register page verbs as `vws.{scriptKey}.{name}`      |
+| **Extension WebMCP Agent** (backlog)       | Chrome side panel | Natural language → call tools on the **current tab** |
+
+HTTP MCP does **not** operate the user's open tab (player, danmaku, fullscreen, etc.). For that, Gist scripts register page tools via `GME_registerWebMcpTool`; the MagickMonkey extension Agent (when shipped) calls them. See [WebMCP (page tab tools)](#webmcp-page-tab-tools) and `/docs/gme-webmcp-skill.md`.
+
+## WebMCP (page tab tools)
+
+**Not** HTTP MCP. This is Chrome's in-tab tool protocol (`document.modelContext.registerTool`), exposed to Gist authors as **`GME_registerWebMcpTool`** (preset, implemented).
+
+### When to use
+
+- Expose structured page actions (toggle UI, read player state, fullscreen) for the **extension WebMCP Agent** (side panel, backlog).
+- Keep DOM/site logic inside `execute()`; expose a clear verb + JSON Schema for an AI caller.
+
+### When not to use
+
+- Remote Gist CRUD → use HTTP MCP / `scripts_*` tools on `/api/mcp`.
+- Tampermonkey-only installs without extension shell → `scriptKey` may be missing; registration no-ops with a warning.
+- Pages without Chrome WebMCP (`chrome://flags/#enable-webmcp-testing`) → API unavailable; script continues.
+
+### API (summary)
+
+```typescript
+void GME_registerWebMcpTool({
+  name: 'toggle_danmaku', // short name only (snake_case)
+  description: 'What the tool does; written for an AI agent.',
+  inputSchema: { type: 'object', properties: { visible: { type: 'boolean' } }, required: ['visible'] },
+  execute: async (input) => ({ ok: true }),
+})
+// Registered name: vws.{scriptKey}.toggle_danmaku
+```
+
+| Field                   | Value                                     |
+| ----------------------- | ----------------------------------------- |
+| Provider                | `magickmonkey`                            |
+| Name prefix             | `vws.` (do not prefix yourself)           |
+| Registry                | `globalThis.__VWS_WEBMCP_TOOL_REGISTRY__` |
+| Extension Agent default | MagickMonkey tools only (`vws.*`)         |
+
+Full author guide: `/docs/gme-webmcp-skill.md` (MCP resource `skill://magickmonkey/gme-webmcp-skill.md`). Repo spec: `.ai/specs/preset-gme-webmcp.md`. Example: `docs/examples/gme-webmcp-toggle-danmaku.ts`.
 
 ## Runtime (preset) vs Gist files
 
@@ -104,15 +152,16 @@ Default to `GME_*` helpers when they match the task. Use `GM_*` when you need Ta
 
 **MagickMonkey `GME_*` (preset extensions — prefer these when they match your need)**
 
-| Area                    | APIs                                                                                                                               |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Menus (richer than GM)  | `GME_registerMenuCommand`, `GME_updateMenuCommand`                                                                                 |
-| Command palette         | `GME_registerCommandPaletteCommand`, `GME_openCommandPalette`                                                                      |
-| Node toolbar / dev UX   | `GME_registerNodeToolbar`, `GME_registerNodeToolbarQuery`, `GME_unregisterNodeToolbar`                                             |
-| Network / tooling       | `GME_fetch`, `GME_curl`, `GME_preview`, `GME_captureScreenshot` (extension shell only)                                             |
-| DOM / timing            | `GME_waitFor`, `GME_watchFor`, `GME_watchForVisible`, `GME_pollFor`, `GME_sleep`, `GME_isVisible`                                  |
-| Utilities               | `GME_debounce`, `GME_throttle`, `GME_sha1`, `GME_md5`, `GME_uuid`                                                                  |
-| Logging / notifications | `GME_ok`, `GME_info`, `GME_warn`, `GME_fail`, `GME_group`, `GME_notification`, `GME_notification_update`, `GME_notification_close` |
+| Area                     | APIs                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Menus (richer than GM)   | `GME_registerMenuCommand`, `GME_updateMenuCommand`                                                                                           |
+| Command palette          | `GME_registerCommandPaletteCommand`, `GME_openCommandPalette`                                                                                |
+| Node toolbar / dev UX    | `GME_registerNodeToolbar`, `GME_registerNodeToolbarQuery`, `GME_unregisterNodeToolbar`                                                       |
+| Network / tooling        | `GME_fetch`, `GME_curl`, `GME_preview`, `GME_captureScreenshot` (extension shell only)                                                       |
+| WebMCP (extension Agent) | `GME_registerWebMcpTool` — register page tools as `vws.{scriptKey}.{name}` for MagickMonkey extension Agent; see `/docs/gme-webmcp-skill.md` |
+| DOM / timing             | `GME_waitFor`, `GME_watchFor`, `GME_watchForVisible`, `GME_pollFor`, `GME_sleep`, `GME_isVisible`                                            |
+| Utilities                | `GME_debounce`, `GME_throttle`, `GME_sha1`, `GME_md5`, `GME_uuid`                                                                            |
+| Logging / notifications  | `GME_ok`, `GME_info`, `GME_warn`, `GME_fail`, `GME_group`, `GME_notification`, `GME_notification_update`, `GME_notification_close`           |
 
 **Logging (authoring)**
 
@@ -134,8 +183,9 @@ Default to `GME_*` helpers when they match the task. Use `GM_*` when you need Ta
 
 If you add or modify any `GM_*` / `GME_*` interface in the preset (source of truth: `preset/src/editor-typings.d.ts` and preset runtime code), you MUST update:
 
-- This document’s **Capability summary** table (`GM_*` / `GME_*`) and the typical injected constants list.
+- This document’s **Capability summary** table (`GM_*` / `GME_*`), **WebMCP** section, and the typical injected constants list.
 - The MCP tool output list returned by `scripts_runtime_summary` (source: `services/scripts/scriptMcpTools.ts`) so AI sees the same reality.
+- Page WebMCP authoring: `public/docs/gme-webmcp-skill.md` and MCP resource `skill://magickmonkey/gme-webmcp-skill.md` (see `app/api/mcp/skillResources.ts`).
 - The static function-tool reference (`public/docs/scripts-function-tools.json`) when tool descriptions or authoring constraints change.
 
 **Authoring rules**

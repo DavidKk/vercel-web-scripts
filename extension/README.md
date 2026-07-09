@@ -8,19 +8,29 @@ Full roadmap: **[TODO.md](./TODO.md)**.
 
 ## MVP (current)
 
-| Feature                                                                          | Status |
-| -------------------------------------------------------------------------------- | ------ |
-| Toolbar **popup** (fixed menu on every tab)                                      | ✅     |
-| **Badge** — real trigger count; red background if any script failed on this load | ✅     |
-| **Background** — update / reset / network / open editor                          | ✅     |
-| **Scripts page** — enable/disable modules                                        | ✅     |
-| **Servers** — multi-service connections, OTA priority, develop flags             | ✅     |
-| Preset dev mode from Server URL (`localhost` → dev)                              | ✅     |
-| **Sync rules** from server → badge + script list                                 | ✅     |
-| Content bootstrap → background OTA loader + page-host preset execute             | ✅     |
-| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅     |
-| Extension-native `module-loader` (background orchestration)                      | ✅     |
-| Runtime Phase D `match-fallback` (Extension; TM stays aggregate)                 | ✅     |
+| Feature                                                                          | Status                                                     |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Toolbar **popup** (fixed menu on every tab)                                      | ✅                                                         |
+| **Badge** — real trigger count; red background if any script failed on this load | ✅                                                         |
+| **Background** — update / reset / network / open editor                          | ✅                                                         |
+| **Scripts page** — enable/disable modules                                        | ✅                                                         |
+| **Servers** — multi-service connections, OTA priority, develop flags             | ✅                                                         |
+| Preset dev mode from Server URL (`localhost` → dev)                              | ✅                                                         |
+| **Sync rules** from server → badge + script list                                 | ✅                                                         |
+| Content bootstrap → background OTA loader + page-host preset execute             | ✅                                                         |
+| **Multi-service** (Servers, scriptKey groups, multi launcher)                    | ✅                                                         |
+| Extension-native `module-loader` (background orchestration)                      | ✅                                                         |
+| Runtime Phase D `match-fallback` (Extension; TM stays aggregate)                 | ✅                                                         |
+| Preset **`GME_registerWebMcpTool`** (page WebMCP tools as `vws.{scriptKey}.*`)   | ✅                                                         |
+| **WebMCP Agent** side panel (discover/call page tools)                           | 📋 backlog — `.ai/tasks/backlog/extension-webmcp-agent.md` |
+
+## WebMCP (page tools)
+
+Gist scripts can register **page WebMCP tools** via preset `GME_registerWebMcpTool` (canonical name `vws.{scriptKey}.{localName}`). The extension **shell** injects `__VWS_SCRIPT_KEY__`; Chrome needs `chrome://flags/#enable-webmcp-testing`.
+
+- Author guide: `/docs/gme-webmcp-skill.md`
+- HTTP MCP (`/api/mcp`) manages **Gist files only** — it does not control the open tab.
+- Side panel Agent that calls these tools is **not shipped yet**; see `extension-webmcp-agent` backlog.
 
 ## Architecture
 

@@ -30,6 +30,10 @@ export default function HomeFooter() {
             AI skill doc
             <FiArrowRight className="h-3.5 w-3.5" />
           </a>
+          <a href="/docs/gme-webmcp-skill.md" className={`inline-flex items-center gap-1.5 ${homeUi.link}`}>
+            Page WebMCP skill
+            <FiArrowRight className="h-3.5 w-3.5" />
+          </a>
           <a href="/docs/scripts-function-tools.json" className={`inline-flex items-center gap-1.5 ${homeUi.body} transition hover:text-[#e6eaf0]`}>
             Function tools JSON
           </a>

@@ -15,7 +15,7 @@
     "type": "function",
     "function": {
       "name": "scripts_runtime_summary",
-      "description": "Return routing hints and runtime/preset capability summary for MagickMonkey-managed userscript / Tampermonkey / Greasemonkey / browser user script authoring, usage boundaries, GM_*/GME_* guidance, constants, and authoring constraints. Call before generating script content.",
+      "description": "Return routing hints and runtime/preset capability summary for MagickMonkey-managed userscript authoring: usage boundaries, GM_*/GME_* (including GME_registerWebMcpTool / page WebMCP), integrationPaths (HTTP MCP vs page WebMCP vs extension Agent), OTA publish policy tools, constants, and authoring constraints. Call before generating script content.",
       "parameters": {
         "type": "object",
         "properties": {},
@@ -286,6 +286,64 @@
           }
         },
         "required": ["fromFilename", "toFilename"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_ota_publish_stable",
+      "description": "Publish a managed userscript to stable: write releases/{file}@{version} snapshot and set OTA policy stage=stable with autoUpgrade=true. Requires valid @version in the script header.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Managed script filename (e.g. my-script.ts)"
+          }
+        },
+        "required": ["filename"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_ota_lock_version",
+      "description": "Fleet-lock a managed userscript to a semver (defaults to header @version). Stable clients pin to the matching releases snapshot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Managed script filename (e.g. my-script.ts)"
+          },
+          "version": {
+            "type": "string",
+            "description": "Explicit semver; defaults to @version from the script header"
+          }
+        },
+        "required": ["filename"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scripts_ota_unlock_version",
+      "description": "Remove fleet version lock from a managed userscript OTA policy.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Managed script filename (e.g. my-script.ts)"
+          }
+        },
+        "required": ["filename"],
         "additionalProperties": false
       }
     }

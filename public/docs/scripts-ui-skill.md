@@ -7,7 +7,7 @@ Use when authoring **in-page overlay UIs** in Gist userscripts (modals, panels, 
 **MCP**: `resources/read` → `skill://magickmonkey/scripts-ui-skill.md`  
 **Static**: `/docs/scripts-ui-skill.md`
 
-Related: `scripts-ai-skill.md`, `editor-lib-skill.md`, `preset/src/ui/shared/wrap-ui-styles.ts`.
+Related: `scripts-ai-skill.md`, `gme-webmcp-skill.md`, `editor-lib-skill.md`, `preset/src/ui/shared/wrap-ui-styles.ts`.
 
 ---
 

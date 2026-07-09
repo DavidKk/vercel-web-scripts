@@ -201,6 +201,48 @@ export function EditorIntegrationModals() {
         renderModal(
           'MCP',
           <div className="space-y-3">
+            {renderCommandRow('Skill — scripts (Gist CRUD)', `${origin}/docs/scripts-ai-skill.md`, [
+              {
+                id: 'copy-scripts-skill',
+                title: 'Copy',
+                onClick: () => void copyText(`${origin}/docs/scripts-ai-skill.md`),
+                icon: <FiCopy className="w-3.5 h-3.5" />,
+              },
+              {
+                id: 'open-scripts-skill',
+                title: 'Open',
+                onClick: () => window.open('/docs/scripts-ai-skill.md', '_blank', 'noopener,noreferrer'),
+                icon: <FiExternalLink className="w-3.5 h-3.5" />,
+              },
+            ])}
+            {renderCommandRow('Skill — page WebMCP (GME_registerWebMcpTool)', `${origin}/docs/gme-webmcp-skill.md`, [
+              {
+                id: 'copy-webmcp-skill',
+                title: 'Copy',
+                onClick: () => void copyText(`${origin}/docs/gme-webmcp-skill.md`),
+                icon: <FiCopy className="w-3.5 h-3.5" />,
+              },
+              {
+                id: 'open-webmcp-skill',
+                title: 'Open',
+                onClick: () => window.open('/docs/gme-webmcp-skill.md', '_blank', 'noopener,noreferrer'),
+                icon: <FiExternalLink className="w-3.5 h-3.5" />,
+              },
+            ])}
+            {renderCommandRow('Skill — overlay UI (Gist modals)', `${origin}/docs/scripts-ui-skill.md`, [
+              {
+                id: 'copy-ui-skill',
+                title: 'Copy',
+                onClick: () => void copyText(`${origin}/docs/scripts-ui-skill.md`),
+                icon: <FiCopy className="w-3.5 h-3.5" />,
+              },
+              {
+                id: 'open-ui-skill',
+                title: 'Open',
+                onClick: () => window.open('/docs/scripts-ui-skill.md', '_blank', 'noopener,noreferrer'),
+                icon: <FiExternalLink className="w-3.5 h-3.5" />,
+              },
+            ])}
             {renderCommandRow('MCP URL (GET manifest · POST execute)', mcpHeaders?.endpoint ?? `${origin}/api/mcp`, [
               {
                 id: 'copy-mcp',

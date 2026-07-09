@@ -15,6 +15,7 @@ import * as locator from '@/helpers/locator'
 import * as logger from '@/helpers/logger'
 import * as scriptPermissionScope from '@/helpers/script-permission-scope'
 import * as utils from '@/helpers/utils'
+import { GME_registerWebMcpTool } from '@/helpers/webmcp'
 import { findElementByXPath, generateXPath } from '@/helpers/xpath'
 import { fetchAndCacheRules, fetchRulesFromCache, matchUrl } from '@/rules'
 import { fetchScript } from '@/scripts'
@@ -121,6 +122,7 @@ export function registerGlobals(): void {
     GME_openCommandPalette: createUiUnavailable('command palette'),
     // Queue registrations if command-palette UI hasn't loaded yet.
     GME_registerCommandPaletteCommand: registerCommandPaletteCommand,
+    GME_registerWebMcpTool,
     GME_registerMenuCommand,
     GME_updateMenuCommand,
     GME_registerNodeToolbar: createUiUnavailable('node toolbar'),

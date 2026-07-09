@@ -25,6 +25,7 @@ This folder holds architecture and behavior requirements for this userscript pla
 ## Policy docs
 
 - `extension-injection-policy.md` — HTML-only launcher inject; static assets = future module
+- `preset-gme-webmcp.md` — `GME_registerWebMcpTool` shared module, naming, registry contract
 - `ota-publish-policy.md` — SERVER-authoritative OTA (per-script autoUpgrade, stage, version lock; dual bundle)
 - Runtime split baseline:
   - `runtime-modularization.md`
