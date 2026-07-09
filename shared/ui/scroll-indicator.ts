@@ -48,6 +48,21 @@ function getRefreshKey(prefix: ScrollIndicatorPrefix): '__mmScrollRefresh' | '__
   return prefix === 'mm' ? '__mmScrollRefresh' : '__vwsScrollRefresh'
 }
 
+/** Position the thumb without inline style properties (blocked under strict page CSP). */
+function applyScrollThumbLayout(thumb: HTMLElement, thumbHeight: number, thumbTop: number): void {
+  thumb.getAnimations().forEach((animation) => animation.cancel())
+  thumb.animate(
+    {
+      height: `${thumbHeight}px`,
+      transform: `translateY(${thumbTop}px)`,
+    },
+    {
+      duration: 0,
+      fill: 'forwards',
+    }
+  )
+}
+
 /**
  * Compute scroll indicator thumb size and position from layout metrics.
  */
@@ -104,13 +119,11 @@ export function bindScrollIndicator(scroller: HTMLElement, options?: BindScrollI
       })
       track.classList.toggle('hidden', !scrollable)
       if (!scrollable) {
-        thumb.style.height = '0px'
-        thumb.style.transform = 'translateY(0)'
+        applyScrollThumbLayout(thumb, 0, 0)
         return
       }
 
-      thumb.style.height = `${thumbHeight}px`
-      thumb.style.transform = `translateY(${thumbTop}px)`
+      applyScrollThumbLayout(thumb, thumbHeight, thumbTop)
     })
   }
 

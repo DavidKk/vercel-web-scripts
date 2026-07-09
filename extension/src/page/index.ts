@@ -5,6 +5,7 @@
 import { extensionLogger } from '@ext/shared/logger'
 import { shouldExtensionCollectDebugLogs, syncShellLogOutputModeFromGmStore } from '@ext/shared/shell-log-output-cache'
 import type { PageBootstrapConfig, ScriptKeyBootstrapEntry } from '@ext/types'
+import { stripDocumentCspMetaTags } from '@shared/csp-page-style'
 import { installCspExtensionBridgeResponseListener } from '@shared/csp-script-executor'
 import { BOOT_LOG_KEY } from '@shared/launcher-constants'
 import { setPermissionTrustScriptKeys } from '@shared/script-permission-scope'
@@ -136,6 +137,7 @@ function startPageHostForEntry(entry: ScriptKeyBootstrapEntry, gm: ReturnType<ty
 }
 
 function main(): void {
+  stripDocumentCspMetaTags()
   installCspExtensionBridgeResponseListener()
   loadBootstrapData()
   syncShellLogOutputModeFromGmStore()

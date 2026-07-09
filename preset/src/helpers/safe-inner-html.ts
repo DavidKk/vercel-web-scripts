@@ -1,4 +1,9 @@
+import { appendAdoptedStyles } from '@shared/adopted-page-styles'
+
 const TRUSTED_HTML_POLICY_NAME = 'vwsTrustedHtml'
+
+/** CSS text stored on {@link mountUiTemplateShell} templates (not inlined as a `<style>` node). */
+const TEMPLATE_STYLE_CONTENT = Symbol('vwsTemplateStyleContent')
 
 interface TrustedHtmlPolicy {
   createHTML(input: string): unknown
@@ -130,8 +135,30 @@ export function GME_setInnerHTML(element: Element | ShadowRoot, html: string): v
   setInnerHtmlViaFragment(element, html)
 }
 
+type TemplateWithStyle = HTMLTemplateElement & { [TEMPLATE_STYLE_CONTENT]?: string }
+
+function storeTemplateStyleContent(template: HTMLTemplateElement, styleContent: string): void {
+  ;(template as TemplateWithStyle)[TEMPLATE_STYLE_CONTENT] = styleContent
+}
+
+function readTemplateStyleContent(template: HTMLTemplateElement): string | undefined {
+  return (template as TemplateWithStyle)[TEMPLATE_STYLE_CONTENT]
+}
+
+/**
+ * Apply component CSS to a shadow root. Prefer constructable stylesheets so strict page CSP
+ * does not block preset UI on error pages (inline `<style>` is still subject to `style-src`).
+ * @param shadowRoot Open shadow root for a preset UI custom element
+ * @param cssText Bundled component stylesheet text
+ */
+export function applyShadowStyles(shadowRoot: ShadowRoot, cssText: string): void {
+  appendAdoptedStyles(shadowRoot, cssText)
+}
+
 /**
  * Move a `<template>` element's contents into a shadow root or host without `innerHTML`.
+ * When the template was created by {@link mountUiTemplateShell}, bundled CSS is applied via
+ * {@link applyShadowStyles} instead of an inline `<style>` child.
  * @param target Shadow root or element to receive template children
  * @param template Template element created by {@link mountUiTemplateShell}
  */
@@ -141,6 +168,12 @@ export function adoptTemplateContent(target: Element | ShadowRoot, template: HTM
   }
   while (template.content.firstChild) {
     target.appendChild(template.content.firstChild)
+  }
+
+  const styleContent = readTemplateStyleContent(template)
+  if (styleContent && target instanceof ShadowRoot) {
+    target.adoptedStyleSheets = []
+    applyShadowStyles(target, styleContent)
   }
 }
 
@@ -152,6 +185,7 @@ export function adoptTemplateContent(target: Element | ShadowRoot, template: HTM
  */
 export function mountUiTemplateShell(container: HTMLElement, styleContent: string, htmlContent: string): void {
   const template = document.createElement('template')
-  appendHtmlToFragment(template.content, `<style>${styleContent}</style>${htmlContent}`)
+  storeTemplateStyleContent(template, styleContent)
+  appendHtmlToFragment(template.content, htmlContent)
   container.appendChild(template)
 }

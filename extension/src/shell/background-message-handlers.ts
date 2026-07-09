@@ -478,6 +478,15 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
       clearDebugLogs()
       return { ok: true }
     }
+    case 'ENSURE_CSP_STRIP_RELOAD_FOR_INJECTION': {
+      const tabId = sender?.tab?.id
+      const tabUrl = message.details.pageUrl || sender?.tab?.url || ''
+      if (tabId == null || !tabUrl) {
+        return { ok: false, error: 'No sender tab for CSP strip reload.' }
+      }
+      const reload = await reloadTabOnceForCsp(tabId, tabUrl)
+      return { ok: true, cspReloadScheduled: reload === 'reloaded' }
+    }
     case 'EXECUTE_USER_SCRIPT': {
       const tabId = sender?.tab?.id
       const tabUrl = sender?.tab?.url ?? ''

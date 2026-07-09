@@ -152,6 +152,7 @@ export type ShellMessage =
   | { type: 'SET_INCOGNITO_LOG_COLLECTION'; enabled: boolean }
   | { type: 'CLEAR_DEBUG_LOGS' }
   | { type: 'EXECUTE_USER_SCRIPT'; details: { mode: 'preset'; decls: string; presetCode: string } | { mode: 'global'; withBody: string } }
+  | { type: 'ENSURE_CSP_STRIP_RELOAD_FOR_INJECTION'; details: { pageUrl: string } }
   | {
       type: 'RUNTIME_ENSURE_LOAD'
       details: {
@@ -252,6 +253,7 @@ export type ShellResponse =
     }
   | { ok: true; removed?: boolean }
   | { ok: true; runtimeLoadResults?: RuntimeLoadResult[] }
+  | { ok: true; cspReloadScheduled?: boolean }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

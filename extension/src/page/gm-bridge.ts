@@ -4,6 +4,7 @@
 
 import { gmLogger, permissionLogger } from '@ext/shared/logger'
 import { setCachedShellLogOutputMode } from '@ext/shared/shell-log-output-cache'
+import { appendAdoptedStyles } from '@shared/adopted-page-styles'
 import { LEGACY_AUTO_UPDATE_SCRIPT_KEY, SHELL_LOG_PERSIST_ENABLED_KEY, SHELL_NETWORK_ENABLED_KEY } from '@shared/launcher-constants'
 import type { ScriptPermissionRequest } from '@shared/script-permission'
 import { normalizePermissionNetworkHost } from '@shared/script-permission'
@@ -436,6 +437,10 @@ export function installGmApiOnPage(): GMApi {
       return el
     },
     GM_addStyle(css: string): HTMLStyleElement {
+      const adopted = appendAdoptedStyles(document, css)
+      if (adopted) {
+        return document.createElement('style')
+      }
       const style = document.createElement('style')
       style.textContent = css
       document.head.appendChild(style)

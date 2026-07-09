@@ -1,3 +1,5 @@
+import { pageNeedsCspReliefForInjection } from '@shared/csp-page-style'
+
 import type { RuntimeLoadResult } from '../runtime/loader-types'
 import { buildPageBootstrapConfig } from '../shared/extension-storage'
 import type { ShellResponse } from '../shared/messages'
@@ -129,7 +131,15 @@ export async function bootstrapPageBridge(): Promise<void> {
     isExtensionContextInvalidated(error)
   }
 
+  if (pageNeedsCspReliefForInjection()) {
+    const reloaded = await requestCspStripReloadForInjection(url)
+    if (reloaded) {
+      return
+    }
+  }
+
   const runtimeLoadResults = await requestRuntimeEnsureLoad(pageConfig.scriptKeys, url)
+
   try {
     gmStore = await loadGmStore()
   } catch (error) {
@@ -142,6 +152,19 @@ export async function bootstrapPageBridge(): Promise<void> {
   await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys, runtimeLoadResults)
   installRuntimeMessageRelay()
   notifyBootstrapReady(url)
+}
+
+async function requestCspStripReloadForInjection(pageUrl: string): Promise<boolean> {
+  try {
+    const res = (await chrome.runtime.sendMessage({
+      type: 'ENSURE_CSP_STRIP_RELOAD_FOR_INJECTION',
+      details: { pageUrl },
+    })) as ShellResponse
+    return res.ok === true && 'cspReloadScheduled' in res && res.cspReloadScheduled === true
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+    return false
+  }
 }
 
 async function requestRuntimeEnsureLoad(entries: ScriptKeyBootstrapEntry[], pageUrl: string): Promise<RuntimeLoadResult[]> {
