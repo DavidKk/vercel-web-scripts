@@ -1,13 +1,18 @@
+import iconAccountCircleOutline from '~icons/mdi/account-circle-outline?raw'
 import iconAlertCircleOutline from '~icons/mdi/alert-circle-outline?raw'
 import iconAlertOutline from '~icons/mdi/alert-outline?raw'
 import iconArrowCollapseDown from '~icons/mdi/arrow-collapse-down?raw'
+import iconArrowLeft from '~icons/mdi/arrow-left?raw'
+import iconArrowUp from '~icons/mdi/arrow-up?raw'
 import iconAsterisk from '~icons/mdi/asterisk?raw'
+import iconAutoFix from '~icons/mdi/auto-fix?raw'
 import iconBackspaceOutline from '~icons/mdi/backspace-outline?raw'
 import iconBugOutline from '~icons/mdi/bug-outline?raw'
 import iconCancel from '~icons/mdi/cancel?raw'
 import iconCheck from '~icons/mdi/check?raw'
 import iconCheckAll from '~icons/mdi/check-all?raw'
 import iconCheckCircleOutline from '~icons/mdi/check-circle-outline?raw'
+import iconChevronDown from '~icons/mdi/chevron-down?raw'
 import iconClipboardTextOutline from '~icons/mdi/clipboard-text-outline?raw'
 import iconClose from '~icons/mdi/close?raw'
 import iconCloudDownloadOutline from '~icons/mdi/cloud-download-outline?raw'
@@ -19,25 +24,40 @@ import iconDelete from '~icons/mdi/delete-outline?raw'
 import iconDragVertical from '~icons/mdi/drag-vertical?raw'
 import iconEyeOffOutline from '~icons/mdi/eye-off-outline?raw'
 import iconEyeOutline from '~icons/mdi/eye-outline?raw'
+import iconHammerScrewdriver from '~icons/mdi/hammer-screwdriver?raw'
 import iconHelpCircleOutline from '~icons/mdi/help-circle-outline?raw'
 import iconInboxOutline from '~icons/mdi/inbox-outline?raw'
 import iconInformationOutline from '~icons/mdi/information-outline?raw'
 import iconLanCheck from '~icons/mdi/lan-check?raw'
 import iconLightningBoltOutline from '~icons/mdi/lightning-bolt-outline?raw'
 import iconLoading from '~icons/mdi/loading?raw'
+import iconMessagePlusOutline from '~icons/mdi/message-plus-outline?raw'
+import iconMessageTextOutline from '~icons/mdi/message-text-outline?raw'
 import iconMinus from '~icons/mdi/minus?raw'
 import iconPencil from '~icons/mdi/pencil?raw'
 import iconPlus from '~icons/mdi/plus?raw'
 import iconPower from '~icons/mdi/power?raw'
 import iconPowerOff from '~icons/mdi/power-off?raw'
 import iconReload from '~icons/mdi/reload?raw'
+import iconRobotOutline from '~icons/mdi/robot-outline?raw'
 import iconShieldOutline from '~icons/mdi/shield-outline?raw'
+import iconStopCircleOutline from '~icons/mdi/stop-circle-outline?raw'
 import iconTuneVariant from '~icons/mdi/tune-variant?raw'
 import iconWeb from '~icons/mdi/web?raw'
 
 /** Popup menu icons (MDI via unplugin-icons). */
 export const mmPopupIcons = {
   refresh: iconCpu64Bit,
+  agent: iconMessageTextOutline,
+  agentAvatar: iconRobotOutline,
+  chatSparkle: iconAutoFix,
+  userAvatar: iconAccountCircleOutline,
+  send: iconArrowUp,
+  stop: iconStopCircleOutline,
+  tool: iconHammerScrewdriver,
+  chatNew: iconMessagePlusOutline,
+  back: iconArrowLeft,
+  chevronDown: iconChevronDown,
   reload: iconReload,
   reset: iconDelete,
   scripts: iconCodeTags,

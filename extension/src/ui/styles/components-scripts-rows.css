@@ -360,7 +360,8 @@
   }
 
   .mm-input-component:focus-within .mm-native-input,
-  mm-input:focus-within > input {
+  mm-input:focus-within > input,
+  mm-input:focus-within > textarea {
     @apply bg-mm-surface;
     box-shadow: 0 0 0 1px theme('colors.mm.accent');
   }

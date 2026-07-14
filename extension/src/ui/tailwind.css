@@ -7,6 +7,7 @@
 @import './styles/components-servers-options.css';
 @import './styles/components-scripts-rows.css';
 @import './styles/components-widgets.css';
+@import './styles/components-sidepanel.css';
 
 @tailwind base;
 @tailwind components;

@@ -68,8 +68,13 @@ import {
   updateAdminScriptPermissionEntriesBatch,
   updateAdminScriptPermissionEntry,
 } from './permission-manager'
+import { handleWebMcpShellMessage, isWebMcpShellMessage } from './webmcp/webmcp-message-handlers'
 
 export async function handleShellMessage(message: ShellMessage, sender: chrome.runtime.MessageSender): Promise<ShellResponse | void> {
+  if (isWebMcpShellMessage(message)) {
+    return handleWebMcpShellMessage(message)
+  }
+
   switch (message.type) {
     case 'GM_XHR': {
       return handleBridgeXhr(message.details, sender.tab?.id)

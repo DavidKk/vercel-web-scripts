@@ -16,6 +16,8 @@ export type UserScriptExecuteMode = 'preset' | 'global'
 
 export type MainWorldExecuteResult = { ok: true } | { ok: false; cspBlocked: true; message: string } | { ok: false; cspBlocked: false; message: string }
 
+export type MainWorldExecuteWithResult = { ok: true; value: unknown } | { ok: false; cspBlocked: true; message: string } | { ok: false; cspBlocked: false; message: string }
+
 /** Serialize MAIN-world userScripts.execute per tab (preset-core + preset-ui must not overlap on strict CSP). */
 const mainWorldExecuteTailByTab = new Map<number, Promise<void>>()
 
@@ -42,6 +44,58 @@ export async function executeInMainWorldScriptForTab(
     if (mainWorldExecuteTailByTab.get(tabId) === current) {
       mainWorldExecuteTailByTab.delete(tabId)
     }
+  }
+}
+
+/**
+ * Run arbitrary code in page MAIN world and return the script evaluation result.
+ * Used by WebMCP tab proxy (listTools / executeTool probes).
+ * @param tabId Target tab id
+ * @param code JavaScript source executed as-is in MAIN world
+ */
+export async function executeRawMainWorldCodeForTab(tabId: number, code: string): Promise<MainWorldExecuteWithResult> {
+  const previous = mainWorldExecuteTailByTab.get(tabId) ?? Promise.resolve()
+  let release!: () => void
+  const current = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  mainWorldExecuteTailByTab.set(tabId, current)
+  await previous
+  try {
+    return await executeRawMainWorldCode(tabId, code)
+  } finally {
+    release()
+    if (mainWorldExecuteTailByTab.get(tabId) === current) {
+      mainWorldExecuteTailByTab.delete(tabId)
+    }
+  }
+}
+
+async function executeRawMainWorldCode(tabId: number, code: string): Promise<MainWorldExecuteWithResult> {
+  if (!isUserScriptsApiAvailable()) {
+    return {
+      ok: false,
+      cspBlocked: false,
+      message: 'User Scripts API unavailable — open chrome://extensions, click extension Details, and enable "Allow User Scripts"',
+    }
+  }
+
+  try {
+    const results = await chrome.userScripts.execute({
+      target: { tabId },
+      world: 'MAIN',
+      injectImmediately: true,
+      js: [{ code }],
+    })
+    const injectionError = formatInjectionErrors(results)
+    if (injectionError) {
+      const cspBlocked = isCspEvalError(new Error(injectionError))
+      return { ok: false, cspBlocked, message: injectionError }
+    }
+    return { ok: true, value: results[0]?.result }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { ok: false, cspBlocked: isCspEvalError(error), message }
   }
 }
 

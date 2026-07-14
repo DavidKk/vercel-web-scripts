@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<%- include('../partials/document-head', { title: 'MagickMonkey Agent' }) %>
+  <body class="m-0 h-full overflow-hidden bg-mm-canvas p-0 antialiased">
+    <div class="mm-sidepanel-page">
+      <mm-sidepanel-app>
+        <div class="mm-sidepanel-header">
+          <div class="mm-sidepanel-header-chat" data-ref="header-chat">
+            <div class="mm-sidepanel-session-picker" data-ref="session-picker">
+              <button
+                type="button"
+                class="mm-sidepanel-session-trigger"
+                data-ref="session-trigger"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                title="Chats"
+                aria-label="Chat sessions"
+              >
+                <span class="mm-sidepanel-session-label" data-ref="session-label">New chat</span>
+                <span class="mm-sidepanel-session-chevron" data-icon="chevronDown" aria-hidden="true"></span>
+              </button>
+              <div class="mm-sidepanel-session-menu" data-ref="session-menu" hidden role="menu" aria-label="Chat sessions">
+                <div class="mm-sidepanel-session-empty" data-ref="session-empty">No chats yet</div>
+              </div>
+            </div>
+            <div class="mm-sidepanel-session-actions">
+              <button type="button" data-action="new-session" class="mm-sidepanel-icon-btn" title="New chat" aria-label="New chat">
+                <span data-icon="chatNew" class="mm-icon-slot"></span>
+              </button>
+              <button type="button" data-action="open-settings" class="mm-sidepanel-icon-btn" title="Settings" aria-label="Agent settings">
+                <span data-icon="settings" class="mm-icon-slot"></span>
+              </button>
+            </div>
+          </div>
+          <div class="mm-sidepanel-header-settings" data-ref="header-settings" hidden>
+            <button type="button" data-action="close-settings" class="mm-sidepanel-icon-btn" title="Back" aria-label="Back to chat">
+              <span data-icon="back" class="mm-icon-slot"></span>
+            </button>
+            <h2 class="mm-sidepanel-settings-title">Settings</h2>
+          </div>
+        </div>
+
+        <div class="mm-sidepanel-main" data-ref="chat-main">
+          <div class="mm-sidepanel-chat-stage" data-ref="chat-stage" data-empty="true">
+            <div class="mm-sidepanel-empty" data-ref="chat-empty">
+              <span class="mm-sidepanel-empty-icon" data-icon="chatSparkle" aria-hidden="true"></span>
+              <p class="mm-sidepanel-empty-title">Start a conversation</p>
+              <p class="mm-sidepanel-empty-hint">Ask what this page can do, or describe the change you want.</p>
+            </div>
+            <div class="mm-sidepanel-chat-log" data-ref="chat-log" aria-live="polite"></div>
+          </div>
+
+          <div class="mm-sidepanel-composer">
+            <div class="mm-sidepanel-composer-shell">
+              <textarea
+                data-ref="chat-input"
+                rows="1"
+                class="mm-sidepanel-composer-input"
+                placeholder="Message Agent…"
+                aria-label="Agent message"
+              ></textarea>
+              <div class="mm-sidepanel-composer-footer">
+                <p class="mm-sidepanel-chat-status" data-ref="chat-status" role="status"></p>
+                <div class="mm-sidepanel-composer-actions">
+                  <div class="mm-sidepanel-model-picker" data-ref="model-picker">
+                    <button
+                      type="button"
+                      class="mm-sidepanel-model-trigger"
+                      data-ref="model-trigger"
+                      aria-haspopup="listbox"
+                      aria-expanded="false"
+                      title="Select model"
+                      aria-label="Select Gemini model"
+                    >
+                      <span class="mm-sidepanel-model-label" data-ref="model-label">Model</span>
+                      <span class="mm-sidepanel-model-chevron" data-icon="chevronDown" aria-hidden="true"></span>
+                    </button>
+                    <div class="mm-sidepanel-model-menu" data-ref="model-menu" hidden role="listbox" aria-label="Gemini models">
+                      <div class="mm-sidepanel-model-empty" data-ref="model-empty">Configure API key in Settings</div>
+                    </div>
+                  </div>
+                  <button type="button" data-action="stop-chat" class="mm-sidepanel-stop-btn hidden" title="Stop" aria-label="Stop generating">
+                    <span data-icon="stop" class="mm-icon-slot text-white"></span>
+                  </button>
+                  <button type="button" data-action="send-chat" class="mm-sidepanel-send-btn" title="Send" aria-label="Send message" disabled>
+                    <span data-icon="send" class="mm-icon-slot text-white"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mm-sidepanel-settings" data-ref="settings-panel" hidden aria-label="Agent settings">
+          <div class="mm-sidepanel-settings-form" data-ref="settings-form">
+            <section class="mm-options-section" aria-labelledby="agent-llm-title">
+<%- include('../partials/options-section-head', { headingId: 'agent-llm-title', title: 'Model provider', meta: 'Local only' }) %>
+              <div class="mm-options-field-grid mm-options-field-grid-single">
+                <mm-field class="mm-options-field">
+                  <label for="agent-llm-provider" class="mm-label">Provider</label>
+                  <select id="agent-llm-provider" data-ref="llm-provider" class="mm-native-input" aria-label="LLM provider">
+                    <option value="gemini" selected>Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Claude</option>
+                  </select>
+                  <p class="mm-hint" data-ref="llm-provider-hint">More providers will appear here as they are added. Settings are saved per provider.</p>
+                </mm-field>
+
+                <mm-field class="mm-options-field">
+                  <label for="agent-llm-api-key" class="mm-label">API key</label>
+                  <mm-input>
+                    <input
+                      id="agent-llm-api-key"
+                      data-ref="llm-api-key"
+                      type="password"
+                      placeholder="Paste Gemini API key"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                  </mm-input>
+                  <p class="mm-hint">Stored in extension storage only. Never sent to MagickMonkey servers. Pick the model next to Send.</p>
+                </mm-field>
+
+                <label class="mm-options-toggle-card">
+                  <span class="mm-options-toggle-copy">
+                    <span class="mm-options-toggle-title">Use API proxy</span>
+                    <span class="mm-options-toggle-text" data-ref="llm-proxy-toggle-text">Route requests through a custom Base URL (Gemini protocol). Off by default.</span>
+                  </span>
+                  <span class="mm-switch-control">
+                    <input type="checkbox" class="mm-switch-input" data-ref="llm-proxy-enabled" id="agent-llm-proxy-enabled" />
+                    <span class="mm-switch-track" aria-hidden="true"></span>
+                    <span class="mm-switch-thumb" aria-hidden="true"></span>
+                  </span>
+                </label>
+
+                <div class="mm-sidepanel-proxy-fields" data-ref="llm-proxy-fields" hidden>
+                  <mm-field class="mm-options-field">
+                    <label for="agent-llm-base-url" class="mm-label">API Base URL</label>
+                    <mm-input>
+                      <input
+                        id="agent-llm-base-url"
+                        data-ref="llm-base-url"
+                        type="url"
+                        placeholder="https://generativelanguage.googleapis.com"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                    </mm-input>
+                    <p class="mm-hint" data-ref="llm-base-url-hint">Gemini protocol only. Paste the proxy root; paths still use /v1beta/models/…</p>
+                  </mm-field>
+                  <mm-field class="mm-options-field">
+                    <label for="agent-llm-proxy-headers" class="mm-label">Custom headers (JSON)</label>
+                    <mm-input>
+                      <textarea
+                        id="agent-llm-proxy-headers"
+                        data-ref="llm-proxy-headers"
+                        rows="4"
+                        class="mm-sidepanel-prefs-textarea"
+                        spellcheck="false"
+                        placeholder='{"Authorization":"Bearer …"}'
+                        aria-label="Custom proxy HTTP headers JSON"
+                      ></textarea>
+                    </mm-input>
+                    <p class="mm-hint">Optional. Applied only when the proxy is enabled. Example: Authorization, X-Api-Key.</p>
+                  </mm-field>
+                </div>
+              </div>
+              <div class="mm-sidepanel-form-actions">
+                <mm-button variant="primary">
+                  <button type="button" data-action="save-llm">Save LLM settings</button>
+                </mm-button>
+              </div>
+            </section>
+
+            <section class="mm-options-section" aria-labelledby="agent-prefs-title">
+<%- include('../partials/options-section-head', { headingId: 'agent-prefs-title', title: 'Agent preferences', meta: 'Tools + JSON' }) %>
+              <div class="mm-options-field-grid mm-options-field-grid-single">
+                <mm-field class="mm-options-field">
+                  <label for="agent-tool-scope" class="mm-label">Tool scope</label>
+                  <select id="agent-tool-scope" data-ref="tool-scope" class="mm-native-input" aria-label="WebMCP tool scope for Agent">
+                    <option value="magickmonkey_only" selected>MagickMonkey first (fallback to page tools)</option>
+                    <option value="all">All page tools</option>
+                  </select>
+                  <p class="mm-hint">Editor tools like <code>editor_*</code> are page-native. MagickMonkey first uses <code>vws.*</code> when present, otherwise falls back to native tools.</p>
+                </mm-field>
+                <mm-field class="mm-options-field">
+                  <label for="agent-prefs-json" class="mm-label">Preferences JSON</label>
+                  <mm-input>
+                    <textarea
+                      id="agent-prefs-json"
+                      data-ref="prefs-json"
+                      rows="8"
+                      class="mm-sidepanel-prefs-textarea"
+                      spellcheck="false"
+                      aria-label="Agent preferences JSON"
+                    ></textarea>
+                  </mm-input>
+                  <p class="mm-hint">Advanced JSON preferences such as host overrides. Tool scope above is written into <code>global.toolProviderScope</code>.</p>
+                </mm-field>
+              </div>
+              <div class="mm-sidepanel-form-actions">
+                <mm-button variant="primary">
+                  <button type="button" data-action="save-prefs">Save preferences</button>
+                </mm-button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </mm-sidepanel-app>
+    </div>
+    <script src="./sidepanel.js"></script>
+  </body>
+</html>

@@ -20,6 +20,7 @@ const EXTENSION_ENTRIES = [
   { name: 'background', input: 'src/shell/background.ts' },
   { name: 'popup', input: 'src/shell/popup/popup.ts' },
   { name: 'admin', input: 'src/pages/admin/admin.ts' },
+  { name: 'sidepanel', input: 'src/ui/sidepanel/sidepanel.ts' },
   { name: 'content-bridge', input: 'src/bridge/content.ts' },
   { name: 'page-launcher', input: 'src/page/index.ts' },
 ] as const

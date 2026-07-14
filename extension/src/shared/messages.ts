@@ -11,6 +11,8 @@ import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import type { RuntimeLoadResult } from '../runtime/loader-types'
 import type { PermissionModalResultPayload } from '../shell/permission-manager'
+import type { AgentLlmGenerateResult, AgentLlmMessage, AgentLlmModelInfo, AgentLlmToolDefinition } from '../shell/webmcp/agent-types'
+import type { WebMcpProxyResult } from '../shell/webmcp/webmcp-types'
 import type { DebugLogAppendInput, DebugLogEntry } from './debug-log-types'
 
 /** Background ↔ popup/content message types (MVP). */
@@ -169,6 +171,30 @@ export type ShellMessage =
         }>
       }
     }
+  | { type: 'OPEN_SIDE_PANEL' }
+  | { type: 'WEBMCP_GET_SUPPORT'; tabId: number }
+  | { type: 'WEBMCP_LIST_TOOLS'; tabId: number }
+  | { type: 'WEBMCP_EXECUTE_TOOL'; tabId: number; name: string; args: Record<string, unknown> }
+  | { type: 'WEBMCP_LIST_CANDIDATE_TABS' }
+  | {
+      type: 'AGENT_LLM_GENERATE'
+      requestId: string
+      messages: AgentLlmMessage[]
+      tools?: AgentLlmToolDefinition[]
+    }
+  | {
+      type: 'AGENT_LLM_LIST_MODELS'
+      /** Optional unsaved API key from the settings form. */
+      apiKey?: string
+      /** Optional unsaved proxy toggle from the settings form. */
+      proxyEnabled?: boolean
+      /** Optional unsaved proxy base URL from the settings form. */
+      baseUrl?: string
+      /** Optional unsaved custom proxy headers from the settings form. */
+      proxyHeaders?: Record<string, string>
+      /** Optional unsaved provider from the settings form. */
+      provider?: 'gemini' | 'openai' | 'anthropic'
+    }
 
 export interface ShellStatus {
   configured: boolean
@@ -254,6 +280,9 @@ export type ShellResponse =
   | { ok: true; removed?: boolean }
   | { ok: true; runtimeLoadResults?: RuntimeLoadResult[] }
   | { ok: true; cspReloadScheduled?: boolean }
+  | { ok: true; webmcp?: WebMcpProxyResult<unknown> }
+  | { ok: true; agentLlm?: AgentLlmGenerateResult }
+  | { ok: true; agentLlmModels?: AgentLlmModelInfo[] }
   | { ok: false; error: string }
 
 export async function sendShellMessage(message: ShellMessage): Promise<ShellResponse> {

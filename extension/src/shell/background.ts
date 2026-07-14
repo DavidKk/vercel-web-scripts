@@ -16,6 +16,7 @@ import { attachDebugLogPort, initDebugLogStore, setDebugLogCollectionGate, setIn
 import { restoreAdminPageAfterDevReload } from './dev-admin-restore'
 import { initDevExtensionReload } from './dev-extension-reload'
 import { clearSessionPermissionsForTab } from './permission-manager'
+import { registerWebMcpSidePanelCommandListener } from './webmcp/webmcp-side-panel'
 
 void DEV_BUILD_STAMP
 
@@ -96,5 +97,6 @@ chrome.runtime.onMessage.addListener((message: ShellMessage, sender, sendRespons
 })
 
 initDevExtensionReload()
+registerWebMcpSidePanelCommandListener()
 void restoreAdminPageAfterDevReload()
 installPassiveOtaListener()

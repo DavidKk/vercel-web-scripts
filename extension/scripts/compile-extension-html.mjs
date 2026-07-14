@@ -9,6 +9,7 @@ import pkg from '../../package.json'
 const PAGE_OUTPUT = {
   popup: 'popup.html',
   admin: 'admin.html',
+  sidepanel: 'sidepanel.html',
 }
 
 const LEGACY_REDIRECTS = {

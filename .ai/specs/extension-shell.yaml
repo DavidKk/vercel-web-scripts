@@ -45,6 +45,22 @@ modules:
     purpose: Shell controls, log mode, quick rules, extension reload (dev)
     path: extension/src/ui/popup/mm-popup-app.ts
 
+  - id: sidepanel
+    title: Side Panel Agent UI
+    purpose: WebMCP tool discovery, manual debug (P1), Agent chat (P2); opened via popup menu / command / shortcut (not toolbar icon default)
+    path: extension/src/ui/sidepanel/
+    html: extension/src/html/pages/sidepanel.ejs
+    doc: specs/extension-webmcp-agent.md
+    status: implemented
+
+  - id: webmcp-proxy
+    title: WebMCP tab proxy (background)
+    purpose: MAIN-world listTools/executeTool for active tab; provider merge with VWS registry
+    path: extension/src/shell/webmcp/
+    shared: shared/webmcp/
+    doc: specs/extension-webmcp-agent.md
+    status: implemented
+
   - id: debug-log-store
     title: Session debug log buffer
     purpose: Ring buffer in background; port subscription for Logs tab; incognito collection gate

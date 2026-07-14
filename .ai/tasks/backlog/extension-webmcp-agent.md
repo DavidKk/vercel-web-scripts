@@ -1,8 +1,10 @@
 # 扩展 WebMCP Agent 侧栏 — 需求文档
 
-Status: **TODO**（需求待确认 / 待排期；**不改代码**）
+Status: **IMPLEMENTED**（技术规格：`.ai/specs/extension-webmcp-agent.md`；Side Panel Agent MVP 已落地）
 
 关联:
+
+- **技术规格**：`.ai/specs/extension-webmcp-agent.md`
 
 - [Chrome WebMCP 文档](https://developer.chrome.com/docs/ai/webmcp)
 - [WebMCP vs HTTP MCP](https://developer.chrome.com/docs/ai/webmcp/compare-mcp)
@@ -16,7 +18,16 @@ Status: **TODO**（需求待确认 / 待排期；**不改代码**）
 
 ---
 
-## 1. 背景与问题
+## 0. 产品决策（已确认）
+
+| #      | 问题           | **已决定**                                                             |
+| ------ | -------------- | ---------------------------------------------------------------------- |
+| **C1** | 扩展入口 UX    | **Popup 为主入口**；侧栏经 Popup 菜单 / 快捷键 / Chrome 命令打开       |
+| **C2** | LLM 鉴权与调用 | **用户自备 Gemini API Key** → `chrome.storage.local` → background 代理 |
+
+C1 细节见 spec §0、§2。已拍板：D3 永不 DOM scrape · D4 P2 JSON 偏好 · D5 README Permissions。
+
+---
 
 ### 1.1 现状
 
@@ -117,13 +128,19 @@ DOM / 播放器 / 全屏 / 弹幕…
 
 ### 3.2 与 Popup / Admin 的关系
 
-| 表面                 | 职责（变更后）                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| **Side Panel**（新） | Agent 聊天、WebMCP 工具发现与执行、站点偏好                                         |
-| **Popup**（保留）    | 快捷壳操作：Update runtime、Sync rules、开关、打开 Admin                            |
-| **Admin**            | Servers / Scripts / Rules / Logs；可选增加「Agent 偏好」只读跳转或链接到 Side Panel |
+| 表面                          | 职责（变更后）                                                                         |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| **Popup**（保留，**主入口**） | 快捷壳操作：Update runtime、Sync rules、开关、打开 Admin；**+「Open Agent」** 打开侧栏 |
+| **Side Panel**（辅助）        | Agent 聊天、WebMCP 工具发现与执行、站点偏好；经菜单/快捷键/命令打开，非图标默认行为    |
+| **Admin**                     | Servers / Scripts / Rules / Logs；可选链接到 Side Panel                                |
 
-建议：**点击扩展图标 → 打开 Side Panel**（`sidePanel.setPanelBehavior({ openPanelOnActionClick: true })`）；Popup 可通过侧栏内链接或二级入口保留。
+**入口（C1 已确认）**：点击扩展图标 → **Popup**（不变）。侧栏打开方式：
+
+- Popup 菜单项「Open Agent」
+- 快捷键 `Ctrl+Shift+M` / `Cmd+Shift+M`（`commands.open_agent_side_panel`）
+- Chrome 命令面板（同上 command）
+
+**不**使用 `sidePanel.setPanelBehavior({ openPanelOnActionClick: true })`。
 
 ### 3.3 与 Tampermonkey 路径
 
@@ -375,13 +392,21 @@ extension: listTools（含 provider）→  Agent 默认只调 magickmonkey
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "MagickMonkey Agent"
+    "default_popup": "popup.html",
+    "default_title": "MagickMonkey"
+  },
+  "commands": {
+    "open_agent_side_panel": {
+      "suggested_key": { "default": "Ctrl+Shift+M", "mac": "Command+Shift+M" },
+      "description": "Open MagickMonkey Agent side panel"
+    }
   }
 }
 ```
 
-- `background`：`chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })`。
-- 是否移除 `default_popup`：开放问题（§12）；建议首版 **侧栏为主、popup 保留为次要入口** 或侧栏内链快捷操作。
+- **不**设置 `openPanelOnActionClick`（C1：Popup 保持主入口）。
+- `background`：`chrome.commands.onCommand` + `OPEN_SIDE_PANEL` shell 消息 → `chrome.sidePanel.open({ windowId })`。
+- Popup：新增「Open Agent」菜单项。
 
 ---
 
@@ -389,9 +414,10 @@ extension: listTools（含 provider）→  Agent 默认只调 magickmonkey
 
 ### Phase 0 — WebMCP 代理（无 Agent）
 
-- [ ] Background：`WEBMCP_LIST_TOOLS` / `WEBMCP_EXECUTE_TOOL` / `WEBMCP_GET_SUPPORT`
-- [ ] 本地验证：`chrome://flags/#enable-webmcp-testing`，在测试页或带注册工具的脚本页手动调用
-- [ ] 单元测试：消息协议、URL 过滤、错误映射
+- [x] Background：`WEBMCP_LIST_TOOLS` / `WEBMCP_EXECUTE_TOOL` / `WEBMCP_GET_SUPPORT` / `WEBMCP_LIST_CANDIDATE_TABS` / `OPEN_SIDE_PANEL`
+- [x] `extension/src/shell/webmcp/*` + `executeRawMainWorldCodeForTab`
+- [x] 单元测试：消息协议、URL 过滤、注入脚本、tab proxy
+- [ ] 本地验证：`chrome://flags/#enable-webmcp-testing`，在测试页手动调用 shell 消息
 
 ### Phase 1 — Side Panel 壳 + 工具调试 UI
 
@@ -422,7 +448,7 @@ extension: listTools（含 provider）→  Agent 默认只调 magickmonkey
 
 ### 12.1 功能
 
-- [ ] 点击扩展图标打开 Side Panel；切换 Tab 后面板仍可操作（Chrome side panel 持久）
+- [ ] Popup 菜单「Open Agent」+ 快捷键打开 Side Panel；**点击图标仍打开 Popup**
 - [ ] 在已注册 WebMCP 工具的页面，`listTools` 返回预期工具名
 - [ ] 侧栏 Agent 可根据自然语言 + 用户偏好调用正确工具（如关弹幕）
 - [ ] 工具执行结果以结构化 JSON 展示在 tool 卡片中
@@ -455,17 +481,19 @@ extension: listTools（含 provider）→  Agent 默认只调 magickmonkey
 | Agent 误调站点原生工具                | 默认 `magickmonkey_only`；`all` 需用户开启                   |
 | Agent 误调用写操作                    | `readOnlyHint`、确认流、偏好开关                             |
 | LLM 幻觉调用不存在工具                | 每轮刷新 tool 列表；执行错误回传 LLM                         |
-| Side Panel 与 popup 入口冲突          | 产品拍板 §12 D1                                              |
+| Side Panel 与 popup 入口冲突          | **已解决（C1）**：Popup 主入口；侧栏二级打开                 |
 
-### 13.2 开放问题（启动前需确认）
+### 13.2 开放问题
 
-| #   | 问题                  | 选项                                           |
-| --- | --------------------- | ---------------------------------------------- |
-| D1  | 扩展图标点击行为      | 仅开 Side Panel vs 保留 Popup + 侧栏内「更多」 |
-| D2  | LLM MVP               | 仅用户 API Key vs 同时支持服务端代理           |
-| D3  | DOM scrape 兜底       | 永不 vs 仅限用户显式开启的「探索模式」         |
-| D4  | 偏好 UI               | MVP 仅 JSON vs 表单单站配置                    |
-| D5  | Chrome Web Store 审核 | sidePanel + broad host 权限说明文案            |
+| #   | 问题                  | 状态 / 决定                                            |
+| --- | --------------------- | ------------------------------------------------------ |
+| D1  | 扩展图标点击行为      | **已决定（C1）**：Popup 主入口；侧栏经菜单/快捷键/命令 |
+| D2  | LLM MVP               | **已决定（C2）**：用户 API Key + background 代理       |
+| D3  | DOM scrape 兜底       | **已决定**：永不（见 spec §8.2）                       |
+| D4  | 偏好 UI               | **已决定**：P2 JSON 编辑器；P3+ 表单（见 spec §6.2）   |
+| D5  | Chrome Web Store 审核 | **已决定**：README Permissions 文案（见 spec §12）     |
+
+实现细节（消息类型、注入脚本、测试路径等）见 **`.ai/specs/extension-webmcp-agent.md`**。
 
 ---
 
@@ -488,3 +516,6 @@ extension: listTools（含 provider）→  Agent 默认只调 magickmonkey
 | 2026-07-09 | 初稿：扩展 Side Panel WebMCP Agent；面向任意网页 + Gist 脚本；与编辑器 / HTTP MCP 解耦       |
 | 2026-07-09 | `GME_registerWebMcpTool` 拆至 `preset-gme-webmcp.md`；本任务仅 listTools/executeTool + Agent |
 | 2026-07-09 | 工具提供方归类：`magickmonkey` vs `native`；Agent 默认仅 MM 工具                             |
+| 2026-07-09 | 补充技术规格 `specs/extension-webmcp-agent.md`；D3–D5 按推荐拍板                             |
+| 2026-07-09 | C1/C2 确认：Popup 主入口 + 侧栏二级打开；插件本地 LLM Key + background 代理                  |
+| 2026-07-09 | P0：background WebMCP 代理、`shell/webmcp/*`、单测 15 cases                                  |

@@ -5,6 +5,7 @@ import { fetchExtensionUpdateInfo } from '@ext/shared/extension-update-check'
 import { sendShellMessage } from '@ext/shared/messages'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
+import { openAgentSidePanelFromUserGesture } from '@ext/shell/webmcp/webmcp-side-panel'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from '../admin/mm-admin-nav'
@@ -108,6 +109,14 @@ export class MmPopupApp extends HTMLElement {
     })
     this.querySelector('[data-action="rules"]')?.addEventListener('click', () => {
       void this.openRulesView()
+    })
+    this.querySelector('[data-action="open-agent"]')?.addEventListener('click', () => {
+      void openAgentSidePanelFromUserGesture()
+        .then(() => window.close())
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Failed to open Agent panel'
+          this.showToast(message, true)
+        })
     })
     this.querySelector('[data-action="rules-back"]')?.addEventListener('click', () => {
       this.openMainView()

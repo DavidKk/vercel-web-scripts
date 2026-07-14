@@ -24,7 +24,7 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
   - Read: `tasks/backlog/agent-chat-panel.md`
   - Related: `.cursor/skills/scripts-api-mcp/SKILL.md`, `public/docs/scripts-ai-skill.md`
 - **Extension WebMCP Agent** (side panel — page control via WebMCP + scripts — backlog)
-  - Read: `tasks/backlog/extension-webmcp-agent.md`
+  - Read: `tasks/backlog/extension-webmcp-agent.md`, **`specs/extension-webmcp-agent.md`**
   - Related: `extension/README.md`, [Chrome WebMCP docs](https://developer.chrome.com/docs/ai/webmcp)
 - **Preset GME WebMCP** (`GME_registerWebMcpTool` — script registers page tools — **P0 implemented**)
   - Read: `tasks/backlog/preset-gme-webmcp.md`, `specs/preset-gme-webmcp.md`
@@ -62,35 +62,35 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
 
 ## By topic
 
-| Topic                          | File                                                               |
-| ------------------------------ | ------------------------------------------------------------------ |
-| Preset runtime modules         | `specs/modules-registry.yaml`                                      |
-| Extension shell modules        | `specs/extension-shell.yaml`                                       |
-| HTML-only injection            | `specs/extension-injection-policy.md`                              |
-| Runtime split baseline         | `specs/runtime-modularization.md`                                  |
-| Compatibility policy           | `specs/runtime-compatibility.md`                                   |
-| OTA publish policy             | `specs/ota-publish-policy.md`                                      |
-| Verification checklist         | `specs/runtime-verification-checklist.md`                          |
-| Terminology                    | `knowledge/glossary.md`                                            |
-| Engineering standards          | `rules/engineering-standards.md`                                   |
-| Requirements process           | `workflow/requirements-audit.md`                                   |
-| Execution phases               | `workflow/module-development.md`                                   |
-| Active TODO                    | `tasks/active/current.md`                                          |
-| Runtime Phase A–C              | `tasks/done/runtime-modularization-phase-a-b-c.md`                 |
-| Script permissions             | `tasks/done/script-permissions.md`                                 |
-| OTA publish policy             | `tasks/done/ota-publish-policy.md`                                 |
-| Extension native loader        | `tasks/backlog/extension-native-loader.md`                         |
-| Runtime Phase D                | `tasks/backlog/runtime-phase-d.md`                                 |
-| Extension ZIP 自更新（已取消） | `tasks/done/extension-fs-update.md` — 改走 Chrome Web Store        |
-| UI folder restructure          | `tasks/done/ui-folder-restructure.md`                              |
-| UI cross-module review         | `specs/ui-cross-module-review.md`                                  |
-| Editor lib                     | `tasks/done/editor-lib.md`                                         |
-| Agent chat panel               | `tasks/backlog/agent-chat-panel.md`                                |
-| Extension WebMCP Agent         | `tasks/backlog/extension-webmcp-agent.md`                          |
-| Preset GME WebMCP              | `tasks/backlog/preset-gme-webmcp.md`, `specs/preset-gme-webmcp.md` |
-| Editor WebMCP                  | `tasks/backlog/editor-webmcp.md`                                   |
-| UI cross-module dedup          | `tasks/backlog/ui-cross-module-dedup.md` (Phase A done)            |
-| Large file split               | `tasks/done/large-file-split.md`                                   |
-| CSS logical properties         | `tasks/done/css-logical-properties-review.md`                      |
-| Gist script rollback           | `tasks/backlog/gist-script-rollback.md`                            |
-| Project overview               | `context/summary.md`                                               |
+| Topic                          | File                                                                         |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| Preset runtime modules         | `specs/modules-registry.yaml`                                                |
+| Extension shell modules        | `specs/extension-shell.yaml`                                                 |
+| HTML-only injection            | `specs/extension-injection-policy.md`                                        |
+| Runtime split baseline         | `specs/runtime-modularization.md`                                            |
+| Compatibility policy           | `specs/runtime-compatibility.md`                                             |
+| OTA publish policy             | `specs/ota-publish-policy.md`                                                |
+| Verification checklist         | `specs/runtime-verification-checklist.md`                                    |
+| Terminology                    | `knowledge/glossary.md`                                                      |
+| Engineering standards          | `rules/engineering-standards.md`                                             |
+| Requirements process           | `workflow/requirements-audit.md`                                             |
+| Execution phases               | `workflow/module-development.md`                                             |
+| Active TODO                    | `tasks/active/current.md`                                                    |
+| Runtime Phase A–C              | `tasks/done/runtime-modularization-phase-a-b-c.md`                           |
+| Script permissions             | `tasks/done/script-permissions.md`                                           |
+| OTA publish policy             | `tasks/done/ota-publish-policy.md`                                           |
+| Extension native loader        | `tasks/backlog/extension-native-loader.md`                                   |
+| Runtime Phase D                | `tasks/backlog/runtime-phase-d.md`                                           |
+| Extension ZIP 自更新（已取消） | `tasks/done/extension-fs-update.md` — 改走 Chrome Web Store                  |
+| UI folder restructure          | `tasks/done/ui-folder-restructure.md`                                        |
+| UI cross-module review         | `specs/ui-cross-module-review.md`                                            |
+| Editor lib                     | `tasks/done/editor-lib.md`                                                   |
+| Agent chat panel               | `tasks/backlog/agent-chat-panel.md`                                          |
+| Extension WebMCP Agent         | `tasks/backlog/extension-webmcp-agent.md`, `specs/extension-webmcp-agent.md` |
+| Preset GME WebMCP              | `tasks/backlog/preset-gme-webmcp.md`, `specs/preset-gme-webmcp.md`           |
+| Editor WebMCP                  | `tasks/backlog/editor-webmcp.md`                                             |
+| UI cross-module dedup          | `tasks/backlog/ui-cross-module-dedup.md` (Phase A done)                      |
+| Large file split               | `tasks/done/large-file-split.md`                                             |
+| CSS logical properties         | `tasks/done/css-logical-properties-review.md`                                |
+| Gist script rollback           | `tasks/backlog/gist-script-rollback.md`                                      |
+| Project overview               | `context/summary.md`                                                         |

@@ -3,7 +3,7 @@
   "name": "MagickMonkey",
   "version": "__VERSION__",
   "description": "Native Chrome shell for MagickMonkey: OTA preset and scripts without Tampermonkey.",
-  "permissions": ["storage", "tabs", "webNavigation", "scripting", "declarativeNetRequest", "declarativeNetRequestWithHostAccess", "userScripts"],
+  "permissions": ["storage", "tabs", "webNavigation", "scripting", "declarativeNetRequest", "declarativeNetRequestWithHostAccess", "userScripts", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -21,6 +21,18 @@
   "options_ui": {
     "page": "admin.html",
     "open_in_tab": true
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "commands": {
+    "open_agent_side_panel": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
+      "description": "Open MagickMonkey Agent side panel"
+    }
   },
   "content_scripts": [
     {

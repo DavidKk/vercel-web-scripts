@@ -53,4 +53,13 @@ describe('csp-user-script-executor', () => {
       expect(result.cspBlocked).toBe(true)
     }
   })
+
+  it('executeRawMainWorldCodeForTab returns script evaluation result', async () => {
+    installChromeUserScriptsMock({
+      execute: jest.fn().mockResolvedValue([{ frameId: 0, documentId: 'doc-1', result: { ok: true, tools: [] } }]),
+    })
+    const { executeRawMainWorldCodeForTab } = await import('@ext/shell/csp-user-script-executor')
+    const result = await executeRawMainWorldCodeForTab(7, '(async()=>({ok:true}))();')
+    expect(result).toEqual({ ok: true, value: { ok: true, tools: [] } })
+  })
 })

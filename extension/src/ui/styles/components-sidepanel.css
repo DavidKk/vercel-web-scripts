@@ -1,0 +1,450 @@
+@layer components {
+  .mm-sidepanel-page {
+    @apply flex h-full min-h-0 flex-col bg-mm-canvas;
+  }
+
+  mm-sidepanel-app {
+    @apply flex h-full min-h-0 flex-col;
+  }
+
+  .mm-sidepanel-header {
+    @apply relative z-50 shrink-0 overflow-visible border-b border-mm-border-light/80 bg-mm-surface/95 backdrop-blur-sm;
+  }
+
+  .mm-sidepanel-header-chat {
+    @apply flex items-center gap-0.5 py-1 pl-1 pr-1.5;
+  }
+
+  .mm-sidepanel-header-settings {
+    @apply flex items-center gap-1 py-1 pl-1 pr-1.5;
+  }
+
+  .mm-sidepanel-header-chat[hidden],
+  .mm-sidepanel-header-settings[hidden],
+  .mm-sidepanel-main[hidden],
+  .mm-sidepanel-settings[hidden] {
+    display: none !important;
+  }
+
+  .mm-sidepanel-session-picker {
+    @apply relative z-10 min-w-0 flex-1;
+  }
+
+  .mm-sidepanel-session-picker[open] {
+    @apply z-50;
+  }
+
+  .mm-sidepanel-session-trigger {
+    @apply flex h-8 w-full max-w-full items-center gap-1 rounded-lg bg-transparent px-2 text-left text-sm font-medium text-mm-ink transition-colors hover:bg-mm-muted/80;
+  }
+
+  .mm-sidepanel-session-picker[open] .mm-sidepanel-session-trigger {
+    @apply bg-mm-muted/80;
+  }
+
+  .mm-sidepanel-session-label {
+    @apply min-w-0 flex-1 truncate text-left text-sm font-medium text-mm-ink;
+  }
+
+  .mm-sidepanel-session-chevron {
+    @apply ml-auto flex shrink-0 text-mm-icon transition-transform;
+  }
+
+  .mm-sidepanel-session-chevron .mm-icon-slot,
+  .mm-sidepanel-session-chevron .mm-icon-slot svg,
+  .mm-sidepanel-session-chevron svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-sidepanel-session-picker[open] .mm-sidepanel-session-chevron {
+    transform: rotate(180deg);
+  }
+
+  .mm-sidepanel-session-menu {
+    @apply absolute left-0 right-0 top-[calc(100%+4px)] z-[60] flex max-h-72 min-w-0 flex-col overflow-y-auto rounded-xl border border-mm-border-light bg-mm-surface py-1 shadow-mm-sm;
+  }
+
+  .mm-sidepanel-session-menu[hidden] {
+    display: none !important;
+  }
+
+  .mm-sidepanel-session-empty {
+    @apply px-3 py-2.5 text-xs text-mm-text-muted;
+  }
+
+  .mm-sidepanel-session-item {
+    @apply flex w-full items-center gap-1 px-1.5 py-0.5;
+  }
+
+  .mm-sidepanel-session-option {
+    @apply flex min-w-0 flex-1 items-center rounded-lg px-2 py-1.5 text-left text-sm text-mm-secondary transition-colors hover:bg-mm-muted hover:text-mm-ink;
+  }
+
+  .mm-sidepanel-session-option[aria-current='true'] {
+    @apply bg-mm-accent-soft font-medium text-mm-accent;
+  }
+
+  .mm-sidepanel-session-option-label {
+    @apply min-w-0 truncate;
+  }
+
+  .mm-sidepanel-session-delete {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-mm-icon opacity-0 transition-colors hover:bg-mm-danger/10 hover:text-mm-danger focus-visible:opacity-100;
+  }
+
+  .mm-sidepanel-session-item:hover .mm-sidepanel-session-delete,
+  .mm-sidepanel-session-item:focus-within .mm-sidepanel-session-delete {
+    @apply opacity-100;
+  }
+
+  .mm-sidepanel-session-delete .mm-icon-slot,
+  .mm-sidepanel-session-delete .mm-icon-slot svg,
+  .mm-sidepanel-session-delete svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-sidepanel-session-actions {
+    @apply flex shrink-0 items-center gap-0.5;
+  }
+
+  .mm-sidepanel-icon-btn {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-mm-icon transition-colors hover:bg-mm-muted hover:text-mm-secondary;
+  }
+
+  .mm-sidepanel-icon-btn .mm-icon-slot,
+  .mm-sidepanel-icon-btn .mm-icon-slot svg {
+    @apply h-4 w-4;
+  }
+
+  .mm-sidepanel-settings-title {
+    @apply m-0 flex-1 truncate text-sm font-semibold text-mm-ink;
+  }
+
+  .mm-sidepanel-main {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  .mm-sidepanel-chat-stage {
+    @apply relative min-h-0 flex-1;
+  }
+
+  .mm-sidepanel-chat-log {
+    @apply h-full min-h-0 space-y-3 overflow-y-auto px-3 py-3;
+  }
+
+  .mm-sidepanel-chat-stage[data-empty='true'] .mm-sidepanel-chat-log {
+    @apply pointer-events-none opacity-0;
+  }
+
+  .mm-sidepanel-empty {
+    @apply absolute inset-0 z-[1] hidden flex-col items-center justify-center gap-2 px-4 text-center;
+  }
+
+  .mm-sidepanel-chat-stage[data-empty='true'] .mm-sidepanel-empty {
+    @apply flex;
+  }
+
+  .mm-sidepanel-empty-icon {
+    @apply mb-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-mm-accent-soft via-mm-magic-soft to-mm-cyan-soft text-mm-accent shadow-mm-sm ring-1 ring-mm-border-light/80;
+  }
+
+  .mm-sidepanel-empty-icon .mm-icon-slot,
+  .mm-sidepanel-empty-icon .mm-icon-slot svg {
+    @apply h-5 w-5;
+  }
+
+  .mm-sidepanel-empty-title {
+    @apply m-0 text-sm font-medium text-mm-secondary;
+  }
+
+  .mm-sidepanel-empty-hint {
+    @apply m-0 max-w-[15rem] text-xs leading-relaxed text-mm-text-muted;
+  }
+
+  .mm-sidepanel-message {
+    @apply w-full;
+  }
+
+  .mm-sidepanel-message--user {
+    @apply flex flex-col items-end gap-1;
+  }
+
+  .mm-sidepanel-message--assistant {
+    @apply flex flex-col items-start gap-1;
+  }
+
+  .mm-sidepanel-message--tool {
+    @apply flex flex-col items-start gap-1;
+  }
+
+  .mm-sidepanel-bubble {
+    @apply max-w-[92%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed;
+  }
+
+  .mm-sidepanel-bubble--user {
+    @apply rounded-br-md bg-mm-accent text-white shadow-mm-sm;
+  }
+
+  .mm-sidepanel-bubble--assistant {
+    @apply rounded-bl-md bg-mm-surface text-mm-ink shadow-mm-sm ring-1 ring-mm-border-light/90;
+  }
+
+  .mm-sidepanel-bubble[contenteditable='true'] {
+    @apply outline-none ring-2 ring-white/70;
+  }
+
+  .mm-sidepanel-message-meta {
+    @apply flex max-w-[92%] flex-wrap items-center gap-2 px-0.5 text-[11px] text-mm-text-muted;
+  }
+
+  .mm-sidepanel-message--user .mm-sidepanel-message-meta {
+    @apply justify-end;
+  }
+
+  .mm-sidepanel-message-time {
+    @apply tabular-nums;
+  }
+
+  .mm-sidepanel-message-action {
+    @apply inline-flex h-5 w-5 items-center justify-center rounded border-0 bg-transparent p-0 text-mm-text-muted transition-colors hover:bg-mm-muted hover:text-mm-accent;
+  }
+
+  .mm-sidepanel-message-action .mm-icon-slot,
+  .mm-sidepanel-message-action .mm-icon-slot svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-sidepanel-message-action:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .mm-sidepanel-tool-call {
+    @apply max-w-[92%] overflow-hidden rounded-xl border border-mm-border-light/90 bg-mm-surface shadow-mm-sm;
+  }
+
+  .mm-sidepanel-tool-call--error {
+    @apply border-red-200/90 bg-mm-danger-soft/40;
+  }
+
+  .mm-sidepanel-tool-call-toggle {
+    @apply flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-mm-muted/50;
+  }
+
+  .mm-sidepanel-tool-call-icon {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-mm-muted text-mm-icon;
+  }
+
+  .mm-sidepanel-tool-call-icon .mm-icon-slot,
+  .mm-sidepanel-tool-call-icon .mm-icon-slot svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-sidepanel-tool-call-name {
+    @apply min-w-0 flex-1 truncate font-mono text-[11px] font-medium text-mm-ink;
+  }
+
+  .mm-sidepanel-tool-call-status {
+    @apply shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide;
+  }
+
+  .mm-sidepanel-tool-call-status--ok {
+    @apply bg-mm-success-soft text-mm-success;
+  }
+
+  .mm-sidepanel-tool-call-status--error {
+    @apply bg-mm-danger-soft text-mm-danger;
+  }
+
+  .mm-sidepanel-tool-call-body {
+    @apply border-t border-mm-border-light/80 bg-mm-canvas/80 px-3 py-2 font-mono text-[11px] leading-relaxed text-mm-secondary;
+  }
+
+  .mm-sidepanel-tool-call-body[hidden] {
+    display: none !important;
+  }
+
+  .mm-sidepanel-composer {
+    @apply shrink-0 px-3 pb-3 pt-1;
+  }
+
+  .mm-sidepanel-composer-shell {
+    @apply relative overflow-visible rounded-2xl border border-mm-border-light/90 bg-mm-surface px-3 pb-2 pt-2.5 shadow-mm-sm ring-1 ring-mm-border-light/50 focus-within:border-mm-accent/40 focus-within:ring-mm-accent/20;
+  }
+
+  .mm-sidepanel-composer-input {
+    @apply block max-h-32 min-h-[2.75rem] w-full resize-none border-0 bg-transparent py-1 text-sm leading-relaxed text-mm-ink placeholder:text-mm-text-muted focus:outline-none focus:ring-0;
+  }
+
+  .mm-sidepanel-composer-footer {
+    @apply mt-1 flex items-center gap-2;
+  }
+
+  .mm-sidepanel-chat-status {
+    @apply min-w-0 flex-1 truncate text-[11px] text-mm-text-muted empty:hidden;
+  }
+
+  .mm-sidepanel-composer-actions {
+    @apply ml-auto flex shrink-0 items-center justify-end gap-1.5;
+  }
+
+  .mm-sidepanel-model-picker {
+    @apply relative max-w-[10.5rem];
+  }
+
+  .mm-sidepanel-model-trigger {
+    @apply flex h-7 max-w-full items-center gap-0.5 rounded-full bg-transparent px-1.5 text-[11px] font-medium text-mm-secondary transition-[background-color,padding,color] duration-150 hover:bg-mm-muted hover:px-2.5 hover:text-mm-ink disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:px-1.5 disabled:hover:text-mm-secondary;
+  }
+
+  .mm-sidepanel-model-picker[open] .mm-sidepanel-model-trigger {
+    @apply bg-mm-muted px-2.5 text-mm-ink;
+  }
+
+  .mm-sidepanel-model-label {
+    @apply min-w-0 truncate;
+  }
+
+  .mm-sidepanel-model-chevron {
+    @apply flex shrink-0 text-mm-icon transition-transform;
+  }
+
+  .mm-sidepanel-model-chevron .mm-icon-slot,
+  .mm-sidepanel-model-chevron .mm-icon-slot svg,
+  .mm-sidepanel-model-chevron svg {
+    @apply h-3.5 w-3.5;
+  }
+
+  .mm-sidepanel-model-picker[open] .mm-sidepanel-model-chevron {
+    transform: rotate(180deg);
+  }
+
+  .mm-sidepanel-model-menu {
+    @apply absolute bottom-[calc(100%+6px)] right-0 z-40 flex max-h-60 min-w-[14rem] max-w-[min(18rem,calc(100vw-2rem))] flex-col overflow-y-auto rounded-xl border border-mm-border-light bg-mm-surface py-1 shadow-mm-sm;
+  }
+
+  .mm-sidepanel-model-menu[hidden] {
+    display: none !important;
+  }
+
+  .mm-sidepanel-model-option {
+    @apply flex w-full items-center px-3 py-1.5 text-left text-xs text-mm-secondary transition-colors hover:bg-mm-muted hover:text-mm-ink;
+  }
+
+  .mm-sidepanel-model-option[aria-selected='true'] {
+    @apply bg-mm-accent-soft font-medium text-mm-accent;
+  }
+
+  .mm-sidepanel-model-empty {
+    @apply px-3 py-2 text-xs text-mm-text-muted;
+  }
+
+  .mm-sidepanel-send-btn,
+  .mm-sidepanel-stop-btn {
+    @apply flex h-7 w-7 items-center justify-center rounded-full transition-colors;
+  }
+
+  .mm-sidepanel-send-btn {
+    @apply bg-mm-ink text-white hover:bg-black disabled:cursor-not-allowed disabled:bg-mm-muted disabled:text-mm-text-muted disabled:opacity-100;
+  }
+
+  .mm-sidepanel-stop-btn {
+    @apply bg-mm-danger text-white hover:brightness-95;
+  }
+
+  .mm-sidepanel-send-btn .mm-icon-slot,
+  .mm-sidepanel-send-btn .mm-icon-slot svg,
+  .mm-sidepanel-stop-btn .mm-icon-slot,
+  .mm-sidepanel-stop-btn .mm-icon-slot svg {
+    @apply h-3.5 w-3.5;
+    color: #fff;
+    fill: currentColor;
+  }
+
+  .mm-sidepanel-send-btn:disabled .mm-icon-slot,
+  .mm-sidepanel-send-btn:disabled .mm-icon-slot svg {
+    color: theme('colors.mm.text-muted');
+  }
+
+  .mm-sidepanel-settings {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-mm-surface;
+  }
+
+  .mm-sidepanel-settings-form {
+    @apply min-h-0 flex-1 overflow-y-auto;
+  }
+
+  .mm-sidepanel-settings .mm-options-section {
+    @apply gap-2.5 px-2.5 py-2.5 sm:px-2.5 sm:py-2.5;
+  }
+
+  .mm-sidepanel-settings .mm-options-field-grid {
+    @apply gap-2.5;
+  }
+
+  .mm-sidepanel-proxy-fields {
+    @apply flex min-w-0 flex-col gap-2.5;
+  }
+
+  .mm-sidepanel-proxy-fields[hidden] {
+    display: none !important;
+  }
+
+  .mm-sidepanel-settings .mm-options-section-title {
+    @apply text-[13px];
+  }
+
+  .mm-sidepanel-settings .mm-options-section-meta {
+    @apply px-1.5 py-0.5 text-[10px];
+  }
+
+  .mm-sidepanel-settings .mm-label {
+    @apply text-xs;
+  }
+
+  .mm-sidepanel-settings .mm-hint {
+    @apply text-[11px] leading-snug;
+  }
+
+  .mm-sidepanel-settings .mm-options-field .mm-native-input,
+  .mm-sidepanel-settings .mm-options-field mm-input > input,
+  .mm-sidepanel-settings .mm-options-field mm-input > textarea {
+    @apply h-8 rounded-md bg-mm-surface px-2.5 text-[13px];
+    box-shadow: 0 0 0 1px theme('colors.mm.border');
+  }
+
+  .mm-sidepanel-settings .mm-options-field select.mm-native-input {
+    @apply h-8 w-full appearance-none px-2.5 pr-8 text-[13px] leading-8;
+    background-color: theme('colors.mm.surface');
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m6 8 4 4 4-4' stroke='%237B8CA3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 0.5rem center;
+    background-size: 1rem 1rem;
+    background-repeat: no-repeat;
+  }
+
+  .mm-sidepanel-settings .mm-options-field mm-input > textarea.mm-sidepanel-prefs-textarea {
+    @apply h-auto min-h-[8.5rem] resize-y py-2 font-mono text-[11px] leading-relaxed;
+  }
+
+  .mm-sidepanel-settings .mm-options-field .mm-native-input:hover,
+  .mm-sidepanel-settings .mm-options-field mm-input > input:hover,
+  .mm-sidepanel-settings .mm-options-field mm-input > textarea:hover {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 0.4);
+  }
+
+  .mm-sidepanel-settings .mm-options-field .mm-native-input:focus,
+  .mm-sidepanel-settings .mm-options-field mm-input > input:focus,
+  .mm-sidepanel-settings .mm-options-field mm-input > textarea:focus {
+    box-shadow: 0 0 0 1px theme('colors.mm.accent');
+  }
+
+  .mm-sidepanel-form-actions {
+    @apply flex items-center justify-end gap-2 pt-0.5;
+  }
+
+  .mm-sidepanel-form-actions > mm-button {
+    @apply inline-flex;
+  }
+
+  .mm-sidepanel-form-actions mm-button > button {
+    @apply h-7 px-2.5 text-xs;
+  }
+}
