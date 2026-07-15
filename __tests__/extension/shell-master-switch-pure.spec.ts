@@ -1,4 +1,4 @@
-import { isShellEnabledForTabState } from '@ext/shared/extension-storage/shell-master-switch-pure'
+import { isCloudflareChallengeRtTkUrl, isShellEnabledForTabState } from '@ext/shared/extension-storage/shell-master-switch-pure'
 
 describe('shell master switch pure', () => {
   it('should treat missing global enable as off for all tabs', () => {
@@ -13,5 +13,18 @@ describe('shell master switch pure', () => {
 
   it('should block disabled tabs even when global is on', () => {
     expect(isShellEnabledForTabState(true, [42], 42)).toBe(false)
+  })
+
+  it('should detect cloudflare challenge urls with __cf_chl_rt_tk', () => {
+    expect(isCloudflareChallengeRtTkUrl('https://example.com/?__cf_chl_rt_tk=abc')).toBe(true)
+    expect(isCloudflareChallengeRtTkUrl('https://example.com/path?foo=1&__cf_chl_rt_tk=xyz#hash')).toBe(true)
+    expect(isCloudflareChallengeRtTkUrl('https://example.com/?__cf_chl_rt_tk')).toBe(true)
+  })
+
+  it('should ignore urls without __cf_chl_rt_tk', () => {
+    expect(isCloudflareChallengeRtTkUrl('https://example.com/')).toBe(false)
+    expect(isCloudflareChallengeRtTkUrl('https://example.com/?foo=__cf_chl_rt_tk')).toBe(false)
+    expect(isCloudflareChallengeRtTkUrl('https://example.com/?__cf_chl_tk=tok')).toBe(false)
+    expect(isCloudflareChallengeRtTkUrl('')).toBe(false)
   })
 })

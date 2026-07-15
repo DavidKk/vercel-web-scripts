@@ -24,6 +24,7 @@ import {
   setShellLogOutputMode,
   setShellNetworkEnabled,
   syncRulesForEnabledScriptKeys,
+  syncShellDisableForCloudflareChallenge,
   writeScriptPermissionRegistry,
 } from '@ext/shared/extension-storage'
 import { focusOrOpenExtensionPage, focusOrOpenTab } from '@ext/shared/focus-or-open-tab'
@@ -228,6 +229,16 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
       }
       return { ok: true, shellEnabled: await isShellEnabledForTab(tabId) }
     }
+    case 'SYNC_CLOUDFLARE_CHALLENGE_SHELL_DISABLE': {
+      const tabId = sender?.tab?.id
+      const url = message.details.url || sender?.tab?.url || ''
+      if (tabId == null) {
+        return { ok: false, error: 'No sender tab for Cloudflare challenge shell sync.' }
+      }
+      await syncShellDisableForCloudflareChallenge(tabId, url)
+      await updateBadgeForTab(tabId, url)
+      return { ok: true }
+    }
     case 'SET_NETWORK': {
       const previous = await getShellNetworkEnabled()
       await setShellNetworkEnabled(message.enabled)
@@ -408,6 +419,7 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
         return { ok: true }
       }
       const url = tab.url ?? message.details.url
+      await syncShellDisableForCloudflareChallenge(tab.id, url)
       resetTabTriggerCountsForPageLoad(tab.id, url)
       scheduleInitializingIdleFallback(tab.id, updateBadgeForTab)
       await updateBadgeForTab(tab.id, url)

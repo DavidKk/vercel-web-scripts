@@ -28,6 +28,22 @@ async function isCurrentTabShellEnabled(): Promise<boolean> {
   }
 }
 
+/**
+ * Apply the same session disable as popup “This tab only” when URL has `__cf_chl_rt_tk`,
+ * and clear that auto-disable once the challenge param is gone.
+ * @param url Absolute page URL
+ */
+async function syncCloudflareChallengeShellDisable(url: string): Promise<void> {
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'SYNC_CLOUDFLARE_CHALLENGE_SHELL_DISABLE',
+      details: { url },
+    } satisfies { type: 'SYNC_CLOUDFLARE_CHALLENGE_SHELL_DISABLE'; details: { url: string } })
+  } catch (error) {
+    isExtensionContextInvalidated(error)
+  }
+}
+
 function installGmStorageChangeListener(): void {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') {
@@ -83,6 +99,8 @@ export async function bootstrapPageBridge(): Promise<void> {
   if (!isHttpPageUrl(url)) {
     return
   }
+  // Same effect as popup “This tab only”: write tab id into shell disable list while CF challenge is active.
+  await syncCloudflareChallengeShellDisable(url)
   if (!isHtmlDocumentForInjection()) {
     notifyBootstrapSkipped(url, 'non-html')
     return

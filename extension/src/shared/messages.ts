@@ -60,6 +60,7 @@ export type ShellMessage =
   | { type: 'SET_NETWORK'; enabled: boolean }
   | { type: 'SET_SHELL_ENABLED'; enabled: boolean; scope?: 'tab' | 'global' }
   | { type: 'GET_SHELL_ENABLED_FOR_SENDER' }
+  | { type: 'SYNC_CLOUDFLARE_CHALLENGE_SHELL_DISABLE'; details: { url: string } }
   | { type: 'SET_LOG_OUTPUT_MODE'; mode: ShellLogOutputMode }
   | { type: 'UPDATE_RUNTIME' }
   | { type: 'RESET_RUNTIME' }
