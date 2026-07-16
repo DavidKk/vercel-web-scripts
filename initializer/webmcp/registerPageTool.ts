@@ -1,3 +1,5 @@
+import { rememberVwsWebMcpPageToolHint } from '@shared/webmcp/page-tool-hints'
+
 import type { WebMcpToolDefinition } from './modelContext'
 import { getDocumentModelContext } from './modelContext'
 
@@ -54,6 +56,9 @@ export async function registerPageTool(pageId: string, definition: WebMcpToolDef
     },
     { once: true }
   )
+
+  // Chromium listTools often drops annotations; stash readOnlyHint for the extension Agent.
+  rememberVwsWebMcpPageToolHint(definition.name, definition.annotations?.readOnlyHint === true, signal)
 
   await modelContext.registerTool(definition, { signal })
 }

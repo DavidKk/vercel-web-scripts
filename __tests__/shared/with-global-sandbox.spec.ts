@@ -21,7 +21,8 @@ describe('with-global-sandbox', () => {
     const target = {
       value: 1,
       needsThis() {
-        if ((this as { value: number }).value !== 1) {
+        // Unbound calls may yield undefined `this` (strict) or a wrong receiver.
+        if (this == null || (this as { value?: number }).value !== 1) {
           throw new TypeError('Illegal invocation')
         }
         return 'ok'

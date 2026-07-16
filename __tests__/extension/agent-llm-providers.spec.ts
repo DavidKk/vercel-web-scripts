@@ -1,6 +1,11 @@
 import { DEFAULT_AGENT_LLM_CONFIG, switchAgentLlmProvider, syncActiveProviderIntoByProvider } from '@ext/shell/webmcp/agent-types'
 
 describe('agent-llm provider config', () => {
+  it('should default to an empty model (no hardcoded pick)', () => {
+    expect(DEFAULT_AGENT_LLM_CONFIG.model).toBe('')
+    expect(DEFAULT_AGENT_LLM_CONFIG.byProvider.gemini?.model).toBe('')
+  })
+
   it('should stash active settings into byProvider on sync', () => {
     const synced = syncActiveProviderIntoByProvider({
       ...DEFAULT_AGENT_LLM_CONFIG,

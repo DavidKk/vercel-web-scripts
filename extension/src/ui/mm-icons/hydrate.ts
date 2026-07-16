@@ -1,4 +1,5 @@
 import iconAccountCircleOutline from '~icons/mdi/account-circle-outline?raw'
+import iconAlertCircle from '~icons/mdi/alert-circle?raw'
 import iconAlertCircleOutline from '~icons/mdi/alert-circle-outline?raw'
 import iconAlertOutline from '~icons/mdi/alert-outline?raw'
 import iconArrowCollapseDown from '~icons/mdi/arrow-collapse-down?raw'
@@ -93,6 +94,7 @@ export const mmPopupIcons = {
   serviceOn: iconPower,
   serviceOff: iconPowerOff,
   nodata: iconInboxOutline,
+  alertCircle: iconAlertCircle,
   permissionAllow: iconCheckCircleOutline,
   permissionAsk: iconHelpCircleOutline,
   permissionDeny: iconCancel,

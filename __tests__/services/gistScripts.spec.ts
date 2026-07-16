@@ -509,7 +509,7 @@ console.log('bad')
       const result = await validateManagedScriptFile('bad-version.ts')
 
       expect(result.ok).toBe(false)
-      expect(result.diagnostics).toContain('@version must be semver x.x.x (got "0.1")')
+      expect(result.diagnostics).toContain('@version must be semver x.x.x or x.x.x-prerelease (got "0.1")')
     })
 
     it('rejects upsert when @version is not semver x.x.x', async () => {
@@ -525,7 +525,7 @@ console.log('bad')
 console.log('bad')
 `
         )
-      ).rejects.toThrow('@version must be semver x.x.x (got "0.2")')
+      ).rejects.toThrow('@version must be semver x.x.x or x.x.x-prerelease (got "0.2")')
       expect(mockWriteGistFiles).not.toHaveBeenCalled()
     })
   })

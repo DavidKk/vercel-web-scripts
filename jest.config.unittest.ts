@@ -33,6 +33,8 @@ export default (): Config.InitialOptions => ({
     '^@/iframe-protocol$': '<rootDir>/editor-lib/src/iframe-protocol',
     '^@/ui/(.*)$': '<rootDir>/preset/src/ui/$1',
     '^@/helpers/(.*)$': '<rootDir>/preset/src/helpers/$1',
+    // Root Next.js `services/*` must win over preset `@/services/*` (same alias prefix).
+    '^@/services/(2fa|ai|auth|context|curl|extension|fetch|gist|oauth-login|runtime|scripts|tampermonkey)(/.*)?$': '<rootDir>/services/$1$2',
     '^@/services/(.*)$': '<rootDir>/preset/src/services/$1',
     ...pathsToModuleNameMapper(tsconfigPaths, {
       prefix: '<rootDir>',

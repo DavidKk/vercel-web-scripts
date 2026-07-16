@@ -46,6 +46,24 @@ function normalizeGeminiModelId(name: string): string {
   return name.replace(/^models\//, '').trim()
 }
 
+function readProviderApiErrorMessage(errorText: string): string | undefined {
+  const trimmed = errorText.trim()
+  if (!trimmed) {
+    return undefined
+  }
+  const jsonStart = trimmed.indexOf('{')
+  if (jsonStart < 0) {
+    return undefined
+  }
+  try {
+    const parsed = JSON.parse(trimmed.slice(jsonStart)) as { error?: { message?: string }; message?: string }
+    const message = String(parsed.error?.message ?? parsed.message ?? '').trim()
+    return message || undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function generateGeminiAgentLlmResponse(input: {
   requestId: string
   messages: AgentLlmMessage[]
@@ -69,7 +87,10 @@ async function generateGeminiAgentLlmResponse(input: {
     body.toolConfig = { functionCallingConfig: { mode: 'AUTO' } }
   }
 
-  const model = input.config.model || DEFAULT_AGENT_LLM_CONFIG.model
+  const model = input.config.model.trim()
+  if (!model) {
+    throw new Error('Select a model next to Send before chatting.')
+  }
   const root = resolveGeminiApiRoot(input.config)
   const response = await fetch(buildGeminiGenerateContentUrl(root, model, input.config.apiKey), {
     method: 'POST',
@@ -83,7 +104,7 @@ async function generateGeminiAgentLlmResponse(input: {
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText)
-    throw new Error(`Gemini API error: ${response.status} ${errorText}`)
+    throw new Error(readProviderApiErrorMessage(errorText) ?? `Gemini API error: ${response.status} ${errorText}`)
   }
 
   const data = (await response.json()) as Parameters<typeof parseGeminiResponse>[0]
@@ -112,7 +133,7 @@ async function listGeminiAgentModels(config: Pick<AgentLlmConfig, 'apiKey' | 'pr
     })
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText)
-      throw new Error(`Gemini models.list failed: ${response.status} ${errorText}`)
+      throw new Error(readProviderApiErrorMessage(errorText) ?? `Gemini models.list failed: ${response.status} ${errorText}`)
     }
 
     const data = (await response.json()) as GeminiListModelsResponse

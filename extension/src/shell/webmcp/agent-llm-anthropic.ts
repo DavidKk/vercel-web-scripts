@@ -1,15 +1,8 @@
 import { resolveProviderApiRoot } from './agent-llm-api-root'
-import { getAgentLlmProviderMeta } from './agent-llm-providers'
 import { buildAgentLlmFetchHeaders, normalizeProxyHeaders } from './agent-llm-proxy-headers'
 import type { AgentLlmConfig, AgentLlmGenerateResult, AgentLlmMessage, AgentLlmModelInfo, AgentLlmToolDefinition } from './agent-types'
 
 export const OFFICIAL_ANTHROPIC_API_ROOT = 'https://api.anthropic.com'
-
-export const ANTHROPIC_FALLBACK_MODELS: readonly AgentLlmModelInfo[] = [
-  { id: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5' },
-  { id: 'claude-opus-4-5', displayName: 'Claude Opus 4.5' },
-  { id: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5' },
-] as const
 
 type AnthropicContent =
   | { type: 'text'; text: string }
@@ -152,8 +145,10 @@ export async function generateAnthropicAgentLlmResponse(input: {
     throw new Error('Claude API key is not configured. Open Agent settings in the side panel.')
   }
 
-  const meta = getAgentLlmProviderMeta('anthropic')
-  const model = input.config.model || meta.defaultModel
+  const model = input.config.model.trim()
+  if (!model) {
+    throw new Error('Select a model next to Send before chatting.')
+  }
   const root = resolveAnthropicRoot(input.config)
   const { system, messages } = toAnthropicPayload(input.messages)
   const body: Record<string, unknown> = {
@@ -186,7 +181,7 @@ export async function generateAnthropicAgentLlmResponse(input: {
 }
 
 /**
- * List Anthropic models; falls back to a curated list when the API is unavailable.
+ * List Anthropic models from the Models API (no hardcoded fallback list).
  * @param config Active / override config slice
  * @returns Model options for the picker
  */
@@ -197,37 +192,34 @@ export async function listAnthropicAgentModels(config: Pick<AgentLlmConfig, 'api
   }
 
   const root = resolveAnthropicRoot(config)
-  try {
-    const response = await fetch(`${root}/v1/models?limit=100`, {
-      headers: buildAnthropicHeaders({ ...config, proxyHeaders: normalizeProxyHeaders(config.proxyHeaders) }),
-    })
-    if (!response.ok) {
-      return [...ANTHROPIC_FALLBACK_MODELS]
-    }
-
-    const data = (await response.json()) as {
-      data?: Array<{ id?: string; display_name?: string }>
-      error?: { message?: string }
-    }
-    if (data.error?.message) {
-      return [...ANTHROPIC_FALLBACK_MODELS]
-    }
-
-    const models: AgentLlmModelInfo[] = []
-    for (const item of data.data ?? []) {
-      const id = String(item.id ?? '').trim()
-      if (!id || !id.startsWith('claude')) {
-        continue
-      }
-      models.push({
-        id,
-        displayName: String(item.display_name ?? id).trim() || id,
-      })
-    }
-
-    models.sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id))
-    return models.length > 0 ? models : [...ANTHROPIC_FALLBACK_MODELS]
-  } catch {
-    return [...ANTHROPIC_FALLBACK_MODELS]
+  const response = await fetch(`${root}/v1/models?limit=100`, {
+    headers: buildAnthropicHeaders({ ...config, proxyHeaders: normalizeProxyHeaders(config.proxyHeaders) }),
+  })
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText)
+    throw new Error(`Claude models API error: ${response.status} ${errorText}`)
   }
+
+  const data = (await response.json()) as {
+    data?: Array<{ id?: string; display_name?: string }>
+    error?: { message?: string }
+  }
+  if (data.error?.message) {
+    throw new Error(data.error.message)
+  }
+
+  const models: AgentLlmModelInfo[] = []
+  for (const item of data.data ?? []) {
+    const id = String(item.id ?? '').trim()
+    if (!id || !id.startsWith('claude')) {
+      continue
+    }
+    models.push({
+      id,
+      displayName: String(item.display_name ?? id).trim() || id,
+    })
+  }
+
+  models.sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id))
+  return models
 }

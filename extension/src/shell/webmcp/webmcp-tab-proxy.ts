@@ -62,8 +62,14 @@ function mapProbeReason(reason: string | undefined): WebMcpProxyReason {
 
 function mergeListedTools(probe: WebMcpListToolsProbeResult): WebMcpListToolsPayload {
   const registry = buildRegistryMapFromProbeEntries(probe.registryEntries ?? [])
+  const pageHints = new Map<string, boolean>()
+  for (const entry of probe.pageHintEntries ?? []) {
+    if (entry.name && entry.readOnlyHint === true) {
+      pageHints.set(entry.name, true)
+    }
+  }
   const rawTools = Array.isArray(probe.tools) ? probe.tools : []
-  const tools = rawTools.map((raw) => mergeListedTool(raw, registry)).filter((tool): tool is NonNullable<typeof tool> => tool != null)
+  const tools = rawTools.map((raw) => mergeListedTool(raw, registry, pageHints)).filter((tool): tool is NonNullable<typeof tool> => tool != null)
 
   const filteredCount = tools.filter((tool) => tool.provider === 'magickmonkey').length
   return {
@@ -73,7 +79,7 @@ function mergeListedTools(probe: WebMcpListToolsProbeResult): WebMcpListToolsPay
   }
 }
 
-function mergeListedTool(raw: WebMcpRawListedTool, registry: Map<string, VwsWebMcpToolRecord>) {
+function mergeListedTool(raw: WebMcpRawListedTool, registry: Map<string, VwsWebMcpToolRecord>, pageHints: Map<string, boolean>) {
   const name = typeof raw.name === 'string' ? raw.name : ''
   if (!name) {
     return null
@@ -88,7 +94,7 @@ function mergeListedTool(raw: WebMcpRawListedTool, registry: Map<string, VwsWebM
     scriptKey: record?.scriptKey,
     scriptFile: record?.scriptFile,
     localName: record?.localName,
-    readOnlyHint: raw.annotations?.readOnlyHint === true || record?.readOnlyHint === true,
+    readOnlyHint: raw.annotations?.readOnlyHint === true || record?.readOnlyHint === true || pageHints.get(name) === true,
   }
 }
 
@@ -110,12 +116,12 @@ async function validateOperableTab(tabId: number): Promise<WebMcpProxyResult<{ t
 export async function webMcpGetSupport(tabId: number): Promise<WebMcpProxyResult<WebMcpSupportPayload>> {
   const tabCheck = await validateOperableTab(tabId)
   if (!tabCheck.ok) {
-    return tabCheck as WebMcpProxyResult<WebMcpSupportPayload>
+    return failure(tabCheck.reason ?? 'invalid_tab', tabCheck.message ?? `Tab ${tabId} was not found.`)
   }
 
   const probeResult = await runListToolsProbe(tabId)
   if (!probeResult.ok || !probeResult.data) {
-    return probeResult as WebMcpProxyResult<WebMcpSupportPayload>
+    return failure(probeResult.reason ?? 'api_missing', probeResult.message ?? 'WebMCP support probe failed.')
   }
 
   return {
@@ -132,12 +138,12 @@ export async function webMcpGetSupport(tabId: number): Promise<WebMcpProxyResult
 export async function webMcpListTools(tabId: number): Promise<WebMcpProxyResult<WebMcpListToolsPayload>> {
   const tabCheck = await validateOperableTab(tabId)
   if (!tabCheck.ok) {
-    return tabCheck as WebMcpProxyResult<WebMcpListToolsPayload>
+    return failure(tabCheck.reason ?? 'invalid_tab', tabCheck.message ?? `Tab ${tabId} was not found.`)
   }
 
   const probeResult = await runListToolsProbe(tabId)
   if (!probeResult.ok || !probeResult.data) {
-    return probeResult as WebMcpProxyResult<WebMcpListToolsPayload>
+    return failure(probeResult.reason ?? 'api_missing', probeResult.message ?? 'WebMCP list probe failed.')
   }
 
   if (probeResult.data.ok !== true) {
@@ -164,7 +170,7 @@ export async function webMcpListTools(tabId: number): Promise<WebMcpProxyResult<
 export async function webMcpExecuteTool(tabId: number, name: string, args: Record<string, unknown>): Promise<WebMcpProxyResult<WebMcpExecuteToolPayload>> {
   const tabCheck = await validateOperableTab(tabId)
   if (!tabCheck.ok) {
-    return tabCheck as WebMcpProxyResult<WebMcpExecuteToolPayload>
+    return failure(tabCheck.reason ?? 'invalid_tab', tabCheck.message ?? `Tab ${tabId} was not found.`)
   }
 
   if (!name.trim()) {

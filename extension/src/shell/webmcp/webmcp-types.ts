@@ -96,6 +96,8 @@ export interface WebMcpListToolsProbeResult {
   message?: string
   tools?: WebMcpRawListedTool[]
   registryEntries?: WebMcpProbeRegistryEntry[]
+  /** Page-stashed annotations for native tools (Chromium listTools often omits them). */
+  pageHintEntries?: Array<{ name: string; readOnlyHint?: boolean }>
   details?: {
     isSecure?: boolean
     origin?: string | null

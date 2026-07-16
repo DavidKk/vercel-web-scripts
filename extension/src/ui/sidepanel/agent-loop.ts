@@ -20,8 +20,11 @@ function uid(): string {
 
 async function listToolsForTab(tabId: number): Promise<WebMcpListedTool[]> {
   const response = await sendShellMessage({ type: 'WEBMCP_LIST_TOOLS', tabId })
-  if (!response.ok || !response.webmcp?.ok || !response.webmcp.data) {
-    throw new Error(response.webmcp?.message ?? response.error ?? 'Failed to list WebMCP tools.')
+  if (!response.ok) {
+    throw new Error(response.error ?? 'Failed to list WebMCP tools.')
+  }
+  if (!('webmcp' in response) || !response.webmcp?.ok || !response.webmcp.data) {
+    throw new Error('webmcp' in response ? (response.webmcp?.message ?? 'Failed to list WebMCP tools.') : 'Failed to list WebMCP tools.')
   }
   const payload = response.webmcp.data as { tools?: WebMcpListedTool[] }
   return payload.tools ?? []
@@ -29,8 +32,11 @@ async function listToolsForTab(tabId: number): Promise<WebMcpListedTool[]> {
 
 async function executeToolForTab(tabId: number, name: string, args: Record<string, unknown>): Promise<unknown> {
   const response = await sendShellMessage({ type: 'WEBMCP_EXECUTE_TOOL', tabId, name, args })
-  if (!response.ok || !response.webmcp?.ok) {
-    throw new Error(response.webmcp?.message ?? response.error ?? `Failed to execute ${name}.`)
+  if (!response.ok) {
+    throw new Error(response.error ?? `Failed to execute ${name}.`)
+  }
+  if (!('webmcp' in response) || !response.webmcp?.ok) {
+    throw new Error('webmcp' in response ? (response.webmcp?.message ?? `Failed to execute ${name}.`) : `Failed to execute ${name}.`)
   }
   const payload = response.webmcp.data as { result?: unknown } | undefined
   return payload?.result
@@ -97,8 +103,11 @@ export async function runAgentLoop(input: {
       tools: availableTools.length > 0 ? toAgentLlmTools(availableTools) : undefined,
     })
 
-    if (!response.ok || !response.agentLlm) {
+    if (!response.ok) {
       throw new Error(response.error ?? 'LLM request failed.')
+    }
+    if (!('agentLlm' in response) || !response.agentLlm) {
+      throw new Error('LLM request failed.')
     }
 
     const { content, toolCalls } = response.agentLlm

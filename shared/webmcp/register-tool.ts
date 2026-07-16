@@ -5,6 +5,8 @@ import { getOrCreateVwsWebMcpToolRegistry, readWebMcpGlobalHosts } from './regis
 import { resolveWebMcpScriptFile, resolveWebMcpScriptKey } from './runtime-context'
 import type { RegisterVwsWebMcpToolResult, VwsWebMcpToolInput, VwsWebMcpToolRecord, WebMcpToolDefinition } from './types'
 
+export type { RegisterVwsWebMcpToolResult, VwsWebMcpToolInput } from './types'
+
 const WARNED_UNSUPPORTED_KEY = '__VWS_WEBMCP_UNSUPPORTED_WARNED__'
 
 export interface RegisterVwsWebMcpToolOptions {

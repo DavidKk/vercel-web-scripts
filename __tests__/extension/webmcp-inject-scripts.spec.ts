@@ -5,6 +5,8 @@ describe('webmcp-inject-scripts', () => {
     const code = buildListToolsProbeCode()
     expect(code).toContain('modelContextTesting')
     expect(code).toContain('__VWS_WEBMCP_TOOL_REGISTRY__')
+    expect(code).toContain('__VWS_WEBMCP_PAGE_TOOL_HINTS__')
+    expect(code).toContain('pageHintEntries')
     expect(code).toContain('listTools')
   })
 

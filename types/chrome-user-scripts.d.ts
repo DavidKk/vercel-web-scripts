@@ -6,6 +6,8 @@ declare namespace chrome.userScripts {
   interface InjectionResult {
     documentId?: string
     frameId?: number
+    /** Value returned by the injected script (Chrome 135+). */
+    result?: unknown
     error?: string
   }
 

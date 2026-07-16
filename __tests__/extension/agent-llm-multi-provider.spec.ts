@@ -28,7 +28,7 @@ describe('agent-llm multi-provider', () => {
     )
     expect(switched.provider).toBe('openai')
     expect(switched.apiKey).toBe('')
-    expect(switched.model).toBe('gpt-4o-mini')
+    expect(switched.model).toBe('')
     expect(switched.byProvider.gemini?.apiKey).toBe('gem-key')
   })
 })

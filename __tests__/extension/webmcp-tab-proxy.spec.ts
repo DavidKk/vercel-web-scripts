@@ -66,6 +66,29 @@ describe('webmcp-tab-proxy', () => {
     expect(result.data?.filteredCount).toBe(1)
   })
 
+  it('should restore readOnlyHint from pageHintEntries when Chromium omits annotations', async () => {
+    installChromeTabsMock({ id: 7, url: 'https://example.com/editor' })
+    executeRawMainWorldCodeForTab.mockResolvedValue({
+      ok: true,
+      value: {
+        ok: true,
+        reason: 'supported',
+        tools: [{ name: 'editor_list_open_tabs', description: 'List tabs' }],
+        registryEntries: [],
+        pageHintEntries: [{ name: 'editor_list_open_tabs', readOnlyHint: true }],
+        details: { isSecure: true, hasTesting: true, hasListTools: true, hasExecuteTool: true },
+      },
+    })
+
+    const result = await webMcpListTools(7)
+    expect(result.ok).toBe(true)
+    expect(result.data?.tools[0]).toMatchObject({
+      name: 'editor_list_open_tabs',
+      provider: 'native',
+      readOnlyHint: true,
+    })
+  })
+
   it('webMcpExecuteTool maps execute failures', async () => {
     installChromeTabsMock({ id: 4, url: 'https://example.com/page' })
     executeRawMainWorldCodeForTab.mockResolvedValue({

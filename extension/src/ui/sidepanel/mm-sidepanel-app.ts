@@ -3,8 +3,9 @@ import { isValidApiBaseUrl, normalizeApiBaseUrl } from '@ext/shell/webmcp/agent-
 import { type AgentLlmProviderId, getAgentLlmProviderMeta, isAgentLlmProviderId } from '@ext/shell/webmcp/agent-llm-providers'
 import { formatProxyHeadersJson, parseProxyHeadersJson } from '@ext/shell/webmcp/agent-llm-proxy-headers'
 import { type AgentLlmConfig, type AgentLlmModelInfo, type AgentPrefs, switchAgentLlmProvider } from '@ext/shell/webmcp/agent-types'
-import { hydrateIconSlot, hydrateMmIcons } from '@ext/ui/mm-icons'
+import { hydrateIconSlot, hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from '@ext/ui/mm-icons'
 import { showMmNotification } from '@ext/ui/mm-notification'
+import { updateMmTooltip } from '@ext/ui/shared/mm-tooltip'
 import { formatAbsoluteTime24h, formatRelativeTime } from '@shared/format-relative-time'
 
 import { type AgentUiMessage, runAgentLoop } from './agent-loop'
@@ -27,6 +28,12 @@ export class MmSidepanelApp extends HTMLElement {
   private preferredModelId = ''
   private modelOptions: AgentLlmModelInfo[] = []
   private modelsLoaded = false
+  /** Last models.list / refresh failure for tooltip + notification. */
+  private modelsError = ''
+  /** Shared in-flight models refresh so clicks wait instead of no-op. */
+  private modelsRefreshPromise: Promise<void> | null = null
+  /** Bumped on each list attempt so stale in-flight runs cannot clobber newer UI state. */
+  private modelsRefreshGeneration = 0
 
   private onTabActivated = (): void => {
     void this.refreshActiveTab()
@@ -87,7 +94,7 @@ export class MmSidepanelApp extends HTMLElement {
     })
     this.querySelector('[data-ref="model-trigger"]')?.addEventListener('click', (event) => {
       event.stopPropagation()
-      void this.toggleModelMenu()
+      void this.onModelTriggerClick()
     })
     this.querySelector('[data-ref="model-menu"]')?.addEventListener('click', (event) => {
       event.stopPropagation()
@@ -171,8 +178,17 @@ export class MmSidepanelApp extends HTMLElement {
     }
     const running = send.classList.contains('hidden')
     const tabOk = this.isAgentCompatibleTab()
-    send.disabled = running || !tabOk || !input?.value.trim()
-    send.title = !tabOk ? this.describeUnsupportedTab() : 'Send'
+    const modelOk = Boolean(this.preferredModelId.trim()) && this.modelsLoaded
+    send.disabled = running || !tabOk || !input?.value.trim() || !modelOk
+    if (!tabOk) {
+      send.title = this.describeUnsupportedTab()
+    } else if (!this.modelsLoaded) {
+      send.title = 'Refresh models first'
+    } else if (!this.preferredModelId.trim()) {
+      send.title = 'Select a model first'
+    } else {
+      send.title = 'Send'
+    }
   }
 
   private isAgentCompatibleTab(): boolean {
@@ -204,6 +220,7 @@ export class MmSidepanelApp extends HTMLElement {
       input.placeholder = tabOk ? 'Message Agent…' : 'Switch to an http(s) tab to chat…'
     }
     if (modelTrigger) {
+      // Do not gate on modelsLoading — a disabled button swallows further Refresh clicks.
       modelTrigger.disabled = !tabOk
     }
     if (!tabOk) {
@@ -424,19 +441,116 @@ export class MmSidepanelApp extends HTMLElement {
 
   private shortModelLabel(modelId: string): string {
     const known = this.modelOptions.find((model) => model.id === modelId)
-    const raw = known?.displayName || modelId || 'Model'
-    return raw.replace(/^(Gemini|Claude|GPT)\s+/i, '').trim() || modelId || 'Model'
+    const raw = known?.displayName || modelId || 'Select model'
+    return raw.replace(/^(Gemini|Claude|GPT)\s+/i, '').trim() || modelId || 'Select model'
   }
 
   private syncModelLabel(): void {
     const label = this.querySelector('[data-ref="model-label"]')
-    if (label) {
-      label.textContent = this.shortModelLabel(this.preferredModelId)
-    }
     const trigger = this.querySelector('[data-ref="model-trigger"]') as HTMLButtonElement | null
-    if (trigger) {
-      trigger.title = this.preferredModelId ? `Model: ${this.preferredModelId}` : 'Select model'
+    const status = this.querySelector('[data-ref="model-status"]') as HTMLElement | null
+    const chevron = this.querySelector('[data-ref="model-chevron"]') as HTMLElement | null
+    const picker = this.querySelector('[data-ref="model-picker"]')
+    const tabOk = this.isAgentCompatibleTab()
+
+    const setStatusVisible = (visible: boolean) => {
+      if (!status) {
+        return
+      }
+      status.hidden = !visible
+      if (visible) {
+        setIconSlotKey(status, 'alertCircle')
+        status.removeAttribute('aria-hidden')
+        // Tooltip is on the trigger; status is pointer-events-none so clicks reach Refresh.
+        status.removeAttribute('data-mm-tooltip')
+        status.removeAttribute('data-mm-tooltip-wide')
+        status.removeAttribute('data-mm-tooltip-placement')
+        status.removeAttribute('title')
+        status.removeAttribute('aria-label')
+      } else {
+        status.setAttribute('aria-hidden', 'true')
+        status.removeAttribute('aria-label')
+        status.removeAttribute('data-mm-tooltip')
+        status.removeAttribute('data-mm-tooltip-wide')
+        status.removeAttribute('data-mm-tooltip-placement')
+        status.removeAttribute('title')
+      }
     }
+
+    if (trigger) {
+      trigger.disabled = !tabOk
+    }
+
+    if (this.modelsLoading) {
+      if (label) {
+        label.textContent = 'Loading…'
+      }
+      if (trigger) {
+        trigger.removeAttribute('title')
+        trigger.removeAttribute('data-mm-tooltip')
+        trigger.removeAttribute('data-mm-tooltip-wide')
+        trigger.setAttribute('aria-label', 'Loading models')
+        trigger.setAttribute('aria-busy', 'true')
+        trigger.setAttribute('aria-haspopup', 'listbox')
+      }
+      setStatusVisible(false)
+      if (chevron) {
+        chevron.hidden = false
+        setIconSlotLoading(chevron, true)
+      }
+      picker?.setAttribute('data-mode', 'loading')
+      this.syncComposerSendState()
+      return
+    }
+
+    if (trigger) {
+      trigger.removeAttribute('aria-busy')
+    }
+
+    if (chevron) {
+      setIconSlotLoading(chevron, false)
+    }
+
+    if (!this.modelsLoaded) {
+      if (label) {
+        label.textContent = 'Refresh'
+      }
+      if (trigger) {
+        const tip = this.modelsError ? this.formatUserFacingError(this.modelsError) : 'Could not load models. Click Refresh to retry.'
+        trigger.removeAttribute('title')
+        updateMmTooltip(trigger, tip, 'top')
+        trigger.setAttribute('data-mm-tooltip-wide', '')
+        trigger.setAttribute('aria-label', 'Refresh models')
+        trigger.setAttribute('aria-haspopup', 'false')
+      }
+      setStatusVisible(true)
+      if (chevron) {
+        chevron.hidden = true
+      }
+      picker?.setAttribute('data-mode', 'refresh')
+      this.hideModelMenu()
+      this.syncComposerSendState()
+      return
+    }
+
+    picker?.removeAttribute('data-mode')
+    setStatusVisible(false)
+    if (chevron) {
+      chevron.hidden = false
+      setIconSlotKey(chevron, 'chevronDown')
+    }
+    if (label) {
+      label.textContent = this.preferredModelId ? this.shortModelLabel(this.preferredModelId) : 'Select model'
+    }
+    if (trigger) {
+      const tip = this.preferredModelId ? `Model: ${this.preferredModelId}` : 'Select model'
+      trigger.disabled = !this.isAgentCompatibleTab()
+      trigger.removeAttribute('title')
+      trigger.removeAttribute('data-mm-tooltip')
+      trigger.setAttribute('aria-label', tip)
+      trigger.setAttribute('aria-haspopup', 'listbox')
+    }
+    this.syncComposerSendState()
   }
 
   private hideModelMenu(): void {
@@ -450,11 +564,34 @@ export class MmSidepanelApp extends HTMLElement {
     trigger?.setAttribute('aria-expanded', 'false')
   }
 
+  /**
+   * Model trigger click: Refresh mode re-lists models; otherwise toggles the picker menu.
+   */
+  private async onModelTriggerClick(): Promise<void> {
+    const trigger = this.querySelector('[data-ref="model-trigger"]') as HTMLButtonElement | null
+    if (!trigger) {
+      return
+    }
+
+    // Failed / empty list → always force a visible re-request.
+    if (!this.modelsLoaded) {
+      // Keep Refresh clickable even if tab gate briefly disabled the control.
+      trigger.disabled = false
+      void this.refreshGeminiModels({ force: true })
+      return
+    }
+
+    if (trigger.disabled) {
+      return
+    }
+    await this.toggleModelMenu()
+  }
+
   private async toggleModelMenu(): Promise<void> {
     const picker = this.querySelector('[data-ref="model-picker"]')
     const menu = this.querySelector('[data-ref="model-menu"]') as HTMLElement | null
     const trigger = this.querySelector('[data-ref="model-trigger"]') as HTMLButtonElement | null
-    if (!picker || !menu || !trigger || trigger.disabled) {
+    if (!picker || !menu || !trigger || trigger.disabled || !this.modelsLoaded) {
       return
     }
 
@@ -464,9 +601,6 @@ export class MmSidepanelApp extends HTMLElement {
       return
     }
 
-    if (!this.modelsLoaded && !this.modelsLoading) {
-      await this.refreshGeminiModels()
-    }
     this.renderModelMenu()
     picker.setAttribute('open', '')
     menu.hidden = false
@@ -485,7 +619,7 @@ export class MmSidepanelApp extends HTMLElement {
       const empty = document.createElement('div')
       empty.className = 'mm-sidepanel-model-empty'
       empty.dataset.ref = 'model-empty'
-      empty.textContent = this.modelsLoading ? 'Loading models…' : 'Configure API key in Settings, then reopen.'
+      empty.textContent = this.modelsLoading ? 'Loading models…' : 'No models available. Tap Refresh.'
       menu.append(empty)
       return
     }
@@ -632,28 +766,55 @@ export class MmSidepanelApp extends HTMLElement {
     return stored.apiKey.trim()
   }
 
-  private async refreshGeminiModels(): Promise<void> {
-    if (this.modelsLoading) {
+  private async refreshGeminiModels(options?: { force?: boolean }): Promise<void> {
+    // Non-force callers share one in-flight request.
+    if (this.modelsRefreshPromise && !options?.force) {
+      await this.modelsRefreshPromise
       return
     }
 
-    const apiKey = await this.resolveApiKey()
-    if (!apiKey) {
-      this.modelOptions = []
-      this.modelsLoaded = false
-      this.syncModelLabel()
-      return
-    }
+    // Force (Refresh click) always starts a new attempt immediately — do not wait on a stuck prior request.
+    const run = this.runRefreshGeminiModels()
+    const tracked = run.finally(() => {
+      if (this.modelsRefreshPromise === tracked) {
+        this.modelsRefreshPromise = null
+      }
+    })
+    this.modelsRefreshPromise = tracked
+    await tracked
+  }
 
-    const proxyState = this.tryReadProxyFormState()
-    if (!proxyState.ok) {
-      this.modelsLoaded = false
-      this.syncModelLabel()
-      return
-    }
-    const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
+  private async runRefreshGeminiModels(): Promise<void> {
+    const generation = ++this.modelsRefreshGeneration
+    // Show Loading immediately so Refresh clicks always produce visible feedback.
     this.modelsLoading = true
+    this.syncModelLabel()
     try {
+      const apiKey = await this.resolveApiKey()
+      if (generation !== this.modelsRefreshGeneration) {
+        return
+      }
+      if (!apiKey) {
+        this.modelOptions = []
+        this.modelsLoaded = false
+        this.modelsError = 'Configure an API key in Settings first.'
+        showMmNotification(this.modelsError, 'error')
+        this.showSettings(true)
+        return
+      }
+
+      const proxyState = this.tryReadProxyFormState()
+      if (generation !== this.modelsRefreshGeneration) {
+        return
+      }
+      if (!proxyState.ok) {
+        this.modelOptions = []
+        this.modelsLoaded = false
+        this.modelsError = proxyState.error
+        showMmNotification(this.formatUserFacingError(proxyState.error), 'error')
+        return
+      }
+      const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
       const response = await sendShellMessage({
         type: 'AGENT_LLM_LIST_MODELS',
         apiKey,
@@ -662,32 +823,43 @@ export class MmSidepanelApp extends HTMLElement {
         proxyHeaders,
         provider: this.readProviderFromForm(),
       })
+      if (generation !== this.modelsRefreshGeneration) {
+        return
+      }
       if (!response.ok || !('agentLlmModels' in response) || !response.agentLlmModels) {
-        throw new Error(!response.ok ? response.error : 'Failed to load Gemini models.')
+        throw new Error(!response.ok ? response.error : 'Failed to load models.')
       }
 
       this.modelOptions = response.agentLlmModels
-      this.modelsLoaded = true
+      this.modelsLoaded = this.modelOptions.length > 0
+      this.modelsError = this.modelsLoaded ? '' : 'No models returned. Tap Refresh to retry.'
 
-      const preferred = this.preferredModelId
-      const nextValue = this.modelOptions.some((model) => model.id === preferred) ? preferred : (this.modelOptions[0]?.id ?? preferred)
-      if (nextValue && nextValue !== this.preferredModelId) {
-        this.preferredModelId = nextValue
+      const preferred = this.preferredModelId.trim()
+      if (preferred && !this.modelOptions.some((model) => model.id === preferred)) {
+        this.preferredModelId = ''
         const llm = await loadAgentLlmConfig()
-        await saveAgentLlmConfig({ ...llm, model: nextValue })
+        await saveAgentLlmConfig({ ...llm, model: '' })
       }
-      this.syncModelLabel()
-    } catch {
+      if (!this.modelsLoaded) {
+        showMmNotification(this.formatUserFacingError(this.modelsError), 'warn')
+      }
+    } catch (error) {
+      if (generation !== this.modelsRefreshGeneration) {
+        return
+      }
+      const raw = error instanceof Error ? error.message : String(error)
+      this.modelOptions = []
       this.modelsLoaded = false
-      if (this.preferredModelId) {
-        this.modelOptions = [{ id: this.preferredModelId, displayName: this.preferredModelId }]
-      }
-      this.syncModelLabel()
+      this.modelsError = raw
+      showMmNotification(this.formatUserFacingError(raw), 'error')
     } finally {
-      this.modelsLoading = false
-      const menu = this.querySelector('[data-ref="model-menu"]') as HTMLElement | null
-      if (menu && !menu.hidden) {
-        this.renderModelMenu()
+      if (generation === this.modelsRefreshGeneration) {
+        this.modelsLoading = false
+        this.syncModelLabel()
+        const menu = this.querySelector('[data-ref="model-menu"]') as HTMLElement | null
+        if (menu && !menu.hidden) {
+          this.renderModelMenu()
+        }
       }
     }
   }
@@ -734,8 +906,7 @@ export class MmSidepanelApp extends HTMLElement {
   private async saveLlmSettings(): Promise<void> {
     const provider = this.readProviderFromForm()
     const apiKey = (this.querySelector('[data-ref="llm-api-key"]') as HTMLInputElement | null)?.value ?? ''
-    const meta = getAgentLlmProviderMeta(provider)
-    const model = this.preferredModelId || meta.defaultModel
+    const model = this.preferredModelId.trim()
     const proxyState = this.tryReadProxyFormState()
     if (!proxyState.ok) {
       showMmNotification(proxyState.error, 'error')
@@ -1128,16 +1299,33 @@ export class MmSidepanelApp extends HTMLElement {
     const text = String(raw || '')
       .replace(/\s+/g, ' ')
       .trim()
-    if (/429/.test(text)) {
-      return 'Gemini rate limit reached (429). Please wait and try again.'
+    const fromJson = (() => {
+      const jsonStart = text.indexOf('{')
+      if (jsonStart < 0) {
+        return ''
+      }
+      try {
+        const parsed = JSON.parse(text.slice(jsonStart)) as { error?: { message?: string }; message?: string }
+        return String(parsed.error?.message ?? parsed.message ?? '').trim()
+      } catch {
+        return ''
+      }
+    })()
+    const message = fromJson || text
+
+    if (/User location is not supported|FAILED_PRECONDITION/i.test(message)) {
+      return 'Gemini is not available in your region. Enable API proxy or switch provider in Settings.'
     }
-    if (/401|403|API[_ ]?key|PERMISSION_DENIED/i.test(text)) {
-      return 'Gemini API key is invalid or unauthorized. Check Settings.'
+    if (/429/.test(message)) {
+      return 'Rate limit reached (429). Please wait and try again.'
     }
-    if (/Failed to list WebMCP|WebMCP/i.test(text)) {
-      return text.length > 140 ? `${text.slice(0, 137)}…` : text
+    if (/401|403|API[_ ]?key|PERMISSION_DENIED/i.test(message)) {
+      return 'API key is invalid or unauthorized. Check Settings.'
     }
-    return text.length > 140 ? `${text.slice(0, 137)}…` : text || 'Something went wrong.'
+    if (/Failed to list WebMCP|WebMCP/i.test(message)) {
+      return message.length > 160 ? `${message.slice(0, 157)}…` : message
+    }
+    return message.length > 160 ? `${message.slice(0, 157)}…` : message || 'Something went wrong.'
   }
 
   private reportError(raw: string): void {
@@ -1162,16 +1350,23 @@ export class MmSidepanelApp extends HTMLElement {
     }
   }
 
+  /** Clear composer draft only after the user message was accepted into the chat. */
+  private clearComposerInput(): void {
+    const input = this.querySelector('[data-ref="chat-input"]') as HTMLTextAreaElement | null
+    if (!input) {
+      return
+    }
+    input.value = ''
+    this.syncComposerSendState()
+  }
+
   private async sendChat(): Promise<void> {
     const input = this.querySelector('[data-ref="chat-input"]') as HTMLTextAreaElement | null
     const text = input?.value.trim() ?? ''
-    if (!text) {
+    if (!text || this.chatAbort) {
       return
     }
-    if (input) {
-      input.value = ''
-      this.syncComposerSendState()
-    }
+    // Keep draft until the turn is accepted (user bubble shown / waiting for reply).
     await this.runChatTurn(text)
   }
 
@@ -1193,8 +1388,16 @@ export class MmSidepanelApp extends HTMLElement {
 
     const llm = await loadAgentLlmConfig()
     if (!llm.apiKey.trim()) {
-      showMmNotification('Configure Gemini API key in Settings.', 'warn')
+      showMmNotification('Configure an API key in Settings.', 'warn')
       this.showSettings(true)
+      return
+    }
+    if (!this.modelsLoaded) {
+      showMmNotification('Refresh models first, then pick one.', 'warn')
+      return
+    }
+    if (!this.preferredModelId.trim() && !llm.model.trim()) {
+      showMmNotification('Select a model next to Send.', 'warn')
       return
     }
 
@@ -1202,6 +1405,7 @@ export class MmSidepanelApp extends HTMLElement {
     this.chatAbort = new AbortController()
     this.setChatRunning(true)
 
+    let composerCleared = Boolean(options?.skipUserMessageEvent)
     try {
       await runAgentLoop({
         tabId: this.activeTabId,
@@ -1212,6 +1416,10 @@ export class MmSidepanelApp extends HTMLElement {
         onEvent: (event) => {
           if (event.type === 'message') {
             this.appendChatMessage(event.message)
+            if (event.message.kind === 'user' && !composerCleared) {
+              composerCleared = true
+              this.clearComposerInput()
+            }
           } else if (event.type === 'status') {
             this.setChatStatus(event.text)
           } else if (event.type === 'error') {

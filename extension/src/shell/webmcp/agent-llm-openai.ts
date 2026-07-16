@@ -1,5 +1,4 @@
 import { resolveProviderApiRoot } from './agent-llm-api-root'
-import { getAgentLlmProviderMeta } from './agent-llm-providers'
 import { buildAgentLlmFetchHeaders, normalizeProxyHeaders } from './agent-llm-proxy-headers'
 import type { AgentLlmConfig, AgentLlmGenerateResult, AgentLlmMessage, AgentLlmModelInfo, AgentLlmToolDefinition } from './agent-types'
 
@@ -145,8 +144,10 @@ export async function generateOpenAiAgentLlmResponse(input: {
     throw new Error('OpenAI API key is not configured. Open Agent settings in the side panel.')
   }
 
-  const meta = getAgentLlmProviderMeta('openai')
-  const model = input.config.model || meta.defaultModel
+  const model = input.config.model.trim()
+  if (!model) {
+    throw new Error('Select a model next to Send before chatting.')
+  }
   const root = resolveOpenAiRoot(input.config)
   const body: Record<string, unknown> = {
     model,
@@ -212,9 +213,5 @@ export async function listOpenAiAgentModels(config: Pick<AgentLlmConfig, 'apiKey
   }
 
   models.sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id))
-  if (models.length === 0) {
-    const fallback = getAgentLlmProviderMeta('openai').defaultModel
-    return [{ id: fallback, displayName: fallback }]
-  }
   return models
 }

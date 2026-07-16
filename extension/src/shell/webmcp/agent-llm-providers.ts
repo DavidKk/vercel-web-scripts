@@ -72,10 +72,10 @@ export function getAgentLlmProviderMeta(id: string): AgentLlmProviderMeta {
  * @returns Default per-provider settings
  */
 export function defaultAgentLlmProviderSettings(id: AgentLlmProviderId): AgentLlmProviderSettings {
-  const meta = getAgentLlmProviderMeta(id)
+  void id
   return {
     apiKey: '',
-    model: meta.defaultModel,
+    model: '',
     proxyEnabled: false,
     baseUrl: '',
     proxyHeaders: {},
