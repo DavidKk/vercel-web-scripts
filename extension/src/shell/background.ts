@@ -35,7 +35,7 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== DEBUG_LOG_PORT_NAME) {
     return
   }
-  void initBagLogStore().then(() => {
+  void initDebugLogStore().then(() => {
     attachDebugLogPort(port)
   })
 })

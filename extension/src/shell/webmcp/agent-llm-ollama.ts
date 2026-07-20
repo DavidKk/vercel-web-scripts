@@ -65,7 +65,7 @@ export async function generateOllamaAgentLlmResponse(input: {
     })
   } catch (error) {
     const raw = error instanceof Error ? error.message : String(error)
-    const match = raw.match(/OpenAI API error \(([^)]+)\): (401|403)\b(.*)$/s)
+    const match = raw.match(/OpenAI API error \(([^)]+)\): (401|403)\b([\s\S]*)$/)
     if (match) {
       throw enrichOllamaHttpError(match[1], Number(match[2]), match[3].trim())
     }
