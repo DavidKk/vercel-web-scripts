@@ -32,3 +32,9 @@ declare module '*.json?raw' {
   const content: string
   export default content
 }
+
+/** unplugin-icons ?raw: import MDI icon as raw SVG string (extension / editor-lib / preset). */
+declare module '~icons/*?raw' {
+  const content: string
+  export default content
+}

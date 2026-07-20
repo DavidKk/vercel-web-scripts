@@ -34,6 +34,7 @@
     "explorer-lib/**/*",
     "__tests__/editor-lib/**/*",
     "__tests__/preset/**/*",
+    "__tests__/extension/**/*",
     "docs/examples/**/*"
   ]
 }
