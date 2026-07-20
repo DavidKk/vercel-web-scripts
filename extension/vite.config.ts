@@ -23,6 +23,7 @@ const EXTENSION_ENTRIES = [
   { name: 'sidepanel', input: 'src/ui/sidepanel/sidepanel.ts' },
   { name: 'content-bridge', input: 'src/bridge/content.ts' },
   { name: 'page-launcher', input: 'src/page/index.ts' },
+  { name: 'page-tools-main', input: 'src/shell/webmcp/page-tools/page-tools-main.ts' },
 ] as const
 
 const sharedResolve: UserConfig['resolve'] = {
@@ -92,6 +93,21 @@ function extensionDefine(devReloadSseUrl: string): UserConfig['define'] {
   }
 }
 
+/**
+ * Rebuild any entry whose dist IIFE is missing (common under watch when a primary
+ * rebuild overlaps secondary output). Does not empty dist.
+ */
+async function rebuildMissingEntryBundles(devReloadSseUrl: string): Promise<void> {
+  for (const entry of EXTENSION_ENTRIES) {
+    const file = path.join(distDir, `${entry.name}.js`)
+    if (existsSync(file)) {
+      continue
+    }
+    extensionLog.warn(`${entry.name}.js missing — rebuilding entry`)
+    await build(createEntryConfig(entry, false, devReloadSseUrl))
+  }
+}
+
 function createEntryConfig(entry: (typeof EXTENSION_ENTRIES)[number], emptyOutDir: boolean, devReloadSseUrl: string): InlineConfig {
   return {
     configFile: false,
@@ -154,11 +170,27 @@ function extensionCleanPlugin(): Plugin {
  * Nested builds use configFile:false so this plugin is not re-entered.
  */
 /** popup, scripts, servers, content-bridge, page-launcher + shell.css (watch + closeBundle). */
-async function buildSecondaryExtensionEntries(devReloadSseUrl: string, watchMode: boolean): Promise<void> {
+async function buildSecondaryExtensionEntries(devReloadSseUrl: string, watchMode: boolean, generation?: { current: number; mine: number }): Promise<void> {
+  const superseded = () => generation != null && generation.mine !== generation.current
+
   for (let i = 1; i < EXTENSION_ENTRIES.length; i++) {
+    if (superseded()) {
+      extensionLog.info(`secondary build superseded (gen ${generation!.mine} → ${generation!.current}); aborting`)
+      return
+    }
     await build(createEntryConfig(EXTENSION_ENTRIES[i], false, devReloadSseUrl))
   }
+  if (superseded()) {
+    return
+  }
   await buildShellCss(__dirname, 'dist')
+  if (superseded()) {
+    return
+  }
+  await rebuildMissingEntryBundles(devReloadSseUrl)
+  if (superseded()) {
+    return
+  }
   assertNoModuleSyntax()
   copyExtensionAssets(watchMode)
 }
@@ -169,15 +201,29 @@ function extensionMultiEntryPlugin(devReload: ReturnType<typeof ensureDevReloadS
   let touchStampTimer: ReturnType<typeof setTimeout> | undefined
   let watchSecondaryTimer: ReturnType<typeof setTimeout> | undefined
   let watchSecondaryWaiters: Array<{ resolve: () => void; reject: (error: unknown) => void }> = []
+  let secondaryGeneration = 0
   const devReloadSseUrl = devReload?.sseUrl ?? ''
   /** Coalesce rapid watch rebuilds so secondary IIFEs are not interrupted mid-pipeline. */
-  const watchSecondaryDebounceMs = 80
+  const watchSecondaryDebounceMs = 160
 
   function enqueueSecondaryBuild(watchMode: boolean): Promise<void> {
+    const mine = ++secondaryGeneration
+    const generation = {
+      get current() {
+        return secondaryGeneration
+      },
+      mine,
+    }
     closeBundleQueue = closeBundleQueue
       .catch(() => undefined)
       .then(async () => {
-        await buildSecondaryExtensionEntries(devReloadSseUrl, watchMode)
+        if (mine !== secondaryGeneration) {
+          return
+        }
+        await buildSecondaryExtensionEntries(devReloadSseUrl, watchMode, generation)
+        if (mine !== secondaryGeneration) {
+          return
+        }
         if (watchMode && devReload) {
           devReload.scheduleBroadcast()
         }
@@ -238,12 +284,17 @@ function extensionMultiEntryPlugin(devReload: ReturnType<typeof ensureDevReloadS
       return run.catch((err: unknown) => {
         // eslint-disable-next-line no-console -- Vite build pipeline error surface
         console.error('[extension] multi-entry build failed:', err)
+        // Keep `vite build --watch` alive — a transient race must not kill the process.
+        if (watchMode) {
+          return
+        }
         throw err
       })
     },
     closeWatcher() {
       clearTimeout(touchStampTimer)
       clearTimeout(watchSecondaryTimer)
+      secondaryGeneration += 1
       if (watchSecondaryWaiters.length > 0) {
         const waiters = watchSecondaryWaiters
         watchSecondaryWaiters = []

@@ -3,6 +3,9 @@ import { normalizeProxyHeaders } from '@ext/shell/webmcp/agent-llm-proxy-headers
 import type { AgentLlmConfig, AgentPrefs } from '@ext/shell/webmcp/agent-types'
 import { DEFAULT_AGENT_LLM_CONFIG, DEFAULT_AGENT_PREFS, syncActiveProviderIntoByProvider, VWS_AGENT_LLM_CONFIG_KEY, VWS_AGENT_PREFS_KEY } from '@ext/shell/webmcp/agent-types'
 
+/** Serialize all LLM config writes to avoid load→mutate→save races. */
+let agentLlmConfigWriteChain: Promise<unknown> = Promise.resolve()
+
 /**
  * Normalize stored LLM config (legacy flat rows without byProvider / proxyHeaders).
  * @param raw Partial stored value
@@ -41,6 +44,29 @@ export async function saveAgentLlmConfig(config: AgentLlmConfig): Promise<void> 
   await chrome.storage.local.set({
     [VWS_AGENT_LLM_CONFIG_KEY]: normalized,
   })
+}
+
+/**
+ * Read-modify-write LLM config on a serialized queue.
+ * Mutator runs after the latest load inside the queue — re-read form values inside mutator when needed.
+ */
+export async function updateAgentLlmConfig(mutator: (current: AgentLlmConfig) => AgentLlmConfig | Promise<AgentLlmConfig>): Promise<AgentLlmConfig> {
+  const run = agentLlmConfigWriteChain.then(async () => {
+    const current = await loadAgentLlmConfig()
+    const next = await mutator(current)
+    await saveAgentLlmConfig(next)
+    return next
+  })
+  agentLlmConfigWriteChain = run.then(
+    () => undefined,
+    () => undefined
+  )
+  return run
+}
+
+/** Test helper: wait until queued LLM writes settle. */
+export async function flushAgentLlmConfigWritesForTests(): Promise<void> {
+  await agentLlmConfigWriteChain
 }
 
 /**

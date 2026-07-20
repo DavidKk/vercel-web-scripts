@@ -596,5 +596,13 @@ export function installGmApiOnPage(): GMApi {
     g[key] = value
   }
 
+  /**
+   * Open MagickMonkey Agent side panel via the extension bridge.
+   * Prefer keyboard shortcut (⌘⇧M / Ctrl+Shift+M) when Chrome drops the user gesture.
+   */
+  g.GME_openAgentSidePanel = async (): Promise<void> => {
+    await sendRequest('openSidePanel', [])
+  }
+
   return api
 }

@@ -1,4 +1,4 @@
-import { VWS_WEBMCP_PROVIDER_ID, VWS_WEBMCP_TITLE_PREFIX } from './constants'
+import { VWS_WEBMCP_PAGE_SCRIPT_KEY, VWS_WEBMCP_PROVIDER_ID, VWS_WEBMCP_TITLE_PREFIX } from './constants'
 import { getDocumentModelContext, isWebMcpSupported } from './model-context'
 import { buildVwsWebMcpCanonicalName, isValidVwsWebMcpLocalName } from './naming'
 import { getOrCreateVwsWebMcpToolRegistry, readWebMcpGlobalHosts } from './registry'
@@ -12,11 +12,16 @@ const WARNED_UNSUPPORTED_KEY = '__VWS_WEBMCP_UNSUPPORTED_WARNED__'
 export interface RegisterVwsWebMcpToolOptions {
   signal?: AbortSignal
   /** Logger hook (preset passes GME_warn). */
-  warn?: (message: string) => void
+  warn?: ((message: string) => void) | undefined
   /** Test override for script key resolution. */
   scriptKey?: string
   /** Test override for script file metadata. */
   scriptFile?: string
+  /**
+   * Allow reserved `scriptKey === 'page'` (extension builtin page tools only).
+   * Gist / GME callers must never set this.
+   */
+  allowReservedPageScriptKey?: boolean
 }
 
 function warnOnce(root: Record<string, unknown>, warn: ((message: string) => void) | undefined, message: string): void {
@@ -52,6 +57,9 @@ export async function registerVwsWebMcpTool(definition: VwsWebMcpToolInput, opti
   const scriptKey = options?.scriptKey?.trim() || resolveWebMcpScriptKey()
   if (!scriptKey) {
     return buildFailure('missing_script_key', '[WebMCP] missing scriptKey; skip tool registration', warn)
+  }
+  if (scriptKey === VWS_WEBMCP_PAGE_SCRIPT_KEY && options?.allowReservedPageScriptKey !== true) {
+    return buildFailure('invalid_script_key', `[WebMCP] scriptKey "${VWS_WEBMCP_PAGE_SCRIPT_KEY}" is reserved for builtin page tools; use another scriptKey`, warn)
   }
 
   const canonicalName = buildVwsWebMcpCanonicalName(scriptKey, localName)

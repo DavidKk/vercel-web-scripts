@@ -1,16 +1,38 @@
 import { sendShellMessage } from '@ext/shared/messages'
 import { isValidApiBaseUrl, normalizeApiBaseUrl } from '@ext/shell/webmcp/agent-llm-api-root'
-import { type AgentLlmProviderId, getAgentLlmProviderMeta, isAgentLlmProviderId } from '@ext/shell/webmcp/agent-llm-providers'
+import { type AgentLlmProviderId, agentLlmProviderNeedsApiKey, getAgentLlmProviderMeta, isAgentLlmProviderId } from '@ext/shell/webmcp/agent-llm-providers'
 import { formatProxyHeadersJson, parseProxyHeadersJson } from '@ext/shell/webmcp/agent-llm-proxy-headers'
 import { type AgentLlmConfig, type AgentLlmModelInfo, type AgentPrefs, switchAgentLlmProvider } from '@ext/shell/webmcp/agent-types'
 import { hydrateIconSlot, hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from '@ext/ui/mm-icons'
 import { showMmNotification } from '@ext/ui/mm-notification'
 import { updateMmTooltip } from '@ext/ui/shared/mm-tooltip'
 import { formatAbsoluteTime24h, formatRelativeTime } from '@shared/format-relative-time'
+import { ensureMenuScrollIndicator as ensureMenuScrollIndicatorShared } from '@shared/ui/scroll-indicator'
 
 import { type AgentUiMessage, runAgentLoop } from './agent-loop'
+import { renderAgentMarkdownToHtml } from './agent-markdown'
+import { bindMmScrollIndicatorByRef, createMmScrollIndicatorShell, refreshScrollIndicator } from './agent-scroll'
 import { type AgentChatSession, type AgentChatSessionStore, createEmptySession, loadAgentSessionStore, saveAgentSessionStore } from './agent-session-storage'
-import { loadAgentLlmConfig, loadAgentPrefs, saveAgentLlmConfig, saveAgentPrefs } from './agent-storage'
+import { loadAgentLlmConfig, loadAgentPrefs, saveAgentPrefs, updateAgentLlmConfig } from './agent-storage'
+import { createThinkingCardElement, finalizeThinkingCard, updateThinkingCard } from './agent-thinking-card'
+
+/**
+ * Pretty-print JSON tool summaries for readable wrapping in the tool card body.
+ * @param summary Raw tool result summary
+ * @returns Display text (pretty JSON when parseable)
+ */
+function formatToolSummaryForDisplay(summary: string): string {
+  const text = String(summary ?? '')
+  const trimmed = text.trim()
+  if (!trimmed || (trimmed[0] !== '{' && trimmed[0] !== '[')) {
+    return text
+  }
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2)
+  } catch {
+    return text
+  }
+}
 
 /**
  * Side panel controller — Agent chat for the active browser tab.
@@ -34,6 +56,18 @@ export class MmSidepanelApp extends HTMLElement {
   private modelsRefreshPromise: Promise<void> | null = null
   /** Bumped on each list attempt so stale in-flight runs cannot clobber newer UI state. */
   private modelsRefreshGeneration = 0
+  /** Debounced autosave for LLM form fields. */
+  private llmPersistTimer: ReturnType<typeof setTimeout> | null = null
+  private readonly onDocumentVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') {
+      void this.flushLlmPersist()
+    }
+  }
+  /** Ephemeral Codex-style Thinking card for the in-flight turn. */
+  private thinkingCard: HTMLElement | null = null
+  private thinkingStartedAt = 0
+  private chatScrollRefresh: (() => void) | null = null
+  private settingsScrollRefresh: (() => void) | null = null
 
   private onTabActivated = (): void => {
     void this.refreshActiveTab()
@@ -55,16 +89,35 @@ export class MmSidepanelApp extends HTMLElement {
     this.bound = true
     hydrateMmIcons(this)
     this.bindEvents()
+    this.bindPanelScrollIndicators()
     this.syncComposerSendState()
     chrome.tabs.onActivated.addListener(this.onTabActivated)
     chrome.tabs.onUpdated.addListener(this.onTabUpdated)
+    document.addEventListener('visibilitychange', this.onDocumentVisibilityChange)
     void this.bootstrap()
+  }
+
+  private bindPanelScrollIndicators(): void {
+    this.chatScrollRefresh = bindMmScrollIndicatorByRef(this, 'chat-log')
+    this.settingsScrollRefresh = bindMmScrollIndicatorByRef(this, 'settings-form')
+  }
+
+  private scrollChatLogToBottom(): void {
+    const log = this.querySelector('[data-ref="chat-log"]') as HTMLElement | null
+    if (!log) {
+      return
+    }
+    log.scrollTop = log.scrollHeight
+    this.chatScrollRefresh?.()
+    refreshScrollIndicator(log)
   }
 
   disconnectedCallback(): void {
     this.chatAbort?.abort()
     chrome.tabs.onActivated.removeListener(this.onTabActivated)
     chrome.tabs.onUpdated.removeListener(this.onTabUpdated)
+    document.removeEventListener('visibilitychange', this.onDocumentVisibilityChange)
+    void this.flushLlmPersist()
   }
 
   private bindEvents(): void {
@@ -118,21 +171,35 @@ export class MmSidepanelApp extends HTMLElement {
         this.hideModelMenu()
       }
     })
+    this.querySelector('[data-ref="llm-api-key"]')?.addEventListener('input', () => {
+      this.modelsLoaded = false
+      this.scheduleLlmPersist()
+    })
     this.querySelector('[data-ref="llm-api-key"]')?.addEventListener('change', () => {
       this.modelsLoaded = false
+      void this.flushLlmPersist()
     })
     this.querySelector('[data-ref="llm-provider"]')?.addEventListener('change', () => {
       void this.onProviderChange()
     })
     this.querySelector('[data-ref="llm-proxy-enabled"]')?.addEventListener('change', () => {
-      this.syncProxyFieldsVisibility()
+      void this.onProxyEnabledChange()
+    })
+    this.querySelector('[data-ref="llm-base-url"]')?.addEventListener('input', () => {
       this.modelsLoaded = false
+      this.scheduleLlmPersist()
     })
     this.querySelector('[data-ref="llm-base-url"]')?.addEventListener('change', () => {
       this.modelsLoaded = false
+      void this.flushLlmPersist()
+    })
+    this.querySelector('[data-ref="llm-proxy-headers"]')?.addEventListener('input', () => {
+      this.modelsLoaded = false
+      this.scheduleLlmPersist()
     })
     this.querySelector('[data-ref="llm-proxy-headers"]')?.addEventListener('change', () => {
       this.modelsLoaded = false
+      void this.flushLlmPersist()
     })
 
     this.querySelector('[data-ref="session-trigger"]')?.addEventListener('click', (event) => {
@@ -178,12 +245,10 @@ export class MmSidepanelApp extends HTMLElement {
     }
     const running = send.classList.contains('hidden')
     const tabOk = this.isAgentCompatibleTab()
-    const modelOk = Boolean(this.preferredModelId.trim()) && this.modelsLoaded
+    const modelOk = Boolean(this.preferredModelId.trim())
     send.disabled = running || !tabOk || !input?.value.trim() || !modelOk
     if (!tabOk) {
       send.title = this.describeUnsupportedTab()
-    } else if (!this.modelsLoaded) {
-      send.title = 'Refresh models first'
     } else if (!this.preferredModelId.trim()) {
       send.title = 'Select a model first'
     } else {
@@ -236,7 +301,36 @@ export class MmSidepanelApp extends HTMLElement {
     await this.refreshActiveTab()
     this.renderSessionMenu()
     this.renderChatLog()
-    void this.refreshGeminiModels()
+    void this.refreshGeminiModelsIfConfigured()
+  }
+
+  /**
+   * Auto-list models only when credentials are already present.
+   * Missing API key / proxy URL must not toast or force-open Settings on startup.
+   * Ollama is local and does not require an API key.
+   */
+  private async refreshGeminiModelsIfConfigured(): Promise<void> {
+    const provider = this.readProviderFromForm()
+    if (!agentLlmProviderNeedsApiKey(provider)) {
+      await this.refreshGeminiModels()
+      return
+    }
+    const proxyState = this.tryReadProxyFormState()
+    if (!proxyState.ok) {
+      return
+    }
+    const { proxyEnabled, baseUrl } = proxyState.value
+    if (proxyEnabled) {
+      if (!isValidApiBaseUrl(normalizeApiBaseUrl(baseUrl))) {
+        return
+      }
+    } else {
+      const apiKey = await this.resolveApiKey()
+      if (!apiKey) {
+        return
+      }
+    }
+    await this.refreshGeminiModels()
   }
 
   private getActiveSession(): AgentChatSession | null {
@@ -366,6 +460,8 @@ export class MmSidepanelApp extends HTMLElement {
       row.append(option, deleteBtn)
       menu.append(row)
     }
+
+    ensureMenuScrollIndicatorShared(menu, { classPrefix: 'mm', scrollerClassName: 'mm-sidepanel-session-menu-scroll' })
   }
 
   private async newSession(): Promise<void> {
@@ -373,7 +469,7 @@ export class MmSidepanelApp extends HTMLElement {
       return
     }
 
-    this.chatAbort?.abort()
+    this.stopInFlightChatTurn('stopped')
     this.hideSessionMenu()
 
     const active = this.getActiveSession()
@@ -398,7 +494,7 @@ export class MmSidepanelApp extends HTMLElement {
       return
     }
 
-    this.chatAbort?.abort()
+    this.stopInFlightChatTurn('stopped')
     this.draftSession = null
     this.sessionStore.activeSessionId = sessionId
     await this.persistSessionStore()
@@ -412,7 +508,7 @@ export class MmSidepanelApp extends HTMLElement {
       return
     }
 
-    this.chatAbort?.abort()
+    this.stopInFlightChatTurn('stopped')
     this.sessionStore.sessions = this.sessionStore.sessions.filter((session) => session.id !== sessionId)
     if (this.sessionStore.activeSessionId === sessionId) {
       this.sessionStore.activeSessionId = null
@@ -423,13 +519,26 @@ export class MmSidepanelApp extends HTMLElement {
     this.setChatStatus('')
   }
 
+  /**
+   * Abort an in-flight agent turn and drop its ephemeral Thinking card before remounting chat.
+   * @param outcome Thinking card finalize outcome
+   */
+  private stopInFlightChatTurn(outcome: 'stopped' | 'error' = 'stopped'): void {
+    this.chatAbort?.abort()
+    this.chatAbort = null
+    this.finishThinkingCard(outcome)
+    this.setChatRunning(false)
+  }
+
   private showSettings(open: boolean): void {
     this.querySelector('[data-ref="header-chat"]')?.toggleAttribute('hidden', open)
     this.querySelector('[data-ref="header-settings"]')?.toggleAttribute('hidden', !open)
     this.querySelector('[data-ref="chat-main"]')?.toggleAttribute('hidden', open)
     this.querySelector('[data-ref="settings-panel"]')?.toggleAttribute('hidden', !open)
     if (open) {
-      void this.openSettingsPanel()
+      void this.openSettingsPanel().then(() => {
+        this.settingsScrollRefresh?.()
+      })
     }
   }
 
@@ -512,15 +621,21 @@ export class MmSidepanelApp extends HTMLElement {
     }
 
     if (!this.modelsLoaded) {
+      const hasPreferred = Boolean(this.preferredModelId.trim())
       if (label) {
-        label.textContent = 'Refresh'
+        // Keep showing the saved model after extension reload; Refresh remains available via click.
+        label.textContent = hasPreferred ? this.shortModelLabel(this.preferredModelId) : 'Refresh'
       }
       if (trigger) {
-        const tip = this.modelsError ? this.formatUserFacingError(this.modelsError) : 'Could not load models. Click Refresh to retry.'
+        const tip = this.modelsError
+          ? this.formatUserFacingError(this.modelsError)
+          : hasPreferred
+            ? `Saved model: ${this.preferredModelId}. Click to refresh the model list.`
+            : 'Could not load models. Click Refresh to retry.'
         trigger.removeAttribute('title')
         updateMmTooltip(trigger, tip, 'top')
         trigger.setAttribute('data-mm-tooltip-wide', '')
-        trigger.setAttribute('aria-label', 'Refresh models')
+        trigger.setAttribute('aria-label', hasPreferred ? `Saved model ${this.preferredModelId}. Refresh models` : 'Refresh models')
         trigger.setAttribute('aria-haspopup', 'false')
       }
       setStatusVisible(true)
@@ -635,6 +750,8 @@ export class MmSidepanelApp extends HTMLElement {
       option.textContent = model.displayName || model.id
       menu.append(option)
     }
+
+    ensureMenuScrollIndicatorShared(menu, { classPrefix: 'mm', scrollerClassName: 'mm-sidepanel-model-menu-scroll' })
   }
 
   private async selectModel(modelId: string): Promise<void> {
@@ -647,13 +764,40 @@ export class MmSidepanelApp extends HTMLElement {
     this.syncModelLabel()
     this.renderModelMenu()
 
-    const llm = await loadAgentLlmConfig()
-    await saveAgentLlmConfig({ ...llm, model: modelId })
+    await updateAgentLlmConfig((current) => ({ ...current, model: modelId }))
   }
 
   private syncProxyFieldsVisibility(): void {
     const apiProxyEnabled = (this.querySelector('[data-ref="llm-proxy-enabled"]') as HTMLInputElement | null)?.checked ?? false
     this.querySelector('[data-ref="llm-proxy-fields"]')?.toggleAttribute('hidden', !apiProxyEnabled)
+    // Mutually hide API key when proxy is on; do NOT clear the input value.
+    this.querySelector('[data-ref="llm-api-key"]')?.closest('mm-field')?.toggleAttribute('hidden', apiProxyEnabled)
+  }
+
+  /**
+   * Toggle proxy. Empty/invalid Base URL must not block enabling the UI —
+   * fields are hidden while Off, so rejecting the toggle creates a chicken-and-egg.
+   * Persist `proxyEnabled: true` only once the Base URL is valid.
+   */
+  private async onProxyEnabledChange(): Promise<void> {
+    const proxyEnabledInput = this.querySelector('[data-ref="llm-proxy-enabled"]') as HTMLInputElement | null
+    const enabling = proxyEnabledInput?.checked ?? false
+    this.modelsLoaded = false
+    this.syncProxyFieldsVisibility()
+
+    if (enabling) {
+      const baseUrlInput = this.querySelector('[data-ref="llm-base-url"]') as HTMLInputElement | null
+      const baseUrl = baseUrlInput?.value.trim() ?? ''
+      const normalized = normalizeApiBaseUrl(baseUrl)
+      if (!isValidApiBaseUrl(normalized)) {
+        showMmNotification('Enter a valid http(s) Base URL — proxy stays inactive until then.', 'warn')
+        baseUrlInput?.focus()
+        await this.persistLlmFormQuietly()
+        return
+      }
+    }
+
+    await this.flushLlmPersist()
   }
 
   private readProviderFromForm(): AgentLlmProviderId {
@@ -729,32 +873,54 @@ export class MmSidepanelApp extends HTMLElement {
 
   private async onProviderChange(): Promise<void> {
     const nextProvider = this.readProviderFromForm()
-    const current = await loadAgentLlmConfig()
-    const apiKey = (this.querySelector('[data-ref="llm-api-key"]') as HTMLInputElement | null)?.value ?? ''
-    const proxyState = this.tryReadProxyFormState()
-    if (!proxyState.ok) {
-      showMmNotification(proxyState.error, 'error')
+    try {
+      const switched = await updateAgentLlmConfig((current) => {
+        const apiKey = (this.querySelector('[data-ref="llm-api-key"]') as HTMLInputElement | null)?.value ?? ''
+        const proxyState = this.tryReadProxyFormState()
+        if (!proxyState.ok) {
+          throw new Error(proxyState.error)
+        }
+        if (proxyState.value.proxyEnabled) {
+          const normalized = normalizeApiBaseUrl(proxyState.value.baseUrl)
+          if (!isValidApiBaseUrl(normalized)) {
+            // Allow switching provider while drafting Base URL; keep proxy inactive until valid.
+            const draft: AgentLlmConfig = {
+              ...current,
+              provider: current.provider,
+              apiKey,
+              model: this.preferredModelId || current.model,
+              proxyEnabled: false,
+              baseUrl: proxyState.value.baseUrl,
+              proxyHeaders: proxyState.value.proxyHeaders,
+            }
+            return switchAgentLlmProvider(draft, nextProvider)
+          }
+        }
+        const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
+        const draft: AgentLlmConfig = {
+          ...current,
+          provider: current.provider,
+          apiKey,
+          model: this.preferredModelId || current.model,
+          proxyEnabled,
+          baseUrl: proxyEnabled ? normalizeApiBaseUrl(baseUrl) : baseUrl,
+          proxyHeaders,
+        }
+        return switchAgentLlmProvider(draft, nextProvider)
+      })
+      this.fillLlmFormFields(switched)
+      this.modelsLoaded = false
+      void this.refreshGeminiModelsIfConfigured()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      showMmNotification(message, 'error')
+      const stored = await loadAgentLlmConfig()
       const providerSelect = this.querySelector('[data-ref="llm-provider"]') as HTMLSelectElement | null
       if (providerSelect) {
-        providerSelect.value = current.provider
+        providerSelect.value = stored.provider
       }
-      return
+      this.fillLlmFormFields(stored)
     }
-    const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
-    const draft: AgentLlmConfig = {
-      ...current,
-      provider: current.provider,
-      apiKey,
-      model: this.preferredModelId || current.model,
-      proxyEnabled,
-      baseUrl,
-      proxyHeaders,
-    }
-    const switched = switchAgentLlmProvider(draft, nextProvider)
-    await saveAgentLlmConfig(switched)
-    this.fillLlmFormFields(switched)
-    this.modelsLoaded = false
-    void this.refreshGeminiModels()
   }
 
   private async resolveApiKey(): Promise<string> {
@@ -790,19 +956,6 @@ export class MmSidepanelApp extends HTMLElement {
     this.modelsLoading = true
     this.syncModelLabel()
     try {
-      const apiKey = await this.resolveApiKey()
-      if (generation !== this.modelsRefreshGeneration) {
-        return
-      }
-      if (!apiKey) {
-        this.modelOptions = []
-        this.modelsLoaded = false
-        this.modelsError = 'Configure an API key in Settings first.'
-        showMmNotification(this.modelsError, 'error')
-        this.showSettings(true)
-        return
-      }
-
       const proxyState = this.tryReadProxyFormState()
       if (generation !== this.modelsRefreshGeneration) {
         return
@@ -815,13 +968,44 @@ export class MmSidepanelApp extends HTMLElement {
         return
       }
       const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
+      const provider = this.readProviderFromForm()
+      if (proxyEnabled) {
+        const normalized = normalizeApiBaseUrl(baseUrl)
+        if (!isValidApiBaseUrl(normalized)) {
+          this.modelOptions = []
+          this.modelsLoaded = false
+          this.modelsError = 'Enter a valid http(s) Base URL to use the proxy.'
+          showMmNotification(this.modelsError, 'warn')
+          this.showSettings(true)
+          return
+        }
+      } else if (agentLlmProviderNeedsApiKey(provider)) {
+        const apiKey = await this.resolveApiKey()
+        if (generation !== this.modelsRefreshGeneration) {
+          return
+        }
+        if (!apiKey) {
+          this.modelOptions = []
+          this.modelsLoaded = false
+          this.modelsError = 'Configure an API key in Settings first.'
+          // Explicit Refresh only — do not auto-open Settings on silent/bootstrap paths
+          // (those skip this method via refreshGeminiModelsIfConfigured).
+          showMmNotification(this.modelsError, 'warn')
+          return
+        }
+      }
+
+      const apiKey = await this.resolveApiKey()
+      if (generation !== this.modelsRefreshGeneration) {
+        return
+      }
       const response = await sendShellMessage({
         type: 'AGENT_LLM_LIST_MODELS',
         apiKey,
-        proxyEnabled,
-        baseUrl,
+        proxyEnabled: provider === 'ollama' ? true : proxyEnabled,
+        baseUrl: provider === 'ollama' && !normalizeApiBaseUrl(baseUrl) ? getAgentLlmProviderMeta('ollama').defaultBaseUrl : baseUrl,
         proxyHeaders,
-        provider: this.readProviderFromForm(),
+        provider,
       })
       if (generation !== this.modelsRefreshGeneration) {
         return
@@ -834,11 +1018,10 @@ export class MmSidepanelApp extends HTMLElement {
       this.modelsLoaded = this.modelOptions.length > 0
       this.modelsError = this.modelsLoaded ? '' : 'No models returned. Tap Refresh to retry.'
 
+      // Keep the saved model across reloads. An empty or partial list must NOT wipe chrome.storage.
       const preferred = this.preferredModelId.trim()
-      if (preferred && !this.modelOptions.some((model) => model.id === preferred)) {
-        this.preferredModelId = ''
-        const llm = await loadAgentLlmConfig()
-        await saveAgentLlmConfig({ ...llm, model: '' })
+      if (preferred && this.modelsLoaded && !this.modelOptions.some((model) => model.id === preferred)) {
+        showMmNotification(`Saved model "${preferred}" is not in the current list. Pick another model or Refresh again.`, 'warn')
       }
       if (!this.modelsLoaded) {
         showMmNotification(this.formatUserFacingError(this.modelsError), 'warn')
@@ -903,51 +1086,90 @@ export class MmSidepanelApp extends HTMLElement {
     }
   }
 
-  private async saveLlmSettings(): Promise<void> {
-    const provider = this.readProviderFromForm()
-    const apiKey = (this.querySelector('[data-ref="llm-api-key"]') as HTMLInputElement | null)?.value ?? ''
-    const model = this.preferredModelId.trim()
-    const proxyState = this.tryReadProxyFormState()
-    if (!proxyState.ok) {
-      showMmNotification(proxyState.error, 'error')
-      return
-    }
-    const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
-    const current = await loadAgentLlmConfig()
-    const nextBase: AgentLlmConfig = {
-      ...current,
-      provider,
-      apiKey,
-      model,
-      proxyHeaders,
-    }
-
+  /**
+   * Persist LLM form values without toast (autosave).
+   * Re-reads the form inside the write queue so overlapping saves cannot overwrite newer fields.
+   * When the proxy toggle is on but Base URL is incomplete, keeps the toggle visible and
+   * persists `proxyEnabled: false` until the URL is valid.
+   */
+  private async persistLlmFormQuietly(): Promise<'saved' | 'skipped'> {
     try {
-      if (proxyEnabled) {
-        const normalized = normalizeApiBaseUrl(baseUrl)
-        if (!isValidApiBaseUrl(normalized)) {
-          showMmNotification('Proxy Base URL must be a valid http(s) URL.', 'error')
-          return
+      await updateAgentLlmConfig((current) => {
+        const provider = this.readProviderFromForm()
+        const apiKey = (this.querySelector('[data-ref="llm-api-key"]') as HTMLInputElement | null)?.value ?? ''
+        const model = this.preferredModelId.trim() || current.model
+        const proxyState = this.tryReadProxyFormState()
+        if (!proxyState.ok) {
+          throw new Error(proxyState.error)
         }
-        await saveAgentLlmConfig({
-          ...nextBase,
-          proxyEnabled: true,
-          baseUrl: normalized,
-        })
-      } else {
-        await saveAgentLlmConfig({
-          ...nextBase,
+        const { proxyEnabled, baseUrl, proxyHeaders } = proxyState.value
+        if (proxyEnabled) {
+          const normalized = normalizeApiBaseUrl(baseUrl)
+          if (!isValidApiBaseUrl(normalized)) {
+            // Keep the form toggle on so Base URL stays visible; do not activate proxy yet.
+            return {
+              ...current,
+              provider,
+              apiKey,
+              model,
+              proxyEnabled: false,
+              baseUrl,
+              proxyHeaders,
+            }
+          }
+          return {
+            ...current,
+            provider,
+            apiKey,
+            model,
+            proxyEnabled: true,
+            baseUrl: normalized,
+            proxyHeaders,
+          }
+        }
+        return {
+          ...current,
+          provider,
+          apiKey,
+          model,
           proxyEnabled: false,
           baseUrl,
-        })
-      }
-    } catch (error) {
-      showMmNotification(error instanceof Error ? error.message : String(error), 'error')
+          proxyHeaders,
+        }
+      })
+      return 'saved'
+    } catch {
+      // Headers parse errors etc.: skip quiet save to avoid wiping good storage.
+      return 'skipped'
+    }
+  }
+
+  private scheduleLlmPersist(): void {
+    if (this.llmPersistTimer != null) {
+      clearTimeout(this.llmPersistTimer)
+    }
+    this.llmPersistTimer = setTimeout(() => {
+      this.llmPersistTimer = null
+      void this.persistLlmFormQuietly()
+    }, 400)
+  }
+
+  private async flushLlmPersist(): Promise<void> {
+    if (this.llmPersistTimer != null) {
+      clearTimeout(this.llmPersistTimer)
+      this.llmPersistTimer = null
+    }
+    await this.persistLlmFormQuietly()
+  }
+
+  private async saveLlmSettings(): Promise<void> {
+    const result = await this.persistLlmFormQuietly()
+    if (result !== 'saved') {
       return
     }
     this.modelsLoaded = false
     showMmNotification('LLM settings saved.', 'success')
-    void this.refreshGeminiModels()
+    void this.refreshGeminiModelsIfConfigured()
   }
 
   private async savePrefsSettings(): Promise<void> {
@@ -1003,15 +1225,15 @@ export class MmSidepanelApp extends HTMLElement {
     }
 
     log.replaceChildren()
+    this.thinkingCard = null
+    this.thinkingStartedAt = 0
     this.chatMessageCount = messages.length
     for (const message of messages) {
       log.appendChild(this.createMessageElement(message))
     }
 
     this.syncChatEmptyState()
-    if (log instanceof HTMLElement) {
-      log.scrollTop = log.scrollHeight
-    }
+    this.scrollChatLogToBottom()
   }
 
   private syncChatEmptyState(): void {
@@ -1020,11 +1242,58 @@ export class MmSidepanelApp extends HTMLElement {
     if (!stage) {
       return
     }
-    const isEmpty = this.chatMessageCount === 0
+    const hasThinking = Boolean(this.thinkingCard?.isConnected)
+    const isEmpty = this.chatMessageCount === 0 && !hasThinking
     stage.dataset.empty = isEmpty ? 'true' : 'false'
     if (empty && isEmpty) {
       hydrateMmIcons(empty)
     }
+  }
+
+  /**
+   * Ensure an ephemeral Thinking card is in the chat log and sync empty state.
+   * @returns Thinking card root
+   */
+  private ensureThinkingCard(): HTMLElement {
+    const log = this.querySelector('[data-ref="chat-log"]')
+    if (this.thinkingCard?.isConnected) {
+      return this.thinkingCard
+    }
+    const card = createThinkingCardElement()
+    this.thinkingCard = card
+    this.thinkingStartedAt = Date.now()
+    if (log) {
+      log.appendChild(card)
+      this.scrollChatLogToBottom()
+    }
+    this.syncChatEmptyState()
+    return card
+  }
+
+  /**
+   * Update the live Thinking card from an agent status event.
+   * @param text Short phase label
+   * @param detail Optional longer description for the log body
+   */
+  private applyThinkingStatus(text: string, detail?: string): void {
+    const card = this.ensureThinkingCard()
+    updateThinkingCard(card, text, detail)
+    this.setChatStatus('')
+    this.scrollChatLogToBottom()
+  }
+
+  /**
+   * Collapse and label the Thinking card when the turn ends.
+   * @param outcome Completion outcome
+   */
+  private finishThinkingCard(outcome: 'done' | 'stopped' | 'error'): void {
+    if (!this.thinkingCard?.isConnected) {
+      this.thinkingCard = null
+      return
+    }
+    finalizeThinkingCard(this.thinkingCard, outcome, this.thinkingStartedAt || Date.now(), Date.now())
+    this.thinkingCard = null
+    this.thinkingStartedAt = 0
   }
 
   private appendChatMessage(message: AgentUiMessage): void {
@@ -1044,9 +1313,7 @@ export class MmSidepanelApp extends HTMLElement {
     this.chatMessageCount += 1
     this.syncChatEmptyState()
     log.appendChild(this.createMessageElement(message))
-    if (log instanceof HTMLElement) {
-      log.scrollTop = log.scrollHeight
-    }
+    this.scrollChatLogToBottom()
   }
 
   private createMessageElement(message: AgentUiMessage): HTMLElement {
@@ -1062,10 +1329,15 @@ export class MmSidepanelApp extends HTMLElement {
     const isUser = message.kind === 'user'
     el.className = isUser ? 'mm-sidepanel-message mm-sidepanel-message--user' : 'mm-sidepanel-message mm-sidepanel-message--assistant'
 
-    const bubble = document.createElement('div')
-    bubble.className = isUser ? 'mm-sidepanel-bubble mm-sidepanel-bubble--user' : 'mm-sidepanel-bubble mm-sidepanel-bubble--assistant'
-    bubble.dataset.role = 'message-body'
-    bubble.textContent = message.text
+    const body = document.createElement('div')
+    body.dataset.role = 'message-body'
+    if (isUser) {
+      body.className = 'mm-sidepanel-bubble mm-sidepanel-bubble--user'
+      body.textContent = message.text
+    } else {
+      body.className = 'mm-sidepanel-markdown'
+      body.innerHTML = renderAgentMarkdownToHtml(message.text)
+    }
 
     const meta = document.createElement('div')
     meta.className = 'mm-sidepanel-message-meta'
@@ -1131,7 +1403,7 @@ export class MmSidepanelApp extends HTMLElement {
       meta.append(copyBtn)
     }
 
-    el.append(bubble, meta)
+    el.append(body, meta)
     return el
   }
 
@@ -1273,18 +1545,21 @@ export class MmSidepanelApp extends HTMLElement {
 
     toggle.append(icon, name, status)
 
-    const body = document.createElement('pre')
-    body.className = 'mm-sidepanel-tool-call-body'
-    body.hidden = true
-    body.textContent = message.summary
+    const { shell, scroller, refresh } = createMmScrollIndicatorShell('mm-sidepanel-tool-call-body', 'pre')
+    shell.classList.add('mm-sidepanel-tool-call-body-shell')
+    shell.hidden = true
+    scroller.textContent = formatToolSummaryForDisplay(message.summary)
 
     toggle.addEventListener('click', () => {
-      const expanded = body.hidden
-      body.hidden = !expanded
+      const expanded = shell.hidden
+      shell.hidden = !expanded
       toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+      if (expanded) {
+        refresh()
+      }
     })
 
-    card.append(toggle, body)
+    card.append(toggle, shell)
     return card
   }
 
@@ -1312,7 +1587,17 @@ export class MmSidepanelApp extends HTMLElement {
       }
     })()
     const message = fromJson || text
+    const looksLocalOllama = /11434|\bollama\b|127\.0\.0\.1|localhost|192\.168\.|10\.\d/i.test(text)
 
+    if (/Failed to fetch|NetworkError|LOAD_FAILED/i.test(message) && looksLocalOllama) {
+      return 'Cannot reach Ollama. Start `ollama serve` and confirm Base URL (e.g. http://127.0.0.1:11434/v1).'
+    }
+    if (/Origin-strip DNR failed/i.test(text)) {
+      return 'Could not install Origin bypass for Ollama. Reload MagickMonkey, or start Ollama with ' + 'OLLAMA_ORIGINS=chrome-extension://* then retry.'
+    }
+    if (looksLocalOllama && /401|403/i.test(text)) {
+      return 'Ollama blocked this extension request (Origin → 403). Reload MagickMonkey; ' + 'or start Ollama with OLLAMA_ORIGINS=chrome-extension://* then retry.'
+    }
     if (/User location is not supported|FAILED_PRECONDITION/i.test(message)) {
       return 'Gemini is not available in your region. Enable API proxy or switch provider in Settings.'
     }
@@ -1320,7 +1605,7 @@ export class MmSidepanelApp extends HTMLElement {
       return 'Rate limit reached (429). Please wait and try again.'
     }
     if (/401|403|API[_ ]?key|PERMISSION_DENIED/i.test(message)) {
-      return 'API key is invalid or unauthorized. Check Settings.'
+      return 'API key is invalid or unauthorized. Check Settings (provider, key, and Base URL).'
     }
     if (/Failed to list WebMCP|WebMCP/i.test(message)) {
       return message.length > 160 ? `${message.slice(0, 157)}…` : message
@@ -1371,6 +1656,7 @@ export class MmSidepanelApp extends HTMLElement {
   }
 
   private async runChatTurn(text: string, options?: { skipUserMessageEvent?: boolean }): Promise<void> {
+    await this.flushLlmPersist()
     await this.refreshActiveTab()
 
     if (this.activeTabId == null) {
@@ -1387,16 +1673,31 @@ export class MmSidepanelApp extends HTMLElement {
     }
 
     const llm = await loadAgentLlmConfig()
-    if (!llm.apiKey.trim()) {
+    if (this.preferredModelId.trim() && this.preferredModelId.trim() !== llm.model.trim()) {
+      await updateAgentLlmConfig((current) => ({ ...current, model: this.preferredModelId.trim() }))
+    }
+
+    const effective = await loadAgentLlmConfig()
+    if (effective.provider === 'ollama') {
+      const normalized = normalizeApiBaseUrl(effective.baseUrl) || getAgentLlmProviderMeta('ollama').defaultBaseUrl
+      if (!isValidApiBaseUrl(normalized)) {
+        showMmNotification('Configure a valid Ollama Base URL in Settings (e.g. http://127.0.0.1:11434/v1).', 'warn')
+        this.showSettings(true)
+        return
+      }
+    } else if (effective.proxyEnabled) {
+      const normalized = normalizeApiBaseUrl(effective.baseUrl)
+      if (!isValidApiBaseUrl(normalized)) {
+        showMmNotification('Configure a valid proxy Base URL in Settings.', 'warn')
+        this.showSettings(true)
+        return
+      }
+    } else if (agentLlmProviderNeedsApiKey(effective.provider) && !effective.apiKey.trim()) {
       showMmNotification('Configure an API key in Settings.', 'warn')
       this.showSettings(true)
       return
     }
-    if (!this.modelsLoaded) {
-      showMmNotification('Refresh models first, then pick one.', 'warn')
-      return
-    }
-    if (!this.preferredModelId.trim() && !llm.model.trim()) {
+    if (!this.preferredModelId.trim() && !effective.model.trim()) {
       showMmNotification('Select a model next to Send.', 'warn')
       return
     }
@@ -1406,6 +1707,7 @@ export class MmSidepanelApp extends HTMLElement {
     this.setChatRunning(true)
 
     let composerCleared = Boolean(options?.skipUserMessageEvent)
+    let thinkingOutcome: 'done' | 'stopped' | 'error' = 'done'
     try {
       await runAgentLoop({
         tabId: this.activeTabId,
@@ -1421,8 +1723,9 @@ export class MmSidepanelApp extends HTMLElement {
               this.clearComposerInput()
             }
           } else if (event.type === 'status') {
-            this.setChatStatus(event.text)
+            this.applyThinkingStatus(event.text, event.detail)
           } else if (event.type === 'error') {
+            thinkingOutcome = 'error'
             this.reportError(event.message)
           } else if (event.type === 'done') {
             this.setChatStatus('')
@@ -1431,12 +1734,15 @@ export class MmSidepanelApp extends HTMLElement {
       })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
+        thinkingOutcome = 'stopped'
         this.setChatStatus('Stopped.')
       } else {
+        thinkingOutcome = 'error'
         const message = error instanceof Error ? error.message : String(error)
         this.reportError(message)
       }
     } finally {
+      this.finishThinkingCard(thinkingOutcome)
       this.setChatRunning(false)
       this.chatAbort = null
     }

@@ -1,5 +1,5 @@
 /** Supported Agent LLM providers (add adapters as they ship). */
-export type AgentLlmProviderId = 'gemini' | 'openai' | 'anthropic'
+export type AgentLlmProviderId = 'gemini' | 'openai' | 'anthropic' | 'ollama'
 
 /** Per-provider credentials and endpoint settings. */
 export interface AgentLlmProviderSettings {
@@ -50,6 +50,16 @@ export const AGENT_LLM_PROVIDER_META: readonly AgentLlmProviderMeta[] = [
     proxyToggleText: 'Route requests through a custom Base URL (Anthropic Messages API). Off by default.',
     baseUrlHint: 'Anthropic protocol. Paste the proxy root; paths still use /v1/messages and /v1/models.',
   },
+  {
+    id: 'ollama',
+    label: 'Ollama',
+    apiKeyPlaceholder: 'Optional (usually leave empty)',
+    defaultModel: '',
+    defaultBaseUrl: 'http://127.0.0.1:11434/v1',
+    proxyToggleText: 'Use a local Ollama OpenAI-compatible Base URL. Keep this on for local models.',
+    baseUrlHint:
+      'Ollama OpenAI-compatible root (default http://127.0.0.1:11434/v1; any loopback/LAN port ok). MagickMonkey strips Origin automatically; if 403 persists, set OLLAMA_ORIGINS=chrome-extension://*.',
+  },
 ] as const
 
 const META_BY_ID = Object.fromEntries(AGENT_LLM_PROVIDER_META.map((meta) => [meta.id, meta])) as Record<AgentLlmProviderId, AgentLlmProviderMeta>
@@ -72,7 +82,16 @@ export function getAgentLlmProviderMeta(id: string): AgentLlmProviderMeta {
  * @returns Default per-provider settings
  */
 export function defaultAgentLlmProviderSettings(id: AgentLlmProviderId): AgentLlmProviderSettings {
-  void id
+  if (id === 'ollama') {
+    const meta = getAgentLlmProviderMeta('ollama')
+    return {
+      apiKey: '',
+      model: meta.defaultModel,
+      proxyEnabled: true,
+      baseUrl: meta.defaultBaseUrl,
+      proxyHeaders: {},
+    }
+  }
   return {
     apiKey: '',
     model: '',
@@ -88,5 +107,14 @@ export function defaultAgentLlmProviderSettings(id: AgentLlmProviderId): AgentLl
  * @returns True when supported
  */
 export function isAgentLlmProviderId(value: string): value is AgentLlmProviderId {
-  return value === 'gemini' || value === 'openai' || value === 'anthropic'
+  return value === 'gemini' || value === 'openai' || value === 'anthropic' || value === 'ollama'
+}
+
+/**
+ * Whether the provider requires a cloud API key when not using a local/proxy endpoint.
+ * Local Ollama does not need a key.
+ * @param provider Provider id
+ */
+export function agentLlmProviderNeedsApiKey(provider: AgentLlmProviderId): boolean {
+  return provider !== 'ollama'
 }

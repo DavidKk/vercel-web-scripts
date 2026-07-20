@@ -34,10 +34,14 @@ Open the Agent from:
 
 Requirements:
 
-1. Chrome `chrome://flags/#enable-webmcp-testing` → **Enabled**, restart browser
+1. Chrome `chrome://flags/#enable-webmcp-testing` → **Enabled**, restart browser (required for `vws.page.*` and page-registered tools)
 2. Extension **Allow User Scripts** enabled (`chrome://extensions` → Details)
-3. A Gist script on the page that calls `GME_registerWebMcpTool` (see `/docs/gme-webmcp-skill.md`)
+3. Tools on the page from either:
+   - Builtin **`vws.page.*`** (auto-registered on http(s) tabs when the flag + User Scripts are ready), or
+   - A Gist script that calls `GME_registerWebMcpTool` (see `/docs/gme-webmcp-skill.md`)
 4. **Settings**: paste an LLM API key (Gemini / OpenAI / Claude; stored in `chrome.storage.local` only)
+
+While a reply is running, Chat shows a Codex-style collapsible **Thinking** card (phase label + detail log). It is ephemeral for the current view — switching sessions remounts chat without past Thinking cards.
 
 Panels:
 
@@ -216,7 +220,7 @@ The shell does **not** treat CSR URL changes specially:
 - **Badge lifecycle** (when trigger count is 0): `…` initializing (page load / bootstrap), `·` idle (bootstrap done, no scripts yet), `?` no enabled service config, `✓` reset complete, `↻` update complete (last two flash ~3s). Red `!` when the shell is off or a script failed with zero triggers.
 - Count resets on each top-level page load (including same-URL refresh), when the content script starts. URL-only changes without a new document (typical SPA) do not reset.
 - **Update runtime** / **Reset runtime** also clears counts before reload.
-- Counts are stored in `chrome.storage.session` so a short MV3 service-worker sleep does not zero the badge while you stay on the same URL.
+- Counts are stored in `chrome.storage.session` so a short MV3 service-worker sleep does not zero the badge while you stay on the same URL. Badge refresh / trigger writes call `ensureTabTriggerHydrated()` before reading or persisting so a wake-up from tab switch restores counts instead of flashing idle (`·`).
 
 For SPA sites (e.g. Douyin): use a **root `@match`** (e.g. `*://www.douyin.com/*`) and handle route/slide changes inside the script (DOM observers, `location`, optional Tampermonkey `window.onurlchange`). This matches Tampermonkey’s model and keeps the extension shell simple and predictable.
 

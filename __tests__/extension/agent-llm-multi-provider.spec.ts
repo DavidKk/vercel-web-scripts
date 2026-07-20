@@ -3,10 +3,11 @@ import { AGENT_LLM_PROVIDER_META, isAgentLlmProviderId } from '@ext/shell/webmcp
 import { DEFAULT_AGENT_LLM_CONFIG, switchAgentLlmProvider } from '@ext/shell/webmcp/agent-types'
 
 describe('agent-llm multi-provider', () => {
-  it('should expose gemini, openai, and anthropic in provider meta', () => {
-    expect(AGENT_LLM_PROVIDER_META.map((meta) => meta.id)).toEqual(['gemini', 'openai', 'anthropic'])
+  it('should expose gemini, openai, anthropic, and ollama in provider meta', () => {
+    expect(AGENT_LLM_PROVIDER_META.map((meta) => meta.id)).toEqual(['gemini', 'openai', 'anthropic', 'ollama'])
     expect(isAgentLlmProviderId('openai')).toBe(true)
     expect(isAgentLlmProviderId('anthropic')).toBe(true)
+    expect(isAgentLlmProviderId('ollama')).toBe(true)
     expect(isAgentLlmProviderId('deepseek')).toBe(false)
   })
 

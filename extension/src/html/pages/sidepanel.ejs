@@ -47,7 +47,12 @@
               <p class="mm-sidepanel-empty-title">Start a conversation</p>
               <p class="mm-sidepanel-empty-hint">Ask what this page can do, or describe the change you want.</p>
             </div>
-            <div class="mm-sidepanel-chat-log" data-ref="chat-log" aria-live="polite"></div>
+            <div class="mm-scroll-indicator-shell mm-sidepanel-chat-scroll-shell">
+              <div class="mm-scroll-indicator-scroller mm-sidepanel-chat-log" data-ref="chat-log" aria-live="polite"></div>
+              <div class="mm-scroll-indicator-track" aria-hidden="true">
+                <span class="mm-scroll-indicator-thumb"></span>
+              </div>
+            </div>
           </div>
 
           <div class="mm-sidepanel-composer">
@@ -93,7 +98,8 @@
         </div>
 
         <div class="mm-sidepanel-settings" data-ref="settings-panel" hidden aria-label="Agent settings">
-          <div class="mm-sidepanel-settings-form" data-ref="settings-form">
+          <div class="mm-scroll-indicator-shell mm-sidepanel-settings-scroll-shell">
+            <div class="mm-scroll-indicator-scroller mm-sidepanel-settings-form" data-ref="settings-form">
             <section class="mm-options-section" aria-labelledby="agent-llm-title">
 <%- include('../partials/options-section-head', { headingId: 'agent-llm-title', title: 'Model provider', meta: 'Local only' }) %>
               <div class="mm-options-field-grid mm-options-field-grid-single">
@@ -103,6 +109,7 @@
                     <option value="gemini" selected>Gemini</option>
                     <option value="openai">OpenAI</option>
                     <option value="anthropic">Claude</option>
+                    <option value="ollama">Ollama</option>
                   </select>
                   <p class="mm-hint" data-ref="llm-provider-hint">More providers will appear here as they are added. Settings are saved per provider.</p>
                 </mm-field>
@@ -205,6 +212,10 @@
                 </mm-button>
               </div>
             </section>
+            </div>
+            <div class="mm-scroll-indicator-track" aria-hidden="true">
+              <span class="mm-scroll-indicator-thumb"></span>
+            </div>
           </div>
         </div>
       </mm-sidepanel-app>

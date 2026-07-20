@@ -118,13 +118,13 @@ function resolveOpenAiRoot(config: Pick<AgentLlmConfig, 'proxyEnabled' | 'baseUr
 }
 
 function buildOpenAiHeaders(config: Pick<AgentLlmConfig, 'apiKey' | 'proxyEnabled' | 'proxyHeaders'>, contentType?: string): Record<string, string> {
+  const apiKey = config.apiKey.trim()
   return buildAgentLlmFetchHeaders({
     proxyEnabled: config.proxyEnabled,
     proxyHeaders: config.proxyHeaders,
     contentType,
-    authHeaders: {
-      Authorization: `Bearer ${config.apiKey.trim()}`,
-    },
+    // Local OpenAI-compatible servers (e.g. Ollama) often reject empty/dummy Bearer tokens.
+    authHeaders: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
   })
 }
 
@@ -140,7 +140,7 @@ export async function generateOpenAiAgentLlmResponse(input: {
   config: AgentLlmConfig
 }): Promise<AgentLlmGenerateResult> {
   const apiKey = input.config.apiKey.trim()
-  if (!apiKey) {
+  if (!input.config.proxyEnabled && !apiKey) {
     throw new Error('OpenAI API key is not configured. Open Agent settings in the side panel.')
   }
 
@@ -167,7 +167,7 @@ export async function generateOpenAiAgentLlmResponse(input: {
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText)
-    throw new Error(`OpenAI API error: ${response.status} ${errorText}`)
+    throw new Error(`OpenAI API error (${root}): ${response.status} ${errorText}`)
   }
 
   const data = (await response.json()) as Parameters<typeof parseOpenAiResponse>[0]
@@ -182,7 +182,7 @@ export async function generateOpenAiAgentLlmResponse(input: {
  */
 export async function listOpenAiAgentModels(config: Pick<AgentLlmConfig, 'apiKey' | 'proxyEnabled' | 'baseUrl' | 'proxyHeaders'>): Promise<AgentLlmModelInfo[]> {
   const apiKey = config.apiKey.trim()
-  if (!apiKey) {
+  if (!config.proxyEnabled && !apiKey) {
     throw new Error('OpenAI API key is not configured.')
   }
 
@@ -192,7 +192,7 @@ export async function listOpenAiAgentModels(config: Pick<AgentLlmConfig, 'apiKey
   })
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText)
-    throw new Error(`OpenAI models.list failed: ${response.status} ${errorText}`)
+    throw new Error(`OpenAI models.list failed (${root}): ${response.status} ${errorText}`)
   }
 
   const data = (await response.json()) as { data?: Array<{ id?: string }>; error?: { message?: string } }

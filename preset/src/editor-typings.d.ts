@@ -540,6 +540,12 @@ declare interface CommandPaletteCommand {
 declare function GME_registerCommandPaletteCommand(command: CommandPaletteCommand): void
 
 /**
+ * Open the MagickMonkey Agent side panel (extension shell).
+ * Falls back to the keyboard shortcut ⌘⇧M / Ctrl+Shift+M when Chrome requires a user gesture.
+ */
+declare function GME_openAgentSidePanel(): Promise<void>
+
+/**
  * Open the command palette programmatically
  */
 declare function GME_openCommandPalette(): void

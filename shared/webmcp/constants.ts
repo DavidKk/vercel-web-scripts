@@ -21,3 +21,12 @@ export const VWS_WEBMCP_CANONICAL_NAME_PATTERN = /^vws\.([^.]+)\.([a-z][a-z0-9_]
 
 /** Allowed short local tool names passed by script authors. */
 export const VWS_WEBMCP_LOCAL_NAME_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
+
+/**
+ * Reserved scriptKey for extension builtin page tools (`vws.page.*`).
+ * Gist / GME registration must not use this key.
+ */
+export const VWS_WEBMCP_PAGE_SCRIPT_KEY = 'page'
+
+/** Metadata scriptFile for builtin page tools (not a real Gist path). */
+export const VWS_WEBMCP_PAGE_TOOLS_SCRIPT_FILE = '__builtin__/page-tools'

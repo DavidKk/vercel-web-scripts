@@ -8,6 +8,7 @@ describe('webmcp-inject-scripts', () => {
     expect(code).toContain('__VWS_WEBMCP_PAGE_TOOL_HINTS__')
     expect(code).toContain('pageHintEntries')
     expect(code).toContain('listTools')
+    expect(code).toContain('__GLOBAL__')
   })
 
   it('buildExecuteToolCode embeds JSON-safe name and args', () => {
@@ -15,6 +16,8 @@ describe('webmcp-inject-scripts', () => {
     expect(code).toContain('"vws.demo.toggle"')
     expect(code).toContain('"visible":false')
     expect(code).toContain('executeTool')
+    // Chrome WebMCP requires args as a JSON string, not an object.
+    expect(code).toContain('executeTool(name,JSON.stringify(args))')
   })
 
   it('buildExecuteToolCode escapes quotes in tool names', () => {

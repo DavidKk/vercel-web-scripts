@@ -38,7 +38,7 @@ export interface VwsWebMcpToolRecord {
 export interface RegisterVwsWebMcpToolResult {
   ok: boolean
   canonicalName?: string
-  reason?: 'unsupported' | 'missing_script_key' | 'invalid_local_name' | 'duplicate' | 'register_failed'
+  reason?: 'unsupported' | 'missing_script_key' | 'invalid_script_key' | 'invalid_local_name' | 'duplicate' | 'register_failed'
   message?: string
 }
 

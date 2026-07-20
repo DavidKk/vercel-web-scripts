@@ -11,7 +11,7 @@ import {
   resolvePresetAndRuntimeStage,
 } from '@ext/shared/extension-storage'
 import type { ShellStatus } from '@ext/shared/messages'
-import { getTabTriggerCount, hydrateTabTriggerCounts } from '@ext/shared/tab-trigger-badge'
+import { ensureTabTriggerHydrated, getTabTriggerCount, hydrateTabTriggerCounts } from '@ext/shared/tab-trigger-badge'
 
 import { fetchExtensionUpdateInfo } from '../shared/extension-update-check'
 import { refreshIncognitoLogCollectionCache, refreshShellLogOutputModeCache } from '../shared/shell-log-output-cache'
@@ -45,6 +45,9 @@ export async function buildStatus(options?: BuildStatusOptions): Promise<ShellSt
   const enabledServices = servicesState.services.filter((service) => service.enabled)
   const enabledScriptKeys = getEnabledScriptKeys(servicesState.services)
   const configured = scriptTotals.serverCount > 0
+  if (tab?.id != null) {
+    await ensureTabTriggerHydrated()
+  }
   const triggeredCountOnActiveTab = tab?.id != null ? getTabTriggerCount(tab.id) : 0
   const shellGloballyEnabled = await getShellGloballyEnabled()
   const shellEnabledOnActiveTab = tab?.id != null ? await isShellEnabledForTab(tab.id) : shellGloballyEnabled

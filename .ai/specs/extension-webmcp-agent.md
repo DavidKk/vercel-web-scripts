@@ -35,11 +35,11 @@ Status: **IMPLEMENTED**（WebMCP background 代理 + Side Panel Agent MVP：Chat
 
 ### 其他已拍板项
 
-| 原开放项           | 决定                                                       |
-| ------------------ | ---------------------------------------------------------- |
-| D3 DOM scrape 兜底 | **永不**自动 scrape；无工具时展示诊断与引导                |
-| D4 偏好 UI         | P2 MVP：**JSON 编辑器**；P3+ 表单化 per-host               |
-| D5 Web Store 审核  | README 补 Permissions 说明；LLM Key 本地存储、不上传服务端 |
+| 原开放项           | 决定                                                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D3 DOM scrape 兜底 | **永不**自动把 DOM 塞进 prompt；无工具时展示诊断与引导。通用读/控页见 **内置** `vws.page.*`（`.ai/specs/extension-page-webmcp.md`），仅经显式 tool call |
+| D4 偏好 UI         | P2 MVP：**JSON 编辑器**；P3+ 表单化 per-host                                                                                                            |
+| D5 Web Store 审核  | README 补 Permissions 说明；LLM Key 本地存储、不上传服务端                                                                                              |
 
 ---
 
@@ -349,7 +349,15 @@ Background 合并 `tools[]` 与 `registryEntries`，调用 `classifyWebMcpToolPr
     return { ok: false, reason: 'api_missing', message: 'executeTool unavailable' }
   }
   try {
-    const result = await testing.executeTool(name, args)
+    // Chrome requires the 2nd arg as a JSON string (not a plain object).
+    let result = await testing.executeTool(name, JSON.stringify(args))
+    if (typeof result === 'string') {
+      try {
+        result = JSON.parse(result)
+      } catch {
+        /* keep raw string */
+      }
+    }
     return { ok: true, result }
   } catch (e) {
     return {
@@ -361,7 +369,7 @@ Background 合并 `tools[]` 与 `registryEntries`，调用 `classifyWebMcpToolPr
 })()
 ```
 
-`name` / `args` 须经 `JSON.stringify` 嵌入，禁止字符串拼接用户输入。
+`name` / `args` 须经 `JSON.stringify` 嵌入，禁止字符串拼接用户输入。`executeTool` 的第二参必须再 `JSON.stringify(args)` 一次（Chrome 协议要求字符串）。
 
 ### 4.4 Tab 合法性（`webmcp-support.ts`）
 

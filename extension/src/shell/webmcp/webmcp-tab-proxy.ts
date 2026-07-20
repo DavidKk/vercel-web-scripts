@@ -2,6 +2,7 @@ import { classifyWebMcpToolProvider } from '@shared/webmcp/provider'
 import type { VwsWebMcpToolRecord } from '@shared/webmcp/types'
 
 import { executeRawMainWorldCodeForTab, isUserScriptsApiAvailable } from '../csp-user-script-executor'
+import { ensurePageToolsForTab, isVwsPageToolName } from './page-tools-ensure'
 import { buildExecuteToolCode, buildListToolsProbeCode } from './webmcp-inject-scripts'
 import { buildRegistryMapFromProbeEntries, buildWebMcpSupportPayloadFromProbe, getTabById, isOperableHttpTabUrl, listWebMcpCandidateTabs } from './webmcp-support'
 import type {
@@ -141,23 +142,35 @@ export async function webMcpListTools(tabId: number): Promise<WebMcpProxyResult<
     return failure(tabCheck.reason ?? 'invalid_tab', tabCheck.message ?? `Tab ${tabId} was not found.`)
   }
 
+  const pageToolsEnsure = await ensurePageToolsForTab(tabId, tabCheck.data?.tab.url)
+
   const probeResult = await runListToolsProbe(tabId)
   if (!probeResult.ok || !probeResult.data) {
-    return failure(probeResult.reason ?? 'api_missing', probeResult.message ?? 'WebMCP list probe failed.')
+    return failure(
+      probeResult.reason ?? 'api_missing',
+      pageToolsEnsure.attempted && !pageToolsEnsure.ok
+        ? `${probeResult.message ?? 'WebMCP list probe failed.'} (page tools: ${pageToolsEnsure.message ?? 'ensure failed'})`
+        : (probeResult.message ?? 'WebMCP list probe failed.')
+    )
   }
 
   if (probeResult.data.ok !== true) {
+    const probeMessage = probeResult.data.message ?? 'WebMCP tools are not available in this tab.'
     return {
       ok: false,
       reason: mapProbeReason(probeResult.data.reason),
-      message: probeResult.data.message ?? 'WebMCP tools are not available in this tab.',
+      message: pageToolsEnsure.attempted && !pageToolsEnsure.ok ? `${probeMessage} (page tools: ${pageToolsEnsure.message ?? 'ensure failed'})` : probeMessage,
     }
   }
 
+  const listed = mergeListedTools(probeResult.data)
   return {
     ok: true,
     reason: 'supported',
-    data: mergeListedTools(probeResult.data),
+    data: {
+      ...listed,
+      pageToolsEnsure,
+    },
   }
 }
 
@@ -179,6 +192,13 @@ export async function webMcpExecuteTool(tabId: number, name: string, args: Recor
 
   if (!isUserScriptsApiAvailable()) {
     return failure('user_scripts_unavailable', 'User Scripts API is not available for this extension.')
+  }
+
+  if (isVwsPageToolName(name)) {
+    const ensured = await ensurePageToolsForTab(tabId, tabCheck.data?.tab.url)
+    if (ensured.attempted && !ensured.ok) {
+      return failure('tool_not_found', ensured.message ?? 'Failed to register builtin page tools on this tab.')
+    }
   }
 
   const executeResult = await executeRawMainWorldCodeForTab(tabId, buildExecuteToolCode(name, args))

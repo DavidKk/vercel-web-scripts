@@ -17,15 +17,46 @@ export interface TabTriggerState {
 
 const tabTriggerState = new Map<number, TabTriggerState>()
 
+/** Single-flight hydration; cleared when simulating a service-worker restart. */
+let hydratePromise: Promise<void> | undefined
+
 /**
  * @param tabId Chrome tab id
+ * @returns Trigger count for the tab, or 0 when unknown
  */
 export function getTabTriggerCount(tabId: number): number {
   return tabTriggerState.get(tabId)?.count ?? 0
 }
 
-/** Restore counts from `chrome.storage.session` after service worker wake. */
+/**
+ * Drop in-memory badge state and the hydration latch (session storage unchanged).
+ * Simulates an MV3 service-worker restart for tests.
+ */
+export function simulateTabTriggerServiceWorkerRestart(): void {
+  tabTriggerState.clear()
+  hydratePromise = undefined
+}
+
+/**
+ * Load session blob into the in-memory map (idempotent single-flight).
+ * @returns Promise that resolves when hydration has finished
+ */
+export function ensureTabTriggerHydrated(): Promise<void> {
+  if (!hydratePromise) {
+    hydratePromise = loadTabTriggerCountsFromSession()
+  }
+  return hydratePromise
+}
+
+/**
+ * Restore counts from `chrome.storage.session` after service worker wake.
+ * @returns Promise that resolves when hydration has finished
+ */
 export async function hydrateTabTriggerCounts(): Promise<void> {
+  await ensureTabTriggerHydrated()
+}
+
+async function loadTabTriggerCountsFromSession(): Promise<void> {
   try {
     const result = await chrome.storage.session.get(TAB_TRIGGER_SESSION_KEY)
     const raw = result[TAB_TRIGGER_SESSION_KEY] as Record<string, TabTriggerState> | undefined
@@ -68,11 +99,12 @@ async function persistTabTriggerCounts(): Promise<void> {
  * Drop trigger state for a closed or invalid tab.
  * @param tabId Chrome tab id
  */
-export function clearTabTriggerState(tabId: number): void {
+export async function clearTabTriggerState(tabId: number): Promise<void> {
+  await ensureTabTriggerHydrated()
   if (!tabTriggerState.delete(tabId)) {
     return
   }
-  void persistTabTriggerCounts()
+  await persistTabTriggerCounts()
 }
 
 /**
@@ -80,16 +112,17 @@ export function clearTabTriggerState(tabId: number): void {
  * @param tabId Chrome tab id
  * @param url Current tab URL after client-side routing
  */
-export function syncTabTriggerUrlForClientNavigation(tabId: number, url: string | undefined): void {
+export async function syncTabTriggerUrlForClientNavigation(tabId: number, url: string | undefined): Promise<void> {
   if (!url) {
     return
   }
+  await ensureTabTriggerHydrated()
   const state = tabTriggerState.get(tabId)
   if (!state || state.url === url) {
     return
   }
   tabTriggerState.set(tabId, { ...state, url })
-  void persistTabTriggerCounts()
+  await persistTabTriggerCounts()
 }
 
 /**
@@ -97,16 +130,17 @@ export function syncTabTriggerUrlForClientNavigation(tabId: number, url: string 
  * @param tabId Chrome tab id
  * @param url Current tab URL after navigation
  */
-export function resetTabTriggerCountsForNavigation(tabId: number, url: string | undefined): void {
+export async function resetTabTriggerCountsForNavigation(tabId: number, url: string | undefined): Promise<void> {
   if (!url) {
-    clearTabTriggerState(tabId)
+    await clearTabTriggerState(tabId)
     return
   }
+  await ensureTabTriggerHydrated()
   const prev = tabTriggerState.get(tabId)
   if (prev?.url === url) {
     return
   }
-  resetTabTriggerCountsForPageLoad(tabId, url)
+  await resetTabTriggerCountsForPageLoad(tabId, url)
 }
 
 /**
@@ -114,17 +148,19 @@ export function resetTabTriggerCountsForNavigation(tabId: number, url: string | 
  * @param tabId Chrome tab id
  * @param url Document URL for this load
  */
-export function resetTabTriggerCountsForPageLoad(tabId: number, url: string | undefined): void {
+export async function resetTabTriggerCountsForPageLoad(tabId: number, url: string | undefined): Promise<void> {
   if (!url) {
-    clearTabTriggerState(tabId)
+    await clearTabTriggerState(tabId)
     return
   }
+  await ensureTabTriggerHydrated()
   tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [], phase: 'initializing' })
-  void persistTabTriggerCounts()
+  await persistTabTriggerCounts()
 }
 
 /**
  * @param tabId Chrome tab id
+ * @returns Badge phase for the tab when present
  */
 export function getTabBadgePhase(tabId: number): TabBadgePhase | undefined {
   return tabTriggerState.get(tabId)?.phase
@@ -136,21 +172,23 @@ export function getTabBadgePhase(tabId: number): TabBadgePhase | undefined {
  * @param url Tab URL
  * @param phase Badge phase
  */
-export function setTabBadgePhase(tabId: number, url: string | undefined, phase: TabBadgePhase): void {
+export async function setTabBadgePhase(tabId: number, url: string | undefined, phase: TabBadgePhase): Promise<void> {
   if (!url) {
     return
   }
+  await ensureTabTriggerHydrated()
   const prev = tabTriggerState.get(tabId)
   if (prev?.url !== url) {
     tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [], phase })
   } else {
     tabTriggerState.set(tabId, { ...prev, phase })
   }
-  void persistTabTriggerCounts()
+  await persistTabTriggerCounts()
 }
 
 /**
  * @param tabId Chrome tab id
+ * @returns Whether any script failed on this page load
  */
 export function getTabTriggerHasError(tabId: number): boolean {
   return tabTriggerState.get(tabId)?.hasError === true
@@ -161,8 +199,9 @@ export function getTabTriggerHasError(tabId: number): boolean {
  * @param tabId Chrome tab id
  * @param url Tab URL at failure time
  */
-export function markTabTriggerError(tabId: number, url: string | undefined): void {
+export async function markTabTriggerError(tabId: number, url: string | undefined): Promise<void> {
   const href = url ?? ''
+  await ensureTabTriggerHydrated()
   let state = tabTriggerState.get(tabId)
   if (!state || state.url !== href) {
     state = { url: href, count: 0, hasError: true, phase: undefined }
@@ -171,7 +210,7 @@ export function markTabTriggerError(tabId: number, url: string | undefined): voi
     state.phase = undefined
   }
   tabTriggerState.set(tabId, state)
-  void persistTabTriggerCounts()
+  await persistTabTriggerCounts()
 }
 
 /**
@@ -181,8 +220,9 @@ export function markTabTriggerError(tabId: number, url: string | undefined): voi
  * @param dedupeKey Optional dedupe key (`scriptKey|file|runAt`)
  * @returns New count after increment
  */
-export function incrementTabTriggerCount(tabId: number, url: string | undefined, dedupeKey?: string): number {
+export async function incrementTabTriggerCount(tabId: number, url: string | undefined, dedupeKey?: string): Promise<number> {
   const href = url ?? ''
+  await ensureTabTriggerHydrated()
   let state = tabTriggerState.get(tabId)
   if (!state || state.url !== href) {
     state = { url: href, count: 0, hasError: false, dedupeKeys: [], phase: undefined }
@@ -197,12 +237,15 @@ export function incrementTabTriggerCount(tabId: number, url: string | undefined,
   state.count += 1
   state.phase = undefined
   tabTriggerState.set(tabId, state)
-  void persistTabTriggerCounts()
+  await persistTabTriggerCounts()
   return state.count
 }
 
-/** Clear all tab trigger state (e.g. Update runtime). */
+/**
+ * Clear all tab trigger state (e.g. Update runtime).
+ */
 export async function clearAllTabTriggerCounts(): Promise<void> {
+  await ensureTabTriggerHydrated()
   tabTriggerState.clear()
   try {
     await chrome.storage.session.remove(TAB_TRIGGER_SESSION_KEY)

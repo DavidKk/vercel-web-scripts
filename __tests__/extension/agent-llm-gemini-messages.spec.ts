@@ -52,4 +52,24 @@ describe('agent-llm-gemini-messages', () => {
       ],
     })
   })
+
+  it('should flatten object tool results into functionResponse.response', () => {
+    const contents = toGeminiContents([
+      {
+        role: 'model',
+        toolResults: [{ name: 'vws__page__outline', result: { ok: true, h1Count: 1 } }],
+      },
+    ])
+    expect(contents[0]).toEqual({
+      role: 'user',
+      parts: [
+        {
+          functionResponse: {
+            name: 'vws__page__outline',
+            response: { ok: true, h1Count: 1 },
+          },
+        },
+      ],
+    })
+  })
 })

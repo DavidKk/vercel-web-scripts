@@ -18,6 +18,7 @@ export default (): Config.InitialOptions => ({
   moduleNameMapper: {
     '\\.css\\?raw$': '<rootDir>/__tests__/editor-lib/mocks/raw-css.ts',
     '^~icons/(.*)\\?raw$': '<rootDir>/__tests__/editor-lib/mocks/mdi-icon.ts',
+    '^marked$': '<rootDir>/node_modules/marked/lib/marked.umd.js',
     '^@/editor-theme$': '<rootDir>/editor-lib/src/editor-theme',
     '^@/search-extensions$': '<rootDir>/editor-lib/src/search-extensions',
     '^@/search-icons$': '<rootDir>/editor-lib/src/search-icons',

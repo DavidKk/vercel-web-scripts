@@ -24,8 +24,7 @@ export function initBadgeNavigationListeners(refreshBadge: BadgeRefreshHandler):
       return
     }
     void syncShellDisableForCloudflareChallenge(details.tabId, details.url).then(() => {
-      resetTabTriggerCountsForPageLoad(details.tabId, details.url)
-      return refreshBadge(details.tabId, details.url)
+      return resetTabTriggerCountsForPageLoad(details.tabId, details.url).then(() => refreshBadge(details.tabId, details.url))
     })
   })
 
@@ -34,8 +33,7 @@ export function initBadgeNavigationListeners(refreshBadge: BadgeRefreshHandler):
       return
     }
     void syncShellDisableForCloudflareChallenge(details.tabId, details.url).then(() => {
-      syncTabTriggerUrlForClientNavigation(details.tabId, details.url)
-      return refreshBadge(details.tabId, details.url)
+      return syncTabTriggerUrlForClientNavigation(details.tabId, details.url).then(() => refreshBadge(details.tabId, details.url))
     })
   })
 }

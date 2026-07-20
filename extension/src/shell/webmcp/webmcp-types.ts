@@ -55,6 +55,14 @@ export interface WebMcpListToolsPayload {
   tools: WebMcpListedTool[]
   filteredCount: number
   totalCount: number
+  /** Builtin `vws.page.*` ensure result from this list call. */
+  pageToolsEnsure?: {
+    attempted: boolean
+    ok: boolean
+    skippedReason?: string
+    message?: string
+    registered?: string[]
+  }
 }
 
 export interface WebMcpExecuteToolPayload {

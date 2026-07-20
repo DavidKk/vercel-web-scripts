@@ -1,6 +1,6 @@
 import { BADGE_BACKGROUND, BADGE_TEXT_RGBA, resolveBadgeDisplay } from '@ext/shared/badge-display'
 import { consumeBadgeRuntimeHint } from '@ext/shared/badge-runtime-hint'
-import { clearTabTriggerState, getTabBadgePhase, getTabTriggerCount, getTabTriggerHasError, setTabBadgePhase, type TabBadgePhase } from '@ext/shared/tab-trigger-badge'
+import { ensureTabTriggerHydrated, getTabBadgePhase, getTabTriggerCount, getTabTriggerHasError, setTabBadgePhase, type TabBadgePhase } from '@ext/shared/tab-trigger-badge'
 
 type BadgeTarget = { tabId: number } | Record<string, never>
 
@@ -40,15 +40,16 @@ export function scheduleInitializingIdleFallback(tabId: number, refreshBadge: Ba
     tabId,
     setTimeout(() => {
       initializingTimers.delete(tabId)
-      if (getTabBadgePhase(tabId) !== 'initializing' || getTabTriggerCount(tabId) > 0) {
-        return
-      }
-      void chrome.tabs.get(tabId).then((tab) => {
-        if (getTabBadgePhase(tabId) !== 'initializing') {
+      void ensureTabTriggerHydrated().then(() => {
+        if (getTabBadgePhase(tabId) !== 'initializing' || getTabTriggerCount(tabId) > 0) {
           return
         }
-        setTabBadgePhase(tabId, tab.url, 'idle')
-        void refreshBadge(tabId, tab.url)
+        return chrome.tabs.get(tabId).then((tab) => {
+          if (getTabBadgePhase(tabId) !== 'initializing') {
+            return
+          }
+          return setTabBadgePhase(tabId, tab.url, 'idle').then(() => refreshBadge(tabId, tab.url))
+        })
       })
     }, INITIALIZING_IDLE_MS)
   )
@@ -64,19 +65,21 @@ export function scheduleTransientBadgePhase(tabId: number, url: string | undefin
   if (!url) {
     return
   }
-  setTabBadgePhase(tabId, url, phase)
-  clearTimer(transientTimers, tabId)
-  transientTimers.set(
-    tabId,
-    setTimeout(() => {
-      transientTimers.delete(tabId)
-      if (getTabBadgePhase(tabId) !== phase || getTabTriggerCount(tabId) > 0) {
-        return
-      }
-      setTabBadgePhase(tabId, url, 'idle')
-      void refreshBadge(tabId, url)
-    }, TRANSIENT_PHASE_MS)
-  )
+  void setTabBadgePhase(tabId, url, phase).then(() => {
+    clearTimer(transientTimers, tabId)
+    transientTimers.set(
+      tabId,
+      setTimeout(() => {
+        transientTimers.delete(tabId)
+        void ensureTabTriggerHydrated().then(() => {
+          if (getTabBadgePhase(tabId) !== phase || getTabTriggerCount(tabId) > 0) {
+            return
+          }
+          return setTabBadgePhase(tabId, url, 'idle').then(() => refreshBadge(tabId, url))
+        })
+      }, TRANSIENT_PHASE_MS)
+    )
+  })
 }
 
 /**
@@ -107,8 +110,9 @@ export function clearBadgeTimersForTab(tabId: number): void {
 export function createBadgeRefreshHandler(isShellEnabledForTab: (tabId: number) => Promise<boolean>): (tabId: number, url?: string) => Promise<void> {
   return async function updateBadgeForTab(tabId: number, url?: string): Promise<void> {
     const target: BadgeTarget = { tabId }
+    await ensureTabTriggerHydrated()
     if (!isHttpTabUrl(url)) {
-      clearTabTriggerState(tabId)
+      // Hide badge only — never clear session state on missing/non-http URL snapshots.
       clearBadgeTimersForTab(tabId)
       await chrome.action.setBadgeText({ tabId, text: '' })
       await applyBadgeColors(target, BADGE_BACKGROUND)

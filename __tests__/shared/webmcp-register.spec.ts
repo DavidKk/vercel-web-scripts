@@ -90,6 +90,39 @@ describe('registerVwsWebMcpTool', () => {
     expect(registry.has('vws.shop-key.enter_fullscreen')).toBe(false)
   })
 
+  it('should reject reserved scriptKey page', async () => {
+    installModelContext(async () => undefined)
+
+    const result = await registerVwsWebMcpTool(
+      {
+        name: 'snapshot',
+        description: 'Should not register',
+        inputSchema: { type: 'object', properties: {} },
+        execute: async () => ({ ok: true }),
+      },
+      { scriptKey: 'page' }
+    )
+
+    expect(result).toMatchObject({ ok: false, reason: 'invalid_script_key' })
+    expect(result.message).toMatch(/reserved/i)
+  })
+
+  it('should allow reserved scriptKey page when allowReservedPageScriptKey is set', async () => {
+    installModelContext(async () => undefined)
+
+    const result = await registerVwsWebMcpTool(
+      {
+        name: 'snapshot',
+        description: 'Builtin snapshot',
+        inputSchema: { type: 'object', properties: {} },
+        execute: async () => ({ ok: true }),
+      },
+      { scriptKey: 'page', scriptFile: '__builtin__/page-tools', allowReservedPageScriptKey: true }
+    )
+
+    expect(result).toEqual({ ok: true, canonicalName: 'vws.page.snapshot' })
+  })
+
   it('should return unsupported when modelContext is missing', async () => {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: {} })
     Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} })

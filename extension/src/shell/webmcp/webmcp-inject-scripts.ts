@@ -6,6 +6,7 @@ import { VWS_WEBMCP_PAGE_TOOL_HINTS_KEY, VWS_WEBMCP_TOOL_REGISTRY_KEY } from '@s
  */
 export function buildListToolsProbeCode(): string {
   // Keep as an IIFE string: runs in the page MAIN world via userScripts.execute.
+  // Registry may live on __GLOBAL__ (preset) or globalThis/window — merge all Maps.
   return `(async()=>{
   const REGISTRY_KEY=${JSON.stringify(VWS_WEBMCP_TOOL_REGISTRY_KEY)};
   const PAGE_HINTS_KEY=${JSON.stringify(VWS_WEBMCP_PAGE_TOOL_HINTS_KEY)};
@@ -14,10 +15,24 @@ export function buildListToolsProbeCode(): string {
     const isSecure=typeof window!=="undefined"&&window.isSecureContext;
     const origin=typeof window!=="undefined"?window.location.origin:null;
     const testing=typeof navigator!=="undefined"?navigator.modelContextTesting:null;
-    const registry=globalThis[REGISTRY_KEY];
-    const pageHints=globalThis[PAGE_HINTS_KEY];
-    const registryEntries=registry&&typeof registry.entries==="function"?Array.from(registry.entries()):[];
-    const pageHintEntries=pageHints&&typeof pageHints.entries==="function"?Array.from(pageHints.entries()):[];
+    const hosts=[];
+    try{if(globalThis.__GLOBAL__&&typeof globalThis.__GLOBAL__==="object"){hosts.push(globalThis.__GLOBAL__);}}catch(_){}
+    hosts.push(globalThis);
+    if(typeof window!=="undefined"){hosts.push(window);}
+    const registryMap=new Map();
+    const pageHintsMap=new Map();
+    for(const host of hosts){
+      const registry=host[REGISTRY_KEY];
+      if(registry&&typeof registry.entries==="function"){
+        for(const [name,rec] of registry.entries()){if(!registryMap.has(name)){registryMap.set(name,rec);}}
+      }
+      const pageHints=host[PAGE_HINTS_KEY];
+      if(pageHints&&typeof pageHints.entries==="function"){
+        for(const [name,hint] of pageHints.entries()){if(!pageHintsMap.has(name)){pageHintsMap.set(name,hint);}}
+      }
+    }
+    const registryEntries=Array.from(registryMap.entries());
+    const pageHintEntries=Array.from(pageHintsMap.entries());
     const hasListTools=typeof testing?.listTools==="function";
     const hasExecuteTool=typeof testing?.executeTool==="function";
     const hasGetTools=typeof document?.modelContext?.getTools==="function";
@@ -66,11 +81,13 @@ export function buildListToolsProbeCode(): string {
 
 /**
  * Build MAIN-world JavaScript that executes a WebMCP tool by canonical name.
+ * Chrome `modelContextTesting.executeTool` requires args as a JSON **string**
+ * (not a plain object); passing an object yields "Failed to parse input arguments".
  * @param name Canonical tool name
  * @param args Tool arguments
  */
 export function buildExecuteToolCode(name: string, args: Record<string, unknown>): string {
   const nameLiteral = JSON.stringify(name)
   const argsLiteral = JSON.stringify(args ?? {})
-  return `(async()=>{const name=${nameLiteral};const args=${argsLiteral};const testing=navigator.modelContextTesting;if(typeof testing?.executeTool!=="function"){return{ok:false,reason:"api_missing",message:"executeTool unavailable"};}try{const result=await testing.executeTool(name,args);return{ok:true,result};}catch(e){return{ok:false,reason:"tool_execute_failed",message:e instanceof Error?e.message:String(e)};}})();`
+  return `(async()=>{const name=${nameLiteral};const args=${argsLiteral};const testing=navigator.modelContextTesting;if(typeof testing?.executeTool!=="function"){return{ok:false,reason:"api_missing",message:"executeTool unavailable"};}try{let result=await testing.executeTool(name,JSON.stringify(args));if(typeof result==="string"){try{result=JSON.parse(result);}catch(_){}}return{ok:true,result};}catch(e){return{ok:false,reason:"tool_execute_failed",message:e instanceof Error?e.message:String(e)};}})();`
 }

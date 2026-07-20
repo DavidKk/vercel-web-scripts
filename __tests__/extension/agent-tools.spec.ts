@@ -1,6 +1,15 @@
 import type { AgentPrefs } from '@ext/shell/webmcp/agent-types'
 import type { WebMcpListedTool } from '@ext/shell/webmcp/webmcp-types'
-import { buildAgentSystemPrompt, filterToolsForAgent, fromLlmToolName, shouldConfirmTool, toAgentLlmTools, toLlmToolName } from '@ext/ui/sidepanel/agent-tools'
+import {
+  buildAgentSystemPrompt,
+  filterToolsForAgent,
+  fromLlmToolName,
+  resolvePageToolsHint,
+  shouldConfirmTool,
+  toAgentLlmTools,
+  toLlmToolName,
+  WEBMCP_NO_TOOLS_DEFAULT_HINT,
+} from '@ext/ui/sidepanel/agent-tools'
 
 describe('agent-tools', () => {
   it('round-trips canonical tool names for LLM', () => {
@@ -16,12 +25,31 @@ describe('agent-tools', () => {
     expect(prompt).toContain('blockDanmaku')
     expect(prompt).toContain('editor_add_rule')
     expect(prompt).toContain('Do NOT call list_tools')
+    expect(prompt).toContain('vws.page.outline')
+    expect(prompt).toContain('never for heading')
+    expect(prompt).toContain('ALWAYS reply to the user in natural language')
   })
 
   it('buildAgentSystemPrompt warns when no tools are available', () => {
     const prompt = buildAgentSystemPrompt('https://example.com/', undefined, [])
     expect(prompt).toContain('No WebMCP tools are available')
     expect(prompt).toContain('list_tools')
+    expect(prompt).toContain('enable-webmcp-testing')
+    expect(prompt).toContain(WEBMCP_NO_TOOLS_DEFAULT_HINT)
+  })
+
+  it('resolvePageToolsHint prefers ensure/list diagnostics over the default hint', () => {
+    expect(resolvePageToolsHint([], undefined, 'WebMCP is unavailable on this page. Enable chrome://flags/#enable-webmcp-testing')).toContain('enable-webmcp-testing')
+    expect(resolvePageToolsHint([], { attempted: true, ok: false, message: 'Register failed' })).toBe('Register failed')
+    expect(resolvePageToolsHint([], { attempted: false, ok: true, skippedReason: 'user_scripts_unavailable' })).toContain('Allow User Scripts')
+    expect(resolvePageToolsHint([], undefined)).toBe(WEBMCP_NO_TOOLS_DEFAULT_HINT)
+    expect(
+      resolvePageToolsHint([{ name: 'vws.page.snapshot', provider: 'magickmonkey' }], {
+        attempted: true,
+        ok: true,
+        registered: ['vws.page.snapshot'],
+      })
+    ).toBeUndefined()
   })
 
   it('toAgentLlmTools maps schema', () => {
@@ -63,6 +91,15 @@ describe('agent-tools', () => {
     ]
     const prefs: AgentPrefs = { global: { toolProviderScope: 'all' } }
     expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['editor_add_rule', 'vws.demo.foo'])
+  })
+
+  it('filterToolsForAgent keeps builtin vws.page.* tools as MagickMonkey', () => {
+    const tools: WebMcpListedTool[] = [
+      { name: 'vws.page.snapshot', provider: 'magickmonkey' },
+      { name: 'editor_add_rule', provider: 'native' },
+    ]
+    const prefs: AgentPrefs = { global: { toolProviderScope: 'magickmonkey_only' } }
+    expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['vws.page.snapshot'])
   })
 
   it('shouldConfirmTool confirms non-read-only tools including native editor writes', () => {

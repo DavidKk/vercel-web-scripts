@@ -1,4 +1,5 @@
 import * as cspExecutor from '@ext/shell/csp-user-script-executor'
+import * as pageToolsEnsure from '@ext/shell/webmcp/page-tools-ensure'
 import { webMcpExecuteTool, webMcpGetSupport, webMcpListTools } from '@ext/shell/webmcp/webmcp-tab-proxy'
 
 jest.mock('@ext/shell/csp-user-script-executor', () => ({
@@ -6,8 +7,14 @@ jest.mock('@ext/shell/csp-user-script-executor', () => ({
   executeRawMainWorldCodeForTab: jest.fn(),
 }))
 
+jest.mock('@ext/shell/webmcp/page-tools-ensure', () => ({
+  ensurePageToolsForTab: jest.fn(),
+  isVwsPageToolName: (name: string) => name.startsWith('vws.page.'),
+}))
+
 const isUserScriptsApiAvailable = cspExecutor.isUserScriptsApiAvailable as jest.Mock
 const executeRawMainWorldCodeForTab = cspExecutor.executeRawMainWorldCodeForTab as jest.Mock
+const ensurePageToolsForTab = pageToolsEnsure.ensurePageToolsForTab as jest.Mock
 
 function installChromeTabsMock(tab: Partial<chrome.tabs.Tab>): void {
   ;(globalThis as { chrome?: unknown }).chrome = {
@@ -21,6 +28,7 @@ describe('webmcp-tab-proxy', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     isUserScriptsApiAvailable.mockReturnValue(true)
+    ensurePageToolsForTab.mockResolvedValue({ attempted: false, ok: true, skippedReason: 'no_matching_scripts' })
   })
 
   afterEach(() => {
@@ -57,6 +65,7 @@ describe('webmcp-tab-proxy', () => {
     })
 
     const result = await webMcpListTools(3)
+    expect(ensurePageToolsForTab).toHaveBeenCalledWith(3, 'https://example.com')
     expect(result.ok).toBe(true)
     expect(result.data?.tools[0]).toMatchObject({
       name: 'vws.demo.toggle',
@@ -104,6 +113,21 @@ describe('webmcp-tab-proxy', () => {
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('tool_execute_failed')
     expect(result.message).toBe('boom')
+  })
+
+  it('webMcpExecuteTool fails when builtin page tools ensure fails', async () => {
+    installChromeTabsMock({ id: 8, url: 'https://example.com/page' })
+    ensurePageToolsForTab.mockResolvedValue({
+      attempted: true,
+      ok: false,
+      message: 'Failed to load page-tools-main.js (404)',
+    })
+
+    const result = await webMcpExecuteTool(8, 'vws.page.snapshot', {})
+    expect(result.ok).toBe(false)
+    expect(result.reason).toBe('tool_not_found')
+    expect(result.message).toMatch(/page-tools-main/)
+    expect(executeRawMainWorldCodeForTab).not.toHaveBeenCalled()
   })
 
   it('webMcpGetSupport reports api_missing when probe is unsupported', async () => {

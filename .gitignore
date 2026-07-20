@@ -76,6 +76,7 @@ test-results
 playwright-report
 blob-report
 playwright/.cache
+.playwright-extension-screenshot-profile
 
 # Cursor local MCP config
 .cursor/mcp.json

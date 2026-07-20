@@ -161,6 +161,14 @@ export function handleBridgeRequest(value: unknown): void {
         respond(id, response?.ok === true && Array.isArray(response.grantedKeys) ? response.grantedKeys : [])
         return
       }
+      if (method === 'openSidePanel') {
+        const response = (await chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' })) as ShellResponse
+        if (!response?.ok) {
+          throw new Error(response?.ok === false ? response.error : 'OPEN_SIDE_PANEL failed')
+        }
+        respond(id, true)
+        return
+      }
       respond(id, undefined, `Unknown method: ${method}`)
     } catch (e) {
       respond(id, undefined, e instanceof Error ? e.message : String(e))

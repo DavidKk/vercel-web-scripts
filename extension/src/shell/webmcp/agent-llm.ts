@@ -1,6 +1,7 @@
 import { generateAnthropicAgentLlmResponse, listAnthropicAgentModels } from './agent-llm-anthropic'
 import { parseGeminiResponse, toGeminiContents, toGeminiToolDeclarations } from './agent-llm-gemini-messages'
 import { buildGeminiGenerateContentUrl, buildGeminiListModelsUrl, resolveGeminiApiRoot } from './agent-llm-gemini-url'
+import { generateOllamaAgentLlmResponse, listOllamaAgentModels } from './agent-llm-ollama'
 import { generateOpenAiAgentLlmResponse, listOpenAiAgentModels } from './agent-llm-openai'
 import { isAgentLlmProviderId } from './agent-llm-providers'
 import { buildAgentLlmFetchHeaders, normalizeProxyHeaders } from './agent-llm-proxy-headers'
@@ -70,7 +71,7 @@ async function generateGeminiAgentLlmResponse(input: {
   tools?: AgentLlmToolDefinition[]
   config: AgentLlmConfig
 }): Promise<AgentLlmGenerateResult> {
-  if (!input.config.apiKey.trim()) {
+  if (!input.config.proxyEnabled && !input.config.apiKey.trim()) {
     throw new Error('Gemini API key is not configured. Open Agent settings in the side panel.')
   }
 
@@ -114,7 +115,7 @@ async function generateGeminiAgentLlmResponse(input: {
 
 async function listGeminiAgentModels(config: Pick<AgentLlmConfig, 'apiKey' | 'proxyEnabled' | 'baseUrl' | 'proxyHeaders'>): Promise<AgentLlmModelInfo[]> {
   const apiKey = config.apiKey.trim()
-  if (!apiKey) {
+  if (!config.proxyEnabled && !apiKey) {
     throw new Error('Gemini API key is not configured.')
   }
 
@@ -193,6 +194,8 @@ export async function generateAgentLlmResponse(input: { requestId: string; messa
       return generateOpenAiAgentLlmResponse({ ...input, config })
     case 'anthropic':
       return generateAnthropicAgentLlmResponse({ ...input, config })
+    case 'ollama':
+      return generateOllamaAgentLlmResponse({ ...input, config })
     case 'gemini':
     default:
       return generateGeminiAgentLlmResponse({ ...input, config })
@@ -211,6 +214,8 @@ export async function listAgentLlmModels(overrides?: AgentLlmListModelsOverrides
       return listOpenAiAgentModels(config)
     case 'anthropic':
       return listAnthropicAgentModels(config)
+    case 'ollama':
+      return listOllamaAgentModels(config)
     case 'gemini':
     default:
       return listGeminiAgentModels(config)

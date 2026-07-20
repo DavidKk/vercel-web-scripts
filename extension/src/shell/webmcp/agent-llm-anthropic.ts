@@ -141,7 +141,7 @@ export async function generateAnthropicAgentLlmResponse(input: {
   config: AgentLlmConfig
 }): Promise<AgentLlmGenerateResult> {
   const apiKey = input.config.apiKey.trim()
-  if (!apiKey) {
+  if (!input.config.proxyEnabled && !apiKey) {
     throw new Error('Claude API key is not configured. Open Agent settings in the side panel.')
   }
 
@@ -187,7 +187,7 @@ export async function generateAnthropicAgentLlmResponse(input: {
  */
 export async function listAnthropicAgentModels(config: Pick<AgentLlmConfig, 'apiKey' | 'proxyEnabled' | 'baseUrl' | 'proxyHeaders'>): Promise<AgentLlmModelInfo[]> {
   const apiKey = config.apiKey.trim()
-  if (!apiKey) {
+  if (!config.proxyEnabled && !apiKey) {
     throw new Error('Claude API key is not configured.')
   }
 

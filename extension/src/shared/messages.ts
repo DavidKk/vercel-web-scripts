@@ -194,7 +194,7 @@ export type ShellMessage =
       /** Optional unsaved custom proxy headers from the settings form. */
       proxyHeaders?: Record<string, string>
       /** Optional unsaved provider from the settings form. */
-      provider?: 'gemini' | 'openai' | 'anthropic'
+      provider?: 'gemini' | 'openai' | 'anthropic' | 'ollama'
     }
 
 export interface ShellStatus {

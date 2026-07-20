@@ -32,6 +32,7 @@ import type { ShellMessage, ShellResponse } from '@ext/shared/messages'
 import { invalidateTabMatchCache, scheduleTabMatchRefreshForEnabledScriptKeys } from '@ext/shared/tab-match-cache'
 import {
   clearAllTabTriggerCounts,
+  ensureTabTriggerHydrated,
   getTabBadgePhase,
   getTabTriggerCount,
   getTabTriggerHasError,
@@ -420,7 +421,7 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
       }
       const url = tab.url ?? message.details.url
       await syncShellDisableForCloudflareChallenge(tab.id, url)
-      resetTabTriggerCountsForPageLoad(tab.id, url)
+      await resetTabTriggerCountsForPageLoad(tab.id, url)
       scheduleInitializingIdleFallback(tab.id, updateBadgeForTab)
       await updateBadgeForTab(tab.id, url)
       return { ok: true }
@@ -431,11 +432,12 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
         return { ok: true }
       }
       const url = tab.url ?? message.details.url
+      await ensureTabTriggerHydrated()
       await applyBootstrapRuntimeHint(tab.id, url, updateBadgeForTab)
       if (getTabTriggerCount(tab.id) === 0 && !getTabTriggerHasError(tab.id)) {
         const phase = getTabBadgePhase(tab.id)
         if (phase !== 'reset-done' && phase !== 'update-done') {
-          setTabBadgePhase(tab.id, url, 'idle')
+          await setTabBadgePhase(tab.id, url, 'idle')
         }
       }
       await updateBadgeForTab(tab.id, url)
@@ -447,8 +449,9 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
         return { ok: true }
       }
       const url = tab.url ?? message.details.url
+      await ensureTabTriggerHydrated()
       if (getTabTriggerCount(tab.id) === 0 && !getTabTriggerHasError(tab.id)) {
-        setTabBadgePhase(tab.id, url, message.details.reason === 'no-config' ? 'no-config' : 'idle')
+        await setTabBadgePhase(tab.id, url, message.details.reason === 'no-config' ? 'no-config' : 'idle')
       }
       await updateBadgeForTab(tab.id, url)
       return { ok: true }
@@ -460,7 +463,7 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
       }
       const { file, runAt, scriptKey } = message.details
       const dedupeKey = `${scriptKey ?? ''}|${file}|${runAt}`
-      incrementTabTriggerCount(tab.id, tab.url, dedupeKey)
+      await incrementTabTriggerCount(tab.id, tab.url, dedupeKey)
       await updateBadgeForTab(tab.id, tab.url)
       return { ok: true }
     }
@@ -469,7 +472,7 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
       if (tab?.id == null) {
         return { ok: true }
       }
-      markTabTriggerError(tab.id, tab.url)
+      await markTabTriggerError(tab.id, tab.url)
       await updateBadgeForTab(tab.id, tab.url)
       return { ok: true }
     }
@@ -523,14 +526,14 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
           return { ok: true, message: CSP_RELOAD_SCHEDULED_MESSAGE }
         }
         await disableCspStripForPageUrl(tabUrl)
-        markTabTriggerError(tabId, tabUrl)
+        await markTabTriggerError(tabId, tabUrl)
         await updateBadgeForTab(tabId, tabUrl)
         return {
           ok: false,
           error: 'CSP blocked after tab reload; preset still cannot execute on this page.',
         }
       }
-      markTabTriggerError(tabId, tabUrl)
+      await markTabTriggerError(tabId, tabUrl)
       await disableCspStripForPageUrl(tabUrl)
       await updateBadgeForTab(tabId, tabUrl)
       return { ok: false, error: result.message }

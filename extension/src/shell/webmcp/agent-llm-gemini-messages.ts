@@ -76,13 +76,14 @@ export function toGeminiContents(messages: AgentLlmMessage[]): GeminiContent[] {
     }
 
     for (const result of message.toolResults ?? []) {
+      const payload = toGeminiFunctionResponsePayload(result.result)
       contents.push({
         role: 'user',
         parts: [
           {
             functionResponse: {
               name: result.name,
-              response: { result: result.result },
+              response: payload,
             },
           },
         ],
@@ -91,6 +92,17 @@ export function toGeminiContents(messages: AgentLlmMessage[]): GeminiContent[] {
   }
 
   return contents
+}
+
+/**
+ * Flatten tool results into a Gemini functionResponse `response` Struct.
+ * Nested `{ result: {...} }` is harder for models to answer from than the object itself.
+ */
+export function toGeminiFunctionResponsePayload(result: unknown): Record<string, unknown> {
+  if (result && typeof result === 'object' && !Array.isArray(result)) {
+    return result as Record<string, unknown>
+  }
+  return { result: result ?? null }
 }
 
 /**

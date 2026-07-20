@@ -1,0 +1,9 @@
+# Third-party notices (MagickMonkey extension)
+
+## @page-agent/page-controller
+
+- Package: `@page-agent/page-controller`
+- Upstream: https://github.com/alibaba/page-agent (packages/page-controller)
+- License: MIT
+- Copyright (C) Alibaba Group Holding Limited and contributors
+- Notes: DOM extraction / indexed actions are derived from the browser-use project lineage as attributed by page-agent. MagickMonkey uses the controller only (no PageAgent UI/LLM).

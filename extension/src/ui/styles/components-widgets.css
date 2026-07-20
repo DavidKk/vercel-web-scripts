@@ -14,11 +14,11 @@
   }
 
   .mm-scroll-indicator-track {
-    @apply pointer-events-none absolute bottom-1 right-0 top-1 w-px overflow-hidden bg-mm-border-light/50;
+    @apply pointer-events-none absolute bottom-1 right-0.5 top-1 w-0.5 overflow-hidden rounded-full bg-mm-border-light/50;
   }
 
   .mm-scroll-indicator-thumb {
-    @apply absolute left-0 top-0 block w-full bg-mm-secondary/40;
+    @apply absolute left-0 top-0 block w-full rounded-full bg-mm-secondary/40;
     transition:
       height 120ms ease,
       transform 80ms linear,

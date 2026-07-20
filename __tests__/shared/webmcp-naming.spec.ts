@@ -39,5 +39,7 @@ describe('webmcp provider', () => {
     expect(classifyWebMcpToolProvider('vws.key.toggle', registry)).toBe('magickmonkey')
     expect(classifyWebMcpToolProvider('checkout', registry)).toBe('native')
     expect(classifyWebMcpToolProvider('vws.key.missing', registry)).toBe('unknown')
+    expect(classifyWebMcpToolProvider('vws.page.snapshot', registry)).toBe('magickmonkey')
+    expect(classifyWebMcpToolProvider('vws.page.outline')).toBe('magickmonkey')
   })
 })

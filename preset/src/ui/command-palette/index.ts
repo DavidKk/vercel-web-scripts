@@ -8,6 +8,8 @@
 
 import { appendToDocumentElement } from '@/helpers/dom'
 import { adoptTemplateContent, GME_clearElement, GME_setInnerHTML, mountUiTemplateShell } from '@/helpers/safe-inner-html'
+import { GME_notification } from '@/ui/notification/index'
+import iconAgent from '~icons/mdi/robot-outline?raw'
 
 import { bindScrollIndicator, refreshScrollIndicator } from '../shared/scroll-indicator'
 import { wrapUiStyles } from '../shared/wrap-ui-styles'
@@ -455,15 +457,58 @@ if (typeof customElements !== 'undefined' && !customElements.get(TAG)) {
   customElements.define(TAG, CommandPaletteUI)
 }
 
+// Register builtins into PRE_COMMANDS *before* mounting so connectedCallback picks them up.
+// (Mounting may run connectedCallback synchronously and drain PRE_COMMANDS.)
+registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
+registerCommandPaletteOtaDebug(GME_registerCommandPaletteCommand)
+
+function resolveOpenAgentSidePanel(): (() => Promise<void>) | null {
+  const hosts: Array<Record<string, unknown> | undefined> = []
+  try {
+    const g = globalThis as { __GLOBAL__?: Record<string, unknown> }
+    if (g.__GLOBAL__ && typeof g.__GLOBAL__ === 'object') {
+      hosts.push(g.__GLOBAL__)
+    }
+  } catch {
+    // ignore
+  }
+  hosts.push(globalThis as unknown as Record<string, unknown>)
+  if (typeof window !== 'undefined') {
+    hosts.push(window as unknown as Record<string, unknown>)
+  }
+  for (const host of hosts) {
+    const open = host?.GME_openAgentSidePanel
+    if (typeof open === 'function') {
+      return open as () => Promise<void>
+    }
+  }
+  return null
+}
+
+GME_registerCommandPaletteCommand({
+  id: 'open-agent',
+  keywords: ['agent', 'ai', 'chat', 'sidepanel', 'side panel', 'magickmonkey', '侧栏'],
+  title: 'Open MagickMonkey Agent',
+  hint: 'Open Agent side panel · ⌘⇧M / Ctrl+Shift+M',
+  iconHtml: iconAgent,
+  action: () => {
+    const open = resolveOpenAgentSidePanel()
+    if (!open) {
+      GME_notification('Agent requires MagickMonkey extension (page host).', 'warn')
+      return
+    }
+    void open().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error)
+      GME_notification(`Could not open Agent: ${message}. Try ⌘⇧M / Ctrl+Shift+M.`, 'warn', 5000)
+    })
+  },
+})
+
 if (typeof document !== 'undefined' && !document.querySelector(TAG)) {
   const container = document.createElement(TAG)
   mountUiTemplateShell(container, wrapUiStyles(paletteCss), paletteHtml)
   appendToDocumentElement(container)
 }
-
-// DEBUG tail block is grouped by sortCommandPaletteCommands (Permission → OTA → other).
-registerCommandPalettePermissionDebug(GME_registerCommandPaletteCommand)
-registerCommandPaletteOtaDebug(GME_registerCommandPaletteCommand)
 
 export function GME_openCommandPalette(): void {
   const el = document.querySelector(TAG) as CommandPaletteUI | null
