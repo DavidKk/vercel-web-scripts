@@ -196,10 +196,11 @@ export function startPageHost(gm: GMApi, options: PageHostStartOptions): void {
     showPassiveOtaToast(kind)
   }
 
-  function resolvePayloadGlobals(payloadGlobals: Record<string, string | boolean>): Record<string, string | boolean> {
-    const storedBundle = readScopedValue(scopedScriptBundleUrlKey, SCRIPT_BUNDLE_URL_KEY, '') as string
-    const g = { ...payloadGlobals }
-    const url = String(runtimeScriptUrl || storedBundle || g.__SCRIPT_URL__ || '').trim()
+  function resolvePayloadGlobals(payloadGlobals?: Record<string, string | boolean> | null): Record<string, string | boolean> {
+    // Prefer page-local urls.globals (always derived from bootstrap entry) so a thin/missing
+    // background payload cannot leave __BASE_URL__ / __SCRIPT_URL__ unset on strict CSP hosts.
+    const g: Record<string, string | boolean> = { ...globals, ...(payloadGlobals || {}) }
+    const url = String(runtimeScriptUrl || readScopedValue(scopedScriptBundleUrlKey, SCRIPT_BUNDLE_URL_KEY, '') || g.__SCRIPT_URL__ || '').trim()
     if (url) {
       g.__SCRIPT_URL__ = url
       runtimeScriptUrl = url
@@ -238,13 +239,20 @@ export function startPageHost(gm: GMApi, options: PageHostStartOptions): void {
     g.__VWS_SCRIPT_POLICIES__ = lastScriptPolicies
     g.__VWS_OTA_MANUAL_UPDATE__ = otaManualUpdateForLoad
     setActiveGmScope(gmScope)
-    const decls = buildPresetLauncherDecls(PRESET_VAR_NAMES)
+    const launcherGlobals: Record<string, string | boolean> = {
+      ...payloadGlobals,
+      __SCRIPT_URL__: String(runtimeScriptUrl || payloadGlobals.__SCRIPT_URL__ || ''),
+      __VWS_SCRIPT_KEY__: scriptKey,
+    }
+    // Inline known URLs/flags into decls so user-script MAIN-world eval does not depend on
+    // staged window[g] properties (GitHub CSP path previously saw base=(none) key=(none)).
+    const decls = buildPresetLauncherDecls(PRESET_VAR_NAMES, launcherGlobals)
     setPresetExecuteInFlight(true)
     void executePresetWithGResilient(g, decls, presetCode, {
       gmScope,
       scriptKey,
       enabledScripts,
-      launcherGlobals: { ...payloadGlobals, __SCRIPT_URL__: runtimeScriptUrl },
+      launcherGlobals,
       preferUserScript: true,
     })
       .then((mode) => {

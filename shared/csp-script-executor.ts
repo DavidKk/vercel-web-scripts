@@ -83,11 +83,12 @@ function markCspUserScriptAttempted(tabUrl: string, mode: string): void {
   getCspUserScriptAttemptSet().add(cspUserScriptAttemptKey(tabUrl, mode))
 }
 
-/** Optional launcher metadata (reserved for future bridge extensions). */
+/** Optional launcher metadata for CSP user-script / nonce execute paths. */
 export interface CspExtensionExecuteContext {
   gmScope?: string
   scriptKey?: string
   enabledScripts?: Record<string, boolean>
+  /** Merged onto the staged sandbox before execute (defense in depth for __BASE_URL__ etc.). */
   launcherGlobals?: Record<string, string | boolean | number>
   /** Prefer extension user-script injection before any page eval/nonce path. */
   preferUserScript?: boolean
@@ -287,6 +288,24 @@ export async function executeWithGlobalResilient(global: Record<string, unknown>
   }
 }
 
+/**
+ * Ensure launcher globals from context are present on the staged sandbox before CSP execute.
+ * @param g Launcher sandbox
+ * @param context Optional execute context with {@link CspExtensionExecuteContext.launcherGlobals}
+ */
+function applyLauncherGlobalsToSandbox(g: Record<string, unknown>, context?: CspExtensionExecuteContext): void {
+  const extras = context?.launcherGlobals
+  if (!extras) {
+    return
+  }
+  for (const [key, value] of Object.entries(extras)) {
+    if (value === undefined || value === null || value === '') {
+      continue
+    }
+    g[key] = value
+  }
+}
+
 /** Run {@link executePresetWithG} or defer to extension user-script API when nonce fallback is unavailable. */
 export async function executePresetWithGResilient(
   g: Record<string, unknown>,
@@ -294,6 +313,7 @@ export async function executePresetWithGResilient(
   presetCode: string,
   context?: CspExtensionExecuteContext
 ): Promise<CspScriptExecuteMode> {
+  applyLauncherGlobalsToSandbox(g, context)
   if (context?.preferUserScript) {
     try {
       const result = await requestExtensionUserScriptExecuteOnce({ mode: 'preset', decls, presetCode }, { key: CSP_EXEC_PRESET_GLOBAL_KEY, sandbox: g })
@@ -447,7 +467,10 @@ export function executeWithGlobal(global: Record<string, unknown>, withBody: str
 export function buildPresetWithGScriptSource(decls: string, presetCode: string): string {
   const inner = escapeInlineScriptText(`with(g) {\n${decls}\n${presetCode}\n}`)
   const key = JSON.stringify(CSP_EXEC_PRESET_GLOBAL_KEY)
-  return `(function(){var g=window[${key}];try{${inner}}finally{delete window[${key}];}})();`
+  const staged = escapeInlineScriptText(
+    `var g=window[${key}];if(!g){throw new Error('CSP user-script preset sandbox missing on window');}try{${inner}}finally{try{delete window[${key}]}catch(_){}}`
+  )
+  return wrapUserScriptIifeBody(staged)
 }
 
 /** USER_SCRIPT world: preset uses window (GM APIs already installed in page MAIN world). */

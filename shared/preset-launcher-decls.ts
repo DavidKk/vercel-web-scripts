@@ -6,13 +6,47 @@
 /** Declarations beyond {@link PRESET_VAR_NAMES} assigned on launcher sandbox `g`. */
 export const PRESET_LAUNCHER_SANDBOX_DECL_NAMES = ['__GLOBAL__', '__VWS_SCRIPT_KEY__'] as const
 
+/** Scalar values that can be inlined into preset launcher `var` declarations. */
+export type PresetLauncherDeclValue = string | boolean | number
+
 /**
- * Build `var ... = g....` declarations for preset execution in launcher sandbox `g`.
- * @param presetVarNames Names copied from `g` (e.g. `__BASE_URL__`, `__SCRIPT_URL__`)
+ * Serialize a launcher decl initializer (JSON for strings; bare literals for boolean/number).
+ * @param value Decl value
+ * @returns JavaScript expression source
+ */
+function formatPresetLauncherDeclValue(value: PresetLauncherDeclValue): string {
+  if (typeof value === 'boolean' || typeof value === 'number') {
+    return String(value)
+  }
+  return JSON.stringify(value)
+}
+
+/**
+ * Build one `var name = ...` line from optional literal map, else `g.name`.
+ * @param name Identifier to declare
+ * @param values Optional literal overrides (avoids depending on staged `g` properties)
+ * @returns Declaration statement
+ */
+function buildPresetLauncherDeclLine(name: string, values?: Record<string, PresetLauncherDeclValue | undefined | null>): string {
+  if (values && Object.prototype.hasOwnProperty.call(values, name)) {
+    const raw = values[name]
+    if (raw !== undefined && raw !== null && raw !== '') {
+      return `var ${name} = ${formatPresetLauncherDeclValue(raw)};`
+    }
+  }
+  return `var ${name} = g.${name};`
+}
+
+/**
+ * Build `var ...` declarations for preset execution in launcher sandbox `g`.
+ * Prefer literal `values` when known so CSP user-script injection does not depend on
+ * staged window properties surviving until `chrome.userScripts.execute` runs.
+ * @param presetVarNames Names copied from `g` or inlined (e.g. `__BASE_URL__`, `__SCRIPT_URL__`)
+ * @param values Optional literal overrides for sandbox + preset globals
  * @returns Declaration block (no outer `with`)
  */
-export function buildPresetLauncherDecls(presetVarNames: readonly string[]): string {
-  const lines = ['var __GLOBAL__ = g;', 'var __VWS_SCRIPT_KEY__ = g.__VWS_SCRIPT_KEY__;', ...presetVarNames.map((name) => `var ${name} = g.${name};`)]
+export function buildPresetLauncherDecls(presetVarNames: readonly string[], values?: Record<string, PresetLauncherDeclValue | undefined | null>): string {
+  const lines = ['var __GLOBAL__ = g;', buildPresetLauncherDeclLine('__VWS_SCRIPT_KEY__', values), ...presetVarNames.map((name) => buildPresetLauncherDeclLine(name, values))]
   return lines.join('\n')
 }
 

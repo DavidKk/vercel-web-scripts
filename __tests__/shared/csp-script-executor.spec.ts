@@ -37,8 +37,10 @@ describe('csp-script-executor', () => {
     expect(wrapped).toContain('catch(e){throw e;}')
   })
 
-  it('buildPresetWithGScriptSource uses staged launcher sandbox on window', () => {
-    expect(buildPresetWithGScriptSource('var x=1;', 'void 0')).toContain(`window[${JSON.stringify(CSP_EXEC_PRESET_GLOBAL_KEY)}]`)
+  it('should build preset source from staged launcher sandbox on window', () => {
+    const source = buildPresetWithGScriptSource('var x=1;', 'void 0')
+    expect(source).toContain(`window[${JSON.stringify(CSP_EXEC_PRESET_GLOBAL_KEY)}]`)
+    expect(source).toContain('CSP user-script preset sandbox missing on window')
   })
 
   it('buildWithGlobalStagedScriptSource reads staged sandbox from window', () => {
