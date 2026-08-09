@@ -151,7 +151,8 @@ pnpm commitlint --edit "$1"
       content: `${pathSetup}
 
 # Auto-bump root package.json when pushing to main/master (feat→minor, else patch).
-# Exit 1 after creating chore(release) so the next push includes that commit.
+# If a release commit is created, abort this push so the next push includes it.
+# (Do not rely on exit code 2 — husky runs hooks with \`sh -e\`.)
 if [ "\${VWS_SKIP_VERSION_BUMP:-}" = "1" ]; then
   exit 0
 fi
@@ -161,12 +162,11 @@ while read -r local_ref local_sha remote_ref remote_sha
 do
   case "\$remote_ref" in
     refs/heads/main|refs/heads/master)
+      before=\$(git rev-parse HEAD)
       pnpm version:bump --commit
-      code=\$?
-      if [ "\$code" -eq 2 ]; then
+      after=\$(git rev-parse HEAD)
+      if [ "\$before" != "\$after" ]; then
         bumped=1
-      elif [ "\$code" -ne 0 ]; then
-        exit "\$code"
       fi
       ;;
   esac
