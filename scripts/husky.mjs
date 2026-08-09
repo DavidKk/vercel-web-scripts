@@ -21,32 +21,30 @@ export const husky = async (options = {}) => {
   }
 
   const huskyHooksPath = path.join(cwd, '.husky')
-  if (upgrade === false && fs.existsSync(huskyHooksPath)) {
-    ok('Husky is already installed, skip the Husky installation process.')
-    return
-  }
+  const alreadyInstalled = upgrade === false && fs.existsSync(huskyHooksPath)
 
-  // Husky v9+: create hook files directly; initialize husky (install or init)
-  try {
-    // Prefer husky init (v9+)
-    execSync('husky init', { stdio: 'pipe', cwd })
-  } catch (error) {
+  if (!alreadyInstalled) {
+    // Husky v9+: create hook files directly; initialize husky (install or init)
     try {
-      execSync('husky install', { stdio: 'pipe', cwd })
-    } catch (installError) {
-      if (!fs.existsSync(huskyHooksPath)) {
-        await fs.promises.mkdir(huskyHooksPath, { recursive: true })
-      }
-      // Husky helper script at _/husky.sh
-      const huskyShPath = path.join(huskyHooksPath, '_', 'husky.sh')
-      const huskyShDir = path.dirname(huskyShPath)
-      if (!fs.existsSync(huskyShDir)) {
-        await fs.promises.mkdir(huskyShDir, { recursive: true })
-      }
-      if (!fs.existsSync(huskyShPath)) {
-        await fs.promises.writeFile(
-          huskyShPath,
-          `#!/usr/bin/env sh
+      // Prefer husky init (v9+)
+      execSync('husky init', { stdio: 'pipe', cwd })
+    } catch (error) {
+      try {
+        execSync('husky install', { stdio: 'pipe', cwd })
+      } catch (installError) {
+        if (!fs.existsSync(huskyHooksPath)) {
+          await fs.promises.mkdir(huskyHooksPath, { recursive: true })
+        }
+        // Husky helper script at _/husky.sh
+        const huskyShPath = path.join(huskyHooksPath, '_', 'husky.sh')
+        const huskyShDir = path.dirname(huskyShPath)
+        if (!fs.existsSync(huskyShDir)) {
+          await fs.promises.mkdir(huskyShDir, { recursive: true })
+        }
+        if (!fs.existsSync(huskyShPath)) {
+          await fs.promises.writeFile(
+            huskyShPath,
+            `#!/usr/bin/env sh
 if [ -z "$husky_skip_init" ]; then
   debug () {
     if [ "$HUSKY_DEBUG" = "1" ]; then
@@ -83,10 +81,13 @@ if [ -z "$husky_skip_init" ]; then
   exit $exitcode
 fi
 `,
-          { mode: 0o755 }
-        )
+            { mode: 0o755 }
+          )
+        }
       }
     }
+  } else {
+    info('Husky is already installed; syncing hook files.')
   }
 
   // Hook body differs by platform; Git GUIs on Windows often ship a minimal PATH
@@ -221,5 +222,5 @@ fi
     return
   }
 
-  ok(`Husky (Git hook) was installed successfully.`)
+  ok(alreadyInstalled ? 'Husky hooks synced successfully.' : 'Husky (Git hook) was installed successfully.')
 }
