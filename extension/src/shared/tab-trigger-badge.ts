@@ -167,7 +167,8 @@ export function getTabBadgePhase(tabId: number): TabBadgePhase | undefined {
 }
 
 /**
- * Set lifecycle phase for zero-count badge states.
+ * Set lifecycle phase for zero-count badge states without wiping trigger counts.
+ * URL may drift under CSR; preserve count / error / dedupe from the prior state.
  * @param tabId Chrome tab id
  * @param url Tab URL
  * @param phase Badge phase
@@ -178,10 +179,10 @@ export async function setTabBadgePhase(tabId: number, url: string | undefined, p
   }
   await ensureTabTriggerHydrated()
   const prev = tabTriggerState.get(tabId)
-  if (prev?.url !== url) {
+  if (!prev) {
     tabTriggerState.set(tabId, { url, count: 0, hasError: false, dedupeKeys: [], phase })
   } else {
-    tabTriggerState.set(tabId, { ...prev, phase })
+    tabTriggerState.set(tabId, { ...prev, url, phase })
   }
   await persistTabTriggerCounts()
 }
@@ -196,6 +197,7 @@ export function getTabTriggerHasError(tabId: number): boolean {
 
 /**
  * Mark that a script failed on this page load (badge red background until next load).
+ * CSR URL drift must not wipe the prior trigger count.
  * @param tabId Chrome tab id
  * @param url Tab URL at failure time
  */
@@ -203,11 +205,10 @@ export async function markTabTriggerError(tabId: number, url: string | undefined
   const href = url ?? ''
   await ensureTabTriggerHydrated()
   let state = tabTriggerState.get(tabId)
-  if (!state || state.url !== href) {
+  if (!state) {
     state = { url: href, count: 0, hasError: true, phase: undefined }
   } else {
-    state.hasError = true
-    state.phase = undefined
+    state = { ...state, url: href || state.url, hasError: true, phase: undefined }
   }
   tabTriggerState.set(tabId, state)
   await persistTabTriggerCounts()
@@ -215,6 +216,8 @@ export async function markTabTriggerError(tabId: number, url: string | undefined
 
 /**
  * Increment trigger count for a tab and persist.
+ * If the tab URL changed via CSR before this message arrived, sync the URL
+ * and keep the existing count instead of treating it as a new page load.
  * @param tabId Chrome tab id
  * @param url Tab URL at trigger time
  * @param dedupeKey Optional dedupe key (`scriptKey|file|runAt`)
@@ -224,12 +227,16 @@ export async function incrementTabTriggerCount(tabId: number, url: string | unde
   const href = url ?? ''
   await ensureTabTriggerHydrated()
   let state = tabTriggerState.get(tabId)
-  if (!state || state.url !== href) {
+  if (!state) {
     state = { url: href, count: 0, hasError: false, dedupeKeys: [], phase: undefined }
+  } else if (state.url !== href) {
+    state = { ...state, url: href }
   }
   if (dedupeKey) {
     const keys = state.dedupeKeys ?? []
     if (keys.includes(dedupeKey)) {
+      tabTriggerState.set(tabId, state)
+      await persistTabTriggerCounts()
       return state.count
     }
     state.dedupeKeys = [...keys, dedupeKey]

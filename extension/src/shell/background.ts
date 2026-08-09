@@ -63,8 +63,12 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   }
 })
 
-initBadgeNavigationListeners((tabId, url) => {
-  scheduleInitializingIdleFallback(tabId, updateBadgeForTab)
+initBadgeNavigationListeners((tabId, url, kind) => {
+  // Only real document loads (TAB_PAGE_LOAD) arm the initializing→idle timer.
+  // CSR commits / History API must not schedule a fall-through to gray idle.
+  if (kind === 'document-load') {
+    scheduleInitializingIdleFallback(tabId, updateBadgeForTab)
+  }
   void updateBadgeForTab(tabId, url)
 })
 

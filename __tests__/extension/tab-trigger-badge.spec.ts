@@ -5,6 +5,7 @@ import {
   getTabTriggerCount,
   incrementTabTriggerCount,
   resetTabTriggerCountsForPageLoad,
+  setTabBadgePhase,
   simulateTabTriggerServiceWorkerRestart,
   syncTabTriggerUrlForClientNavigation,
   TAB_TRIGGER_SESSION_KEY,
@@ -87,6 +88,21 @@ describe('tab-trigger-badge', () => {
 
     expect(getTabTriggerCount(tabId)).toBe(1)
     expect(getTabTriggerCount(otherTabId)).toBe(1)
+  })
+
+  it('should preserve trigger count when setTabBadgePhase URL drifts under CSR', async () => {
+    await incrementTabTriggerCount(tabId, 'https://example.com/a', 'key|a.js|document-end')
+    await setTabBadgePhase(tabId, 'https://example.com/b', 'idle')
+
+    expect(getTabTriggerCount(tabId)).toBe(1)
+    expect(getTabBadgePhase(tabId)).toBe('idle')
+  })
+
+  it('should preserve trigger count when SCRIPT_TRIGGERED URL drifts under CSR', async () => {
+    await incrementTabTriggerCount(tabId, 'https://example.com/a', 'key|a.js|document-end')
+    await incrementTabTriggerCount(tabId, 'https://example.com/b', 'key|b.js|document-end')
+
+    expect(getTabTriggerCount(tabId)).toBe(2)
   })
 
   it('should not clear session state when clearing a missing tab id', async () => {

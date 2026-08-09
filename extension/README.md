@@ -211,14 +211,14 @@ Legacy `#scripts/logs` redirects to the logs tab.
 
 ## SPA / client-side routing (same as Tampermonkey)
 
-The shell does **not** treat CSR URL changes specially:
+The shell does **not** re-inject on CSR URL changes:
 
-- **Launcher + preset + remote bundle** run once per full page load (no re-inject on `pushState` / `replaceState`).
-- **Badge** updates on normal tab navigation (`tabs.onUpdated` / tab switch), not on dedicated SPA hooks.
+- **Launcher + preset + remote bundle** run once per full document load (content script `TAB_PAGE_LOAD` / page bootstrap). No re-inject on `pushState` / `replaceState` / soft navigations.
+- **Badge reset** is driven by **`TAB_PAGE_LOAD` only** (real document). `webNavigation.onCommitted` and `onHistoryStateUpdated` only sync the stored URL and refresh the badge — they must **not** clear trigger counts or flip the badge back to initializing/idle gray (important for long CSR feeds like Douyin).
 - **Badge count** (`triggeredCountOnActiveTab`) increments once per GIST module that actually runs (`GME_ok` “Executing script …” line). Different `@run-at` timings on the same page load can increase the count at different times.
-- **Badge background** is blue by default; turns **red** if any GIST module logs `GME_fail` “Executing script … failed:” on this page load (count and text unchanged).
+- **Badge background** is blue by default; turns **red** if any GIST module logs `GME_fail` “Executing script … failed:” on this page load (count and text unchanged). Idle gray (`·`) means bootstrap finished with **zero** triggers on this document — not “CSR wiped inject”.
 - **Badge lifecycle** (when trigger count is 0): `…` initializing (page load / bootstrap), `·` idle (bootstrap done, no scripts yet), `?` no enabled service config, `✓` reset complete, `↻` update complete (last two flash ~3s). Red `!` when the shell is off or a script failed with zero triggers.
-- Count resets on each top-level page load (including same-URL refresh), when the content script starts. URL-only changes without a new document (typical SPA) do not reset.
+- Count resets on each top-level **document** load (including same-URL refresh), when the content script starts. URL-only changes without a new document (typical SPA) do not reset.
 - **Update runtime** / **Reset runtime** also clears counts before reload.
 - Counts are stored in `chrome.storage.session` so a short MV3 service-worker sleep does not zero the badge while you stay on the same URL. Badge refresh / trigger writes call `ensureTabTriggerHydrated()` before reading or persisting so a wake-up from tab switch restores counts instead of flashing idle (`·`).
 

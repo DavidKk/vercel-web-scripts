@@ -1,14 +1,18 @@
 import { syncShellDisableForCloudflareChallenge } from '@ext/shared/extension-storage'
-import { resetTabTriggerCountsForPageLoad, syncTabTriggerUrlForClientNavigation } from '@ext/shared/tab-trigger-badge'
+import { syncTabTriggerUrlForClientNavigation } from '@ext/shared/tab-trigger-badge'
 
-type BadgeRefreshHandler = (tabId: number, url?: string) => void | Promise<void>
+type BadgeNavKind = 'document-load' | 'client-navigation'
+
+type BadgeRefreshHandler = (tabId: number, url: string | undefined, kind: BadgeNavKind) => void | Promise<void>
 
 /**
- * Wire webNavigation listeners so badge counts reset on real document loads only.
- * CSR history updates sync URL without clearing counts (see tab-trigger-badge.ts).
- * Cloudflare `__cf_chl_rt_tk`: apply “This tab only” disable on **beforeNavigate**
- * so session storage is written before the content script runs (same timing as a
- * manual disable + reload).
+ * Wire webNavigation listeners for badge + Cloudflare shell disable.
+ *
+ * Badge / inject lifecycle reset is driven only by content-script `TAB_PAGE_LOAD`
+ * (one inject cycle per real document). `onCommitted` and History API updates
+ * must not clear trigger counts or flip the badge back to initializing — CSR
+ * (e.g. Douyin swipe) must leave the post-inject badge state alone.
+ *
  * @param refreshBadge Per-tab badge refresh callback
  */
 export function initBadgeNavigationListeners(refreshBadge: BadgeRefreshHandler): void {
@@ -24,7 +28,7 @@ export function initBadgeNavigationListeners(refreshBadge: BadgeRefreshHandler):
       return
     }
     void syncShellDisableForCloudflareChallenge(details.tabId, details.url).then(() => {
-      return resetTabTriggerCountsForPageLoad(details.tabId, details.url).then(() => refreshBadge(details.tabId, details.url))
+      return syncTabTriggerUrlForClientNavigation(details.tabId, details.url).then(() => refreshBadge(details.tabId, details.url, 'client-navigation'))
     })
   })
 
@@ -33,7 +37,7 @@ export function initBadgeNavigationListeners(refreshBadge: BadgeRefreshHandler):
       return
     }
     void syncShellDisableForCloudflareChallenge(details.tabId, details.url).then(() => {
-      return syncTabTriggerUrlForClientNavigation(details.tabId, details.url).then(() => refreshBadge(details.tabId, details.url))
+      return syncTabTriggerUrlForClientNavigation(details.tabId, details.url).then(() => refreshBadge(details.tabId, details.url, 'client-navigation'))
     })
   })
 }
