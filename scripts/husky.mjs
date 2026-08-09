@@ -145,6 +145,39 @@ pnpm lint-staged
 pnpm commitlint --edit "$1"
 `,
     },
+    {
+      name: 'pre-push',
+      content: `${pathSetup}
+
+# Auto-bump root package.json when pushing to main/master (feat→minor, else patch).
+# Exit 1 after creating chore(release) so the next push includes that commit.
+if [ "\${VWS_SKIP_VERSION_BUMP:-}" = "1" ]; then
+  exit 0
+fi
+
+bumped=0
+while read -r local_ref local_sha remote_ref remote_sha
+do
+  case "\$remote_ref" in
+    refs/heads/main|refs/heads/master)
+      pnpm version:bump --commit
+      code=\$?
+      if [ "\$code" -eq 2 ]; then
+        bumped=1
+      elif [ "\$code" -ne 0 ]; then
+        exit "\$code"
+      fi
+      ;;
+  esac
+done
+
+if [ "\$bumped" -eq 1 ]; then
+  echo ""
+  echo "husky(pre-push): version release commit created — run git push again to include it."
+  exit 1
+fi
+`,
+    },
   ]
 
   for (const hook of hooks) {

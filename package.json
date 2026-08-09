@@ -38,6 +38,7 @@
     "build:extension:dev": "vite build --config extension/vite.config.ts --watch",
     "pack:extension": "pnpm run build:extension && node extension/scripts/pack-extension-zip.mjs",
     "test:extension:static-watch": "node extension/scripts/verify-static-watch.mjs",
+    "version:bump": "node scripts/bump-version-from-commits.mjs",
     "prepare": "husky"
   },
   "dependencies": {
