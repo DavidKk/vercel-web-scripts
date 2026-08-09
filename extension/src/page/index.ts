@@ -9,6 +9,7 @@ import { stripDocumentCspMetaTags } from '@shared/csp-page-style'
 import { installCspExtensionBridgeResponseListener } from '@shared/csp-script-executor'
 import { BOOT_LOG_KEY } from '@shared/launcher-constants'
 import { setPermissionTrustScriptKeys } from '@shared/script-permission-scope'
+import { publishPageTraceId } from '@shared/trace-id'
 
 import { flushBootDebugLogs } from '../bridge/debug-log-relay'
 import type { RuntimeLoadFailedPayload, RuntimeLoadResult, RuntimePresetReadyPayload } from '../runtime/loader-types'
@@ -45,11 +46,15 @@ function loadBootstrapData(): void {
       bridgeToken?: string
       permissionAllowKeys?: string[]
       runtimeLoadResults?: RuntimeLoadResult[]
+      pageTraceId?: string
     }
     window.__VWS_PAGE_CONFIG__ = parsed.config
     window.__VWS_GM_STORE__ = parsed.gmStore ?? {}
     if (Array.isArray(parsed.runtimeLoadResults)) {
       window.__VWS_RUNTIME_LOAD__ = parsed.runtimeLoadResults
+    }
+    if (typeof parsed.pageTraceId === 'string' && parsed.pageTraceId) {
+      publishPageTraceId(parsed.pageTraceId)
     }
     if (typeof parsed.bridgeToken === 'string' && parsed.bridgeToken) {
       setPageBridgeToken(parsed.bridgeToken)

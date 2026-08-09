@@ -32,6 +32,7 @@ interface LogEntry {
   level: LogLevel
   message: string
   timestamp: number
+  traceId?: string
 }
 
 function escapeHtml(s: string): string {
@@ -260,7 +261,8 @@ export class LogViewerUI extends HTMLElement {
    * One line for clipboard (plain text).
    */
   #formatLinePlain(e: LogEntry): string {
-    return `${this.#formatTime(e.timestamp)} [${e.level.toUpperCase()}] ${e.message}`
+    const trace = e.traceId ? ` trace=${e.traceId}` : ''
+    return `${this.#formatTime(e.timestamp)} [${e.level.toUpperCase()}]${trace} ${e.message}`
   }
 
   /**
@@ -276,7 +278,10 @@ export class LogViewerUI extends HTMLElement {
     const entries = this.#store.getLogs(scope)
     return entries.filter((e) => {
       if (!levels.has(e.level)) return false
-      if (keyword && !e.message.toLowerCase().includes(keyword)) return false
+      if (keyword) {
+        const haystack = `${e.message} ${e.traceId ?? ''}`.toLowerCase()
+        if (!haystack.includes(keyword)) return false
+      }
       return true
     })
   }
@@ -333,11 +338,14 @@ export class LogViewerUI extends HTMLElement {
     filtered.forEach((e) => {
       const row = document.createElement('div')
       row.className = `log-viewer__entry log-viewer__entry--${e.level}`
+      const shortTrace = e.traceId ? e.traceId.replace(/-/g, '').slice(0, 8) : ''
+      const traceHtml = shortTrace ? `<span class="log-viewer__entry-trace" title="${escapeHtml(e.traceId ?? '')}">${escapeHtml(shortTrace)}</span>` : ''
       GME_setInnerHTML(
         row,
         `
         <span class="log-viewer__entry-time">${this.#formatTime(e.timestamp)}</span>
         <span class="log-viewer__entry-icon">${icons[e.level] ?? ''}</span>
+        ${traceHtml}
         <span class="log-viewer__entry-msg">${escapeHtml(e.message)}</span>
       `
       )

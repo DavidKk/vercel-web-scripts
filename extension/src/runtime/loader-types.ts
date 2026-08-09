@@ -18,6 +18,8 @@ export interface RuntimeEnsureLoadRequest {
   tabId: number
   pageUrl: string
   entries: RuntimeLoadEntry[]
+  /** Optional TraceId from content bootstrap (correlates ModuleLoad with page). */
+  traceId?: string
 }
 
 /** Manifest subset used by the native loader. */

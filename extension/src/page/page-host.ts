@@ -27,6 +27,7 @@ import { buildPresetLauncherDecls } from '@shared/preset-launcher-decls'
 import { clearAllRuntimeGmCaches } from '@shared/runtime-cache-clear'
 import { SCRIPT_CONTENT_HASH_MAP_KEY } from '@shared/script-permission-scope'
 import { PRESET_CORE_SCRIPT_FILE, reportExtensionScriptFailed } from '@shared/script-trigger-log'
+import { createTraceId, publishPageTraceId, readPageTraceId } from '@shared/trace-id'
 
 import { BRIDGE_MESSAGE_SOURCE, RUNTIME_LOAD_FAILED_MESSAGE_TYPE, RUNTIME_PRESET_READY_MESSAGE_TYPE } from '../bridge/runtime-messages'
 import type { RuntimeLoadFailedPayload, RuntimePresetReadyPayload } from '../runtime/loader-types'
@@ -65,6 +66,10 @@ function guardKey(prefix: string, scriptKey: string): string {
 export function startPageHost(gm: GMApi, options: PageHostStartOptions): void {
   const logPrefix = options.logPrefix ?? MODULE_LOG_PREFIX
   const { scriptKey, gmScope, enabledScripts = {}, contentHashByFile = {}, urls } = options
+
+  // One TraceId per page-host start; publish globally so preset OTA bundle can correlate.
+  // Do not enterTraceScope here — multi-scriptKey pages would leak stack frames across await races.
+  const pageTraceId = publishPageTraceId(readPageTraceId() ?? createTraceId())
 
   setActiveGmScope(gmScope)
   ;(globalThis as Record<string, unknown>).__VWS_SCRIPT_KEY__ = scriptKey
@@ -113,9 +118,9 @@ export function startPageHost(gm: GMApi, options: PageHostStartOptions): void {
       if (!Array.isArray(root[BOOT_LOG_KEY])) {
         root[BOOT_LOG_KEY] = []
       }
-      const arr = root[BOOT_LOG_KEY] as { t: number; level: string; message: string }[]
+      const arr = root[BOOT_LOG_KEY] as { t: number; level: string; message: string; traceId?: string }[]
       if (arr.length >= BOOT_LOG_MAX) arr.shift()
-      arr.push({ t: Date.now(), level, message: labeled })
+      arr.push({ t: Date.now(), level, message: labeled, traceId: pageTraceId })
     } catch {
       // ignore
     }

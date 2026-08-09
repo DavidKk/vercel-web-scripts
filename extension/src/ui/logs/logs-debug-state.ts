@@ -55,6 +55,7 @@ export function createMockDebugLogEntries(): DebugLogEntry[] {
       scope: 'Shell',
       level: 'info',
       message: 'Mock: extension background ready',
+      meta: { traceId: '550e8400e29b41d4' },
     },
     {
       id: -2,
@@ -63,7 +64,7 @@ export function createMockDebugLogEntries(): DebugLogEntry[] {
       scope: 'Boot',
       level: 'ok',
       message: 'Mock: preset launcher injected',
-      meta: { host: 'www.example.com', tabId: 10001, url: 'https://www.example.com/', incognito: false },
+      meta: { host: 'www.example.com', tabId: 10001, url: 'https://www.example.com/', incognito: false, traceId: '550e8400e29b41d4' },
     },
     {
       id: -3,
@@ -72,7 +73,13 @@ export function createMockDebugLogEntries(): DebugLogEntry[] {
       scope: 'Preset',
       level: 'warn',
       message: 'Mock: message with\ttab and "quotes"',
-      meta: { host: 'shop.example.com', tabId: 10002, url: 'https://shop.example.com/cart', incognito: false },
+      meta: {
+        host: 'shop.example.com',
+        tabId: 10002,
+        url: 'https://shop.example.com/cart',
+        incognito: false,
+        traceId: '6ba7b8109dad11d1',
+      },
     },
     {
       id: -4,

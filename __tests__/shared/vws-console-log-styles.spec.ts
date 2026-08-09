@@ -10,6 +10,13 @@ describe('vws-console-log-styles', () => {
     expect(styles[4]).toContain('color:#7c3aed')
   })
 
+  it('should append short trace after scope when provided', () => {
+    const { format, styles } = buildVwsConsolePrefix('Launcher', 'info', { shortTrace: '550e8400' })
+    expect(format).toBe('%cVWS%c %cINFO%c %cLauncher%c %c550e8400%c')
+    expect(styles).toHaveLength(8)
+    expect(countVwsConsoleFormatSpecifiers(format)).toBe(8)
+  })
+
   it('does not append a trailing space to the format string (single space before message)', () => {
     const { format } = buildVwsConsolePrefix('Launcher', 'info')
     expect(format.endsWith(' ')).toBe(false)
@@ -30,5 +37,6 @@ describe('vws-console-log-styles', () => {
 
   it('builds meta with one space between level and scope', () => {
     expect(buildVwsConsoleMeta('Launcher', 'info')).toBe('INFO Launcher')
+    expect(buildVwsConsoleMeta('Launcher', 'info', '550e8400')).toBe('INFO Launcher 550e8400')
   })
 })

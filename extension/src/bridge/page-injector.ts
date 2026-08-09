@@ -20,7 +20,13 @@ function waitForDocumentBody(): Promise<void> {
   })
 }
 
-function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, unknown>, permissionAllowKeys: string[], runtimeLoadResults: RuntimeLoadResult[]): void {
+function injectPageScript(
+  config: PageBootstrapConfig,
+  gmStore: Record<string, unknown>,
+  permissionAllowKeys: string[],
+  runtimeLoadResults: RuntimeLoadResult[],
+  pageTraceId?: string
+): void {
   const runtimeId = getRuntimeId()
   if (!runtimeId) {
     return
@@ -38,7 +44,7 @@ function injectPageScript(config: PageBootstrapConfig, gmStore: Record<string, u
 
   const data = document.createElement('template')
   data.id = bootstrapId
-  data.textContent = JSON.stringify({ config, gmStore, bridgeToken: getBridgeToken(), permissionAllowKeys, runtimeLoadResults })
+  data.textContent = JSON.stringify({ config, gmStore, bridgeToken: getBridgeToken(), permissionAllowKeys, runtimeLoadResults, pageTraceId })
   ;(document.documentElement || document.head || document.body).appendChild(data)
 
   const script = document.createElement('script')
@@ -58,8 +64,9 @@ export async function injectPageLauncherWhenReady(
   bootstrapConfig: PageBootstrapConfig,
   gmStore: Record<string, unknown>,
   permissionAllowKeys: string[] = [],
-  runtimeLoadResults: RuntimeLoadResult[] = []
+  runtimeLoadResults: RuntimeLoadResult[] = [],
+  pageTraceId?: string
 ): Promise<void> {
   await waitForDocumentBody()
-  injectPageScript(bootstrapConfig, gmStore, permissionAllowKeys, runtimeLoadResults)
+  injectPageScript(bootstrapConfig, gmStore, permissionAllowKeys, runtimeLoadResults, pageTraceId)
 }

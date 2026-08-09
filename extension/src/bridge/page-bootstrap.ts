@@ -1,10 +1,12 @@
 import { pageNeedsCspReliefForInjection } from '@shared/csp-page-style'
+import { createTraceId } from '@shared/trace-id'
 
 import type { RuntimeLoadResult } from '../runtime/loader-types'
 import { buildPageBootstrapConfig } from '../shared/extension-storage'
 import type { ShellResponse } from '../shared/messages'
 import type { ScriptKeyBootstrapEntry } from '../types'
 import { GM_STORAGE_PREFIX } from './constants'
+import { setPageTraceIdFromBridge } from './debug-log-relay'
 import { getExtensionVersion, getRuntimeId, isExtensionContextInvalidated } from './extension-context'
 import { loadGmStore, postStorageChanged } from './gm-storage-bridge'
 import { isHtmlDocumentForInjection } from './injection-gate'
@@ -156,7 +158,10 @@ export async function bootstrapPageBridge(): Promise<void> {
     }
   }
 
-  const runtimeLoadResults = await requestRuntimeEnsureLoad(pageConfig.scriptKeys, url)
+  const bootstrapTraceId = createTraceId()
+  setPageTraceIdFromBridge(bootstrapTraceId)
+
+  const runtimeLoadResults = await requestRuntimeEnsureLoad(pageConfig.scriptKeys, url, bootstrapTraceId)
 
   try {
     gmStore = await loadGmStore()
@@ -167,7 +172,7 @@ export async function bootstrapPageBridge(): Promise<void> {
     throw error
   }
 
-  await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys, runtimeLoadResults)
+  await injectPageLauncherWhenReady(pageConfig, gmStore, permissionAllowKeys, runtimeLoadResults, bootstrapTraceId)
   installRuntimeMessageRelay()
   notifyBootstrapReady(url)
 }
@@ -185,11 +190,11 @@ async function requestCspStripReloadForInjection(pageUrl: string): Promise<boole
   }
 }
 
-async function requestRuntimeEnsureLoad(entries: ScriptKeyBootstrapEntry[], pageUrl: string): Promise<RuntimeLoadResult[]> {
+async function requestRuntimeEnsureLoad(entries: ScriptKeyBootstrapEntry[], pageUrl: string, traceId?: string): Promise<RuntimeLoadResult[]> {
   try {
     const res = (await chrome.runtime.sendMessage({
       type: 'RUNTIME_ENSURE_LOAD',
-      details: { pageUrl, entries },
+      details: { pageUrl, entries, traceId },
     })) as ShellResponse
     if (res.ok && 'runtimeLoadResults' in res && Array.isArray(res.runtimeLoadResults)) {
       return res.runtimeLoadResults

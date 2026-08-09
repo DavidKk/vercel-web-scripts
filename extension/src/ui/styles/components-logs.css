@@ -30,7 +30,7 @@
 
   .mm-logs-body {
     @apply flex min-h-0 flex-1 flex-col overflow-hidden;
-    --mm-logs-grid-cols: 4.5rem 3.75rem 4rem 5.5rem minmax(5rem, 7.5rem) 6.75rem minmax(0, 1fr);
+    --mm-logs-grid-cols: 4.5rem 3.75rem 4rem 5.5rem minmax(5rem, 7.5rem) 6.75rem 7.5rem minmax(0, 1fr);
     --mm-logs-row-pad-left: 1rem;
     --mm-logs-row-pad-right: 1rem;
   }
@@ -177,11 +177,11 @@
   }
 
   .mm-logs-toolbar > mm-input.mm-logs-search {
-    @apply block w-36 shrink-0;
+    @apply block w-56 shrink-0;
   }
 
   .mm-logs-toolbar > mm-search-select.mm-logs-source-filter {
-    @apply relative block w-[6.5rem] shrink-0;
+    @apply relative block w-32 shrink-0;
   }
 
   .mm-logs-toolbar > mm-search-select.mm-logs-scope-filter {
@@ -398,6 +398,11 @@
     @apply shrink-0 truncate text-mm-text-muted;
   }
 
+  .mm-logs-col--trace,
+  .mm-logs-cell--trace {
+    @apply shrink-0 truncate font-mono text-[10px] text-mm-text-muted;
+  }
+
   .mm-logs-col--tab,
   .mm-logs-cell--tab,
   .mm-logs-cell--tab-link {
@@ -426,6 +431,10 @@
 
   .mm-logs-cell--source.mm-logs-cell--filter-link {
     @apply capitalize;
+  }
+
+  .mm-logs-cell--trace.mm-logs-cell--filter-link {
+    @apply font-mono text-[10px];
   }
 
   .mm-logs-col--message,

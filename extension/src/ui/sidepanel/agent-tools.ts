@@ -91,24 +91,28 @@ export function toAgentLlmTools(tools: WebMcpListedTool[], limit = 32): AgentLlm
  * Filter page tools for the Agent by preference scope.
  * `magickmonkey_only` prefers MagickMonkey tools, but falls back to native page tools
  * (e.g. editor_*) when none are registered — otherwise Chat would see an empty tool list.
+ *
+ * Chrome-listed `vws.*` tools classified as `unknown` (registry probe miss after late
+ * registration) are still treated as MagickMonkey-shaped so Agent can use them.
  * @param tools Tools listed from the active tab
  * @param prefs Agent preferences
  * @returns Tools exposed to the LLM
  */
 export function filterToolsForAgent(tools: WebMcpListedTool[], prefs: AgentPrefs): WebMcpListedTool[] {
-  const usable = tools.filter((tool) => tool.provider !== 'unknown')
+  const isMagickMonkeyShaped = (tool: WebMcpListedTool): boolean => tool.provider === 'magickmonkey' || (tool.provider === 'unknown' && tool.name.startsWith('vws.'))
+
   const scope = prefs.global?.toolProviderScope ?? 'magickmonkey_only'
 
   if (scope === 'all') {
-    return usable
+    return tools.filter((tool) => tool.provider !== 'unknown' || tool.name.startsWith('vws.'))
   }
 
-  const magickmonkey = usable.filter((tool) => tool.provider === 'magickmonkey')
+  const magickmonkey = tools.filter(isMagickMonkeyShaped)
   if (magickmonkey.length > 0) {
     return magickmonkey
   }
 
-  return usable.filter((tool) => tool.provider === 'native')
+  return tools.filter((tool) => tool.provider === 'native')
 }
 
 /**

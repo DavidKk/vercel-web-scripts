@@ -27,15 +27,17 @@ export const fetchFiles = withAuthAction(async () => {
  * @param files File writes (null content deletes)
  * @param options When `saveAsDebug` is true, managed scripts are marked alpha / no auto-upgrade
  */
-export const saveScriptFiles = withAuthAction(async (files: Array<{ file: string; content: string | null }>, options?: { saveAsDebug?: boolean }) => {
-  await saveManagedScriptFiles(files, options)
+export const saveScriptFiles = withAuthAction(async (files: Array<{ file: string; content: string | null }>, options?: { saveAsDebug?: boolean; traceId?: string }) => {
+  await saveManagedScriptFiles(files, options?.saveAsDebug != null ? { saveAsDebug: options.saveAsDebug } : undefined)
 })
 
 /**
  * Publish the active managed script to stable (releases snapshot + OTA policy).
  * @param filename Managed script filename
+ * @param options Optional TraceId for client correlation
  */
-export const publishScriptStable = withAuthAction(async (filename: string) => {
+export const publishScriptStable = withAuthAction(async (filename: string, options?: { traceId?: string }) => {
+  void options
   return publishManagedScriptStable(filename)
 })
 
@@ -43,16 +45,20 @@ export const publishScriptStable = withAuthAction(async (filename: string) => {
  * Fleet-lock a managed script to a semver (defaults to header @version).
  * @param filename Managed script filename
  * @param version Optional explicit version
+ * @param options Optional TraceId for client correlation
  */
-export const lockScriptVersion = withAuthAction(async (filename: string, version?: string) => {
+export const lockScriptVersion = withAuthAction(async (filename: string, version?: string, options?: { traceId?: string }) => {
+  void options
   return lockManagedScriptVersion(filename, version)
 })
 
 /**
  * Remove fleet lock from a managed script.
  * @param filename Managed script filename
+ * @param options Optional TraceId for client correlation
  */
-export const unlockScriptVersion = withAuthAction(async (filename: string) => {
+export const unlockScriptVersion = withAuthAction(async (filename: string, options?: { traceId?: string }) => {
+  void options
   return unlockManagedScriptVersion(filename)
 })
 

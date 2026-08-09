@@ -879,6 +879,12 @@ declare function enterScriptLogScope(scope: string): void
 /** Pairs with {@link enterScriptLogScope} after module body runs. */
 declare function exitScriptLogScope(): void
 
+/** Open TraceId scope for one script run (Executing + body). Runtime wrapper calls this. */
+declare function beginScriptRunTrace(traceId?: string): string
+
+/** Close TraceId scope opened by {@link beginScriptRunTrace}. */
+declare function endScriptRunTrace(): void
+
 /** Begin permission scope for a remote Gist module (pairs with {@link exitScriptPermissionScope}). */
 declare function enterScriptPermissionScope(file: string, contentHash?: string): void
 

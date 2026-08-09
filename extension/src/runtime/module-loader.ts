@@ -1,6 +1,6 @@
 import { buildLauncherUrls } from '@ext/page/config'
 import { getShellNetworkEnabled } from '@ext/shared/extension-storage'
-import { extensionLogger } from '@ext/shared/logger'
+import { type ExtensionLogger, extensionLogger } from '@ext/shared/logger'
 import {
   MODULE_MANIFEST_ETAG_KEY,
   OTA_MANUAL_UPDATE_KEY,
@@ -17,6 +17,7 @@ import {
 } from '@shared/launcher-constants'
 import { decideOtaModuleApply } from '@shared/ota-apply-policy'
 import type { ScriptOtaPolicy } from '@shared/script-ota-policy'
+import { createTraceId, normalizeTraceId } from '@shared/trace-id'
 
 import type { LoaderModuleManifest, RuntimeEnsureLoadRequest, RuntimeLoadEntry, RuntimeLoadResult, RuntimePresetReadyPayload } from './loader-types'
 import { getResponseHeader, normalizeEtag, readScopedGmValue, writeScopedGmValue } from './runtime-storage'
@@ -29,6 +30,7 @@ interface FetchResult {
 
 interface LoadContext {
   logPrefix: string
+  log: ExtensionLogger
   entry: RuntimeLoadEntry
   acceptAlpha: boolean
   urls: ReturnType<typeof buildLauncherUrls>
@@ -202,7 +204,8 @@ async function fetchModuleManifestWithConditional(
   moduleManifestUrl: string,
   ifNoneMatch: string,
   skipConditional: boolean,
-  logPrefix: string
+  logPrefix: string,
+  log: ExtensionLogger
 ): Promise<{ notModified: true } | { notModified: false; data: LoaderModuleManifest; etag: string }> {
   const headers: Record<string, string> = {}
   if (!skipConditional && ifNoneMatch) {
@@ -210,7 +213,7 @@ async function fetchModuleManifestWithConditional(
   }
   const res = await backgroundFetch(moduleManifestUrl, headers)
   if (res.status === 304) {
-    extensionLogger.info(`${logPrefix} manifest:not-modified (304)`)
+    log.info(`${logPrefix} manifest:not-modified (304)`)
     return { notModified: true as const }
   }
   if (res.status === 200 && res.responseText) {
@@ -241,13 +244,13 @@ async function requestPresetFetch(
     return { ok: true, presetText: cached, hash: localPresetHash, contentChanged: false }
   }
   if (res.status === 404) {
-    extensionLogger.warn(`${ctx.logPrefix} preset-core:fetch:404 url=${fetchUrl.slice(0, 120)}`)
+    ctx.log.warn(`${ctx.logPrefix} preset-core:fetch:404 url=${fetchUrl.slice(0, 120)}`)
     return { ok: false }
   }
   if (res.status === 200 && res.responseText) {
     const normalizedEtag = normalizeEtag(getResponseHeader(res.responseHeaders, 'etag'))
     if (expectedHash && normalizedEtag && expectedHash !== normalizedEtag) {
-      extensionLogger.warn(`${ctx.logPrefix} preset-core:hash-mismatch expected=${expectedHash.slice(0, 12)} got=${normalizedEtag.slice(0, 12)}`)
+      ctx.log.warn(`${ctx.logPrefix} preset-core:hash-mismatch expected=${expectedHash.slice(0, 12)} got=${normalizedEtag.slice(0, 12)}`)
       return { ok: false }
     }
     const remoteHash = normalizedEtag || expectedHash || ''
@@ -299,9 +302,9 @@ async function loadWithNetwork(ctx: LoadContext, presetCode: string, localPreset
   let scriptLoadMode: 'aggregate' | 'match-fallback' = 'aggregate'
 
   const runFullRetry = async (): Promise<RuntimeLoadResult> => {
-    extensionLogger.info(`${ctx.logPrefix} load:retry full manifest + preset fetch`)
+    ctx.log.info(`${ctx.logPrefix} load:retry full manifest + preset fetch`)
     try {
-      const mres = await fetchModuleManifestWithConditional(moduleManifestUrl, '', true, ctx.logPrefix)
+      const mres = await fetchModuleManifestWithConditional(moduleManifestUrl, '', true, ctx.logPrefix, ctx.log)
       if (!mres.notModified) {
         lastManifest = mres.data
         await persistProjectVersionFromManifest(mres.data, ctx.cacheScope)
@@ -326,7 +329,7 @@ async function loadWithNetwork(ctx: LoadContext, presetCode: string, localPreset
         })),
       }
     } catch (err) {
-      extensionLogger.warn(`${ctx.logPrefix} load:retry failed`, err)
+      ctx.log.warn(`${ctx.logPrefix} load:retry failed`, err)
       if (presetCode) {
         return { type: 'ready', ...(await buildReadyPayload(ctx, runtimeScriptUrl, lastManifest, scriptLoadMode, { presetText: presetCode })) }
       }
@@ -335,7 +338,7 @@ async function loadWithNetwork(ctx: LoadContext, presetCode: string, localPreset
   }
 
   try {
-    const mres = await fetchModuleManifestWithConditional(moduleManifestUrl, manifestEtagStored, false, ctx.logPrefix)
+    const mres = await fetchModuleManifestWithConditional(moduleManifestUrl, manifestEtagStored, false, ctx.logPrefix, ctx.log)
     let pendingManifestEtag = ''
     if (!mres.notModified) {
       lastManifest = mres.data
@@ -380,7 +383,7 @@ async function loadWithNetwork(ctx: LoadContext, presetCode: string, localPreset
       })),
     }
   } catch (err) {
-    extensionLogger.warn(`${ctx.logPrefix} manifest:fetch:failed`, err)
+    ctx.log.warn(`${ctx.logPrefix} manifest:fetch:failed`, err)
     if (presetCode) {
       const modeRaw = await readScopedGmValue(`${RUNTIME_SCRIPT_LOAD_MODE_KEY}:${ctx.cacheScope}`, RUNTIME_SCRIPT_LOAD_MODE_KEY, 'aggregate')
       scriptLoadMode = modeRaw === 'match-fallback' ? 'match-fallback' : 'aggregate'
@@ -392,9 +395,13 @@ async function loadWithNetwork(ctx: LoadContext, presetCode: string, localPreset
 
 /**
  * Load manifest + preset for one scriptKey.
+ * @param entry One scriptKey load request
+ * @param networkEnabled Whether shell network fetches are allowed
+ * @param traceId Bound TraceId for concurrent-safe ModuleLoad logs
  */
-export async function loadRuntimeEntry(entry: RuntimeLoadEntry, networkEnabled: boolean): Promise<RuntimeLoadResult> {
+export async function loadRuntimeEntry(entry: RuntimeLoadEntry, networkEnabled: boolean, traceId: string): Promise<RuntimeLoadResult> {
   const logPrefix = logPrefixForEntry(entry)
+  const log = extensionLogger.withTrace(traceId)
   const acceptAlpha = resolveAcceptAlpha(entry)
   const urls = buildLauncherUrls({
     baseUrl: entry.baseUrl,
@@ -414,6 +421,7 @@ export async function loadRuntimeEntry(entry: RuntimeLoadEntry, networkEnabled: 
 
   const ctx: LoadContext = {
     logPrefix,
+    log,
     entry,
     acceptAlpha,
     urls,
@@ -434,7 +442,7 @@ export async function loadRuntimeEntry(entry: RuntimeLoadEntry, networkEnabled: 
   const localPresetHash = normalizeEtag((await readScopedGmValue(scopedPresetEtagKey, PRESET_ETAG_KEY, '')) as string)
   const manifestEtagStored = normalizeEtag((await readScopedGmValue(scopedModuleManifestEtagKey, MODULE_MANIFEST_ETAG_KEY, '')) as string)
 
-  extensionLogger.info(`${logPrefix} load:start network=${networkEnabled ? 'on' : 'off'} cachedPresetBytes=${presetCode?.length ?? 0}`)
+  log.info(`${logPrefix} load:start network=${networkEnabled ? 'on' : 'off'} cachedPresetBytes=${presetCode?.length ?? 0}`)
 
   if (!networkEnabled) {
     if (!presetCode) {
@@ -460,8 +468,12 @@ export async function loadRuntimeEntry(entry: RuntimeLoadEntry, networkEnabled: 
 
 /**
  * Ensure runtime modules are loaded for all scriptKeys on a tab.
+ * Uses an explicit TraceId on the logger so concurrent tab loads do not cross-correlate.
+ * @param request Tab load request (optional `traceId` from content bootstrap)
+ * @returns Per-entry load results
  */
 export async function ensureRuntimeLoad(request: RuntimeEnsureLoadRequest): Promise<RuntimeLoadResult[]> {
+  const traceId = normalizeTraceId(request.traceId) ?? createTraceId()
   const networkEnabled = await getShellNetworkEnabled()
-  return Promise.all(request.entries.map((entry) => loadRuntimeEntry(entry, networkEnabled)))
+  return Promise.all(request.entries.map((entry) => loadRuntimeEntry(entry, networkEnabled, traceId)))
 }

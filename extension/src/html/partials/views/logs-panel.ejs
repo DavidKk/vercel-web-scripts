@@ -83,7 +83,7 @@
               <div class="mm-logs-toolbar" data-ref="toolbar">
                   <mm-input
                     class="mm-logs-search"
-                    data-mm-tooltip="Search message, scope, source, URL, host, or tab ID"
+                    data-mm-tooltip="Search message, scope, source, URL, host, tab ID, or TraceId"
                     data-mm-tooltip-placement="bottom"
                   >
                     <span class="mm-input-icon" aria-hidden="true">
@@ -92,7 +92,7 @@
                         <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.7" />
                       </svg>
                     </span>
-                    <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Filter messages" autocomplete="off" spellcheck="false" />
+                    <input type="text" inputmode="search" enterkeyhint="search" role="searchbox" data-ref="search" placeholder="Filter messages / TraceId" autocomplete="off" spellcheck="false" />
                   </mm-input>
                   <mm-search-select
                     class="mm-logs-source-filter"
@@ -157,6 +157,7 @@
                     <span class="mm-logs-col mm-logs-col--scope" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Logger scope or module name" data-mm-tooltip-placement="bottom">Scope</span></span>
                     <span class="mm-logs-col mm-logs-col--host" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Page hostname when available" data-mm-tooltip-placement="bottom">Host</span></span>
                     <span class="mm-logs-col mm-logs-col--tab" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Chrome tab ID; incognito tabs show a badge; click a cell to filter" data-mm-tooltip-placement="bottom">Tab</span></span>
+                    <span class="mm-logs-col mm-logs-col--trace" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="TraceId short code; click to filter; hover for full UUID" data-mm-tooltip-placement="bottom">Trace</span></span>
                     <span class="mm-logs-col mm-logs-col--message" role="columnheader"><span class="mm-logs-col-label" data-mm-tooltip="Log message text" data-mm-tooltip-placement="bottom" data-mm-tooltip-align="start">Message</span></span>
                   </div>
                   <div class="mm-logs-rows" data-ref="rows" role="rowgroup" aria-live="off"></div>

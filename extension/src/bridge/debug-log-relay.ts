@@ -1,7 +1,8 @@
 import type { DebugLogAppendInput, DebugLogLevel } from '@ext/shared/debug-log-types'
 import { buildDebugLogMetaFromTab, truncateDebugLogMessage } from '@ext/shared/debug-log-utils'
 import { shouldExtensionCollectDebugLogs } from '@ext/shared/shell-log-output-cache'
-import { DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE, DEBUG_LOG_MESSAGE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE } from '@shared/launcher-constants'
+import { DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE, DEBUG_LOG_MESSAGE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE, PAGE_TRACE_ID_MESSAGE_TYPE } from '@shared/launcher-constants'
+import { normalizeTraceId } from '@shared/trace-id'
 
 import { getRuntimeId, isExtensionContextInvalidated } from './extension-context'
 
@@ -17,9 +18,29 @@ type BootLogRow = {
   t?: number
   level?: string
   message?: string
+  traceId?: string
 }
 
 const VALID_LEVELS = new Set<DebugLogLevel>(['debug', 'info', 'ok', 'warn', 'error'])
+
+/** Last TraceId published by page-host (content world); used to enrich bare page/Preset logs. */
+let pageTraceIdForTab: string | undefined
+
+/**
+ * Remember the page TraceId announced by page-host.
+ * @param raw TraceId from PAGE_TRACE_ID message
+ */
+export function setPageTraceIdFromBridge(raw: unknown): void {
+  pageTraceIdForTab = normalizeTraceId(raw)
+}
+
+/**
+ * Current page TraceId known to the content bridge.
+ * @returns Normalized TraceId when set
+ */
+export function getPageTraceIdFromBridge(): string | undefined {
+  return pageTraceIdForTab
+}
 
 function normalizeLevel(raw: unknown): DebugLogLevel {
   if (typeof raw === 'string' && VALID_LEVELS.has(raw as DebugLogLevel)) {
@@ -42,12 +63,16 @@ function normalizePageDebugPayload(payload: unknown): DebugLogAppendInput | null
   }
   const source = row.source === 'inject' || row.source === 'page' ? row.source : 'page'
   const scope = typeof row.scope === 'string' && row.scope.trim() ? row.scope.trim() : 'Page'
+  const meta = row.meta && typeof row.meta === 'object' ? { ...(row.meta as DebugLogAppendInput['meta']) } : {}
+  if (!meta.traceId && pageTraceIdForTab) {
+    meta.traceId = pageTraceIdForTab
+  }
   return {
     source,
     scope,
     level: normalizeLevel(row.level),
     message,
-    meta: row.meta && typeof row.meta === 'object' ? (row.meta as DebugLogAppendInput['meta']) : undefined,
+    meta: Object.keys(meta).length > 0 ? meta : undefined,
   }
 }
 
@@ -56,10 +81,13 @@ function relayDebugLogsToBackground(entries: DebugLogAppendInput[]): void {
     return
   }
   const tabMeta = buildDebugLogMetaFromTab(window.location.href)
-  const enriched = entries.map((entry) => ({
-    ...entry,
-    meta: { ...tabMeta, ...entry.meta },
-  }))
+  const enriched = entries.map((entry) => {
+    const meta = { ...tabMeta, ...entry.meta }
+    if (!meta.traceId && pageTraceIdForTab) {
+      meta.traceId = pageTraceIdForTab
+    }
+    return { ...entry, meta }
+  })
   void chrome.runtime
     .sendMessage({
       type: 'APPEND_DEBUG_LOG',
@@ -70,7 +98,17 @@ function relayDebugLogsToBackground(entries: DebugLogAppendInput[]): void {
     })
 }
 
+/**
+ * Handle page → content debug log / boot flush / page TraceId messages.
+ * @param type Bridge message type
+ * @param payload Message payload
+ */
 export function handleDebugLogMessage(type: string, payload: unknown): void {
+  if (type === PAGE_TRACE_ID_MESSAGE_TYPE) {
+    const raw = payload && typeof payload === 'object' ? (payload as { traceId?: unknown }).traceId : undefined
+    setPageTraceIdFromBridge(raw)
+    return
+  }
   if (type === DEBUG_LOG_MESSAGE_TYPE) {
     const entry = normalizePageDebugPayload(payload)
     if (entry) {
@@ -88,11 +126,13 @@ export function handleDebugLogMessage(type: string, payload: unknown): void {
       if (!message) {
         continue
       }
+      const traceId = normalizeTraceId(row.traceId) ?? pageTraceIdForTab
       entries.push({
         source: 'inject',
         scope: 'Boot',
         level: normalizeLevel(row.level),
         message,
+        meta: traceId ? { traceId } : undefined,
       })
     }
     relayDebugLogsToBackground(entries)

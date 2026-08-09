@@ -4,7 +4,8 @@
 
 import { DEBUG_LOG_MESSAGE_TYPE, EXTENSION_BRIDGE_MESSAGE_SOURCE, SCRIPT_TRIGGERED_MESSAGE_TYPE } from '@shared/launcher-constants'
 import { parseScriptExecutingFailureLog, parseScriptExecutingLog, reportExtensionScriptFailed } from '@shared/script-trigger-log'
-import { buildVwsConsoleLogArgs, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
+import { enterTraceScope, exitTraceScope, getActiveTraceId, resolveLogTraceId, shortTraceId } from '@shared/trace-id'
+import { buildVwsConsoleLogArgsWithTrace, buildVwsConsolePrefix, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
 import { logStore } from '@/services/log-store'
 import { shouldLogToConsole, shouldLogToMemory } from '@/services/shell-log-settings'
@@ -12,6 +13,7 @@ import { shouldLogToConsole, shouldLogToMemory } from '@/services/shell-log-sett
 type GmeStoreLevel = 'ok' | 'info' | 'warn' | 'fail' | 'debug'
 type DebugLogLevel = 'debug' | 'info' | 'ok' | 'warn' | 'error'
 
+// Extension page-host publishes __VWS_PAGE_TRACE_ID__; resolveLogTraceId() reads it across bundles.
 function readActiveScriptKey(pageConfig: { scriptKey?: string } | undefined): string | undefined {
   const runtimeKey = (globalThis as { __VWS_SCRIPT_KEY__?: unknown }).__VWS_SCRIPT_KEY__
   if (typeof runtimeKey === 'string' && runtimeKey.trim()) {
@@ -74,6 +76,7 @@ function forwardExtensionDebugLog(source: 'page' | 'inject', scope: string, stor
     return
   }
   const level: DebugLogLevel = storeLevel === 'fail' ? 'error' : storeLevel
+  const traceId = resolveLogTraceId()
   try {
     window.postMessage(
       {
@@ -84,6 +87,7 @@ function forwardExtensionDebugLog(source: 'page' | 'inject', scope: string, stor
           scope,
           level,
           message,
+          meta: traceId ? { traceId } : undefined,
         },
       },
       '*'
@@ -126,7 +130,7 @@ function pushToLogStore(level: 'ok' | 'info' | 'warn' | 'fail' | 'debug', ...con
     const store = logStore
     if (store && typeof store.push === 'function') {
       const msg = formatContentsForStore(...contents)
-      if (msg) store.push(level, msg)
+      if (msg) store.push(level, msg, resolveLogTraceId())
     }
   } catch (e) {
     if (!shouldLogToConsole()) {
@@ -147,11 +151,14 @@ function currentScriptLogScope(): string | null {
 
 /**
  * Begin user-script log scope (wrapper calls before compiled module body).
- * Framework wrapper lines such as "Executing script …" must run outside this scope.
+ * Framework wrapper lines such as "Executing script …" must run outside this scope
+ * but should already be inside {@link beginScriptRunTrace} so TraceId is shared.
  * @param scope Module namespace shown in log prefix
  */
 export function enterScriptLogScope(scope: string): void {
   activeScriptLogScopeStack.push(scope?.trim() || 'Script')
+  // Reuse the run TraceId when the wrapper opened one before "Executing script …".
+  enterTraceScope(getActiveTraceId())
 }
 
 /** End user-script log scope opened by {@link enterScriptLogScope}. */
@@ -159,6 +166,21 @@ export function exitScriptLogScope(): void {
   if (activeScriptLogScopeStack.length > 0) {
     activeScriptLogScopeStack.pop()
   }
+  exitTraceScope()
+}
+
+/**
+ * Open a TraceId scope for one script run (covers "Executing script …" + body).
+ * @param traceId Optional existing TraceId
+ * @returns Active TraceId for this run
+ */
+export function beginScriptRunTrace(traceId?: string): string {
+  return enterTraceScope(traceId)
+}
+
+/** Close the TraceId scope opened by {@link beginScriptRunTrace}. */
+export function endScriptRunTrace(): void {
+  exitTraceScope()
 }
 
 function writeGmeToConsole(scope: string, level: VwsConsoleLogLevel, storeLevel: GmeStoreLevel, ...contents: any[]): void {
@@ -292,14 +314,15 @@ function convertTagsToStyles(text: string): { text: string; styles: string[] } {
  * @returns Array of processed arguments for console.log
  */
 function processLogContents(scope: string, level: VwsConsoleLogLevel, ...contents: any[]): any[] {
+  const short = shortTraceId(resolveLogTraceId()) || undefined
   if (contents.length === 0) {
-    const { format, styles } = buildVwsConsolePrefix(scope, level)
+    const { format, styles } = buildVwsConsolePrefix(scope, level, short ? { shortTrace: short } : undefined)
     return [format, ...styles]
   }
 
   const firstContent = contents[0]
   if (typeof firstContent !== 'string') {
-    return buildVwsConsoleLogArgs(scope, level, ...contents)
+    return buildVwsConsoleLogArgsWithTrace(scope, level, short, ...contents)
   }
 
   // Step 1: Convert HTML-like tags to %c syntax first (if any)
@@ -345,7 +368,7 @@ function processLogContents(scope: string, level: VwsConsoleLogLevel, ...content
     const allStyles = [...tagStyles, ...userStyles]
 
     // Combine prefix with processed text
-    const { format: prefixText, styles: prefixStyles } = buildVwsConsolePrefix(scope, level)
+    const { format: prefixText, styles: prefixStyles } = buildVwsConsolePrefix(scope, level, short ? { shortTrace: short } : undefined)
     const combinedString = `${prefixText} ${processedText}`
     const combinedStyles = [...prefixStyles, ...allStyles]
 
@@ -354,13 +377,13 @@ function processLogContents(scope: string, level: VwsConsoleLogLevel, ...content
 
   // If we have tagStyles but no %c in final text (shouldn't happen, but handle it)
   if (tagStyles.length > 0) {
-    const { format: prefixText, styles: prefixStyles } = buildVwsConsolePrefix(scope, level)
+    const { format: prefixText, styles: prefixStyles } = buildVwsConsolePrefix(scope, level, short ? { shortTrace: short } : undefined)
     const combinedString = `${prefixText} ${processedText}`
     const combinedStyles = [...prefixStyles, ...tagStyles]
     return [combinedString, ...combinedStyles, ...contents.slice(1)]
   }
 
-  return buildVwsConsoleLogArgs(scope, level, ...contents)
+  return buildVwsConsoleLogArgsWithTrace(scope, level, short, ...contents)
 }
 
 /**
@@ -556,7 +579,7 @@ class LogGroup implements GroupLogger {
 
     if (shouldLogToConsole()) {
       // eslint-disable-next-line no-console
-      console.log(...buildVwsConsoleLogArgs(scriptName, 'info', `▶ ${label}`))
+      console.log(...buildVwsConsoleLogArgsWithTrace(scriptName, 'info', shortTraceId(resolveLogTraceId()) || undefined, `▶ ${label}`))
     }
   }
 
@@ -637,7 +660,9 @@ class LogGroup implements GroupLogger {
     const logCount = this.logs.length
 
     // eslint-disable-next-line no-console
-    console.groupCollapsed(...buildVwsConsoleLogArgs(this.scriptName, 'info', `${this.label} · ${logCount} logs · ${duration}ms`))
+    console.groupCollapsed(
+      ...buildVwsConsoleLogArgsWithTrace(this.scriptName, 'info', shortTraceId(resolveLogTraceId()) || undefined, `${this.label} · ${logCount} logs · ${duration}ms`)
+    )
 
     this.logs.forEach(({ type, args }) => {
       // eslint-disable-next-line no-console

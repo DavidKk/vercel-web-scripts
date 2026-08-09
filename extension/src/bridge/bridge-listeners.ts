@@ -3,6 +3,7 @@ import {
   CSP_EXTENSION_EXECUTE_RESPONSE_TYPE,
   DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE,
   DEBUG_LOG_MESSAGE_TYPE,
+  PAGE_TRACE_ID_MESSAGE_TYPE,
   SCRIPT_FAILED_MESSAGE_TYPE,
 } from '@shared/launcher-constants'
 
@@ -31,7 +32,7 @@ function handlePageBridgeMessage(event: MessageEvent): void {
   }
 
   if (typeof data.type === 'string') {
-    if (data.type === DEBUG_LOG_MESSAGE_TYPE || data.type === DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE) {
+    if (data.type === DEBUG_LOG_MESSAGE_TYPE || data.type === DEBUG_LOG_BOOT_FLUSH_MESSAGE_TYPE || data.type === PAGE_TRACE_ID_MESSAGE_TYPE) {
       handleDebugLogMessage(data.type, data.payload)
       return
     }

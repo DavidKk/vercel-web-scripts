@@ -25,6 +25,8 @@ export type DebugLogMeta = {
   incognito?: boolean
   scriptKey?: string
   file?: string
+  /** Correlation id (script run / UI / API action). */
+  traceId?: string
 }
 
 /** Input before background assigns `id` and `t`. */

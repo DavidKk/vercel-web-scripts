@@ -178,6 +178,14 @@
     @apply m-0 max-w-[15rem] text-xs leading-relaxed text-mm-text-muted;
   }
 
+  .mm-sidepanel-empty-tools {
+    @apply m-0 mt-2 max-w-[18rem] text-[11px] leading-relaxed text-mm-text-muted/90;
+  }
+
+  .mm-sidepanel-empty-tools[data-ready='true'] {
+    @apply text-mm-secondary;
+  }
+
   .mm-sidepanel-message {
     @apply w-full;
   }

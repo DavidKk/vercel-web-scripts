@@ -4,6 +4,7 @@ import { getIncognitoLogCollectionEnabled, setIncognitoLogCollectionEnabled } fr
 import { focusTabById } from '@ext/shared/focus-or-open-tab'
 import { sendShellMessage } from '@ext/shared/messages'
 import { getCachedShellLogOutputMode, setCachedIncognitoLogCollection } from '@ext/shared/shell-log-output-cache'
+import { normalizeTraceId } from '@shared/trace-id'
 
 import { subscribeAdminViewActivated } from '../admin/mm-admin-view-lifecycle'
 import type { MmSearchSelect } from '../mm-form-components/mm-search-select'
@@ -189,6 +190,15 @@ export class MmLogsApp extends HTMLElement {
       if (filter && value) {
         this.applyQuickFilter(filter, value)
       }
+      return
+    }
+    const traceBtn = (event.target as HTMLElement).closest('[data-action="filter-trace"]') as HTMLElement | null
+    if (traceBtn) {
+      event.preventDefault()
+      const value = (traceBtn.dataset.value ?? '').trim()
+      if (value) {
+        this.applyTraceSearchFilter(value)
+      }
     }
   }
 
@@ -198,6 +208,20 @@ export class MmLogsApp extends HTMLElement {
       return
     }
     select.setValue(value)
+    this.renderList()
+    this.renderFooter()
+  }
+
+  /**
+   * Put TraceId (short or full) into the search box to filter matching rows.
+   * @param value TraceId or short code
+   */
+  private applyTraceSearchFilter(value: string): void {
+    const input = this.querySelector<HTMLInputElement>('[data-ref="search"]')
+    this.search = value.trim().toLowerCase()
+    if (input) {
+      input.value = value.trim()
+    }
     this.renderList()
     this.renderFooter()
   }
@@ -523,6 +547,19 @@ export class MmLogsApp extends HTMLElement {
     return `<span class="mm-logs-cell mm-logs-cell--tab mm-logs-cell--tab-row" role="gridcell">${tabLink}<span class="mm-logs-tab-incognito-badge" data-mm-tooltip="Incognito tab" data-mm-tooltip-placement="bottom" aria-label="Incognito tab"><span data-icon="eyeOff" class="mm-icon-slot mm-logs-tab-incognito-icon" aria-hidden="true"></span></span></span>`
   }
 
+  /**
+   * Render TraceId (click filters; tooltip repeats full id for copy).
+   * @param entry Debug log row
+   * @returns HTML for the Trace cell
+   */
+  private renderTraceCell(entry: DebugLogEntry): string {
+    const display = normalizeTraceId(entry.meta?.traceId) ?? ''
+    if (!display) {
+      return `<span class="mm-logs-cell mm-logs-cell--trace" role="gridcell">—</span>`
+    }
+    return `<button type="button" class="mm-logs-cell mm-logs-cell--trace mm-logs-cell--filter-link" role="gridcell" data-action="filter-trace" data-value="${this.escapeAttr(display)}" data-mm-tooltip="${this.escapeAttr(`TraceId ${display} (click to filter)`)}" data-mm-tooltip-placement="bottom" data-mm-tooltip-wide>${this.escapeHtml(display)}</button>`
+  }
+
   private renderList(): void {
     const rowsRoot = this.querySelector('[data-ref="rows"]') as HTMLElement | null
     const list = this.querySelector('[data-ref="list"]') as HTMLElement | null
@@ -562,6 +599,7 @@ export class MmLogsApp extends HTMLElement {
           ${this.renderQuickFilterCell('mm-logs-cell--scope', 'scope', entry.scope, entry.scope, `Filter by scope ${entry.scope.trim()}`)}
           ${this.renderQuickFilterCell('mm-logs-cell--host', 'host', host === '—' ? '' : host, host, host === '—' ? undefined : `Filter by host ${host}`)}
           ${this.renderTabCell(entry)}
+          ${this.renderTraceCell(entry)}
           <span class="mm-logs-cell mm-logs-cell--message" role="gridcell">${this.escapeHtml(entry.message)}</span>
         </div>`
       })

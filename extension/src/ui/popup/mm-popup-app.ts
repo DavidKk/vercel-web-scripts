@@ -7,6 +7,7 @@ import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { captureAdminPageForDevReload } from '@ext/shell/dev-admin-restore'
 import { openAgentSidePanelFromUserGesture } from '@ext/shell/webmcp/webmcp-side-panel'
 import type { ShellLogOutputMode } from '@shared/shell-log-output'
+import { createTraceId } from '@shared/trace-id'
 
 import { bindAdminNavIndicator, syncAdminNavIndicator } from '../admin/mm-admin-nav'
 import { hydrateIconSlot, hydrateMmIcons, setIconSlotLoading } from '../mm-icons'
@@ -93,13 +94,13 @@ export class MmPopupApp extends HTMLElement {
       void this.reloadExtension()
     })
     this.querySelector('[data-action="update"]')?.addEventListener('click', () => {
-      void this.run(() => sendShellMessage({ type: 'UPDATE_RUNTIME' }), 'update')
+      void this.run((traceId) => sendShellMessage({ type: 'UPDATE_RUNTIME', traceId }), 'update')
     })
     this.querySelector('[data-action="reset"]')?.addEventListener('click', () => {
       if (!window.confirm('Reset runtime state and reload?')) {
         return
       }
-      void this.run(() => sendShellMessage({ type: 'RESET_RUNTIME' }), 'reset')
+      void this.run((traceId) => sendShellMessage({ type: 'RESET_RUNTIME', traceId }), 'reset')
     })
     this.querySelector('[data-action="scripts"]')?.addEventListener('click', () => {
       void sendShellMessage({ type: 'OPEN_SCRIPTS_PAGE' })
@@ -343,29 +344,35 @@ export class MmPopupApp extends HTMLElement {
     }, 2500)
   }
 
-  private logPopupAction(action: string, level: 'info' | 'warn' | 'error' = 'info', ...args: unknown[]): void {
+  private logPopupAction(action: string, level: 'info' | 'warn' | 'error' = 'info', traceId?: string, ...args: unknown[]): void {
     reportDebugLog({
       source: 'popup',
       scope: 'Popup',
       level,
       message: formatDebugLogMessage(action, ...args),
+      meta: traceId ? { traceId } : undefined,
     })
   }
 
-  private async run(action: () => Promise<{ ok: boolean; error?: string; message?: string }>, loadingAction: string, options?: { refreshNetwork?: boolean }): Promise<void> {
+  private async run(
+    action: (traceId: string) => Promise<{ ok: boolean; error?: string; message?: string }>,
+    loadingAction: string,
+    options?: { refreshNetwork?: boolean }
+  ): Promise<void> {
+    const traceId = createTraceId()
     this.setActionLoading(loadingAction, true)
     try {
-      const res = await action()
+      const res = await action(traceId)
       if (!res.ok) {
-        this.logPopupAction(loadingAction, 'error', res.error ?? 'Failed')
+        this.logPopupAction(loadingAction, 'error', traceId, res.error ?? 'Failed')
         this.showToast(res.error ?? 'Failed', true)
         return
       }
       if (res.message) {
-        this.logPopupAction(loadingAction, 'info', res.message)
+        this.logPopupAction(loadingAction, 'info', traceId, res.message)
         this.showToast(res.message)
       } else {
-        this.logPopupAction(loadingAction, 'info', 'OK')
+        this.logPopupAction(loadingAction, 'info', traceId, 'OK')
       }
       await this.refresh({ network: options?.refreshNetwork })
     } finally {
@@ -698,6 +705,7 @@ export class MmPopupApp extends HTMLElement {
   }
 
   private async setLogOutputMode(mode: ShellLogOutputMode): Promise<void> {
+    const traceId = createTraceId()
     this.syncLogOutputTabs(mode)
     this.setActionLoading('log-output', true)
     try {
@@ -707,7 +715,7 @@ export class MmPopupApp extends HTMLElement {
         await this.refresh({ network: false })
         return
       }
-      this.logPopupAction('log-output', 'info', 'OK')
+      this.logPopupAction('log-output', 'info', traceId, 'OK')
     } finally {
       this.setActionLoading('log-output', false)
     }

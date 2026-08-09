@@ -112,9 +112,10 @@ export class LogStore {
    * Push a log entry (ring buffer: keep latest maxEntries, drop entries older than retentionDays).
    * @param level Log level
    * @param message Log message
+   * @param traceId Optional correlation id
    */
-  push(level: LogLevel, message: string): void {
-    this.pushAt(level, message, Date.now())
+  push(level: LogLevel, message: string, traceId?: string): void {
+    this.pushAt(level, message, Date.now(), traceId)
   }
 
   /**
@@ -122,9 +123,13 @@ export class LogStore {
    * @param level Log level
    * @param message Log message
    * @param timestampMs Event time in milliseconds
+   * @param traceId Optional correlation id
    */
-  pushAt(level: LogLevel, message: string, timestampMs: number): void {
+  pushAt(level: LogLevel, message: string, timestampMs: number, traceId?: string): void {
     const entry: LogEntry = { level, message, timestamp: timestampMs }
+    if (traceId) {
+      entry.traceId = traceId
+    }
     this.memoryBuffer.push(entry)
     this.memoryBuffer = this.filterWithinRetention(this.memoryBuffer).slice(-this.config.maxEntries)
     this.schedulePersist()

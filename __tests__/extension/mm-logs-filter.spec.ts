@@ -166,6 +166,30 @@ describe('mm-logs-filter', () => {
     expect(escapeTsvField('say "hi"')).toBe('"say ""hi"""')
   })
 
+  it('should match search against TraceId', () => {
+    const rows = [
+      entry({
+        id: 6,
+        level: 'info',
+        source: 'page',
+        scope: 'Preset',
+        message: 'hello',
+        meta: { traceId: '550e8400e29b41d4' },
+      }),
+    ]
+    expect(
+      filterDebugLogEntries(rows, {
+        levelFilter: new Set(DEFAULT_DEBUG_LOG_LEVEL_FILTER),
+        sourceFilter: '',
+        scopeFilter: '',
+        hostFilter: '',
+        tabFilter: '',
+        incognitoFilter: '' as const,
+        search: '550e8400',
+      })
+    ).toEqual(rows)
+  })
+
   it('should format clipboard rows with escaped message content', () => {
     const rows = [
       entry({
@@ -175,11 +199,12 @@ describe('mm-logs-filter', () => {
         source: 'page',
         scope: 'Preset',
         message: 'tab\tseparated\nline',
-        meta: { host: 'shop.example.com', tabId: 42, incognito: true },
+        meta: { host: 'shop.example.com', tabId: 42, incognito: true, traceId: '550e8400e29b41d4' },
       }),
     ]
     const line = formatDebugLogEntryForClipboard(rows[0])
     expect(line).toContain('"tab\tseparated\nline"')
-    expect(formatDebugLogsForClipboard(rows)).toBe(`Time\tLevel\tSource\tScope\tHost\tTab\tIncognito\tMessage\n${line}`)
+    expect(line).toContain('550e8400e29b41d4')
+    expect(formatDebugLogsForClipboard(rows)).toBe(`Time\tLevel\tSource\tScope\tHost\tTab\tIncognito\tTraceId\tMessage\n${line}`)
   })
 })

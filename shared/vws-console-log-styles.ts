@@ -26,11 +26,19 @@ const LEVEL_STYLE: Record<VwsConsoleLogLevel, string> = {
 /** Tier 2b: scope text color only (no background). */
 const SCOPE_STYLE = 'color:#7c3aed;font-weight:600;'
 
+/** Tier 2c: short TraceId color. */
+const TRACE_STYLE = 'color:#64748b;font-weight:600;font-size:10px;'
+
 const MESSAGE_RESET = 'color:inherit;font-weight:normal;'
 
 export interface VwsConsolePrefix {
   format: string
   styles: string[]
+}
+
+export type BuildVwsConsolePrefixOptions = {
+  /** Short (8-char) TraceId shown after scope when present */
+  shortTrace?: string
 }
 
 /**
@@ -43,23 +51,34 @@ export function countVwsConsoleFormatSpecifiers(format: string): number {
 }
 
 /**
- * Plain meta label: `INFO Launcher` (for log-store preview).
+ * Plain meta label: `INFO Launcher` or `INFO Launcher a1b2c3d4` (for log-store preview).
  * @param scope Logger scope
  * @param level Log level
+ * @param shortTrace Optional short TraceId
  * @returns Meta segment text
  */
-export function buildVwsConsoleMeta(scope: string, level: VwsConsoleLogLevel): string {
-  return `${LEVEL_LABEL[level]} ${scope.trim()}`
+export function buildVwsConsoleMeta(scope: string, level: VwsConsoleLogLevel, shortTrace?: string): string {
+  const base = `${LEVEL_LABEL[level]} ${scope.trim()}`
+  const trace = shortTrace?.trim()
+  return trace ? `${base} ${trace}` : base
 }
 
 /**
- * Tier 1+2 in one format string (badge + colored level + colored scope).
+ * Tier 1+2 in one format string (badge + colored level + colored scope [+ short trace]).
  * No trailing space — tier 3 message is separate console args (one DevTools space).
  * @param scope Logger scope
  * @param level Log level
- * @returns Prefix format with 6 `%c` and 6 styles
+ * @param options Optional short TraceId
+ * @returns Prefix format with matching styles
  */
-export function buildVwsConsolePrefix(scope: string, level: VwsConsoleLogLevel): VwsConsolePrefix {
+export function buildVwsConsolePrefix(scope: string, level: VwsConsoleLogLevel, options?: BuildVwsConsolePrefixOptions): VwsConsolePrefix {
+  const shortTrace = options?.shortTrace?.trim()
+  if (shortTrace) {
+    return {
+      format: `%cVWS%c %c${LEVEL_LABEL[level]}%c %c${scope.trim()}%c %c${shortTrace}%c`,
+      styles: [BADGE_STYLE, MESSAGE_RESET, LEVEL_STYLE[level], MESSAGE_RESET, SCOPE_STYLE, MESSAGE_RESET, TRACE_STYLE, MESSAGE_RESET],
+    }
+  }
   return {
     format: `%cVWS%c %c${LEVEL_LABEL[level]}%c %c${scope.trim()}%c`,
     styles: [BADGE_STYLE, MESSAGE_RESET, LEVEL_STYLE[level], MESSAGE_RESET, SCOPE_STYLE, MESSAGE_RESET],
@@ -94,5 +113,18 @@ export function formatVwsConsolePlainText(scope: string, level: VwsConsoleLogLev
  */
 export function buildVwsConsoleLogArgs(scope: string, level: VwsConsoleLogLevel, ...messageParts: unknown[]): unknown[] {
   const { format, styles } = buildVwsConsolePrefix(scope, level)
+  return [format, ...styles, ...messageParts]
+}
+
+/**
+ * Console args with an explicit short TraceId in the prefix.
+ * @param scope Logger scope
+ * @param level Log level
+ * @param shortTrace Eight-char TraceId (or empty/undefined to omit)
+ * @param messageParts Tier-3 message body
+ * @returns Spread into console sinks
+ */
+export function buildVwsConsoleLogArgsWithTrace(scope: string, level: VwsConsoleLogLevel, shortTrace: string | undefined, ...messageParts: unknown[]): unknown[] {
+  const { format, styles } = buildVwsConsolePrefix(scope, level, shortTrace ? { shortTrace } : undefined)
   return [format, ...styles, ...messageParts]
 }

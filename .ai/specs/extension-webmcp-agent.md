@@ -384,13 +384,13 @@ Background 合并 `tools[]` 与 `registryEntries`，调用 `classifyWebMcpToolPr
 
 ## 5. Tab 选择与刷新
 
-| 行为         | 实现                                                                            |
-| ------------ | ------------------------------------------------------------------------------- |
-| 默认目标 Tab | `chrome.tabs.query({ active: true, currentWindow: true })`                      |
-| 用户切换 Tab | 侧栏下拉 `WEBMCP_LIST_CANDIDATE_TABS`                                           |
-| 自动刷新     | 监听 `tabs.onActivated`；`tabs.onUpdated` 当 `changeInfo.status === 'complete'` |
-| 工具列表刷新 | **每次用户发送消息前** `WEBMCP_LIST_TOOLS`；工具抽屉可手动刷新                  |
-| Agent 循环   | 单会话最多 **10** 轮 tool loop；每轮执行后不强制 re-list                        |
+| 行为         | 实现                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------- |
+| 默认目标 Tab | `chrome.tabs.query({ active: true, currentWindow: true })`                                                      |
+| 用户切换 Tab | 侧栏下拉 `WEBMCP_LIST_CANDIDATE_TABS`                                                                           |
+| 自动刷新     | 监听 `tabs.onActivated`；`tabs.onUpdated` 当 `changeInfo.status === 'complete'`                                 |
+| 工具列表刷新 | **每次用户发送消息前** `WEBMCP_LIST_TOOLS`；工具抽屉可手动刷新                                                  |
+| Agent 循环   | 主退出：工具调用指纹**后缀周期检测**（如 A→B→A→B）；安全上限 **100** 轮；每轮执行前检测，命中则不再执行重复调用 |
 
 ---
 

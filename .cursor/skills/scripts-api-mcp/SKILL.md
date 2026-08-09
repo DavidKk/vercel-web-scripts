@@ -12,6 +12,13 @@ Project: **MagickMonkey**. Scripts live in a private **GitHub Gist**; integratio
 - **Session**: admin login cookie (same as `/editor`).
 - **API key**: configure env `SCRIPTS_MCP_HEADERS` (JSON string) on the server, and send `x-api-key: …`. Do not put keys in skills, commits, or client-only bundles.
 
+## TraceId (`x-vws-trace-id`)
+
+- Optional correlation hex TraceId on REST/MCP requests. Server echoes it on responses (or generates one).
+- Prefer including it in `SCRIPTS_MCP_HEADERS` when debugging a client session: `{"x-api-key":"…","x-vws-trace-id":"<16-hex>"}`.
+- Browser: use `tracedFetch` (`shared/traced-fetch.ts`). Editor Server Actions accept `{ traceId }` on options objects.
+- Injected script runs get a **local** TraceId (console / Log Viewer / Admin Logs) without requiring WEB.
+
 ## REST
 
 - OpenAPI: `/api/v1/openapi.json`

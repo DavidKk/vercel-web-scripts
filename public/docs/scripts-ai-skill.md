@@ -47,6 +47,21 @@ Use this when you should **read or change user script files** stored in the proj
 
 Never commit the API key or paste it into user-visible pages.
 
+## TraceId correlation (`x-vws-trace-id`)
+
+MagickMonkey uses a lightweight TraceId for debugging across WEB API, editor Server Actions, Scripts REST/MCP, and (locally) injected script runs.
+
+- **Header**: `x-vws-trace-id` (16-char lowercase hex, no dashes — easy to copy/paste). Send on REST/MCP requests when correlating client logs with server logs.
+- **Propagation**: If the client sends a valid TraceId, API responses echo the same value. Otherwise the server generates one and returns it on the response.
+- **Browser helper**: `tracedFetch` from `shared/traced-fetch.ts` sets the header automatically (falls back to the active script/UI TraceId scope, then a new hex TraceId).
+- **Server Actions / editor**: Pass `{ traceId }` on action option objects (e.g. `saveScriptFiles(files, { traceId })`) so client and server share one id.
+- **Injected scripts**: Each script run gets a local TraceId via `enterScriptLogScope` — visible in console / Log Viewer / Admin Logs. It does **not** require a WEB round-trip unless the script itself calls MagickMonkey APIs with the header.
+- **MCP env example** (optional TraceId alongside auth):
+
+```text
+SCRIPTS_MCP_HEADERS='{"x-api-key":"<your-key>","x-vws-trace-id":"<16-hex>"}'
+```
+
 ## REST (OpenAPI)
 
 - Spec: `GET /api/v1/openapi.json` (authenticated).

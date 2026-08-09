@@ -246,21 +246,27 @@ function getExecutionWrapper(runAt: string, moduleName: string, match: string[],
   const builtAtDisplay = scriptBuiltAt > 0 && Number.isFinite(scriptBuiltAt) ? new Date(scriptBuiltAt).toLocaleString() : 'unknown'
   const connectSeed = connectHosts.length > 0 ? `typeof seedScriptConnectPermissions === 'function' && seedScriptConnectPermissions(${JSON.stringify(connectHosts)});` : ''
   // Shell: preset GME_ok for "Executing script …". Body: enterScriptLogScope so bare GME_* → emitScriptLog.
+  // beginScriptRunTrace wraps both so Executing + body share one TraceId in Admin Logs / Log Viewer.
   const scriptContent = `
         try {${buildExtensionScriptEnabledGuard(file)}
           if (${JSON.stringify(match)}.some((m) => matchUrl(m)) || matchRule(${JSON.stringify(file)})) {
-            GME_ok(${JSON.stringify(formatScriptExecutingLog(file, builtAtDisplay))});
-            enterScriptPermissionScope(${JSON.stringify(file)});
-            ${connectSeed}
-            enterScriptLogScope(${JSON.stringify(moduleName)})
+            beginScriptRunTrace();
             try {
-              ${compiledContent}
-            } catch (error) {
-              const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
-              GME_fail(${JSON.stringify(formatScriptExecutingFailureLog(file))}, message)
+              GME_ok(${JSON.stringify(formatScriptExecutingLog(file, builtAtDisplay))});
+              enterScriptPermissionScope(${JSON.stringify(file)});
+              ${connectSeed}
+              enterScriptLogScope(${JSON.stringify(moduleName)})
+              try {
+                ${compiledContent}
+              } catch (error) {
+                const message = error instanceof Error ? error.message : Object.prototype.toString.call(error)
+                GME_fail(${JSON.stringify(formatScriptExecutingFailureLog(file))}, message)
+              } finally {
+                exitScriptPermissionScope();
+                exitScriptLogScope()
+              }
             } finally {
-              exitScriptPermissionScope();
-              exitScriptLogScope()
+              endScriptRunTrace();
             }
           }
         } catch (error) {

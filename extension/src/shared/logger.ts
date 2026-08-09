@@ -2,7 +2,8 @@ import type { DebugLogAppendInput, DebugLogSource } from '@ext/shared/debug-log-
 import { formatDebugLogMessage } from '@ext/shared/debug-log-utils'
 import { reportDebugLog } from '@ext/shared/report-debug-log'
 import { shouldExtensionCollectDebugLogs, shouldExtensionLogToConsole } from '@ext/shared/shell-log-output-cache'
-import { buildVwsConsoleLogArgs, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
+import { enterTraceScope, exitTraceScope, normalizeTraceId, resolveLogTraceId, shortTraceId } from '@shared/trace-id'
+import { buildVwsConsoleLogArgsWithTrace, type VwsConsoleLogLevel } from '@shared/vws-console-log-styles'
 
 export type ExtensionLogLevel = 'debug' | 'info' | 'ok' | 'warn' | 'error'
 
@@ -52,12 +53,25 @@ export function inferExtensionLogSource(): DebugLogSource {
  */
 export class ExtensionLogger {
   private readonly scope: string
+  private readonly boundTraceId: string | undefined
 
   /**
    * @param scope Short scope label shown in log prefix, e.g. "Launcher" or "GM"
+   * @param boundTraceId Optional TraceId pinned for concurrent-safe logging
    */
-  constructor(scope: string) {
+  constructor(scope: string, boundTraceId?: string) {
     this.scope = scope
+    this.boundTraceId = normalizeTraceId(boundTraceId)
+  }
+
+  /**
+   * Return a logger that always attaches the given TraceId (safe across concurrent awaits).
+   * Prefer this in background message handlers over {@link withExtensionTraceScopeAsync}.
+   * @param traceId TraceId to bind
+   * @returns Logger instance with the same scope
+   */
+  withTrace(traceId: string): ExtensionLogger {
+    return new ExtensionLogger(this.scope, traceId)
   }
 
   /**
@@ -101,8 +115,10 @@ export class ExtensionLogger {
   }
 
   private emit(level: ExtensionLogLevel, args: unknown[]): void {
+    const traceId = this.boundTraceId ?? resolveLogTraceId()
+    const short = shortTraceId(traceId) || undefined
     if (shouldExtensionLogToConsole()) {
-      LEVEL_SINK[level](...buildVwsConsoleLogArgs(this.scope, level as VwsConsoleLogLevel, ...args))
+      LEVEL_SINK[level](...buildVwsConsoleLogArgsWithTrace(this.scope, level as VwsConsoleLogLevel, short, ...args))
     }
     if (!shouldExtensionCollectDebugLogs()) {
       return
@@ -112,6 +128,7 @@ export class ExtensionLogger {
       scope: this.scope,
       level,
       message: formatDebugLogMessage(...args),
+      meta: traceId ? { traceId } : undefined,
     }
     reportDebugLog(input)
   }
@@ -124,6 +141,38 @@ export class ExtensionLogger {
  */
 export function createExtensionLogger(scope: string): ExtensionLogger {
   return new ExtensionLogger(scope)
+}
+
+/**
+ * Run sync work under a TraceId scope.
+ * Do not use across concurrent awaits in the service worker — prefer {@link ExtensionLogger.withTrace}.
+ * @param fn Work to run
+ * @param traceId Optional existing TraceId
+ * @returns Result of `fn`
+ */
+export function withExtensionTraceScope<T>(fn: () => T, traceId?: string): T {
+  enterTraceScope(traceId)
+  try {
+    return fn()
+  } finally {
+    exitTraceScope()
+  }
+}
+
+/**
+ * Async TraceId scope helper for single-flight UI paths.
+ * Unsafe when multiple background messages interleave at await points — use {@link ExtensionLogger.withTrace}.
+ * @param fn Async work to run
+ * @param traceId Optional existing TraceId
+ * @returns Result of `fn`
+ */
+export async function withExtensionTraceScopeAsync<T>(fn: () => Promise<T>, traceId?: string): Promise<T> {
+  enterTraceScope(traceId)
+  try {
+    return await fn()
+  } finally {
+    exitTraceScope()
+  }
 }
 
 /** Launcher / OTA bootstrap logs */

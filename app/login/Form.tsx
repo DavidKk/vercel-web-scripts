@@ -12,6 +12,7 @@ import { Spinner } from '@/components/Spinner'
 import { Vercel2FALoginButton } from '@/components/Vercel2FALoginButton'
 import { repositoryUrl } from '@/config/package'
 import { useOAuthLoginContext, withOAuthLogin } from '@/services/oauth-login/withOAuthLogin'
+import { tracedFetch } from '@/shared/traced-fetch'
 
 export interface LoginFormProps {
   enable2FA?: boolean
@@ -72,7 +73,7 @@ function LoginForm(props: LoginFormProps) {
         throw new Error('Username and password are required')
       }
 
-      const response = await fetch('/api/auth', {
+      const response = await tracedFetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, token: access2FAToken, rememberMe }),

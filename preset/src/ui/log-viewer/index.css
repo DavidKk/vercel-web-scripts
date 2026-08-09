@@ -355,6 +355,15 @@
   fill: currentColor;
 }
 
+.log-viewer__entry-trace {
+  flex-shrink: 0;
+  color: var(--vws-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  opacity: 0.85;
+}
+
 .log-viewer__entry-msg {
   flex: 1;
   color: var(--vws-text-secondary);

@@ -8,6 +8,8 @@ export interface LogEntry {
   level: LogLevel
   message: string
   timestamp: number
+  /** Optional correlation id for this log line (script run / UI action). */
+  traceId?: string
 }
 
 export type LogStoreListener = (entries: LogEntry[]) => void

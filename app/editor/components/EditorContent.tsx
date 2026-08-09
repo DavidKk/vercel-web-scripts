@@ -12,6 +12,8 @@ import { FileStatus } from '@/components/ScriptEditor/types'
 import { ENTRY_SCRIPT_RULES_FILE, EXCLUDED_FILES, isManagedScriptFilename, SCRIPTS_FILE_EXTENSION } from '@/constants/file'
 import type { RuleConfig } from '@/services/tampermonkey/types'
 import type { ScriptOtaPolicy } from '@/shared/script-ota-policy'
+import { createTraceId, shortTraceId } from '@/shared/trace-id'
+import { tracedFetch } from '@/shared/traced-fetch'
 
 import { useEditorContentWebMcpSlots } from '../webmcp/slots/useEditorContentWebMcpSlots'
 import { AIPanel } from './AIPanel'
@@ -249,7 +251,10 @@ export function EditorContent({
       }
 
       // Save all files to Gist (alpha / debug OTA for managed scripts)
-      await saveScriptFiles(filesToSave, { saveAsDebug: true })
+      const traceId = createTraceId()
+      // eslint-disable-next-line no-console -- editor action correlation
+      console.info(`[editor] save-debug traceId=${traceId} short=${shortTraceId(traceId)}`)
+      await saveScriptFiles(filesToSave, { saveAsDebug: true, traceId })
 
       // Mark all saved files as saved
       Object.keys(filesToPublish).forEach((path) => {
@@ -324,10 +329,14 @@ export function EditorContent({
     setIsPublishing(true)
 
     try {
-      const compileRes = await fetch('/tampermonkey/compile', {
+      const traceId = createTraceId()
+      // eslint-disable-next-line no-console -- editor action correlation
+      console.info(`[editor] publish-stable traceId=${traceId} short=${shortTraceId(traceId)}`)
+      const compileRes = await tracedFetch('/tampermonkey/compile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: { [filename]: file.content.modifiedContent } }),
+        traceId,
       })
       if (!compileRes.ok) {
         const errText = (await compileRes.text()).trim()
@@ -335,11 +344,11 @@ export function EditorContent({
         return
       }
 
-      await saveScriptFiles([{ file: filename, content: file.content.modifiedContent }])
+      await saveScriptFiles([{ file: filename, content: file.content.modifiedContent }], { traceId })
       fileState.markFileAsSaved(filename)
       fileState.markFileAsUnchanged(filename)
 
-      await publishScriptStable(filename)
+      await publishScriptStable(filename, { traceId })
       await refreshActiveScriptOta(filename)
       router.refresh()
       notification.success(`Published ${filename} to stable`)
@@ -368,7 +377,10 @@ export function EditorContent({
     }
     setIsPublishing(true)
     try {
-      const updated = await lockScriptVersion(filename)
+      const traceId = createTraceId()
+      // eslint-disable-next-line no-console -- editor action correlation
+      console.info(`[editor] lock-version traceId=${traceId} short=${shortTraceId(traceId)}`)
+      const updated = await lockScriptVersion(filename, undefined, { traceId })
       setActiveScriptOta(updated.ota ?? null)
       router.refresh()
       notification.success(`Locked ${filename} to v${updated.ota?.lockedVersion ?? updated.version ?? '?'}`)
@@ -398,7 +410,10 @@ export function EditorContent({
     }
     setIsPublishing(true)
     try {
-      const updated = await unlockScriptVersion(filename)
+      const traceId = createTraceId()
+      // eslint-disable-next-line no-console -- editor action correlation
+      console.info(`[editor] unlock-version traceId=${traceId} short=${shortTraceId(traceId)}`)
+      const updated = await unlockScriptVersion(filename, { traceId })
       setActiveScriptOta(updated.ota ?? null)
       router.refresh()
       notification.success(`Unlocked ${filename}`)

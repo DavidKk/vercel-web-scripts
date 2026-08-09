@@ -3,6 +3,7 @@ import { isValidApiBaseUrl, normalizeApiBaseUrl } from '@ext/shell/webmcp/agent-
 import { type AgentLlmProviderId, agentLlmProviderNeedsApiKey, getAgentLlmProviderMeta, isAgentLlmProviderId } from '@ext/shell/webmcp/agent-llm-providers'
 import { formatProxyHeadersJson, parseProxyHeadersJson } from '@ext/shell/webmcp/agent-llm-proxy-headers'
 import { type AgentLlmConfig, type AgentLlmModelInfo, type AgentPrefs, switchAgentLlmProvider } from '@ext/shell/webmcp/agent-types'
+import type { WebMcpListedTool } from '@ext/shell/webmcp/webmcp-types'
 import { hydrateIconSlot, hydrateMmIcons, setIconSlotKey, setIconSlotLoading } from '@ext/ui/mm-icons'
 import { showMmNotification } from '@ext/ui/mm-notification'
 import { updateMmTooltip } from '@ext/ui/shared/mm-tooltip'
@@ -15,6 +16,7 @@ import { bindMmScrollIndicatorByRef, createMmScrollIndicatorShell, refreshScroll
 import { type AgentChatSession, type AgentChatSessionStore, createEmptySession, loadAgentSessionStore, saveAgentSessionStore } from './agent-session-storage'
 import { loadAgentLlmConfig, loadAgentPrefs, saveAgentPrefs, updateAgentLlmConfig } from './agent-storage'
 import { createThinkingCardElement, finalizeThinkingCard, updateThinkingCard } from './agent-thinking-card'
+import { filterToolsForAgent } from './agent-tools'
 
 /**
  * Pretty-print JSON tool summaries for readable wrapping in the tool card body.
@@ -58,19 +60,18 @@ export class MmSidepanelApp extends HTMLElement {
   private modelsRefreshGeneration = 0
   /** Debounced autosave for LLM form fields. */
   private llmPersistTimer: ReturnType<typeof setTimeout> | null = null
-  private readonly onDocumentVisibilityChange = (): void => {
-    if (document.visibilityState === 'hidden') {
-      void this.flushLlmPersist()
-    }
-  }
-  /** Ephemeral Codex-style Thinking card for the in-flight turn. */
   private thinkingCard: HTMLElement | null = null
   private thinkingStartedAt = 0
   private chatScrollRefresh: (() => void) | null = null
   private settingsScrollRefresh: (() => void) | null = null
+  /** Polls WebMCP listTools so late script registration is visible in the empty state. */
+  private webMcpToolsWatchTimer: ReturnType<typeof setInterval> | null = null
+  /** Bumped on each status probe so stale in-flight results cannot clobber newer UI. */
+  private webMcpToolsStatusGeneration = 0
+  private lastWebMcpToolsReady = false
 
   private onTabActivated = (): void => {
-    void this.refreshActiveTab()
+    void this.refreshActiveTab().then(() => this.refreshWebMcpToolsStatus())
   }
 
   private onTabUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo): void => {
@@ -78,8 +79,25 @@ export class MmSidepanelApp extends HTMLElement {
       return
     }
     if (changeInfo.status === 'complete' || changeInfo.url) {
-      void this.refreshActiveTab()
+      void this.refreshActiveTab().then(() => this.refreshWebMcpToolsStatus())
     }
+  }
+
+  private onDocumentVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') {
+      void this.flushLlmPersist()
+      return
+    }
+    void this.refreshWebMcpToolsStatus()
+  }
+
+  private onHistoryStateUpdated = (details: chrome.webNavigation.WebNavigationTransitionCallbackDetails): void => {
+    if (details.tabId !== this.activeTabId || details.frameId !== 0) {
+      return
+    }
+    // CSR soft navigations often register WebMCP tools after pushState.
+    this.lastWebMcpToolsReady = false
+    void this.refreshActiveTab().then(() => this.refreshWebMcpToolsStatus())
   }
 
   connectedCallback(): void {
@@ -93,6 +111,7 @@ export class MmSidepanelApp extends HTMLElement {
     this.syncComposerSendState()
     chrome.tabs.onActivated.addListener(this.onTabActivated)
     chrome.tabs.onUpdated.addListener(this.onTabUpdated)
+    chrome.webNavigation.onHistoryStateUpdated.addListener(this.onHistoryStateUpdated)
     document.addEventListener('visibilitychange', this.onDocumentVisibilityChange)
     void this.bootstrap()
   }
@@ -116,7 +135,12 @@ export class MmSidepanelApp extends HTMLElement {
     this.chatAbort?.abort()
     chrome.tabs.onActivated.removeListener(this.onTabActivated)
     chrome.tabs.onUpdated.removeListener(this.onTabUpdated)
+    chrome.webNavigation.onHistoryStateUpdated.removeListener(this.onHistoryStateUpdated)
     document.removeEventListener('visibilitychange', this.onDocumentVisibilityChange)
+    if (this.webMcpToolsWatchTimer) {
+      clearInterval(this.webMcpToolsWatchTimer)
+      this.webMcpToolsWatchTimer = null
+    }
     void this.flushLlmPersist()
   }
 
@@ -302,6 +326,103 @@ export class MmSidepanelApp extends HTMLElement {
     this.renderSessionMenu()
     this.renderChatLog()
     void this.refreshGeminiModelsIfConfigured()
+    this.startWebMcpToolsWatch()
+  }
+
+  /**
+   * Periodically re-list WebMCP tools while the side panel is open.
+   * Scripts often register after the panel opens; without a watch the empty state stays stale.
+   * Slow down once tools are ready to limit MAIN-world ensure/list traffic on CSR pages.
+   */
+  private startWebMcpToolsWatch(): void {
+    void this.refreshWebMcpToolsStatus()
+    if (this.webMcpToolsWatchTimer) {
+      return
+    }
+    this.webMcpToolsWatchTimer = setInterval(() => {
+      if (document.visibilityState !== 'visible' || this.chatAbort) {
+        return
+      }
+      void this.refreshWebMcpToolsStatus()
+    }, 5_000)
+  }
+
+  /**
+   * Probe the active tab for WebMCP tools and update the empty-state status line.
+   */
+  private async refreshWebMcpToolsStatus(): Promise<void> {
+    const generation = ++this.webMcpToolsStatusGeneration
+    const tabId = this.activeTabId
+    const tabUrl = this.activeTabUrl
+
+    if (tabId == null || !this.isAgentCompatibleTab()) {
+      if (generation !== this.webMcpToolsStatusGeneration) {
+        return
+      }
+      this.setWebMcpToolsStatus(tabId == null ? 'WebMCP: no active tab' : `WebMCP: ${this.describeUnsupportedTab()}`, false)
+      return
+    }
+
+    const response = await sendShellMessage({ type: 'WEBMCP_LIST_TOOLS', tabId })
+    if (generation !== this.webMcpToolsStatusGeneration || tabId !== this.activeTabId) {
+      return
+    }
+
+    if (!response.ok) {
+      this.setWebMcpToolsStatus(`WebMCP: ${response.error || 'failed to list tools'}`, false)
+      return
+    }
+    if (!('webmcp' in response) || !response.webmcp) {
+      this.setWebMcpToolsStatus('WebMCP: failed to list tools', false)
+      return
+    }
+    if (!response.webmcp.ok || !response.webmcp.data) {
+      this.setWebMcpToolsStatus(`WebMCP: ${response.webmcp.message ?? 'unavailable on this tab'}`, false)
+      return
+    }
+
+    const payload = response.webmcp.data as { tools?: WebMcpListedTool[] }
+    const prefs = await loadAgentPrefs()
+    if (generation !== this.webMcpToolsStatusGeneration || tabId !== this.activeTabId) {
+      return
+    }
+
+    const tools = filterToolsForAgent(payload.tools ?? [], prefs)
+    if (tools.length === 0) {
+      this.setWebMcpToolsStatus('WebMCP: 0 tools — register page/script tools, then send a message', false)
+      return
+    }
+    const preview = tools
+      .slice(0, 3)
+      .map((tool) => tool.name)
+      .join(', ')
+    const more = tools.length > 3 ? ` +${tools.length - 3}` : ''
+    const hostHint = (() => {
+      try {
+        return tabUrl ? ` · ${new URL(tabUrl).hostname}` : ''
+      } catch {
+        return ''
+      }
+    })()
+    this.setWebMcpToolsStatus(`WebMCP: ${tools.length} tool${tools.length === 1 ? '' : 's'} ready (${preview}${more})${hostHint}`, true)
+  }
+
+  /**
+   * Update the empty-state WebMCP tools line (and toast when tools first appear).
+   * @param text Status text
+   * @param ready Whether tools are available
+   */
+  private setWebMcpToolsStatus(text: string, ready: boolean): void {
+    const el = this.querySelector('[data-ref="webmcp-tools-status"]') as HTMLElement | null
+    if (el) {
+      el.textContent = text
+      el.dataset.ready = ready ? 'true' : 'false'
+    }
+    const becameReady = ready && !this.lastWebMcpToolsReady
+    this.lastWebMcpToolsReady = ready
+    if (becameReady && !this.chatAbort) {
+      showMmNotification(text, 'success')
+    }
   }
 
   /**
@@ -1658,6 +1779,8 @@ export class MmSidepanelApp extends HTMLElement {
   private async runChatTurn(text: string, options?: { skipUserMessageEvent?: boolean }): Promise<void> {
     await this.flushLlmPersist()
     await this.refreshActiveTab()
+    // Tool list for the LLM is refreshed inside runAgentLoop (once per user ask).
+    // Skip a second WEBMCP_LIST_TOOLS here to avoid duplicate MAIN-world ensure/list.
 
     if (this.activeTabId == null) {
       showMmNotification('No active tab.', 'warn')
@@ -1745,6 +1868,7 @@ export class MmSidepanelApp extends HTMLElement {
       this.finishThinkingCard(thinkingOutcome)
       this.setChatRunning(false)
       this.chatAbort = null
+      void this.refreshWebMcpToolsStatus()
     }
   }
 }

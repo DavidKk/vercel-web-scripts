@@ -3,6 +3,7 @@ import type { AgentLlmMessage } from '@ext/shell/webmcp/agent-types'
 import type { WebMcpListedTool } from '@ext/shell/webmcp/webmcp-types'
 
 import { loadAgentPrefs } from './agent-storage'
+import { fingerprintToolRound, hasRepeatingToolCycle, MAX_AGENT_SAFETY_ROUNDS } from './agent-tool-loop-guard'
 import { buildAgentSystemPrompt, filterToolsForAgent, fromLlmToolName, resolvePageToolsHint, shouldConfirmTool, toAgentLlmTools } from './agent-tools'
 
 export type AgentUiMessage =
@@ -21,8 +22,6 @@ export type AgentLoopEvent =
     }
   | { type: 'done' }
   | { type: 'error'; message: string }
-
-const MAX_AGENT_ROUNDS = 10
 
 function uid(): string {
   return crypto.randomUUID()
@@ -116,8 +115,10 @@ export async function runAgentLoop(input: {
   }
 
   emitStatus(input.onEvent, 'Connecting to page…', 'Checking the active tab and discovering WebMCP tools.')
+  // Fresh list once per user ask (CSR may have registered tools since the last message).
+  // Do not re-list between internal agent rounds — that rewrites the system prompt and burns tokens.
   const listed = await listToolsForTab(input.tabId)
-  let availableTools = filterToolsForAgent(listed.tools, prefs)
+  const availableTools = filterToolsForAgent(listed.tools, prefs)
   const toolCount = availableTools.length
   emitStatus(
     input.onEvent,
@@ -148,8 +149,9 @@ export async function runAgentLoop(input: {
   let emptyAnswerNudgeUsed = false
   let preferTextOnly = false
   let lastToolSummaries: string[] = []
+  const roundSignatures: string[] = []
 
-  for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
+  for (let round = 0; round < MAX_AGENT_SAFETY_ROUNDS; round++) {
     if (input.signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError')
     }
@@ -225,6 +227,22 @@ export async function runAgentLoop(input: {
       return
     }
 
+    const plannedRound = toolCalls.map((call) => ({
+      name: fromLlmToolName(call.name, availableTools) ?? call.name,
+      args: call.args,
+    }))
+    const plannedSignature = fingerprintToolRound(plannedRound)
+    if (hasRepeatingToolCycle([...roundSignatures, plannedSignature])) {
+      emitStatus(input.onEvent, 'Stopping…', 'Repeated the same tool calls with the same arguments (tool-call cycle detected).')
+      input.onEvent({
+        type: 'error',
+        message: 'Stopped: repeated the same tool calls (cycle detected). Try rephrasing or continue with a more specific ask.',
+      })
+      input.onEvent({ type: 'done' })
+      return
+    }
+    roundSignatures.push(plannedSignature)
+
     history.push({
       role: 'model',
       text: contentText || undefined,
@@ -296,13 +314,13 @@ export async function runAgentLoop(input: {
       role: 'model',
       toolResults,
     })
-
-    emitStatus(input.onEvent, 'Refreshing tools…', 'Re-listing WebMCP tools before the next model turn.')
-    availableTools = filterToolsForAgent((await listToolsForTab(input.tabId)).tools, prefs)
   }
 
-  emitStatus(input.onEvent, 'Stopping…', 'Reached the maximum number of tool rounds for this turn.')
-  input.onEvent({ type: 'error', message: 'Reached maximum tool rounds.' })
+  emitStatus(input.onEvent, 'Stopping…', `Reached the safety limit of ${MAX_AGENT_SAFETY_ROUNDS} tool rounds for this turn.`)
+  input.onEvent({
+    type: 'error',
+    message: `Reached the safety limit of ${MAX_AGENT_SAFETY_ROUNDS} tool rounds. Ask to continue if the task is still in progress.`,
+  })
   input.onEvent({ type: 'done' })
 }
 

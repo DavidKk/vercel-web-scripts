@@ -99,10 +99,12 @@ export async function handleShellMessage(message: ShellMessage, sender: chrome.r
           tabId,
           pageUrl: message.details.pageUrl,
           entries: message.details.entries,
+          traceId: message.details.traceId,
         })
         return { ok: true, runtimeLoadResults }
       } catch (error) {
-        extensionLogger.error('[ModuleLoad] RUNTIME_ENSURE_LOAD failed:', error)
+        const log = message.details.traceId ? extensionLogger.withTrace(message.details.traceId) : extensionLogger
+        log.error('[ModuleLoad] RUNTIME_ENSURE_LOAD failed:', error)
         return { ok: false, error: error instanceof Error ? error.message : String(error) }
       }
     }

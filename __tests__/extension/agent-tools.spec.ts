@@ -65,11 +65,17 @@ describe('agent-tools', () => {
     expect(tools[0]?.parameters).toEqual({ type: 'object', properties: { on: { type: 'boolean' } } })
   })
 
-  it('filterToolsForAgent falls back to native tools when MagickMonkey tools are absent', () => {
+  it('filterToolsForAgent prefers Chrome-listed orphan vws.* over native fallback', () => {
     const tools: WebMcpListedTool[] = [
       { name: 'editor_add_rule', provider: 'native', description: 'Add rule' },
       { name: 'vws.ghost.tool', provider: 'unknown' },
     ]
+    const prefs: AgentPrefs = { global: { toolProviderScope: 'magickmonkey_only' } }
+    expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['vws.ghost.tool'])
+  })
+
+  it('filterToolsForAgent falls back to native tools when MagickMonkey-shaped tools are absent', () => {
+    const tools: WebMcpListedTool[] = [{ name: 'editor_add_rule', provider: 'native', description: 'Add rule' }]
     const prefs: AgentPrefs = { global: { toolProviderScope: 'magickmonkey_only' } }
     expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['editor_add_rule'])
   })
@@ -83,14 +89,14 @@ describe('agent-tools', () => {
     expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['vws.demo.foo'])
   })
 
-  it('filterToolsForAgent includes all usable tools when scope is all', () => {
+  it('filterToolsForAgent includes orphan vws.* when scope is all', () => {
     const tools: WebMcpListedTool[] = [
       { name: 'editor_add_rule', provider: 'native' },
       { name: 'vws.demo.foo', provider: 'magickmonkey' },
       { name: 'vws.ghost.tool', provider: 'unknown' },
     ]
     const prefs: AgentPrefs = { global: { toolProviderScope: 'all' } }
-    expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['editor_add_rule', 'vws.demo.foo'])
+    expect(filterToolsForAgent(tools, prefs).map((tool) => tool.name)).toEqual(['editor_add_rule', 'vws.demo.foo', 'vws.ghost.tool'])
   })
 
   it('filterToolsForAgent keeps builtin vws.page.* tools as MagickMonkey', () => {

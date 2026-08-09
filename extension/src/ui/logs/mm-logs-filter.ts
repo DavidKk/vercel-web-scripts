@@ -55,7 +55,8 @@ export function filterDebugLogEntries(entries: DebugLogEntry[], criteria: DebugL
     if (search) {
       const tabIdPart = entry.meta?.tabId != null ? String(entry.meta.tabId) : ''
       const incognitoPart = isIncognitoDebugLogEntry(entry) ? 'incognito private' : ''
-      const haystack = `${entry.scope} ${entry.message} ${entry.source} ${entry.meta?.url ?? ''} ${entry.meta?.host ?? ''} ${tabIdPart} ${incognitoPart}`.toLowerCase()
+      const tracePart = entry.meta?.traceId?.trim() ?? ''
+      const haystack = `${entry.scope} ${entry.message} ${entry.source} ${entry.meta?.url ?? ''} ${entry.meta?.host ?? ''} ${tabIdPart} ${incognitoPart} ${tracePart}`.toLowerCase()
       if (!haystack.includes(search)) {
         return false
       }
@@ -115,7 +116,7 @@ export function formatDebugLogsFooterText(params: { filteredCount: number; total
 }
 
 /** Tab-separated clipboard export columns. */
-export const DEBUG_LOG_CLIPBOARD_COLUMNS = ['Time', 'Level', 'Source', 'Scope', 'Host', 'Tab', 'Incognito', 'Message'] as const
+export const DEBUG_LOG_CLIPBOARD_COLUMNS = ['Time', 'Level', 'Source', 'Scope', 'Host', 'Tab', 'Incognito', 'TraceId', 'Message'] as const
 
 /**
  * Escape a field for TSV export (quote when it contains tabs, quotes, or newlines).
@@ -152,7 +153,8 @@ export function formatDebugLogEntryForClipboard(entry: DebugLogEntry): string {
   const host = entry.meta?.host?.trim() ?? ''
   const tab = entry.meta?.tabId != null ? String(entry.meta.tabId) : ''
   const incognito = entry.meta?.incognito === true ? 'yes' : ''
-  const fields = [formatDebugLogTimeForClipboard(entry.t), entry.level, entry.source, entry.scope.trim(), host, tab, incognito, entry.message]
+  const traceId = entry.meta?.traceId?.trim() ?? ''
+  const fields = [formatDebugLogTimeForClipboard(entry.t), entry.level, entry.source, entry.scope.trim(), host, tab, incognito, traceId, entry.message]
   return fields.map(escapeTsvField).join('\t')
 }
 

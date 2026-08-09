@@ -9,6 +9,7 @@ import { createPageControllerAdapter } from './page-controller-adapter'
 import { getPageToolDefinitions } from './page-tools-definitions'
 
 const ENSURED_KEY = '__VWS_PAGE_TOOLS_ENSURED__'
+const ENSURED_URL_KEY = '__VWS_PAGE_TOOLS_ENSURED_URL__'
 
 /** Module-local controller — avoid exposing PageController (incl. executeJavascript) on page globals. */
 let pageControllerSingleton: PageController | undefined
@@ -61,6 +62,14 @@ export async function ensureVwsPageToolsInMainWorld(): Promise<EnsureVwsPageTool
   // Always re-assert: page navigations / old injected controllers may still paint labels.
   ensurePageAgentHighlightsHidden(document)
   mirrorRegistryOntoGlobalThis()
+
+  // CSR/SPA soft navigations keep the JS heap but Chrome may drop WebMCP tools.
+  // Invalidate the ensure short-circuit whenever the document URL changes.
+  const href = typeof location !== 'undefined' ? String(location.href) : ''
+  if (root[ENSURED_URL_KEY] !== href) {
+    root[ENSURED_KEY] = false
+    root[ENSURED_URL_KEY] = href
+  }
 
   const definitions = getPageToolDefinitions()
   const expectedNames = definitions.map((def) => buildVwsWebMcpCanonicalName(VWS_WEBMCP_PAGE_SCRIPT_KEY, def.localName))

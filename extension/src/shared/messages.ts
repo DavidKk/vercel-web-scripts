@@ -62,8 +62,8 @@ export type ShellMessage =
   | { type: 'GET_SHELL_ENABLED_FOR_SENDER' }
   | { type: 'SYNC_CLOUDFLARE_CHALLENGE_SHELL_DISABLE'; details: { url: string } }
   | { type: 'SET_LOG_OUTPUT_MODE'; mode: ShellLogOutputMode }
-  | { type: 'UPDATE_RUNTIME' }
-  | { type: 'RESET_RUNTIME' }
+  | { type: 'UPDATE_RUNTIME'; traceId?: string }
+  | { type: 'RESET_RUNTIME'; traceId?: string }
   | { type: 'OPEN_EDITOR' }
   | { type: 'OPEN_SCRIPTS_PAGE' }
   | { type: 'OPEN_RULES_PAGE' }
@@ -160,6 +160,8 @@ export type ShellMessage =
       type: 'RUNTIME_ENSURE_LOAD'
       details: {
         pageUrl: string
+        /** Content/bootstrap TraceId so background ModuleLoad correlates with page. */
+        traceId?: string
         entries: Array<{
           scriptKey: string
           baseUrl: string
