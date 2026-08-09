@@ -22,6 +22,7 @@
     "build": "pnpm run build:preset && pnpm run build:editor-lib && pnpm run build:explorer-lib && pnpm run pack:extension && next build --webpack",
     "start": "next start",
     "test": "jest -c ./jest.config.ts --coverage --reporters=default --reporters=jest-junit --passWithNoTests",
+    "ci:coverage": "pnpm test",
     "test:watch": "jest --watch",
     "ok": "pnpm format && pnpm lint && pnpm typecheck && pnpm test",
     "test:e2e": "pnpm run build:preset && playwright test --reporter=list",
