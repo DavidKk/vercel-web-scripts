@@ -142,6 +142,17 @@ Override port: `EXTENSION_DEV_RELOAD_PORT=5180 pnpm run build:extension:dev`
 
 扩展壳计划通过 **Chrome Web Store** 分发与自动更新。开发期仍可用下方手动 ZIP / Load unpacked。
 
+### Formal release (CI)
+
+正式版本号为根 `package.json` / `manifest` 共用的 semver `X.Y.Z`。发版：
+
+1. 合并业务到 `main` 后，在 GitHub Actions 手动运行 **Extension release**（仅 `workflow_dispatch`）。
+2. CI 按上次 `chore(release)` 之后的 conventional commits bump → `pnpm pack:extension` → 创建 GitHub Release（`vX.Y.Z` + ZIP）→ 回写 `package.json`（commit body 含 `[skip vercel]`）。
+3. Popup 更新检测走 `GET /api/extension/version`，正式 `downloadUrl` 为 **GitHub Release asset**（不是当前 Vercel 部署里的 ZIP）。
+4. 拉代码后请跑一次 `pnpm install`（postinstall 会同步 husky）；否则本机可能仍残留旧的 pre-push 自动 bump。
+
+规格：`.ai/specs/extension-release-ci.md`。
+
 ### Manual ZIP（开发 / 过渡）
 
 1. Download `/downloads/magickmonkey-chrome-extension.zip` from the web app (editor header when extension is not detected), or run `pnpm pack:extension` locally.

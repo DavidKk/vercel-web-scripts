@@ -44,6 +44,9 @@ Purpose: task -> file routing. Do not read the full `.ai/**` tree by default.
   - Read: `tasks/backlog/gist-script-rollback.md`
 - **OTA publish policy** (SERVER per-script autoUpgrade / alpha / version lock)
   - Read: `specs/ota-publish-policy.md`, `tasks/done/ota-publish-policy.md`
+- **Extension CI release** (正式壳 semver / ZIP 由 GitHub Actions；与 Vercel 解耦 — **已评审可开工**)
+  - Read: `specs/extension-release-ci.requirements.md`, `specs/extension-release-ci.md`
+  - Task: `tasks/backlog/extension-release-ci.md`
 - **Runtime modularization** (Phase A–C done; Phase D backlog)
   - Read: `tasks/done/runtime-modularization-phase-a-b-c.md`, `tasks/backlog/runtime-phase-d.md`
 - **Extension native loader** (OTA 编排去 TM 化 — backlog)

@@ -28,6 +28,8 @@ This folder holds architecture and behavior requirements for this userscript pla
 - `preset-gme-webmcp.md` — `GME_registerWebMcpTool` shared module, naming, registry contract
 - `extension-webmcp-agent.md` — Side Panel WebMCP Agent: shell messages, MAIN-world proxy, LLM loop
 - `ota-publish-policy.md` — SERVER-authoritative OTA (per-script autoUpgrade, stage, version lock; dual bundle)
+- `extension-release-ci.requirements.md` — Chrome 扩展正式发版改由 CI（semver）需求
+- `extension-release-ci.md` — 同上技术规格（GitHub Release 权威，与 Vercel 解耦）
 - Runtime split baseline:
   - `runtime-modularization.md`
   - `runtime-compatibility.md`

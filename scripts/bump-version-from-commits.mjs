@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * MagickMonkey root version bump entry (pre-push / pnpm version:bump).
+ * MagickMonkey root version bump entry (CI / pnpm version:bump).
  * Delegates to the TypeScript runner so shared/version-bump stays the single source of truth.
  */
 import { spawnSync } from 'node:child_process'

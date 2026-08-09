@@ -1,6 +1,6 @@
 /**
- * CLI: bump root package.json version from conventional commits in the push range.
- * Usage: pnpm version:bump [--dry-run] [--commit] [--range <git-rev-range>]
+ * CLI: bump root package.json version from conventional commits.
+ * Usage: pnpm version:bump [--dry-run] [--commit] [--from-last-release] [--range <git-rev-range>]
  */
 
 import { execFileSync } from 'node:child_process'
@@ -15,6 +15,7 @@ const PACKAGE_JSON_PATH = path.join(ROOT, 'package.json')
 interface CliOptions {
   dryRun: boolean
   commit: boolean
+  fromLastRelease: boolean
   range?: string
 }
 
@@ -27,6 +28,7 @@ function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     dryRun: false,
     commit: false,
+    fromLastRelease: false,
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -36,6 +38,10 @@ function parseArgs(argv: string[]): CliOptions {
     }
     if (arg === '--commit') {
       options.commit = true
+      continue
+    }
+    if (arg === '--from-last-release') {
+      options.fromLastRelease = true
       continue
     }
     if (arg === '--range') {
@@ -60,14 +66,57 @@ function git(args: string[]): string {
 }
 
 /**
- * Resolve the commit range to inspect for bump level.
- * Prefer origin/<branch>..HEAD when available; else last release commit..HEAD; else HEAD~20..HEAD.
- * @param explicit Explicit `--range` value
+ * Resolve range from the last `chore(release)` commit or `vX.Y.Z` tag to HEAD.
+ * Used by CI `workflow_dispatch` (must not use `origin/main..HEAD`, which is often empty).
  * @returns Git rev range
  */
-function resolveCommitRange(explicit?: string): string {
-  if (explicit) {
-    return explicit
+function resolveRangeFromLastRelease(): string {
+  try {
+    const releaseSha = git(['log', '-1', '--grep=^chore(release):', '--pretty=%H'])
+    if (releaseSha) {
+      return `${releaseSha}..HEAD`
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const tags = git(['tag', '-l', 'v*.*.*', '--sort=-v:refname'])
+    const latest = tags
+      .split('\n')
+      .map((t) => t.trim())
+      .find((t) => /^v\d+\.\d+\.\d+$/.test(t))
+    if (latest) {
+      return `${latest}..HEAD`
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const root = git(['rev-list', '--max-parents=0', 'HEAD']).split('\n')[0]?.trim()
+    if (root) {
+      return `${root}..HEAD`
+    }
+  } catch {
+    // ignore
+  }
+
+  return 'HEAD'
+}
+
+/**
+ * Resolve the commit range to inspect for bump level.
+ * Prefer explicit `--range`, then `--from-last-release`, else local push-oriented defaults.
+ * @param options Parsed CLI options
+ * @returns Git rev range
+ */
+function resolveCommitRange(options: CliOptions): string {
+  if (options.range) {
+    return options.range
+  }
+  if (options.fromLastRelease) {
+    return resolveRangeFromLastRelease()
   }
 
   try {
@@ -85,21 +134,7 @@ function resolveCommitRange(explicit?: string): string {
     // ignore
   }
 
-  try {
-    const releaseSha = git(['log', '-1', '--grep=^chore(release):', '--pretty=%H'])
-    if (releaseSha) {
-      return `${releaseSha}..HEAD`
-    }
-  } catch {
-    // ignore
-  }
-
-  try {
-    git(['rev-parse', '--verify', 'HEAD~20'])
-    return 'HEAD~20..HEAD'
-  } catch {
-    return 'HEAD'
-  }
+  return resolveRangeFromLastRelease()
 }
 
 /**
@@ -158,15 +193,25 @@ function writePackageVersion(nextVersion: string): void {
 function commitRelease(version: string): void {
   const subject = buildReleaseCommitSubject(version)
   execFileSync('git', ['add', 'package.json'], { cwd: ROOT, stdio: 'inherit' })
-  execFileSync('git', ['commit', '-m', subject], {
+  execFileSync('git', ['commit', '-m', subject, '-m', '[skip vercel]'], {
     cwd: ROOT,
     stdio: 'inherit',
     env: {
       ...process.env,
-      // Avoid nested auto-bump if hooks ever call this again.
       VWS_SKIP_VERSION_BUMP: '1',
+      HUSKY: '0',
     },
   })
+}
+
+/**
+ * Print a stable RESULT line for CI parsers.
+ * @param bumped Whether package.json was (or would be) bumped
+ * @param version Version after bump, or current when skipped
+ */
+function printResult(bumped: boolean, version: string): void {
+  // eslint-disable-next-line no-console -- CLI machine-readable status
+  console.log(`[version:bump] RESULT bumped=${bumped ? 1 : 0} version=${version}`)
 }
 
 /**
@@ -177,16 +222,19 @@ function main(): number {
   if (process.env.VWS_SKIP_VERSION_BUMP === '1') {
     // eslint-disable-next-line no-console -- CLI status
     console.log('[version:bump] skipped (VWS_SKIP_VERSION_BUMP=1)')
+    printResult(false, readPackageVersion())
     return 0
   }
 
   const options = parseArgs(process.argv.slice(2))
-  const range = resolveCommitRange(options.range)
+  const range = resolveCommitRange(options)
   const messages = listCommitMessages(range)
+  const current = readPackageVersion()
 
   if (messages.length === 0) {
     // eslint-disable-next-line no-console -- CLI status
     console.log(`[version:bump] no commits in range ${range}; skip`)
+    printResult(false, current)
     return 0
   }
 
@@ -198,6 +246,7 @@ function main(): number {
   if (pending.length === 0) {
     // eslint-disable-next-line no-console -- CLI status
     console.log(`[version:bump] no commits after last release in ${range}; skip`)
+    printResult(false, current)
     return 0
   }
 
@@ -205,15 +254,16 @@ function main(): number {
   if (!level) {
     // eslint-disable-next-line no-console -- CLI status
     console.log(`[version:bump] nothing to bump for range ${range}`)
+    printResult(false, current)
     return 0
   }
 
-  const current = readPackageVersion()
   const next = applySemverBump(current, level)
   // eslint-disable-next-line no-console -- CLI status
   console.log(`[version:bump] range=${range} level=${level} ${current} → ${next}`)
 
   if (options.dryRun) {
+    printResult(true, next)
     return 0
   }
 
@@ -222,11 +272,11 @@ function main(): number {
     commitRelease(next)
     // eslint-disable-next-line no-console -- CLI status
     console.log(`[version:bump] committed ${buildReleaseCommitSubject(next)}`)
-    // Exit 0: pre-push compares HEAD before/after to decide whether to re-push.
-    return 0
+  } else {
+    // eslint-disable-next-line no-console -- CLI status
+    console.log('[version:bump] wrote package.json (pass --commit to create release commit)')
   }
-  // eslint-disable-next-line no-console -- CLI status
-  console.log('[version:bump] wrote package.json (pass --commit to create release commit)')
+  printResult(true, next)
   return 0
 }
 

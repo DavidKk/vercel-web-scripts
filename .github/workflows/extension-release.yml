@@ -1,0 +1,148 @@
+name: Extension release
+
+# Formal Chrome extension semver + ZIP via GitHub Release.
+# Spec: .ai/specs/extension-release-ci.md
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: extension-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: bump-pack-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure main
+        if: github.ref_name != 'main'
+        run: |
+          echo "extension-release only runs on main (got ${{ github.ref_name }})"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump version from last release
+        id: bump
+        run: |
+          set -euo pipefail
+          output=$(pnpm version:bump --from-last-release)
+          echo "$output"
+          result=$(echo "$output" | grep -E '^\[version:bump\] RESULT ' | tail -n 1 || true)
+          bumped=$(echo "$result" | sed -n 's/.*bumped=\([01]\).*/\1/p')
+          version=$(echo "$result" | sed -n 's/.*version=\([0-9.]*\).*/\1/p')
+          echo "bumped=${bumped:-0}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${bumped:-0}" != "1" ]; then
+            echo "No pending commits to release; skipping pack/release."
+          fi
+
+      - name: Pack extension
+        if: steps.bump.outputs.bumped == '1'
+        run: pnpm pack:extension
+
+      - name: Assert manifest version
+        if: steps.bump.outputs.bumped == '1'
+        run: |
+          set -euo pipefail
+          manifest_version=$(node -e "console.log(JSON.parse(require('fs').readFileSync('extension/dist/manifest.json','utf8')).version)")
+          echo "manifest=$manifest_version expected=${{ steps.bump.outputs.version }}"
+          test "$manifest_version" = "${{ steps.bump.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.bump.outputs.bumped == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          zip="public/downloads/magickmonkey-chrome-extension.zip"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+            if gh release view "$tag" --json assets --jq '.assets[].name' | grep -qx 'magickmonkey-chrome-extension.zip'; then
+              echo "ZIP asset present; will attempt package.json writeback only."
+            else
+              echo "Release $tag exists without expected ZIP asset" >&2
+              exit 1
+            fi
+          else
+            gh release create "$tag" "$zip" --title "chore(release): ${VERSION}" --generate-notes
+          fi
+
+      - name: Write back package.json
+        if: steps.bump.outputs.bumped == '1'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          HUSKY: '0'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          write_version_file() {
+            node <<'NODE'
+          const fs = require('fs')
+          const version = process.env.VERSION
+          if (!version) {
+            console.error('VERSION env is empty')
+            process.exit(1)
+          }
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+          if (pkg.version === version) {
+            console.log(`package.json already ${version}`)
+            process.exit(2)
+          }
+          pkg.version = version
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`)
+          NODE
+          }
+
+          attempt_writeback() {
+            git fetch origin main
+            git checkout -B main origin/main
+            set +e
+            write_version_file
+            code=$?
+            set -e
+            if [ "$code" -eq 2 ]; then
+              echo "origin/main package.json already at ${VERSION}; skip writeback"
+              return 0
+            fi
+            if [ "$code" -ne 0 ]; then
+              return "$code"
+            fi
+            git add package.json
+            git commit -m "chore(release): ${VERSION}" -m "[skip vercel]"
+            git push origin HEAD:main
+          }
+
+          if attempt_writeback; then
+            exit 0
+          fi
+          echo "writeback push failed; retrying once after re-fetch"
+          sleep 2
+          if attempt_writeback; then
+            exit 0
+          fi
+          echo "::error::Writeback failed after retry. GitHub Release v${VERSION} may already exist — re-run this workflow to retry package.json writeback only."
+          exit 1

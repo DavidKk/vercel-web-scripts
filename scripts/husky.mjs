@@ -150,33 +150,9 @@ pnpm commitlint --edit "$1"
       name: 'pre-push',
       content: `${pathSetup}
 
-# Auto-bump root package.json when pushing to main/master (feat→minor, else patch).
-# If a release commit is created, abort this push so the next push includes it.
-# (Do not rely on exit code 2 — husky runs hooks with \`sh -e\`.)
-if [ "\${VWS_SKIP_VERSION_BUMP:-}" = "1" ]; then
-  exit 0
-fi
-
-bumped=0
-while read -r local_ref local_sha remote_ref remote_sha
-do
-  case "\$remote_ref" in
-    refs/heads/main|refs/heads/master)
-      before=\$(git rev-parse HEAD)
-      pnpm version:bump --commit
-      after=\$(git rev-parse HEAD)
-      if [ "\$before" != "\$after" ]; then
-        bumped=1
-      fi
-      ;;
-  esac
-done
-
-if [ "\$bumped" -eq 1 ]; then
-  echo ""
-  echo "husky(pre-push): version release commit created — run git push again to include it."
-  exit 1
-fi
+# Extension formal version bump moved to GitHub Actions (workflow_dispatch: Extension release).
+# See .ai/specs/extension-release-ci.md
+exit 0
 `,
     },
   ]
