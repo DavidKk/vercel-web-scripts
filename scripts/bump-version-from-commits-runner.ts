@@ -222,8 +222,8 @@ function main(): number {
     commitRelease(next)
     // eslint-disable-next-line no-console -- CLI status
     console.log(`[version:bump] committed ${buildReleaseCommitSubject(next)}`)
-    // Exit 2: pre-push must abort so the caller re-pushes including the release commit.
-    return 2
+    // Exit 0: pre-push compares HEAD before/after to decide whether to re-push.
+    return 0
   }
   // eslint-disable-next-line no-console -- CLI status
   console.log('[version:bump] wrote package.json (pass --commit to create release commit)')
