@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FiChevronDown, FiLock, FiLogOut, FiPlay, FiPlayCircle, FiUnlock, FiUser, FiZap } from 'react-icons/fi'
@@ -306,10 +307,10 @@ export default function EditorHeader({
 
   return (
     <header className="h-11 bg-[#111318] border-b border-[#2a303a] flex items-center gap-2 px-3 sticky top-0 z-50">
-      <div className="flex items-center gap-2 min-w-0 shrink-0">
+      <Link href="/" className="flex items-center gap-2 min-w-0 shrink-0 rounded-sm hover:opacity-90 transition-opacity" aria-label="MagickMonkey home">
         <Image src="/logo.png" alt="MagickMonkey logo" width={24} height={24} className="rounded-sm shrink-0" priority />
         <span className="text-sm text-[#e6eaf0] font-medium truncate hidden sm:inline">MagickMonkey</span>
-      </div>
+      </Link>
 
       <div className="flex-1 min-w-2" />
 

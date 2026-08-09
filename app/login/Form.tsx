@@ -2,6 +2,7 @@
 
 import { useRequest } from 'ahooks'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { FiCheck, FiEye, FiEyeOff, FiGithub, FiLock, FiUser } from 'react-icons/fi'
@@ -155,11 +156,11 @@ function LoginForm(props: LoginFormProps) {
       )}
       <form onSubmit={handleSubmit} className="w-full max-w-md rounded-lg border border-[#2a303a] bg-[#1b1f27] p-5 shadow-2xl shadow-black/30">
         <div className="mb-5 flex flex-col items-center gap-3">
-          <Image src="/logo.png" alt="MagickMonkey logo" width={72} height={72} className="rounded-md" priority />
-          <div className="text-center">
+          <Link href="/" className="flex flex-col items-center gap-3 rounded-md hover:opacity-90 transition-opacity" aria-label="MagickMonkey home">
+            <Image src="/logo.png" alt="MagickMonkey logo" width={72} height={72} className="rounded-md" priority />
             <h1 className="text-xl font-semibold text-white">MagickMonkey</h1>
-            <p className="mt-1 text-sm text-[#9aa4b2]">Sign in to open the script editor</p>
-          </div>
+          </Link>
+          <p className="text-center text-sm text-[#9aa4b2]">Sign in to open the script editor</p>
         </div>
 
         <div className="flex flex-col items-center gap-3">

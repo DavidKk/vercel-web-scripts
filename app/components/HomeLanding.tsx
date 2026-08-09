@@ -106,10 +106,10 @@ export default function HomeLanding() {
 
       <header className={`sticky top-0 z-40 border-b backdrop-blur-xl backdrop-saturate-150 ${homeUi.header}`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 rounded-md hover:opacity-90 transition-opacity" aria-label="MagickMonkey home">
             <Image src="/logo.png" alt="MagickMonkey logo" width={32} height={32} className="rounded-md ring-1 ring-[#2a303a]" priority />
             <span className={`text-[15px] ${homeUi.heading}`}>MagickMonkey</span>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
