@@ -1,4 +1,4 @@
-import { applySemverBump, buildReleaseCommitSubject, isReleaseCommitSubject, resolveBumpLevel } from '@shared/version-bump'
+import { applySemverBump, buildReleaseCommitSubject, commitsAfterLastRelease, isReleaseCommitSubject, resolveBumpLevel } from '@shared/version-bump'
 
 describe('version-bump', () => {
   it('should resolve minor when any feat commit is present', () => {
@@ -34,5 +34,11 @@ describe('version-bump', () => {
     expect(isReleaseCommitSubject('chore(release): 0.2.0')).toBe(true)
     expect(isReleaseCommitSubject('chore(release): 0.2.0\n\nbody')).toBe(false)
     expect(buildReleaseCommitSubject('0.2.0')).toBe('chore(release): 0.2.0')
+  })
+
+  it('should only consider commits after the last release', () => {
+    expect(commitsAfterLastRelease(['feat: a', 'chore(release): 0.2.0', 'chore: sync hooks'])).toEqual(['chore: sync hooks'])
+    expect(commitsAfterLastRelease(['feat: a', 'fix: b'])).toEqual(['feat: a', 'fix: b'])
+    expect(commitsAfterLastRelease(['chore(release): 0.2.0'])).toEqual([])
   })
 })

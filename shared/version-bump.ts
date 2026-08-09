@@ -64,6 +64,25 @@ export function applySemverBump(version: string, level: VersionBumpLevel): strin
 }
 
 /**
+ * Keep only commits after the last `chore(release)` in the list (oldest→newest).
+ * @param messages Commit messages oldest→newest
+ * @returns Commits that still need a version bump
+ */
+export function commitsAfterLastRelease(messages: readonly string[]): string[] {
+  let lastReleaseIdx = -1
+  for (let i = 0; i < messages.length; i++) {
+    const subject = (messages[i]?.split('\n', 1)[0] ?? '').trim()
+    if (isReleaseCommitSubject(subject)) {
+      lastReleaseIdx = i
+    }
+  }
+  if (lastReleaseIdx === -1) {
+    return [...messages]
+  }
+  return messages.slice(lastReleaseIdx + 1)
+}
+
+/**
  * Build the conventional release commit subject for a version.
  * @param version Semver string
  * @returns Commit subject

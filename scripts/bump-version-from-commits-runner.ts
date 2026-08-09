@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { applySemverBump, buildReleaseCommitSubject, isReleaseCommitSubject, resolveBumpLevel } from '../shared/version-bump'
+import { applySemverBump, buildReleaseCommitSubject, commitsAfterLastRelease, isReleaseCommitSubject, resolveBumpLevel } from '../shared/version-bump'
 
 const ROOT = path.resolve(__dirname, '..')
 const PACKAGE_JSON_PATH = path.join(ROOT, 'package.json')
@@ -190,21 +190,18 @@ function main(): number {
     return 0
   }
 
-  if (messages.every((m) => isReleaseCommitSubject(m.split('\n', 1)[0] ?? m))) {
+  const pending = commitsAfterLastRelease(messages).filter((m) => {
+    const subject = m.split('\n', 1)[0] ?? m
+    return !isReleaseCommitSubject(subject)
+  })
+
+  if (pending.length === 0) {
     // eslint-disable-next-line no-console -- CLI status
-    console.log(`[version:bump] range ${range} only contains release commits; skip`)
+    console.log(`[version:bump] no commits after last release in ${range}; skip`)
     return 0
   }
 
-  // If HEAD is already a release commit covering prior work, skip.
-  const headSubject = messages[messages.length - 1]?.split('\n', 1)[0] ?? ''
-  if (isReleaseCommitSubject(headSubject)) {
-    // eslint-disable-next-line no-console -- CLI status
-    console.log(`[version:bump] HEAD is already ${headSubject}; skip`)
-    return 0
-  }
-
-  const level = resolveBumpLevel(messages)
+  const level = resolveBumpLevel(pending)
   if (!level) {
     // eslint-disable-next-line no-console -- CLI status
     console.log(`[version:bump] nothing to bump for range ${range}`)
