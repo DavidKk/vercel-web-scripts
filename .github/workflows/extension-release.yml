@@ -30,13 +30,15 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # setup-node@v5 auto-caches via packageManager and needs pnpm on PATH first.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-
-      - name: Enable corepack
-        run: corepack enable
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

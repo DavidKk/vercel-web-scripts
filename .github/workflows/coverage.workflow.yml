@@ -21,14 +21,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      # setup-node@v5 auto-caches via packageManager and needs pnpm on PATH first.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Install NodeJS
         uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node_version }}
-
-      - name: Enable corepack
-        shell: bash
-        run: corepack enable
+          cache: pnpm
 
       - name: Install dependencies
         shell: bash
