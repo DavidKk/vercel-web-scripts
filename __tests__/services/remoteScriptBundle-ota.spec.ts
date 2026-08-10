@@ -18,7 +18,7 @@ describe('remoteScriptBundle OTA tracks', () => {
     }
     const gistFiles = {
       'demo.ts': { content: 'v2' },
-      'releases/demo.ts@1.0.0': { content: 'v1' },
+      'releases.demo.ts@1.0.0': { content: 'v1' },
     }
     expect(resolveScriptSourceForBundleTrack(script, gistFiles, 'stable')).toBe('v1')
   })

@@ -243,7 +243,7 @@ export const SCRIPTS_OPENAPI_V1 = {
         properties: {
           stage: { type: 'string', enum: ['stable', 'alpha'], description: 'SERVER release stage for this script.' },
           autoUpgrade: { type: 'boolean', description: 'Whether clients may auto-apply newer artifact hashes.' },
-          lockedVersion: { type: 'string', description: 'Fleet pin: stable builds use releases/{file}@{version} when set.' },
+          lockedVersion: { type: 'string', description: 'Fleet pin: stable builds use releases.{file}@{version} when set.' },
         },
         required: ['stage', 'autoUpgrade'],
       },

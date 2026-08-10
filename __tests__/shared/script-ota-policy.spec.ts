@@ -16,9 +16,10 @@ describe('script-ota-policy', () => {
     expect(resolveScriptOtaPolicy(undefined, { isNewScript: true })).toEqual(NEW_SCRIPT_OTA_DEFAULTS)
   })
 
-  it('should build release snapshot paths', () => {
-    expect(buildReleaseSnapshotPath('demo.ts', '1.2.0')).toBe('releases/demo.ts@1.2.0')
-    expect(isReleaseSnapshotPath('releases/demo.ts@1.2.0')).toBe(true)
+  it('should build flat Gist-safe release snapshot paths', () => {
+    expect(buildReleaseSnapshotPath('demo.ts', '1.2.0')).toBe('releases.demo.ts@1.2.0')
+    expect(isReleaseSnapshotPath('releases.demo.ts@1.2.0')).toBe(true)
+    expect(isReleaseSnapshotPath('releases/demo.ts@1.2.0')).toBe(false)
     expect(isReleaseSnapshotPath('demo.ts')).toBe(false)
   })
 

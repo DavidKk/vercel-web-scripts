@@ -24,8 +24,11 @@ export interface RuntimeOtaPolicy {
   scriptLoadMode?: RuntimeScriptLoadMode
 }
 
-/** Gist path prefix for immutable release snapshots (`releases/foo.js@1.2.0`). */
-export const RELEASES_PREFIX = 'releases/'
+/**
+ * Gist filename prefix for immutable release snapshots (`releases.foo.js@1.2.0`).
+ * Must be flat (no `/`): GitHub Gist rejects path separators in file keys (HTTP 422).
+ */
+export const RELEASES_PREFIX = 'releases.'
 
 /** Script bundle track served to clients. */
 export type ScriptBundleTrack = 'stable' | 'alpha'
@@ -51,10 +54,10 @@ export const DEFAULT_RUNTIME_OTA: RuntimeOtaPolicy = {
 }
 
 /**
- * Build a releases snapshot path for a managed script filename and semver.
+ * Build a releases snapshot filename for a managed script and semver.
  * @param filename Managed script filename (no slashes)
  * @param version Semver string (used verbatim in the path)
- * @returns Gist path under `releases/`
+ * @returns Flat Gist filename under the `releases.` prefix
  */
 export function buildReleaseSnapshotPath(filename: string, version: string): string {
   const trimmedFile = filename.trim()
@@ -69,9 +72,9 @@ export function buildReleaseSnapshotPath(filename: string, version: string): str
 }
 
 /**
- * Whether a Gist path is a release snapshot (not a managed script entry).
- * @param path Gist file path
- * @returns True when path is under `releases/` with `@version` suffix
+ * Whether a Gist filename is a release snapshot (not a managed script entry).
+ * @param path Gist file name
+ * @returns True when name uses `releases.{file}@{version}`
  */
 export function isReleaseSnapshotPath(path: string): boolean {
   if (!path.startsWith(RELEASES_PREFIX)) {
@@ -83,7 +86,7 @@ export function isReleaseSnapshotPath(path: string): boolean {
     return false
   }
   const filename = rest.slice(0, at)
-  return filename.length > 0 && !filename.includes('/')
+  return filename.length > 0 && !filename.includes('/') && !filename.includes('\\')
 }
 
 /**

@@ -170,7 +170,7 @@ function buildRuntimeSummary() {
       fields: {
         stage: 'stable | alpha — which artifact track clients auto-subscribe to',
         autoUpgrade: 'When false, clients keep cached hash until manual update',
-        lockedVersion: 'Fleet pin to releases/{file}@{version} snapshot',
+        lockedVersion: 'Fleet pin to releases.{file}@{version} snapshot',
       },
       mcpTools: ['scripts_ota_publish_stable', 'scripts_ota_lock_version', 'scripts_ota_unlock_version'],
       restEndpoint: 'POST /api/v1/scripts/{filename}/ota',
@@ -414,7 +414,7 @@ export function buildScriptMcpToolsMap(): Map<string, Tool> {
 
   const otaPublishStable = tool(
     'scripts_ota_publish_stable',
-    'Publish a managed userscript to stable: write releases/{file}@{version} snapshot and set OTA policy stage=stable with autoUpgrade=true. Requires valid @version in the script header.',
+    'Publish a managed userscript to stable: write releases.{file}@{version} snapshot and set OTA policy stage=stable with autoUpgrade=true. Requires valid @version in the script header.',
     z.object({
       filename: z.string().min(1).describe('Managed script filename (e.g. my-script.ts)'),
     }),

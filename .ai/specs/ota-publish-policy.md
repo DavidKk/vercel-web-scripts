@@ -109,29 +109,29 @@ interface RuntimeModuleManifest {
 
 ## 5. 版本快照（单 Gist，非多库）
 
-锁定版本需要可回指的 **不可变内容**。在同一 Gist 使用 `releases/` 前缀：
+锁定版本需要可回指的 **不可变内容**。在同一 Gist 使用扁平 `releases.` 前缀（**不能**用 `/`：GitHub Gist 文件名禁止路径分隔符，否则 PATCH 422）：
 
 ```text
 foo.user.js                    ← 当前工作稿（可为 alpha）
-releases/foo.user.js@1.2.0     ← promote 时写入的快照（不可变约定）
+releases.foo.user.js@1.2.0     ← promote 时写入的快照（不可变约定）
 ```
 
 **路径规则**：
 
-- 文件名模式：`releases/{originalFilename}@{semver}`
-- `isManagedScriptFilename` 已拒绝含 `/` 的路径 → `releases/*` **不会**进入用户脚本枚举或默认编译列表
-- 加入 `EXCLUDED_FILES` 或等价常量，参与快照读写但不参与普通 upsert 列表
+- 文件名模式：`releases.{originalFilename}@{semver}`（扁平 Gist key）
+- 快照名不以 `.ts`/`.js` 结尾（后缀是 `@version`）→ **不会**进入 `isManagedScriptFilename` 用户脚本枚举
+- 参与快照读写但不参与普通 upsert 列表
 
 **操作语义**：
 
 | 操作            | Gist / index 变更                                                                                                    |
 | --------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **保存为调试**  | 更新 `foo.user.js`；`ota.stage=alpha`，`ota.autoUpgrade=false`；不写 releases                                        |
-| **发布 stable** | 复制内容到 `releases/foo.user.js@{@version}`；`ota.stage=stable`，`ota.autoUpgrade=true`；清除或更新 `lockedVersion` |
+| **发布 stable** | 复制内容到 `releases.foo.user.js@{@version}`；`ota.stage=stable`，`ota.autoUpgrade=true`；清除或更新 `lockedVersion` |
 | **锁定版本**    | 设 `ota.lockedVersion` 为当前 stable `@version`；stable 构建从 releases 快照取内容                                   |
 | **解除锁定**    | 清除 `lockedVersion`；stable 构建跟工作稿（须 `stage=stable`）                                                       |
 
-> **与 Gist 历史回滚的关系**：`releases/` 是 **发布快照**（OTA 锁定 / stable 构建）；`tasks/backlog/gist-script-rollback.md` 的 revision 索引是 **编辑历史**。二者互补：promote 写快照；编辑器回滚用 revision API。
+> **与 Gist 历史回滚的关系**：`releases.*` 是 **发布快照**（OTA 锁定 / stable 构建）；`tasks/backlog/gist-script-rollback.md` 的 revision 索引是 **编辑历史**。二者互补：promote 写快照；编辑器回滚用 revision API。
 
 ## 6. SERVER 构建：双 script bundle
 

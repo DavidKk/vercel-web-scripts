@@ -14,7 +14,14 @@ import { buildWithGlobalExecutionSandbox } from '@shared/with-global-sandbox'
 
 import { isExtensionPageContext } from '@/helpers/env'
 import { GME_fetch } from '@/helpers/http'
-import { getLauncherBootstrapCacheScope, parseStaticKeyFromScriptUrl, readLauncherScriptKey, resolveLauncherScriptUrl, shortUrlLabel } from '@/helpers/launcher-script-url'
+import {
+  buildDefaultRemoteScriptUrl,
+  getLauncherBootstrapCacheScope,
+  parseStaticKeyFromScriptUrl,
+  readLauncherScriptKey,
+  resolveLauncherScriptUrl,
+  shortUrlLabel,
+} from '@/helpers/launcher-script-url'
 import { GME_debug, GME_fail, GME_ok } from '@/helpers/logger'
 import { GME_sha1 } from '@/helpers/utils'
 import { getGlobalRulesSnapshot, getRulesCacheStats } from '@/rules'
@@ -52,6 +59,38 @@ function getRemoteScriptCacheKeys(): { content: string; etag: string } {
     content: `${REMOTE_SCRIPT_CACHE_KEY}:${scope}`,
     etag: `${REMOTE_SCRIPT_ETAG_KEY}:${scope}`,
   }
+}
+
+/**
+ * Whether cached remote content has no compiled GIST modules (empty stable stub / stale hash body).
+ * @param content Remote bundle text
+ * @returns True when module marker count is zero
+ */
+function isRemoteBundleWithoutModules(content: string): boolean {
+  return countCompiledRemoteModules(content) === 0
+}
+
+/**
+ * Prefer unversioned remote URL when a content-addressed path is stale (404).
+ * Preserves stable vs alpha artifact name from the versioned URL.
+ * @param url Current script-bundle URL
+ * @returns Fallback URL or empty string when unavailable / same as input
+ */
+function resolveUnversionedRemoteScriptFallback(url: string): string {
+  const match = url.match(/\/([a-f0-9]{40})\/(tampermonkey-remote(?:\.alpha)?\.js)(?:$|[?#])/i)
+  if (!match) {
+    return ''
+  }
+  const file = match[2]
+  const baseDefault = buildDefaultRemoteScriptUrl()
+  if (!baseDefault) {
+    return ''
+  }
+  const fallback = baseDefault.replace(/\/tampermonkey-remote\.js(?:$|[?#])/, `/${file}`)
+  if (!fallback || fallback === url) {
+    return ''
+  }
+  return fallback
 }
 
 function normalizeRemoteEtag(etag: string): string {
@@ -373,10 +412,19 @@ async function refreshRemoteScriptInBackground(url: string, previousCache: Remot
     if (previousCache?.etag) {
       headers['If-None-Match'] = previousCache.etag
     }
-    const response = await GME_fetch(url, { method: 'GET', headers })
+    let requestUrl = url
+    let response = await GME_fetch(requestUrl, { method: 'GET', headers })
     if (response.status === 304) {
       GME_debug('[Remote script] refresh:not-modified')
       return
+    }
+    if (!response.ok) {
+      const fallbackUrl = resolveUnversionedRemoteScriptFallback(requestUrl)
+      if (fallbackUrl) {
+        GME_debug(`[Remote script] refresh:stale-hash status=${response.status} fallback=${shortUrlLabel(fallbackUrl)}`)
+        requestUrl = fallbackUrl
+        response = await GME_fetch(requestUrl, { method: 'GET' })
+      }
     }
     if (!response.ok) {
       GME_debug(`[Remote script] refresh:skip status=${response.status}`)
@@ -420,15 +468,21 @@ export async function executeRemoteScript(url?: string): Promise<void> {
 
   if (cached?.content && isShellNetworkEffectivelyEnabled()) {
     const executable = prepareRemoteBundleContent(cached.content)
-    GME_debug(`[Remote script] load:cache-first bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} rules=${getRulesCacheStats().ruleCount}`)
-    GME_debug(`[Remote script] execute:start bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} scripts=${getRulesCacheStats().scriptCount}`)
-    GME_ok('Remote script ready.')
-    await executeScript(executable)
-    void refreshRemoteScriptInBackground(scriptUrl, cached)
-    return
+    if (!isRemoteBundleWithoutModules(executable)) {
+      GME_debug(`[Remote script] load:cache-first bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} rules=${getRulesCacheStats().ruleCount}`)
+      GME_debug(`[Remote script] execute:start bytes=${executable.length} modules=${countCompiledRemoteModules(executable)} scripts=${getRulesCacheStats().scriptCount}`)
+      GME_ok('Remote script ready.')
+      await executeScript(executable)
+      void refreshRemoteScriptInBackground(scriptUrl, cached)
+      return
+    }
+    GME_debug(`[Remote script] load:cache-bypass empty-modules bytes=${executable.length} — refetch remote bundle`)
   }
 
   let content: string | null = cached?.content ?? null
+  if (content && isRemoteBundleWithoutModules(content) && isShellNetworkEffectivelyEnabled()) {
+    content = null
+  }
   if (!isShellNetworkEffectivelyEnabled()) {
     if (content) {
       GME_debug('[Remote script] Shell network off, using cached remote script')
@@ -450,16 +504,40 @@ export async function executeRemoteScript(url?: string): Promise<void> {
   } else {
     GME_debug('[Remote script] load:remote-first no local cache — fetch from server before execute url=' + shortUrlLabel(scriptUrl, 120))
     try {
-      const fetched = await fetchScript(scriptUrl)
+      let fetched = await fetchScript(scriptUrl)
+      if (!fetched || isRemoteBundleWithoutModules(fetched)) {
+        const fallbackUrl = resolveUnversionedRemoteScriptFallback(scriptUrl)
+        if (fallbackUrl) {
+          GME_debug(`[Remote script] load:remote-first stale-or-empty fallback=${shortUrlLabel(fallbackUrl)}`)
+          fetched = await fetchScript(fallbackUrl)
+        }
+      }
       if (fetched) {
         content = prepareRemoteBundleContent(fetched)
         writeRemoteScriptCache(content, '')
         GME_debug(`[Remote script] load:remote-first fetch:success bytes=${content.length}`)
       }
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error)
-      GME_fail('[Remote script] Fetch failed: ' + msg)
-      return
+      const fallbackUrl = resolveUnversionedRemoteScriptFallback(scriptUrl)
+      if (fallbackUrl) {
+        try {
+          GME_debug(`[Remote script] load:remote-first fetch-error fallback=${shortUrlLabel(fallbackUrl)}`)
+          const fetched = await fetchScript(fallbackUrl)
+          if (fetched) {
+            content = prepareRemoteBundleContent(fetched)
+            writeRemoteScriptCache(content, '')
+            GME_debug(`[Remote script] load:remote-first fetch:success bytes=${content.length}`)
+          }
+        } catch (fallbackError: unknown) {
+          const msg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+          GME_fail('[Remote script] Fetch failed: ' + msg)
+          return
+        }
+      } else {
+        const msg = error instanceof Error ? error.message : String(error)
+        GME_fail('[Remote script] Fetch failed: ' + msg)
+        return
+      }
     }
   }
 

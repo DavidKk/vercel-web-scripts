@@ -267,7 +267,7 @@ Each managed script may carry an `ota` block in `magickmonkey.scripts.index.json
 | --------------- | -------------------------------------------------------------------- |
 | `stage`         | `stable` or `alpha` — which artifact track clients auto-subscribe to |
 | `autoUpgrade`   | When `false`, clients keep cached hash until manual update           |
-| `lockedVersion` | Fleet pin to `releases/{file}@{version}` snapshot                    |
+| `lockedVersion` | Fleet pin to `releases.{file}@{version}` snapshot                    |
 
 **MCP tools**
 
