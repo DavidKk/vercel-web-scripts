@@ -79,7 +79,7 @@ playwright/.cache
 .playwright-extension-screenshot-profile
 
 # Cursor local MCP config
-.cursor/mcp.json
+.agents/mcp.json
 
 # Stray TypeScript emit beside .ts sources (Jest resolves .js first and breaks tests)
 shared/**/*.js
