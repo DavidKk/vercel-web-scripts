@@ -5,9 +5,7 @@ import type { AgentLlmConfig, AgentLlmGenerateResult, AgentLlmMessage, AgentLlmM
 export const OFFICIAL_ANTHROPIC_API_ROOT = 'https://api.anthropic.com'
 
 type AnthropicContent =
-  | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; tool_use_id: string; content: string }
+  { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } | { type: 'tool_result'; tool_use_id: string; content: string }
 
 type AnthropicMessage = {
   role: 'user' | 'assistant'

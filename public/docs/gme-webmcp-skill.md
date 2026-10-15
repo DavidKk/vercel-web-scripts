@@ -62,12 +62,7 @@ Site-native WebMCP tools (no `vws.` prefix) are separate; the extension Agent de
 
 ```typescript
 const controller = new AbortController()
-void GME_registerWebMcpTool(
-  {
-    /* ... */
-  },
-  { signal: controller.signal }
-)
+void GME_registerWebMcpTool({/* ... */}, { signal: controller.signal })
 // later: controller.abort() unregisters
 ```
 

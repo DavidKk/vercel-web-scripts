@@ -178,7 +178,7 @@ export async function runAgentLoop(input: {
       throw new Error('LLM request failed.')
     }
 
-    const { content, toolCalls } = response.agentLlm
+    const { content, toolCalls, emptyReason } = response.agentLlm
     const contentText = typeof content === 'string' ? content.trim() : ''
 
     if (contentText) {
@@ -221,8 +221,12 @@ export async function runAgentLoop(input: {
         return
       }
 
-      emitStatus(input.onEvent, 'Finishing…', 'The model returned an empty answer.')
-      input.onEvent({ type: 'error', message: 'The model returned an empty answer. Try again or switch models.' })
+      const detail = emptyReason?.trim() || 'No text or tool calls in the model response.'
+      emitStatus(input.onEvent, 'Finishing…', `Empty answer. ${detail}`)
+      input.onEvent({
+        type: 'error',
+        message: `The model returned an empty answer (${detail}). Check MagickMonkey Logs (scope AgentLLM), then try again or switch models.`,
+      })
       input.onEvent({ type: 'done' })
       return
     }

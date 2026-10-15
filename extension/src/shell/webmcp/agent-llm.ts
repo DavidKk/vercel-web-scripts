@@ -1,5 +1,6 @@
+import { createExtensionLogger } from '../../shared/logger'
 import { generateAnthropicAgentLlmResponse, listAnthropicAgentModels } from './agent-llm-anthropic'
-import { parseGeminiResponse, toGeminiContents, toGeminiToolDeclarations } from './agent-llm-gemini-messages'
+import { buildGeminiGenerationConfig, parseGeminiResponse, summarizeGeminiResponseForLog, toGeminiContents, toGeminiToolDeclarations } from './agent-llm-gemini-messages'
 import { buildGeminiGenerateContentUrl, buildGeminiListModelsUrl, resolveGeminiApiRoot } from './agent-llm-gemini-url'
 import { generateOllamaAgentLlmResponse, listOllamaAgentModels } from './agent-llm-ollama'
 import { generateOpenAiAgentLlmResponse, listOpenAiAgentModels } from './agent-llm-openai'
@@ -7,6 +8,25 @@ import { isAgentLlmProviderId } from './agent-llm-providers'
 import { buildAgentLlmFetchHeaders, normalizeProxyHeaders } from './agent-llm-proxy-headers'
 import type { AgentLlmConfig, AgentLlmGenerateResult, AgentLlmMessage, AgentLlmModelInfo, AgentLlmToolDefinition } from './agent-types'
 import { DEFAULT_AGENT_LLM_CONFIG, VWS_AGENT_LLM_CONFIG_KEY } from './agent-types'
+
+const agentLlmLogger = createExtensionLogger('AgentLLM')
+
+/**
+ * Redact API key query params before writing request URLs to logs.
+ * @param url Full request URL
+ * @returns URL safe for logs
+ */
+function redactAgentLlmRequestUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    if (parsed.searchParams.has('key')) {
+      parsed.searchParams.set('key', '[redacted]')
+    }
+    return parsed.toString()
+  } catch {
+    return url.replace(/([?&]key=)[^&]*/gi, '$1[redacted]')
+  }
+}
 
 /** Optional unsaved form overrides for models.list. */
 export type AgentLlmListModelsOverrides = {
@@ -75,25 +95,34 @@ async function generateGeminiAgentLlmResponse(input: {
     throw new Error('Gemini API key is not configured. Open Agent settings in the side panel.')
   }
 
+  const model = input.config.model.trim()
+  if (!model) {
+    throw new Error('Select a model next to Send before chatting.')
+  }
+
   const body: Record<string, unknown> = {
     contents: toGeminiContents(input.messages),
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 4096,
-    },
+    generationConfig: buildGeminiGenerationConfig(model),
   }
 
   if (input.tools && input.tools.length > 0) {
     body.tools = [{ functionDeclarations: toGeminiToolDeclarations(input.tools) }]
     body.toolConfig = { functionCallingConfig: { mode: 'AUTO' } }
   }
-
-  const model = input.config.model.trim()
-  if (!model) {
-    throw new Error('Select a model next to Send before chatting.')
-  }
   const root = resolveGeminiApiRoot(input.config)
-  const response = await fetch(buildGeminiGenerateContentUrl(root, model, input.config.apiKey), {
+  const requestUrl = buildGeminiGenerateContentUrl(root, model, input.config.apiKey)
+  const headerNames = Object.keys(
+    buildAgentLlmFetchHeaders({
+      proxyEnabled: input.config.proxyEnabled,
+      proxyHeaders: input.config.proxyHeaders,
+      contentType: 'application/json',
+    })
+  )
+  agentLlmLogger.info(
+    `Gemini generate → ${redactAgentLlmRequestUrl(requestUrl)} model=${model} tools=${input.tools?.length ?? 0} proxy=${Boolean(input.config.proxyEnabled)} headers=${headerNames.join(',') || 'none'} generationConfig=${JSON.stringify(body.generationConfig)}`
+  )
+
+  const response = await fetch(requestUrl, {
     method: 'POST',
     headers: buildAgentLlmFetchHeaders({
       proxyEnabled: input.config.proxyEnabled,
@@ -105,11 +134,16 @@ async function generateGeminiAgentLlmResponse(input: {
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText)
+    agentLlmLogger.error(`Gemini generate failed status=${response.status} body=${errorText.slice(0, 500)}`)
     throw new Error(readProviderApiErrorMessage(errorText) ?? `Gemini API error: ${response.status} ${errorText}`)
   }
 
   const data = (await response.json()) as Parameters<typeof parseGeminiResponse>[0]
+  agentLlmLogger.info(`Gemini generate ← ${summarizeGeminiResponseForLog(data)}`)
   const parsed = parseGeminiResponse(data)
+  if (parsed.emptyReason) {
+    agentLlmLogger.warn(`Gemini empty answer: ${parsed.emptyReason}`)
+  }
   return { ...parsed, requestId: input.requestId }
 }
 

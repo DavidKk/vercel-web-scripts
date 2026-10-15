@@ -198,12 +198,12 @@ Web publishes rules; extension stores local RULE in Options + optional API sync.
 
 ### 3.4 Runtime state (`chrome.storage`)
 
-| Key                         | Purpose                                                                               |
+| Key | Purpose |
 | --------------------------- | ------------------------------------------------------------------------------------- | ---------------- |
-| `vws_extension_config`      | `baseUrl`, `scriptKey`, `developMode`                                                 |
-| `vws_shell_network_enabled` | OTA network                                                                           |
-| `vws_script_enabled:<name>` | Global script switch                                                                  | **Scripts page** |
-| `vws_*` cache keys          | From `shared/launcher-constants.ts` — preset expects these names when bridged to page |
+| `vws_extension_config` | `baseUrl`, `scriptKey`, `developMode` |
+| `vws_shell_network_enabled` | OTA network |
+| `vws_script_enabled:<name>` | Global script switch | **Scripts page** |
+| `vws_*` cache keys | From `shared/launcher-constants.ts` — preset expects these names when bridged to page |
 
 ### 3.5 Page APIs (`GM_*` / `GME_*`)
 

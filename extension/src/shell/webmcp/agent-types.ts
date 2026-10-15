@@ -55,6 +55,11 @@ export interface AgentLlmGenerateResult {
   requestId: string
   content?: string
   toolCalls?: AgentLlmToolCall[]
+  /**
+   * Present when the provider returned HTTP 200 but no text/tool calls.
+   * Surfaced in the Agent UI / logs for debugging empty answers.
+   */
+  emptyReason?: string
 }
 
 /** Model option returned by provider models.list for the settings picker. */

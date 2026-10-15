@@ -105,6 +105,50 @@ export function toGeminiFunctionResponsePayload(result: unknown): Record<string,
   return { result: result ?? null }
 }
 
+/** JSON Schema keys Gemini functionDeclarations.parameters reject (proto Schema subset). */
+const GEMINI_PARAMETERS_STRIP_KEYS = new Set([
+  'additionalProperties',
+  '$schema',
+  '$id',
+  '$ref',
+  '$defs',
+  'definitions',
+  'examples',
+  'default',
+  'unevaluatedProperties',
+  'patternProperties',
+])
+
+/**
+ * Strip JSON Schema fields Gemini's function-calling Schema does not accept.
+ * WebMCP / page tools often set `additionalProperties: false`, which causes Gemini 400.
+ * @param schema Candidate parameters object
+ * @returns Sanitized parameters object
+ */
+export function sanitizeGeminiFunctionParameters(schema: unknown): Record<string, unknown> {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    return { type: 'object', properties: {} }
+  }
+  return sanitizeGeminiSchemaNode(schema) as Record<string, unknown>
+}
+
+function sanitizeGeminiSchemaNode(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeGeminiSchemaNode(entry))
+  }
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+  const out: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (GEMINI_PARAMETERS_STRIP_KEYS.has(key)) {
+      continue
+    }
+    out[key] = sanitizeGeminiSchemaNode(child)
+  }
+  return out
+}
+
 /**
  * Map Agent tool definitions to Gemini functionDeclarations.
  * @param tools Tool definitions
@@ -114,8 +158,85 @@ export function toGeminiToolDeclarations(tools: AgentLlmToolDefinition[]): Array
   return tools.map((tool) => ({
     name: tool.name,
     description: tool.description ?? '',
-    parameters: tool.parameters ?? { type: 'object', properties: {} },
+    parameters: sanitizeGeminiFunctionParameters(tool.parameters ?? { type: 'object', properties: {} }),
   }))
+}
+
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: { parts?: GeminiPart[] }
+    finishReason?: string
+  }>
+  promptFeedback?: { blockReason?: string }
+  error?: { message?: string }
+  /** Some Gemini proxies return HTTP 200 with this envelope instead of Gemini `error`. */
+  success?: boolean
+  message?: string
+  usageMetadata?: {
+    thoughtsTokenCount?: number
+    candidatesTokenCount?: number
+    promptTokenCount?: number
+    totalTokenCount?: number
+  }
+}
+
+/**
+ * Compact Gemini response summary for debug logs (no raw thought signatures / long text).
+ * @param data Raw generateContent JSON
+ * @returns Single-line summary
+ */
+export function summarizeGeminiResponseForLog(data: GeminiGenerateContentResponse): string {
+  const candidate = data.candidates?.[0]
+  const parts = candidate?.content?.parts ?? []
+  const partKinds = parts.map((part) => {
+    if (part.functionCall?.name) {
+      return `functionCall:${part.functionCall.name}`
+    }
+    if (typeof part.text === 'string') {
+      return `text:${part.text.length}`
+    }
+    if (readGeminiThoughtSignature(part)) {
+      return 'thoughtSignature'
+    }
+    return 'other'
+  })
+  return JSON.stringify({
+    finishReason: candidate?.finishReason ?? null,
+    candidateCount: data.candidates?.length ?? 0,
+    parts: partKinds,
+    usage: data.usageMetadata ?? null,
+    blockReason: data.promptFeedback?.blockReason ?? null,
+    error: data.error?.message ?? null,
+    proxySuccess: data.success ?? null,
+    proxyMessage: typeof data.message === 'string' ? data.message.slice(0, 300) : null,
+  })
+}
+
+/**
+ * Build generateContent `generationConfig` for the selected Gemini model.
+ * Gemini 2.5+ counts thinking tokens against `maxOutputTokens`; when the budget is
+ * exhausted the API often returns MAX_TOKENS with no `content` (empty Agent answer).
+ * @param model Selected model id
+ * @returns generationConfig object for the request body
+ */
+export function buildGeminiGenerationConfig(model: string): Record<string, unknown> {
+  const id = model.trim().toLowerCase()
+  const generationConfig: Record<string, unknown> = {
+    temperature: 0.4,
+    // Leave headroom for answer tokens after any thinking budget.
+    maxOutputTokens: 16384,
+  }
+
+  // 2.5 Flash/Flash-Lite can disable thinking; 2.5 Pro cannot (minimum budget 128).
+  if (id.includes('gemini-2.5') || id.includes('gemini-3')) {
+    if (id.includes('pro')) {
+      generationConfig.thinkingConfig = { thinkingBudget: 1024 }
+    } else {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 }
+    }
+  }
+
+  return generationConfig
 }
 
 /**
@@ -123,12 +244,17 @@ export function toGeminiToolDeclarations(tools: AgentLlmToolDefinition[]): Array
  * @param data Raw JSON body from Gemini
  * @returns Normalized generate result (requestId placeholder UUID)
  */
-export function parseGeminiResponse(data: { candidates?: Array<{ content?: { parts?: GeminiPart[] } }>; error?: { message?: string } }): AgentLlmGenerateResult {
+export function parseGeminiResponse(data: GeminiGenerateContentResponse): AgentLlmGenerateResult {
   if (data.error?.message) {
     throw new Error(data.error.message)
   }
+  // Proxies (e.g. Gemini Relay) may keep HTTP 200 and wrap upstream failures.
+  if (data.success === false && typeof data.message === 'string' && data.message.trim()) {
+    throw new Error(data.message.trim())
+  }
 
-  const parts = data.candidates?.[0]?.content?.parts ?? []
+  const candidate = data.candidates?.[0]
+  const parts = candidate?.content?.parts ?? []
   const textParts: string[] = []
   const toolCalls: AgentLlmToolCall[] = []
 
@@ -146,9 +272,52 @@ export function parseGeminiResponse(data: { candidates?: Array<{ content?: { par
     }
   }
 
+  const content = textParts.join('\n').trim() || undefined
+  const normalizedToolCalls = toolCalls.length > 0 ? toolCalls : undefined
+  const finishReason = String(candidate?.finishReason ?? '')
+    .trim()
+    .toUpperCase()
+  const blockReason = String(data.promptFeedback?.blockReason ?? '').trim()
+
+  if (!content && !normalizedToolCalls) {
+    if (blockReason) {
+      throw new Error(`Gemini blocked the prompt (${blockReason}).`)
+    }
+    if (!data.candidates?.length) {
+      throw new Error('Gemini returned no candidates. Check admin Logs (scope AgentLLM) or the service worker console.')
+    }
+    if (finishReason === 'MAX_TOKENS') {
+      const thoughts = data.usageMetadata?.thoughtsTokenCount
+      throw new Error(
+        typeof thoughts === 'number' && thoughts > 0
+          ? `Gemini hit maxOutputTokens while thinking (${thoughts} thought tokens) and returned no answer. Disable or limit thinking, or raise max output tokens.`
+          : 'Gemini hit maxOutputTokens and returned no answer. Disable or limit thinking, or raise max output tokens.'
+      )
+    }
+
+    const partKinds = parts.map((part) => {
+      if (part.functionCall?.name) {
+        return `functionCall:${part.functionCall.name}`
+      }
+      if (typeof part.text === 'string') {
+        return part.text.trim() ? `text:${part.text.length}` : 'text:empty'
+      }
+      if (readGeminiThoughtSignature(part)) {
+        return 'thoughtSignature'
+      }
+      return 'other'
+    })
+    return {
+      requestId: crypto.randomUUID(),
+      content: undefined,
+      toolCalls: undefined,
+      emptyReason: `finishReason=${finishReason || 'none'}; parts=[${partKinds.join(',') || 'none'}]; thoughts=${data.usageMetadata?.thoughtsTokenCount ?? 0}`,
+    }
+  }
+
   return {
     requestId: crypto.randomUUID(),
-    content: textParts.join('\n').trim() || undefined,
-    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    content,
+    toolCalls: normalizedToolCalls,
   }
 }

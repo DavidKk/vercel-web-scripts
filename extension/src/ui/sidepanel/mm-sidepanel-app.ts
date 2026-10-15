@@ -74,7 +74,7 @@ export class MmSidepanelApp extends HTMLElement {
     void this.refreshActiveTab().then(() => this.refreshWebMcpToolsStatus())
   }
 
-  private onTabUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo): void => {
+  private onTabUpdated = (tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo): void => {
     if (tabId !== this.activeTabId) {
       return
     }

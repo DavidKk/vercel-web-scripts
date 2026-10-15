@@ -30,7 +30,7 @@ export function isCaptureVisibleTabQuotaError(error: unknown): boolean {
   return msg.includes('MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND')
 }
 
-function invokeCaptureVisibleTab(windowId: number, options: chrome.tabs.CaptureVisibleTabOptions): Promise<string> {
+function invokeCaptureVisibleTab(windowId: number, options: chrome.extensionTypes.ImageDetails): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       chrome.tabs.captureVisibleTab(windowId, options, (dataUrl) => {
@@ -51,7 +51,7 @@ function invokeCaptureVisibleTab(windowId: number, options: chrome.tabs.CaptureV
   })
 }
 
-async function captureVisibleTabWithQuotaRetry(windowId: number, options: chrome.tabs.CaptureVisibleTabOptions): Promise<string> {
+async function captureVisibleTabWithQuotaRetry(windowId: number, options: chrome.extensionTypes.ImageDetails): Promise<string> {
   let lastError: unknown
   for (let attempt = 0; attempt < CAPTURE_QUOTA_MAX_RETRIES; attempt++) {
     try {
@@ -122,7 +122,7 @@ class CaptureVisibleTabGate {
  * @param options Capture format/quality
  * @returns PNG/JPEG data URL
  */
-export async function captureVisibleTabThrottled(windowId: number, options: chrome.tabs.CaptureVisibleTabOptions = { format: 'png' }): Promise<string> {
+export async function captureVisibleTabThrottled(windowId: number, options: chrome.extensionTypes.ImageDetails = { format: 'png' }): Promise<string> {
   return CaptureVisibleTabGate.getInstance().enqueue(() => captureVisibleTabWithQuotaRetry(windowId, options))
 }
 
