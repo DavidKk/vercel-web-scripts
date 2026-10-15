@@ -125,7 +125,7 @@
     "ts-patch": "^3.2.1",
     "tsd-lite": "^0.9.0",
     "typescript": "^5.7.2",
-    "typescript-transform-paths": "^3.4.7",
+    "typescript-transform-paths": "^4.0.0",
     "vite": "^6.0.0"
   },
   "packageManager": "pnpm@11.22.0"
