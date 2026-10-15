@@ -33,7 +33,6 @@ export function getPageToolDefinitions(): PageToolDefinition[] {
             description: 'Reserved; currently ignored — full-page interactive map is always returned.',
           },
         },
-        additionalProperties: false,
       },
       execute: (adapter, input) => {
         void input.viewportOnly
@@ -49,7 +48,6 @@ export function getPageToolDefinitions(): PageToolDefinition[] {
       inputSchema: {
         type: 'object',
         properties: {},
-        additionalProperties: false,
       },
       execute: (adapter) => adapter.outline(),
     },
@@ -62,7 +60,6 @@ export function getPageToolDefinitions(): PageToolDefinition[] {
       inputSchema: {
         type: 'object',
         properties: {},
-        additionalProperties: false,
       },
       execute: (adapter) => adapter.pageMeta(),
     },
@@ -77,7 +74,6 @@ export function getPageToolDefinitions(): PageToolDefinition[] {
         properties: {
           index: { type: 'integer', minimum: 0 },
         },
-        additionalProperties: false,
       },
       execute: (adapter, input) => {
         const index = asIndex(input.index)
@@ -98,9 +94,8 @@ export function getPageToolDefinitions(): PageToolDefinition[] {
         properties: {
           index: { type: 'integer', minimum: 0 },
           text: { type: 'string', maxLength: 8000 },
-          clear: { type: 'boolean', default: true },
+          clear: { type: 'boolean' },
         },
-        additionalProperties: false,
       },
       execute: (adapter, input) => {
         const index = asIndex(input.index)
@@ -121,11 +116,10 @@ export function getPageToolDefinitions(): PageToolDefinition[] {
       inputSchema: {
         type: 'object',
         properties: {
-          down: { type: 'boolean', default: true },
-          numPages: { type: 'number', minimum: 0.1, maximum: 10, default: 1 },
+          down: { type: 'boolean' },
+          numPages: { type: 'number', minimum: 0.1, maximum: 10 },
           index: { type: 'integer', minimum: 0 },
         },
-        additionalProperties: false,
       },
       execute: (adapter, input) => {
         const index = input.index === undefined ? undefined : asIndex(input.index)
