@@ -19,11 +19,11 @@ jobs:
         os: [macOS-latest]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # pnpm 11+: pnpm/setup (node24). Avoid pnpm/action-setup@v4 (node20 deprecation).
       - name: Setup pnpm and Node.js
-        uses: pnpm/setup@v2
+        uses: pnpm/setup@v3
         with:
           runtime: node@${{ matrix.node_version }}
           cache: true
