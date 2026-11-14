@@ -1,4 +1,4 @@
-import { serialize } from 'cookie'
+import { stringifySetCookie } from 'cookie'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -56,9 +56,9 @@ export async function GET(request: Request) {
 
   /** Append clearing cookies for VF2FA flow (non-httpOnly mirrors client-set cookies). */
   function appendClearVF2FACookies(headers: Headers) {
-    headers.append('Set-Cookie', serialize(VF2FA_OAUTH_STATE_COOKIE, '', { path: '/', maxAge: 0 }))
-    headers.append('Set-Cookie', serialize(VF2FA_NEXT_COOKIE, '', { path: '/', maxAge: 0 }))
-    headers.append('Set-Cookie', serialize(VF2FA_REMEMBER_ME_COOKIE, '', { path: '/', maxAge: 0 }))
+    headers.append('Set-Cookie', stringifySetCookie({ name: VF2FA_OAUTH_STATE_COOKIE, value: '', path: '/', maxAge: 0 }))
+    headers.append('Set-Cookie', stringifySetCookie({ name: VF2FA_NEXT_COOKIE, value: '', path: '/', maxAge: 0 }))
+    headers.append('Set-Cookie', stringifySetCookie({ name: VF2FA_REMEMBER_ME_COOKIE, value: '', path: '/', maxAge: 0 }))
   }
 
   if (!state || !expectedState || state !== expectedState) {
@@ -114,12 +114,7 @@ export async function GET(request: Request) {
 
   const maxAge = getSessionMaxAge(rememberMe)
   const authToken = await generateToken(sessionPayload, { expiresIn: maxAge })
-  const authCookie = serialize(AUTH_TOKEN_NAME, authToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge,
-    path: '/',
-  })
+  const authCookie = stringifySetCookie({ name: AUTH_TOKEN_NAME, value: authToken, httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge, path: '/' })
 
   const nextPath = safeRelativePath(nextRaw, '/editor')
   const target = new URL(nextPath, url.origin)
