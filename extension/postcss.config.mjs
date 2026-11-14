@@ -6,8 +6,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /** @type {import('postcss-load-config').Config} */
 export default {
   plugins: {
-    tailwindcss: {
-      config: path.join(__dirname, 'tailwind.config.ts'),
+    // Tailwind v4: config is referenced from CSS via `@config` (see src/ui/tailwind.css).
+    '@tailwindcss/postcss': {
+      base: __dirname,
     },
   },
 }

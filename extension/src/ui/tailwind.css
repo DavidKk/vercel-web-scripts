@@ -1,3 +1,6 @@
+/* Tailwind v4: preflight stays off (extension/tailwind.config.ts used `corePlugins.preflight: false`). */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
 @import './styles/base-preflight.css';
 @import './styles/components-shell-admin.css';
 @import './styles/components-permissions.css';
@@ -9,6 +12,5 @@
 @import './styles/components-widgets.css';
 @import './styles/components-sidepanel.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config '../../tailwind.config.ts';
+@source '../**/*.{ts,html,ejs}';
