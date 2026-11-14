@@ -86,6 +86,7 @@
     "@jest/types": "^29.6.3",
     "@lezer/highlight": "^1.2.5",
     "@playwright/test": "^1.65.0",
+    "@tailwindcss/postcss": "^4.3.5",
     "@types/chalk": "^2.2.0",
     "@types/chrome": "^0.3.7",
     "@types/dompurify": "^3.2.0",

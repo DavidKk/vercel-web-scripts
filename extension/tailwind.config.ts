@@ -35,10 +35,8 @@ const mmPalette = {
 
 export default {
   content: [path.join(__dirname, 'src/**/*.{ts,html,ejs}')],
-  safelist: ['mm-script-stage-badge--stable', 'mm-script-stage-badge--alpha'],
-  corePlugins: {
-    preflight: false,
-  },
+  // Tailwind v4: `safelist`/`corePlugins` are not supported in JS config. Preflight is
+  // omitted in src/ui/tailwind.css; `@layer components` classes are never purged in v4.
   theme: {
     extend: {
       colors: {
