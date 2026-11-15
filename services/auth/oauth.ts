@@ -1,4 +1,4 @@
-import { serialize } from 'cookie'
+import { stringifySetCookie } from 'cookie'
 
 import { generateToken, type JWTPayload, verifyJwtWithSecret } from '@/utils/jwt'
 
@@ -37,7 +37,9 @@ export async function exchangeOAuthSession(token: string) {
     sub: username,
   })
 
-  const cookie = serialize(AUTH_TOKEN_NAME, sessionToken, {
+  const cookie = stringifySetCookie({
+    name: AUTH_TOKEN_NAME,
+    value: sessionToken,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: COOKIE_MAX_AGE,

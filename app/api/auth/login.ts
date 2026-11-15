@@ -1,6 +1,6 @@
 'use server'
 
-import { serialize } from 'cookie'
+import { stringifySetCookie } from 'cookie'
 
 import { verify2fa } from '@/services/2fa'
 import { AUTH_TOKEN_NAME } from '@/services/auth/constants'
@@ -29,12 +29,7 @@ export async function login(username: string, password: string, token: string, r
 
   const maxAge = getSessionMaxAge(rememberMe)
   const authToken = await generateToken({ authenticated: true, sub: username }, { expiresIn: maxAge })
-  const cookie = serialize(AUTH_TOKEN_NAME, authToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge,
-    path: '/',
-  })
+  const cookie = stringifySetCookie({ name: AUTH_TOKEN_NAME, value: authToken, httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge, path: '/' })
 
   return { cookie }
 }
